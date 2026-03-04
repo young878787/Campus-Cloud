@@ -6,6 +6,7 @@
   "tabs": {
     "myProfile": "マイプロフィール",
     "password": "パスワード",
+    "operationRecords": "操作記録",
     "dangerZone": "危険ゾーン"
   },
   "profile": {
@@ -62,7 +63,27 @@
       "confirmPassword": "パスワード確認",
       "isSuperuser": "スーパーユーザーですか？",
       "isActive": "有効ですか？"
+    },
+    "auditLogs": {
+      "title": "操作ログ",
+      "description": "すべてのシステム操作記録を表示",
+      "allRecords": "すべての操作記録",
+      "showing": "表示中",
+      "records": "件の記録",
+      "filterByVMID": "VMIDで絞り込み...",
+      "allActions": "すべてのアクション",
+      "vmid": "VMID",
+      "ipAddress": "IPアドレス",
+      "page": "ページ",
+      "userCreate": "ユーザー作成"
     }
+  },
+  "operationRecords": {
+    "title": "マイ操作記録",
+    "description": "すべての操作履歴を表示",
+    "records": "件の記録",
+    "noRecords": "操作記録が見つかりません",
+    "clickToView": "VMIDをクリックしてリソース詳細を表示"
   },
   "appearance": {
     "title": "外観",

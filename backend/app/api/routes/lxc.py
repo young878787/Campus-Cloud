@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from app.api.deps import CurrentUser, LxcInfoDep, SessionDep
 from app.core.config import settings
 from app.core.proxmox import basic_blocking_task_status, get_proxmox_api
+from app.crud import audit_log as audit_log_crud
 from app.crud import resource as resource_crud
 from app.models import (
     LXCCreateResponse,
@@ -112,6 +113,15 @@ def create_lxc(
             os_info=lxc_data.os_info,
             expiry_date=lxc_data.expiry_date,
             template_id=None,
+        )
+
+        # Record audit log
+        audit_log_crud.create_audit_log(
+            session=session,
+            user_id=current_user.id,
+            vmid=vmid,
+            action="lxc_create",
+            details=f"Created LXC container '{lxc_data.hostname}': {lxc_data.cores} cores, {lxc_data.memory}MB RAM, {lxc_data.rootfs_size}GB disk",
         )
 
         logger.info(f"Created LXC container {vmid}: {lxc_data.hostname}")

@@ -9,7 +9,9 @@ export type UserTableData = UserPublic & {
   isCurrentUser: boolean
 }
 
-export const createColumns = (t: TFunction<string, string>): ColumnDef<UserTableData>[] => [
+export const createColumns = (
+  t: TFunction<string, string>,
+): ColumnDef<UserTableData>[] => [
   {
     accessorKey: "full_name",
     header: t("settings:table.fullName"),
@@ -70,7 +72,9 @@ export const createColumns = (t: TFunction<string, string>): ColumnDef<UserTable
   },
   {
     id: "actions",
-    header: () => <span className="sr-only">{t("settings:table.actions")}</span>,
+    header: () => (
+      <span className="sr-only">{t("settings:table.actions")}</span>
+    ),
     cell: ({ row }) => (
       <div className="flex justify-end">
         <UserActionsMenu user={row.original} />

@@ -51,18 +51,23 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
           full_name: z.string().optional(),
           password: z
             .string()
-            .min(8, { message: t("validation:password.minLength", { count: 8 }) })
+            .min(8, {
+              message: t("validation:password.minLength", { count: 8 }),
+            })
             .optional()
             .or(z.literal("")),
           confirm_password: z.string().optional(),
           is_superuser: z.boolean().optional(),
           is_active: z.boolean().optional(),
         })
-        .refine((data) => !data.password || data.password === data.confirm_password, {
-          message: t("validation:password.mismatch"),
-          path: ["confirm_password"],
-        }),
-    [t]
+        .refine(
+          (data) => !data.password || data.password === data.confirm_password,
+          {
+            message: t("validation:password.mismatch"),
+            path: ["confirm_password"],
+          },
+        ),
+    [t],
   )
 
   type FormData = z.infer<typeof formSchema>
@@ -127,7 +132,8 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      {t("settings:admin.userForm.email")} <span className="text-destructive">*</span>
+                      {t("settings:admin.userForm.email")}{" "}
+                      <span className="text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -147,9 +153,15 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                 name="full_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings:admin.userForm.fullName")}</FormLabel>
+                    <FormLabel>
+                      {t("settings:admin.userForm.fullName")}
+                    </FormLabel>
                     <FormControl>
-                      <Input placeholder={t("settings:admin.userForm.fullName")} type="text" {...field} />
+                      <Input
+                        placeholder={t("settings:admin.userForm.fullName")}
+                        type="text"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -161,7 +173,9 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings:admin.userForm.setPassword")}</FormLabel>
+                    <FormLabel>
+                      {t("settings:admin.userForm.setPassword")}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         placeholder={t("settings:admin.userForm.setPassword")}
@@ -179,10 +193,14 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                 name="confirm_password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings:admin.userForm.confirmPassword")}</FormLabel>
+                    <FormLabel>
+                      {t("settings:admin.userForm.confirmPassword")}
+                    </FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t("settings:admin.userForm.confirmPassword")}
+                        placeholder={t(
+                          "settings:admin.userForm.confirmPassword",
+                        )}
                         type="password"
                         {...field}
                       />
@@ -203,7 +221,9 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
-                    <FormLabel className="font-normal">{t("settings:admin.userForm.isSuperuser")}</FormLabel>
+                    <FormLabel className="font-normal">
+                      {t("settings:admin.userForm.isSuperuser")}
+                    </FormLabel>
                   </FormItem>
                 )}
               />
@@ -219,7 +239,9 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
-                    <FormLabel className="font-normal">{t("settings:admin.userForm.isActive")}</FormLabel>
+                    <FormLabel className="font-normal">
+                      {t("settings:admin.userForm.isActive")}
+                    </FormLabel>
                   </FormItem>
                 )}
               />

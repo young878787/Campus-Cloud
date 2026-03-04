@@ -4,7 +4,7 @@ import { ClipboardCheck } from "lucide-react"
 import { Suspense, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { type VMRequestStatus, UsersService, VmRequestsService } from "@/client"
+import { UsersService, type VMRequestStatus, VmRequestsService } from "@/client"
 import { createAdminRequestColumns } from "@/components/Applications/adminColumns"
 import { DataTable } from "@/components/Common/DataTable"
 import PendingItems from "@/components/Pending/PendingItems"
@@ -47,9 +47,7 @@ function AdminRequestsTableContent({
   status: VMRequestStatus | null
 }) {
   const { t } = useTranslation(["approvals"])
-  const { data } = useSuspenseQuery(
-    getAdminRequestsQueryOptions(status),
-  )
+  const { data } = useSuspenseQuery(getAdminRequestsQueryOptions(status))
 
   const columns = useMemo(() => createAdminRequestColumns(t), [t])
 
@@ -59,7 +57,9 @@ function AdminRequestsTableContent({
         <div className="rounded-full bg-muted p-4 mb-4">
           <ClipboardCheck className="h-8 w-8 text-muted-foreground" />
         </div>
-        <h3 className="text-lg font-semibold">{t("approvals:page.noApplications")}</h3>
+        <h3 className="text-lg font-semibold">
+          {t("approvals:page.noApplications")}
+        </h3>
         <p className="text-muted-foreground">
           {status === "pending"
             ? t("approvals:page.noApplicationsDescription")
@@ -72,11 +72,7 @@ function AdminRequestsTableContent({
   return <DataTable columns={columns} data={data.data} />
 }
 
-function AdminRequestsTable({
-  status,
-}: {
-  status: VMRequestStatus | null
-}) {
+function AdminRequestsTable({ status }: { status: VMRequestStatus | null }) {
   return (
     <Suspense fallback={<PendingItems />}>
       <AdminRequestsTableContent status={status} />
@@ -113,7 +109,9 @@ function Approvals() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("approvals:page.title")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {t("approvals:page.title")}
+          </h1>
           <p className="text-muted-foreground">
             {t("approvals:page.description")}
           </p>
@@ -131,8 +129,12 @@ function Approvals() {
             {t("approvals:filters.pending")}
             <PendingCountBadge />
           </TabsTrigger>
-          <TabsTrigger value="approved">{t("approvals:filters.approved")}</TabsTrigger>
-          <TabsTrigger value="rejected">{t("approvals:filters.rejected")}</TabsTrigger>
+          <TabsTrigger value="approved">
+            {t("approvals:filters.approved")}
+          </TabsTrigger>
+          <TabsTrigger value="rejected">
+            {t("approvals:filters.rejected")}
+          </TabsTrigger>
           <TabsTrigger value="all">{t("approvals:filters.all")}</TabsTrigger>
         </TabsList>
       </Tabs>

@@ -6,6 +6,7 @@
   "tabs": {
     "myProfile": "My profile",
     "password": "Password",
+    "operationRecords": "Operation Records",
     "dangerZone": "Danger zone"
   },
   "profile": {
@@ -62,7 +63,27 @@
       "confirmPassword": "Confirm Password",
       "isSuperuser": "Is superuser?",
       "isActive": "Is active?"
+    },
+    "auditLogs": {
+      "title": "Audit Logs",
+      "description": "View all system operation records",
+      "allRecords": "All Operation Records",
+      "showing": "Showing",
+      "records": "records",
+      "filterByVMID": "Filter by VMID...",
+      "allActions": "All Actions",
+      "vmid": "VMID",
+      "ipAddress": "IP Address",
+      "page": "Page",
+      "userCreate": "User Created"
     }
+  },
+  "operationRecords": {
+    "title": "My Operation Records",
+    "description": "View all your operation history",
+    "records": "records",
+    "noRecords": "No operation records found",
+    "clickToView": "Click VMID to view resource details"
   },
   "appearance": {
     "title": "Appearance",

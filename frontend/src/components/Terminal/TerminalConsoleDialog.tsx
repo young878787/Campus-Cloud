@@ -89,7 +89,9 @@ export function TerminalConsoleDialog({
         )}
       >
         <VisuallyHidden>
-          <DialogTitle>{t("console.terminal.title", { name: vmName || `LXC ${vmid}` })}</DialogTitle>
+          <DialogTitle>
+            {t("console.terminal.title", { name: vmName || `LXC ${vmid}` })}
+          </DialogTitle>
         </VisuallyHidden>
         <div className="flex items-center justify-between px-4 py-2 bg-gradient-to-r from-zinc-800 to-zinc-900 border-b border-zinc-700 shrink-0">
           <div className="flex items-center gap-3">
@@ -122,7 +124,11 @@ export function TerminalConsoleDialog({
                           : "bg-zinc-400",
                     )}
                   />
-                  {isConnected ? t("console.status.connected") : isLoading ? t("console.status.connecting") : t("console.status.disconnected")}
+                  {isConnected
+                    ? t("console.status.connected")
+                    : isLoading
+                      ? t("console.status.connecting")
+                      : t("console.status.disconnected")}
                 </span>
               </div>
             </div>
@@ -156,7 +162,11 @@ export function TerminalConsoleDialog({
               onClick={toggleFullscreen}
               disabled={!isConnected}
               className="h-8 w-8 text-zinc-300 hover:text-white hover:bg-zinc-700/50 disabled:opacity-40"
-              title={isFullscreen ? t("console.buttons.exitFullscreen") : t("console.buttons.fullscreen")}
+              title={
+                isFullscreen
+                  ? t("console.buttons.exitFullscreen")
+                  : t("console.buttons.fullscreen")
+              }
             >
               {isFullscreen ? (
                 <Minimize2 className="h-4 w-4" />
@@ -192,7 +202,9 @@ export function TerminalConsoleDialog({
                   {t("console.terminal.connecting")}
                 </h3>
                 <p className="text-sm text-zinc-400">
-                  {t("console.terminal.connectingDescription", { name: vmName || `LXC ${vmid}` })}
+                  {t("console.terminal.connectingDescription", {
+                    name: vmName || `LXC ${vmid}`,
+                  })}
                 </p>
               </div>
             </div>
@@ -209,7 +221,12 @@ export function TerminalConsoleDialog({
 
         <div className="flex items-center justify-between px-4 py-1.5 bg-zinc-800/50 border-t border-zinc-700/50 shrink-0">
           <div className="flex items-center gap-4 text-[11px] text-zinc-500">
-            <span>WebSocket: {isConnected ? t("console.websocket.connected") : t("console.websocket.disconnected")}</span>
+            <span>
+              WebSocket:{" "}
+              {isConnected
+                ? t("console.websocket.connected")
+                : t("console.websocket.disconnected")}
+            </span>
             <span>•</span>
             <span>{t("console.protocol.terminal")}</span>
           </div>

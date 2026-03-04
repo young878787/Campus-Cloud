@@ -14,12 +14,7 @@ import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -109,8 +104,7 @@ export function FastTemplatesTab() {
 
       const matchesCategory =
         selectedCategory === "all" ||
-        (template.categories &&
-          template.categories.includes(Number(selectedCategory)))
+        template.categories?.includes(Number(selectedCategory))
 
       return matchesSearch && matchesCategory
     })

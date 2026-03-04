@@ -30,11 +30,15 @@ const ChangePassword = () => {
           current_password: z
             .string()
             .min(1, { message: t("validation:password.required") })
-            .min(8, { message: t("validation:password.minLength", { count: 8 }) }),
+            .min(8, {
+              message: t("validation:password.minLength", { count: 8 }),
+            }),
           new_password: z
             .string()
             .min(1, { message: t("validation:password.required") })
-            .min(8, { message: t("validation:password.minLength", { count: 8 }) }),
+            .min(8, {
+              message: t("validation:password.minLength", { count: 8 }),
+            }),
           confirm_password: z
             .string()
             .min(1, { message: t("validation:password.confirmRequired") }),
@@ -75,7 +79,9 @@ const ChangePassword = () => {
 
   return (
     <div className="max-w-md">
-      <h3 className="text-lg font-semibold py-4">{t("settings:password.title")}</h3>
+      <h3 className="text-lg font-semibold py-4">
+        {t("settings:password.title")}
+      </h3>
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}

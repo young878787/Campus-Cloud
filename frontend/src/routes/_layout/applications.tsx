@@ -5,8 +5,8 @@ import { Suspense, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 
 import { VmRequestsService } from "@/client"
-import { createMyRequestColumns } from "@/components/Applications/columns"
 import CreateVMRequest from "@/components/Applications/CreateVMRequest"
+import { createMyRequestColumns } from "@/components/Applications/columns"
 import { DataTable } from "@/components/Common/DataTable"
 import PendingItems from "@/components/Pending/PendingItems"
 
@@ -40,7 +40,9 @@ function RequestsTableContent() {
         <div className="rounded-full bg-muted p-4 mb-4">
           <FileText className="h-8 w-8 text-muted-foreground" />
         </div>
-        <h3 className="text-lg font-semibold">{t("applications:page.noApplications")}</h3>
+        <h3 className="text-lg font-semibold">
+          {t("applications:page.noApplications")}
+        </h3>
         <p className="text-muted-foreground">
           {t("applications:page.noApplicationsDescription")}
         </p>
@@ -66,7 +68,9 @@ function Applications() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("applications:page.title")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {t("applications:page.title")}
+          </h1>
           <p className="text-muted-foreground">
             {t("applications:page.description")}
           </p>

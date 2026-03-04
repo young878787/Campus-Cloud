@@ -1,7 +1,7 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { Monitor, RefreshCw } from "lucide-react"
-import { Suspense, useMemo, useState } from "react"
+import { Suspense, useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { ResourcesService } from "@/client"
 import { DataTable } from "@/components/Common/DataTable"
@@ -36,9 +36,20 @@ function VMsTableContent({
   onOpenConsole: (vmid: number, name: string, type: string) => void
 }) {
   const { t } = useTranslation(["resources"])
+  const navigate = useNavigate()
   const { data: resources } = useSuspenseQuery(getVMsQueryOptions())
 
-  const columns = useMemo(() => createColumns(t, onOpenConsole), [t, onOpenConsole])
+  const handleRowClick = useCallback(
+    (vmid: number) => {
+      navigate({ to: "/resources/$vmid", params: { vmid: vmid.toString() } })
+    },
+    [navigate],
+  )
+
+  const columns = useMemo(
+    () => createColumns(t, onOpenConsole, handleRowClick),
+    [t, onOpenConsole, handleRowClick],
+  )
 
   if (resources.length === 0) {
     return (
@@ -54,7 +65,13 @@ function VMsTableContent({
     )
   }
 
-  return <DataTable columns={columns} data={resources} />
+  return (
+    <DataTable
+      columns={columns}
+      data={resources}
+      onRowClick={(row) => handleRowClick(row.vmid)}
+    />
+  )
 }
 
 function VMsTable({

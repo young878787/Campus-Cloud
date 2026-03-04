@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from app.api.deps import CurrentUser, SessionDep, VmInfoDep
 from app.core.config import settings
 from app.core.proxmox import basic_blocking_task_status, get_proxmox_api
+from app.crud import audit_log as audit_log_crud
 from app.crud import resource as resource_crud
 from app.models import VMCreateResponse, VMCreateSchema, VMTemplateSchema, VNCInfoSchema
 
@@ -106,6 +107,15 @@ def create_vm(
             os_info=vm_data.os_info,
             expiry_date=vm_data.expiry_date,
             template_id=vm_data.template_id,
+        )
+
+        # Record audit log
+        audit_log_crud.create_audit_log(
+            session=session,
+            user_id=current_user.id,
+            vmid=new_vmid,
+            action="vm_create",
+            details=f"Created VM '{vm_data.hostname}' from template {vm_data.template_id}: {vm_data.cores} cores, {vm_data.memory}MB RAM, {vm_data.disk_size or 'default'} disk",
         )
 
         logger.info(f"Created VM {new_vmid} from template {vm_data.template_id}")

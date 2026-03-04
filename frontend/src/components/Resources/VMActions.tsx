@@ -64,7 +64,9 @@ export function VMActions({
       queryClient.invalidateQueries({ queryKey: ["resources"] })
     },
     onError: (error: Error) => {
-      showErrorToast(t("messages:vm.startFailed", { name, error: error.message }))
+      showErrorToast(
+        t("messages:vm.startFailed", { name, error: error.message }),
+      )
     },
   })
 
@@ -75,7 +77,9 @@ export function VMActions({
       queryClient.invalidateQueries({ queryKey: ["resources"] })
     },
     onError: (error: Error) => {
-      showErrorToast(t("messages:vm.stopFailed", { name, error: error.message }))
+      showErrorToast(
+        t("messages:vm.stopFailed", { name, error: error.message }),
+      )
     },
   })
 
@@ -86,7 +90,9 @@ export function VMActions({
       queryClient.invalidateQueries({ queryKey: ["resources"] })
     },
     onError: (error: Error) => {
-      showErrorToast(t("messages:vm.rebootFailed", { name, error: error.message }))
+      showErrorToast(
+        t("messages:vm.rebootFailed", { name, error: error.message }),
+      )
     },
   })
 
@@ -97,7 +103,9 @@ export function VMActions({
       queryClient.invalidateQueries({ queryKey: ["resources"] })
     },
     onError: (error: Error) => {
-      showErrorToast(t("messages:vm.shutdownFailed", { name, error: error.message }))
+      showErrorToast(
+        t("messages:vm.shutdownFailed", { name, error: error.message }),
+      )
     },
   })
 
@@ -108,7 +116,9 @@ export function VMActions({
       queryClient.invalidateQueries({ queryKey: ["resources"] })
     },
     onError: (error: Error) => {
-      showErrorToast(t("messages:vm.resetFailed", { name, error: error.message }))
+      showErrorToast(
+        t("messages:vm.resetFailed", { name, error: error.message }),
+      )
     },
   })
 
@@ -120,7 +130,9 @@ export function VMActions({
       setDeleteDialogOpen(false)
     },
     onError: (error: Error) => {
-      showErrorToast(t("messages:vm.deleteFailed", { name, error: error.message }))
+      showErrorToast(
+        t("messages:vm.deleteFailed", { name, error: error.message }),
+      )
       setDeleteDialogOpen(false)
     },
   })
@@ -146,7 +158,9 @@ export function VMActions({
         ) : (
           <MonitorPlay className="h-4 w-4 mr-1" />
         )}
-        {isLXC ? t("resources:actions.terminal") : t("resources:actions.console")}
+        {isLXC
+          ? t("resources:actions.terminal")
+          : t("resources:actions.console")}
       </Button>
 
       <DropdownMenu>
@@ -157,7 +171,9 @@ export function VMActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuLabel>{t("resources:actions.powerControl")}</DropdownMenuLabel>
+          <DropdownMenuLabel>
+            {t("resources:actions.powerControl")}
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
 
           <DropdownMenuItem
@@ -223,7 +239,9 @@ export function VMActions({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("resources:actions.deleteConfirm.title")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("resources:actions.deleteConfirm.title")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {t("resources:actions.deleteConfirm.description", { name, vmid })}
               {isRunning && (

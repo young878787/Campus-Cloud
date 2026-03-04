@@ -11,8 +11,8 @@ import { ApiError, OpenAPI } from "./client"
 import { ThemeProvider } from "./components/theme-provider"
 import { Toaster } from "./components/ui/sonner"
 import "./index.css"
-import { routeTree } from "./routeTree.gen"
 import { LanguageProvider } from "./providers/LanguageProvider"
+import { routeTree } from "./routeTree.gen"
 import "./lib/i18n"
 
 OpenAPI.BASE = import.meta.env.VITE_API_URL
@@ -44,7 +44,10 @@ declare module "@tanstack/react-router" {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <LanguageProvider defaultLanguage="zh-TW" storageKey="campus-cloud-language">
+    <LanguageProvider
+      defaultLanguage="zh-TW"
+      storageKey="campus-cloud-language"
+    >
       <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />

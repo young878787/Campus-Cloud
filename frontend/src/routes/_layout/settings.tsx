@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import ChangePassword from "@/components/UserSettings/ChangePassword"
 import DeleteAccount from "@/components/UserSettings/DeleteAccount"
 import UserInformation from "@/components/UserSettings/UserInformation"
+import OperationRecords from "@/components/UserSettings/OperationRecords"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import useAuth from "@/hooks/useAuth"
 
@@ -23,14 +24,25 @@ function UserSettings() {
   const { t } = useTranslation("settings")
 
   const tabsConfig = [
-    { value: "my-profile", title: t("tabs.myProfile"), component: UserInformation },
+    {
+      value: "my-profile",
+      title: t("tabs.myProfile"),
+      component: UserInformation,
+    },
     { value: "password", title: t("tabs.password"), component: ChangePassword },
-    { value: "danger-zone", title: t("tabs.dangerZone"), component: DeleteAccount },
+    {
+      value: "operation-records",
+      title: t("tabs.operationRecords"),
+      component: OperationRecords,
+    },
+    {
+      value: "danger-zone",
+      title: t("tabs.dangerZone"),
+      component: DeleteAccount,
+    },
   ]
 
-  const finalTabs = currentUser?.is_superuser
-    ? tabsConfig.slice(0, 3)
-    : tabsConfig
+  const finalTabs = tabsConfig
 
   if (!currentUser) {
     return null
@@ -40,9 +52,7 @@ function UserSettings() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("page.title")}</h1>
-        <p className="text-muted-foreground">
-          {t("page.description")}
-        </p>
+        <p className="text-muted-foreground">{t("page.description")}</p>
       </div>
 
       <Tabs defaultValue="my-profile">

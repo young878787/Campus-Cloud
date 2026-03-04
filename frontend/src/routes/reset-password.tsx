@@ -64,7 +64,9 @@ function ResetPassword() {
           new_password: z
             .string()
             .min(1, { message: t("validation:password.required") })
-            .min(8, { message: t("validation:password.minLength", { count: 8 }) }),
+            .min(8, {
+              message: t("validation:password.minLength", { count: 8 }),
+            }),
           confirm_password: z
             .string()
             .min(1, { message: t("validation:password.confirmRequired") }),
@@ -111,7 +113,9 @@ function ResetPassword() {
           className="flex flex-col gap-6"
         >
           <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-2xl font-bold">{t("auth:resetPassword.title")}</h1>
+            <h1 className="text-2xl font-bold">
+              {t("auth:resetPassword.title")}
+            </h1>
           </div>
 
           <div className="grid gap-4">
@@ -138,7 +142,9 @@ function ResetPassword() {
               name="confirm_password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("auth:resetPassword.confirmPassword")}</FormLabel>
+                  <FormLabel>
+                    {t("auth:resetPassword.confirmPassword")}
+                  </FormLabel>
                   <FormControl>
                     <PasswordInput
                       data-testid="confirm-password-input"

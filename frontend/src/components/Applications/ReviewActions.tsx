@@ -89,33 +89,46 @@ const ReviewDialog = ({
           <div className="py-4 space-y-4">
             <div className="rounded-lg border p-3 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("approvals:review.applicant")}</span>
+                <span className="text-muted-foreground">
+                  {t("approvals:review.applicant")}
+                </span>
                 <span>{request.user_full_name || request.user_email}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("approvals:review.hostname")}</span>
+                <span className="text-muted-foreground">
+                  {t("approvals:review.hostname")}
+                </span>
                 <span className="font-medium">{request.hostname}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("approvals:review.type")}</span>
+                <span className="text-muted-foreground">
+                  {t("approvals:review.type")}
+                </span>
                 <Badge variant="secondary">
                   {request.resource_type === "lxc" ? "LXC" : "QEMU"}
                 </Badge>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{t("approvals:review.specs")}</span>
+                <span className="text-muted-foreground">
+                  {t("approvals:review.specs")}
+                </span>
                 <span>
-                  {request.cores} Core / {(request.memory / 1024).toFixed(1)} GB RAM
+                  {request.cores} Core / {(request.memory / 1024).toFixed(1)} GB
+                  RAM
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground">{t("approvals:review.reason")}</span>
+                <span className="text-muted-foreground">
+                  {t("approvals:review.reason")}
+                </span>
                 <p className="mt-1 text-sm">{request.reason}</p>
               </div>
             </div>
 
             <div>
-              <label htmlFor="review-comment" className="text-sm font-medium">{t("approvals:review.reviewNote")}</label>
+              <label htmlFor="review-comment" className="text-sm font-medium">
+                {t("approvals:review.reviewNote")}
+              </label>
               <Textarea
                 id="review-comment"
                 placeholder={t("approvals:review.reviewNotePlaceholder")}
@@ -163,14 +176,21 @@ export const ReviewActions = ({ request }: ReviewActionsProps) => {
       { label: string; variant: "default" | "destructive" | "outline" }
     > = {
       approved: { label: t("approvals:filters.approved"), variant: "default" },
-      rejected: { label: t("approvals:filters.rejected"), variant: "destructive" },
+      rejected: {
+        label: t("approvals:filters.rejected"),
+        variant: "destructive",
+      },
     }
     const s = statusMap[request.status]
     return (
       <div className="flex items-center gap-2">
-        <Badge variant={s?.variant || "outline"}>{s?.label || request.status}</Badge>
+        <Badge variant={s?.variant || "outline"}>
+          {s?.label || request.status}
+        </Badge>
         {request.vmid && (
-          <span className="text-xs text-muted-foreground">VMID: {request.vmid}</span>
+          <span className="text-xs text-muted-foreground">
+            VMID: {request.vmid}
+          </span>
         )}
       </div>
     )
@@ -178,11 +198,7 @@ export const ReviewActions = ({ request }: ReviewActionsProps) => {
 
   return (
     <div className="flex gap-2">
-      <Button
-        size="sm"
-        variant="default"
-        onClick={() => setApproveOpen(true)}
-      >
+      <Button size="sm" variant="default" onClick={() => setApproveOpen(true)}>
         <Check className="mr-1 h-4 w-4" />
         {t("approvals:review.approve")}
       </Button>

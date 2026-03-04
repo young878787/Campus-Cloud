@@ -3,7 +3,92 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { LoginLoginAccessTokenData, LoginLoginAccessTokenResponse, LoginTestTokenResponse, LoginRecoverPasswordData, LoginRecoverPasswordResponse, LoginResetPasswordData, LoginResetPasswordResponse, LoginRecoverPasswordHtmlContentData, LoginRecoverPasswordHtmlContentResponse, LxcGetLxcTerminalData, LxcGetLxcTerminalResponse, LxcGetTemplatesResponse, LxcCreateLxcData, LxcCreateLxcResponse, PrivateCreateUserData, PrivateCreateUserResponse, ResourcesListNodesResponse, ResourcesListResourcesData, ResourcesListResourcesResponse, ResourcesListMyResourcesResponse, ResourcesGetResourceData, ResourcesGetResourceResponse, ResourcesDeleteResourceData, ResourcesDeleteResourceResponse, ResourcesGetResourceConfigData, ResourcesGetResourceConfigResponse, ResourcesStartResourceData, ResourcesStartResourceResponse, ResourcesStopResourceData, ResourcesStopResourceResponse, ResourcesRebootResourceData, ResourcesRebootResourceResponse, ResourcesShutdownResourceData, ResourcesShutdownResourceResponse, ResourcesResetResourceData, ResourcesResetResourceResponse, UsersReadUsersData, UsersReadUsersResponse, UsersCreateUserData, UsersCreateUserResponse, UsersReadUserMeResponse, UsersDeleteUserMeResponse, UsersUpdateUserMeData, UsersUpdateUserMeResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeResponse, UsersRegisterUserData, UsersRegisterUserResponse, UsersReadUserByIdData, UsersReadUserByIdResponse, UsersUpdateUserData, UsersUpdateUserResponse, UsersDeleteUserData, UsersDeleteUserResponse, UtilsTestEmailData, UtilsTestEmailResponse, UtilsHealthCheckResponse, VmGetVmConsoleData, VmGetVmConsoleResponse, VmCreateVmData, VmCreateVmResponse, VmGetVmTemplatesResponse, VmRequestsCreateData, VmRequestsCreateResponse, VmRequestsListMyData, VmRequestsListMyResponse, VmRequestsListAllData, VmRequestsListAllResponse, VmRequestsGetData, VmRequestsGetResponse, VmRequestsReviewData, VmRequestsReviewResponse } from './types.gen';
+import type { AuditLogsGetAllAuditLogsData, AuditLogsGetAllAuditLogsResponse, AuditLogsGetMyAuditLogsData, AuditLogsGetMyAuditLogsResponse, AuditLogsGetResourceAuditLogsData, AuditLogsGetResourceAuditLogsResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenResponse, LoginTestTokenResponse, LoginRecoverPasswordData, LoginRecoverPasswordResponse, LoginResetPasswordData, LoginResetPasswordResponse, LoginRecoverPasswordHtmlContentData, LoginRecoverPasswordHtmlContentResponse, LxcGetLxcTerminalData, LxcGetLxcTerminalResponse, LxcGetTemplatesResponse, LxcCreateLxcData, LxcCreateLxcResponse, PrivateCreateUserData, PrivateCreateUserResponse, ResourceDetailsGetCurrentStatsData, ResourceDetailsGetCurrentStatsResponse, ResourceDetailsGetRrdStatsData, ResourceDetailsGetRrdStatsResponse, ResourceDetailsListSnapshotsData, ResourceDetailsListSnapshotsResponse, ResourceDetailsCreateSnapshotData, ResourceDetailsCreateSnapshotResponse, ResourceDetailsDeleteSnapshotData, ResourceDetailsDeleteSnapshotResponse, ResourceDetailsRollbackSnapshotData, ResourceDetailsRollbackSnapshotResponse, ResourceDetailsDirectUpdateSpecData, ResourceDetailsDirectUpdateSpecResponse, ResourcesListNodesResponse, ResourcesListResourcesData, ResourcesListResourcesResponse, ResourcesListMyResourcesResponse, ResourcesGetResourceData, ResourcesGetResourceResponse, ResourcesDeleteResourceData, ResourcesDeleteResourceResponse, ResourcesGetResourceConfigData, ResourcesGetResourceConfigResponse, ResourcesStartResourceData, ResourcesStartResourceResponse, ResourcesStopResourceData, ResourcesStopResourceResponse, ResourcesRebootResourceData, ResourcesRebootResourceResponse, ResourcesShutdownResourceData, ResourcesShutdownResourceResponse, ResourcesResetResourceData, ResourcesResetResourceResponse, SpecChangeRequestsCreateSpecChangeRequestData, SpecChangeRequestsCreateSpecChangeRequestResponse, SpecChangeRequestsGetAllSpecChangeRequestsData, SpecChangeRequestsGetAllSpecChangeRequestsResponse, SpecChangeRequestsGetMySpecChangeRequestsData, SpecChangeRequestsGetMySpecChangeRequestsResponse, SpecChangeRequestsReviewSpecChangeRequestData, SpecChangeRequestsReviewSpecChangeRequestResponse, UsersReadUsersData, UsersReadUsersResponse, UsersCreateUserData, UsersCreateUserResponse, UsersReadUserMeResponse, UsersDeleteUserMeResponse, UsersUpdateUserMeData, UsersUpdateUserMeResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeResponse, UsersRegisterUserData, UsersRegisterUserResponse, UsersReadUserByIdData, UsersReadUserByIdResponse, UsersUpdateUserData, UsersUpdateUserResponse, UsersDeleteUserData, UsersDeleteUserResponse, UtilsTestEmailData, UtilsTestEmailResponse, UtilsHealthCheckResponse, VmGetVmConsoleData, VmGetVmConsoleResponse, VmCreateVmData, VmCreateVmResponse, VmGetVmTemplatesResponse, VmRequestsCreateVmRequestData, VmRequestsCreateVmRequestResponse, VmRequestsListAllVmRequestsData, VmRequestsListAllVmRequestsResponse, VmRequestsListMyVmRequestsData, VmRequestsListMyVmRequestsResponse, VmRequestsGetVmRequestData, VmRequestsGetVmRequestResponse, VmRequestsReviewVmRequestData, VmRequestsReviewVmRequestResponse } from './types.gen';
+
+export class AuditLogsService {
+    /**
+     * Get All Audit Logs
+     * 查看所有審計日誌（管理員專用）
+     *
+     * 支持按 VMID、用戶 ID、操作類型篩選
+     * @param data The data for the request.
+     * @param data.skip
+     * @param data.limit
+     * @param data.vmid
+     * @param data.userId
+     * @param data.action
+     * @returns AuditLogsPublic Successful Response
+     * @throws ApiError
+     */
+    public static getAllAuditLogs(data: AuditLogsGetAllAuditLogsData = {}): CancelablePromise<AuditLogsGetAllAuditLogsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/audit-logs/',
+            query: {
+                skip: data.skip,
+                limit: data.limit,
+                vmid: data.vmid,
+                user_id: data.userId,
+                action: data.action
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get My Audit Logs
+     * 查看當前用戶的所有操作記錄
+     * @param data The data for the request.
+     * @param data.skip
+     * @param data.limit
+     * @returns AuditLogsPublic Successful Response
+     * @throws ApiError
+     */
+    public static getMyAuditLogs(data: AuditLogsGetMyAuditLogsData = {}): CancelablePromise<AuditLogsGetMyAuditLogsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/audit-logs/my',
+            query: {
+                skip: data.skip,
+                limit: data.limit
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Resource Audit Logs
+     * 查看特定資源的操作記錄
+     *
+     * 權限：資源所有者或管理員
+     * @param data The data for the request.
+     * @param data.vmid
+     * @param data.skip
+     * @param data.limit
+     * @returns AuditLogsPublic Successful Response
+     * @throws ApiError
+     */
+    public static getResourceAuditLogs(data: AuditLogsGetResourceAuditLogsData): CancelablePromise<AuditLogsGetResourceAuditLogsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/audit-logs/resources/{vmid}',
+            path: {
+                vmid: data.vmid
+            },
+            query: {
+                skip: data.skip,
+                limit: data.limit
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+}
 
 export class LoginService {
     /**
@@ -105,6 +190,7 @@ export class LoginService {
 export class LxcService {
     /**
      * Get Lxc Terminal
+     * Get terminal access for an LXC container (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns TerminalInfoSchema Successful Response
@@ -125,7 +211,7 @@ export class LxcService {
     
     /**
      * Get Templates
-     * Get available OS templates for LXC containers.
+     * Get available OS templates for LXC containers. Requires authentication.
      * @returns TemplateSchema Successful Response
      * @throws ApiError
      */
@@ -179,9 +265,175 @@ export class PrivateService {
     }
 }
 
+export class ResourceDetailsService {
+    /**
+     * Get Current Stats
+     * 獲取資源當前實時狀態
+     * @param data The data for the request.
+     * @param data.vmid
+     * @returns CurrentStatsResponse Successful Response
+     * @throws ApiError
+     */
+    public static getCurrentStats(data: ResourceDetailsGetCurrentStatsData): CancelablePromise<ResourceDetailsGetCurrentStatsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/resources/{vmid}/current-stats',
+            path: {
+                vmid: data.vmid
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Rrd Stats
+     * 獲取資源歷史統計數據 (RRD)
+     *
+     * timeframe: hour, day, week, month, year
+     * @param data The data for the request.
+     * @param data.vmid
+     * @param data.timeframe
+     * @returns RRDDataResponse Successful Response
+     * @throws ApiError
+     */
+    public static getRrdStats(data: ResourceDetailsGetRrdStatsData): CancelablePromise<ResourceDetailsGetRrdStatsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/resources/{vmid}/stats',
+            path: {
+                vmid: data.vmid
+            },
+            query: {
+                timeframe: data.timeframe
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * List Snapshots
+     * 列出所有快照
+     * @param data The data for the request.
+     * @param data.vmid
+     * @returns SnapshotInfo Successful Response
+     * @throws ApiError
+     */
+    public static listSnapshots(data: ResourceDetailsListSnapshotsData): CancelablePromise<ResourceDetailsListSnapshotsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/resources/{vmid}/snapshots',
+            path: {
+                vmid: data.vmid
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Create Snapshot
+     * 創建快照
+     * @param data The data for the request.
+     * @param data.vmid
+     * @param data.requestBody
+     * @returns SnapshotResponse Successful Response
+     * @throws ApiError
+     */
+    public static createSnapshot(data: ResourceDetailsCreateSnapshotData): CancelablePromise<ResourceDetailsCreateSnapshotResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/resources/{vmid}/snapshots',
+            path: {
+                vmid: data.vmid
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Delete Snapshot
+     * 刪除快照
+     * @param data The data for the request.
+     * @param data.vmid
+     * @param data.snapname
+     * @returns SnapshotResponse Successful Response
+     * @throws ApiError
+     */
+    public static deleteSnapshot(data: ResourceDetailsDeleteSnapshotData): CancelablePromise<ResourceDetailsDeleteSnapshotResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/resources/{vmid}/snapshots/{snapname}',
+            path: {
+                vmid: data.vmid,
+                snapname: data.snapname
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Rollback Snapshot
+     * 回滾到指定快照
+     * @param data The data for the request.
+     * @param data.vmid
+     * @param data.snapname
+     * @returns SnapshotResponse Successful Response
+     * @throws ApiError
+     */
+    public static rollbackSnapshot(data: ResourceDetailsRollbackSnapshotData): CancelablePromise<ResourceDetailsRollbackSnapshotResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/resources/{vmid}/snapshots/{snapname}/rollback',
+            path: {
+                vmid: data.vmid,
+                snapname: data.snapname
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Direct Update Spec
+     * 管理員直接調整資源規格（無需審核）
+     * @param data The data for the request.
+     * @param data.vmid
+     * @param data.requestBody
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static directUpdateSpec(data: ResourceDetailsDirectUpdateSpecData): CancelablePromise<ResourceDetailsDirectUpdateSpecResponse> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/v1/resources/{vmid}/spec/direct',
+            path: {
+                vmid: data.vmid
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+}
+
 export class ResourcesService {
     /**
      * List Nodes
+     * List all Proxmox nodes (requires authentication).
      * @returns NodeSchema Successful Response
      * @throws ApiError
      */
@@ -194,6 +446,7 @@ export class ResourcesService {
     
     /**
      * List Resources
+     * List all resources (admin only) or user's own resources.
      * @param data The data for the request.
      * @param data.node
      * @returns ResourcePublic Successful Response
@@ -211,7 +464,7 @@ export class ResourcesService {
             }
         });
     }
-
+    
     /**
      * List My Resources
      * List resources owned by the current user (approved VMs/containers).
@@ -227,6 +480,7 @@ export class ResourcesService {
     
     /**
      * Get Resource
+     * Get resource details (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns VMSchema Successful Response
@@ -281,6 +535,7 @@ export class ResourcesService {
     
     /**
      * Get Resource Config
+     * Get resource configuration (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -301,6 +556,7 @@ export class ResourcesService {
     
     /**
      * Start Resource
+     * Start a resource (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -321,6 +577,7 @@ export class ResourcesService {
     
     /**
      * Stop Resource
+     * Stop a resource (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -341,6 +598,7 @@ export class ResourcesService {
     
     /**
      * Reboot Resource
+     * Reboot a resource (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -361,6 +619,7 @@ export class ResourcesService {
     
     /**
      * Shutdown Resource
+     * Shutdown a resource gracefully (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -381,6 +640,7 @@ export class ResourcesService {
     
     /**
      * Reset Resource
+     * Reset a resource (hard reset, requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -393,6 +653,106 @@ export class ResourcesService {
             path: {
                 vmid: data.vmid
             },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+}
+
+export class SpecChangeRequestsService {
+    /**
+     * Create Spec Change Request
+     * 提交規格調整申請（一般用戶）
+     * @param data The data for the request.
+     * @param data.vmid
+     * @param data.requestBody
+     * @returns SpecChangeRequestPublic Successful Response
+     * @throws ApiError
+     */
+    public static createSpecChangeRequest(data: SpecChangeRequestsCreateSpecChangeRequestData): CancelablePromise<SpecChangeRequestsCreateSpecChangeRequestResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/spec-change-requests/',
+            query: {
+                vmid: data.vmid
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get All Spec Change Requests
+     * 查看所有規格調整申請（管理員專用）
+     * @param data The data for the request.
+     * @param data.skip
+     * @param data.limit
+     * @param data.status
+     * @param data.vmid
+     * @returns SpecChangeRequestsPublic Successful Response
+     * @throws ApiError
+     */
+    public static getAllSpecChangeRequests(data: SpecChangeRequestsGetAllSpecChangeRequestsData = {}): CancelablePromise<SpecChangeRequestsGetAllSpecChangeRequestsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/spec-change-requests/',
+            query: {
+                skip: data.skip,
+                limit: data.limit,
+                status: data.status,
+                vmid: data.vmid
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get My Spec Change Requests
+     * 查看當前用戶的所有規格調整申請
+     * @param data The data for the request.
+     * @param data.skip
+     * @param data.limit
+     * @returns SpecChangeRequestsPublic Successful Response
+     * @throws ApiError
+     */
+    public static getMySpecChangeRequests(data: SpecChangeRequestsGetMySpecChangeRequestsData = {}): CancelablePromise<SpecChangeRequestsGetMySpecChangeRequestsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/spec-change-requests/my',
+            query: {
+                skip: data.skip,
+                limit: data.limit
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Review Spec Change Request
+     * 審核規格調整申請（管理員專用）
+     * @param data The data for the request.
+     * @param data.requestId
+     * @param data.requestBody
+     * @returns SpecChangeRequestPublic Successful Response
+     * @throws ApiError
+     */
+    public static reviewSpecChangeRequest(data: SpecChangeRequestsReviewSpecChangeRequestData): CancelablePromise<SpecChangeRequestsReviewSpecChangeRequestResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/spec-change-requests/{request_id}/review',
+            path: {
+                request_id: data.requestId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
             errors: {
                 422: 'Validation Error'
             }
@@ -635,6 +995,7 @@ export class UtilsService {
 export class VmService {
     /**
      * Get Vm Console
+     * Get VNC console access for a VM (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns VNCInfoSchema Successful Response
@@ -675,7 +1036,7 @@ export class VmService {
     
     /**
      * Get Vm Templates
-     * Get available VM templates (VMs marked as templates).
+     * Get available VM templates (VMs marked as templates). Requires authentication.
      * @returns VMTemplateSchema Successful Response
      * @throws ApiError
      */
@@ -689,10 +1050,14 @@ export class VmService {
 
 export class VmRequestsService {
     /**
-     * Create VM Request
+     * Create Vm Request
      * Submit a new VM/LXC request (requires reason).
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns VMRequestPublic Successful Response
+     * @throws ApiError
      */
-    public static createVmRequest(data: VmRequestsCreateData): CancelablePromise<VmRequestsCreateResponse> {
+    public static createVmRequest(data: VmRequestsCreateVmRequestData): CancelablePromise<VmRequestsCreateVmRequestResponse> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/vm-requests/',
@@ -703,30 +1068,18 @@ export class VmRequestsService {
             }
         });
     }
-
+    
     /**
-     * List My VM Requests
-     * List the current user's VM requests.
+     * List All Vm Requests
+     * List all VM requests (admin only).
+     * @param data The data for the request.
+     * @param data.status
+     * @param data.skip
+     * @param data.limit
+     * @returns VMRequestsPublic Successful Response
+     * @throws ApiError
      */
-    public static listMyVmRequests(data: VmRequestsListMyData = {}): CancelablePromise<VmRequestsListMyResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v1/vm-requests/my',
-            query: {
-                skip: data.skip,
-                limit: data.limit
-            },
-            errors: {
-                422: 'Validation Error'
-            }
-        });
-    }
-
-    /**
-     * List All VM Requests (Admin)
-     * List all VM requests.
-     */
-    public static listAllVmRequests(data: VmRequestsListAllData = {}): CancelablePromise<VmRequestsListAllResponse> {
+    public static listAllVmRequests(data: VmRequestsListAllVmRequestsData = {}): CancelablePromise<VmRequestsListAllVmRequestsResponse> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/vm-requests/',
@@ -740,12 +1093,39 @@ export class VmRequestsService {
             }
         });
     }
-
+    
     /**
-     * Get VM Request
-     * Get a single VM request.
+     * List My Vm Requests
+     * List the current user's VM requests.
+     * @param data The data for the request.
+     * @param data.skip
+     * @param data.limit
+     * @returns VMRequestsPublic Successful Response
+     * @throws ApiError
      */
-    public static getVmRequest(data: VmRequestsGetData): CancelablePromise<VmRequestsGetResponse> {
+    public static listMyVmRequests(data: VmRequestsListMyVmRequestsData = {}): CancelablePromise<VmRequestsListMyVmRequestsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/vm-requests/my',
+            query: {
+                skip: data.skip,
+                limit: data.limit
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Vm Request
+     * Get a single VM request.
+     * @param data The data for the request.
+     * @param data.requestId
+     * @returns VMRequestPublic Successful Response
+     * @throws ApiError
+     */
+    public static getVmRequest(data: VmRequestsGetVmRequestData): CancelablePromise<VmRequestsGetVmRequestResponse> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/vm-requests/{request_id}',
@@ -757,12 +1137,17 @@ export class VmRequestsService {
             }
         });
     }
-
+    
     /**
-     * Review VM Request (Admin)
-     * Approve or reject a VM request.
+     * Review Vm Request
+     * Approve or reject a VM request (admin only). If approved, auto-create the VM/LXC.
+     * @param data The data for the request.
+     * @param data.requestId
+     * @param data.requestBody
+     * @returns VMRequestPublic Successful Response
+     * @throws ApiError
      */
-    public static reviewVmRequest(data: VmRequestsReviewData): CancelablePromise<VmRequestsReviewResponse> {
+    public static reviewVmRequest(data: VmRequestsReviewVmRequestData): CancelablePromise<VmRequestsReviewVmRequestResponse> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/vm-requests/{request_id}/review',

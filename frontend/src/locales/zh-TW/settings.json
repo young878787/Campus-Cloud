@@ -6,6 +6,7 @@
   "tabs": {
     "myProfile": "我的個人資料",
     "password": "密碼",
+    "operationRecords": "操作記錄",
     "dangerZone": "危險區域"
   },
   "profile": {
@@ -62,7 +63,27 @@
       "confirmPassword": "確認密碼",
       "isSuperuser": "是否為管理員？",
       "isActive": "是否啟用？"
+    },
+    "auditLogs": {
+      "title": "操作記錄",
+      "description": "查看所有系統操作記錄",
+      "allRecords": "所有操作記錄",
+      "showing": "顯示",
+      "records": "筆記錄",
+      "filterByVMID": "依 VMID 篩選...",
+      "allActions": "所有動作",
+      "vmid": "VMID",
+      "ipAddress": "IP 位址",
+      "page": "頁",
+      "userCreate": "使用者已建立"
     }
+  },
+  "operationRecords": {
+    "title": "我的操作記錄",
+    "description": "查看您的所有操作歷史",
+    "records": "筆記錄",
+    "noRecords": "找不到操作記錄",
+    "clickToView": "點擊 VMID 查看資源詳情"
   },
   "appearance": {
     "title": "外觀",

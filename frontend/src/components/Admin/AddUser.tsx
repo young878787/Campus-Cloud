@@ -47,7 +47,9 @@ const AddUser = () => {
           password: z
             .string()
             .min(1, { message: t("validation:password.required") })
-            .min(8, { message: t("validation:password.minLength", { count: 8 }) }),
+            .min(8, {
+              message: t("validation:password.minLength", { count: 8 }),
+            }),
           confirm_password: z
             .string()
             .min(1, { message: t("validation:password.confirmRequired") }),
@@ -58,7 +60,7 @@ const AddUser = () => {
           message: t("validation:password.mismatch"),
           path: ["confirm_password"],
         }),
-    [t]
+    [t],
   )
 
   type FormData = z.infer<typeof formSchema>
@@ -119,7 +121,8 @@ const AddUser = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      {t("settings:admin.userForm.email")} <span className="text-destructive">*</span>
+                      {t("settings:admin.userForm.email")}{" "}
+                      <span className="text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -139,9 +142,15 @@ const AddUser = () => {
                 name="full_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings:admin.userForm.fullName")}</FormLabel>
+                    <FormLabel>
+                      {t("settings:admin.userForm.fullName")}
+                    </FormLabel>
                     <FormControl>
-                      <Input placeholder={t("settings:admin.userForm.fullName")} type="text" {...field} />
+                      <Input
+                        placeholder={t("settings:admin.userForm.fullName")}
+                        type="text"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -154,7 +163,8 @@ const AddUser = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      {t("settings:admin.userForm.setPassword")} <span className="text-destructive">*</span>
+                      {t("settings:admin.userForm.setPassword")}{" "}
+                      <span className="text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -180,7 +190,9 @@ const AddUser = () => {
                     </FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t("settings:admin.userForm.confirmPassword")}
+                        placeholder={t(
+                          "settings:admin.userForm.confirmPassword",
+                        )}
                         type="password"
                         {...field}
                         required
@@ -202,7 +214,9 @@ const AddUser = () => {
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
-                    <FormLabel className="font-normal">{t("settings:admin.userForm.isSuperuser")}</FormLabel>
+                    <FormLabel className="font-normal">
+                      {t("settings:admin.userForm.isSuperuser")}
+                    </FormLabel>
                   </FormItem>
                 )}
               />
@@ -218,7 +232,9 @@ const AddUser = () => {
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
-                    <FormLabel className="font-normal">{t("settings:admin.userForm.isActive")}</FormLabel>
+                    <FormLabel className="font-normal">
+                      {t("settings:admin.userForm.isActive")}
+                    </FormLabel>
                   </FormItem>
                 )}
               />

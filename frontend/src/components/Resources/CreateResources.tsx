@@ -1,4 +1,3 @@
-import { FastTemplatesTab } from "@/components/Applications/FastTemplatesTab"
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
@@ -6,8 +5,8 @@ import { useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
-
 import { LxcService, VmService } from "@/client"
+import { FastTemplatesTab } from "@/components/Applications/FastTemplatesTab"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -71,7 +70,9 @@ const CreateContainer = () => {
         password: z
           .string()
           .min(1, { message: t("validation:password.required") })
-          .min(6, { message: t("validation:password.minLength", { count: 6 }) }),
+          .min(6, {
+            message: t("validation:password.minLength", { count: 6 }),
+          }),
         storage: z.string().default("local-lvm"),
         os_info: z.string().optional(),
         expiry_date: z.string().optional(),
@@ -158,7 +159,9 @@ const CreateContainer = () => {
       })
     },
     onSuccess: (data) => {
-      showSuccessToast(`${data.message || t("messages:success.resourceCreated")}`)
+      showSuccessToast(
+        `${data.message || t("messages:success.resourceCreated")}`,
+      )
       form.reset()
       setIsOpen(false)
     },
@@ -188,11 +191,18 @@ const CreateContainer = () => {
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 overflow-y-auto hidden-scroll pl-1 pr-4 -mr-4 pb-1">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex-1 overflow-y-auto hidden-scroll pl-1 pr-4 -mr-4 pb-1"
+          >
             <Tabs defaultValue="custom" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="quick">{t("resources:create.quickTemplate")}</TabsTrigger>
-                <TabsTrigger value="custom">{t("resources:create.customSpec")}</TabsTrigger>
+                <TabsTrigger value="quick">
+                  {t("resources:create.quickTemplate")}
+                </TabsTrigger>
+                <TabsTrigger value="custom">
+                  {t("resources:create.customSpec")}
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="quick" className="mt-4 pb-4">
@@ -210,146 +220,156 @@ const CreateContainer = () => {
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="lxc">{t("resources:form.type.lxc")}</TabsTrigger>
-                    <TabsTrigger value="vm">{t("resources:form.type.qemu")}</TabsTrigger>
+                    <TabsTrigger value="lxc">
+                      {t("resources:form.type.lxc")}
+                    </TabsTrigger>
+                    <TabsTrigger value="vm">
+                      {t("resources:form.type.qemu")}
+                    </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="lxc" className="mt-4">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className="space-y-4">
-                      {/* Container Name */}
-                      <FormField
-                        control={form.control}
-                        name="hostname"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              {t("resources:form.name")}{" "}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="例如：project-alpha-web"
-                                {...field}
-                                required
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      {/* OS Template */}
-                      <FormField
-                        control={form.control}
-                        name="ostemplate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              {t("resources:form.osTemplate")}{" "}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
+                        {/* Container Name */}
+                        <FormField
+                          control={form.control}
+                          name="hostname"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.name")}{" "}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
                               <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("resources:form.os")} />
-                                </SelectTrigger>
+                                <Input
+                                  placeholder="例如：project-alpha-web"
+                                  {...field}
+                                  required
+                                />
                               </FormControl>
-                              <SelectContent>
-                                {lxcTemplatesLoading ? (
-                                  <SelectItem value="loading" disabled>
-                                    {t("common:status.loading")}
-                                  </SelectItem>
-                                ) : lxcTemplates && lxcTemplates.length > 0 ? (
-                                  lxcTemplates.map((template) => (
-                                    <SelectItem
-                                      key={template.volid}
-                                      value={template.volid}
-                                    >
-                                      {template.volid
-                                        .split("/")
-                                        .pop()
-                                        ?.replace(".tar.zst", "")}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* OS Template */}
+                        <FormField
+                          control={form.control}
+                          name="ostemplate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.osTemplate")}{" "}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue
+                                      placeholder={t("resources:form.os")}
+                                    />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {lxcTemplatesLoading ? (
+                                    <SelectItem value="loading" disabled>
+                                      {t("common:status.loading")}
                                     </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="none" disabled>
-                                    {t("common:common.none")}
-                                  </SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                  ) : lxcTemplates &&
+                                    lxcTemplates.length > 0 ? (
+                                    lxcTemplates.map((template) => (
+                                      <SelectItem
+                                        key={template.volid}
+                                        value={template.volid}
+                                      >
+                                        {template.volid
+                                          .split("/")
+                                          .pop()
+                                          ?.replace(".tar.zst", "")}
+                                      </SelectItem>
+                                    ))
+                                  ) : (
+                                    <SelectItem value="none" disabled>
+                                      {t("common:common.none")}
+                                    </SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      {/* OS Info */}
-                      <FormField
-                        control={form.control}
-                        name="os_info"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("resources:form.osInfo")}</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="例如：Ubuntu 22.04 LTS"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        {/* OS Info */}
+                        <FormField
+                          control={form.control}
+                          name="os_info"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.osInfo")}
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="例如：Ubuntu 22.04 LTS"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      {/* Root Password */}
-                      <FormField
-                        control={form.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              {t("resources:form.rootPassword")}{" "}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="設置 root 使用者密碼"
-                                type="password"
-                                {...field}
-                                required
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        {/* Root Password */}
+                        <FormField
+                          control={form.control}
+                          name="password"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.rootPassword")}{" "}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="設置 root 使用者密碼"
+                                  type="password"
+                                  {...field}
+                                  required
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      {/* Expiry Date */}
-                      <FormField
-                        control={form.control}
-                        name="expiry_date"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              {t("resources:form.expiryDate")}
-                            </FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
+                        {/* Expiry Date */}
+                        <FormField
+                          control={form.control}
+                          name="expiry_date"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.expiryDate")}
+                              </FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
 
                       {/* Hardware Resources */}
                       <div className="space-y-6 border rounded-lg p-5 bg-card/50 h-fit sticky top-0">
-                        <h3 className="font-medium">{t("resources:form.hardware")}</h3>
+                        <h3 className="font-medium">
+                          {t("resources:form.hardware")}
+                        </h3>
 
                         {/* CPU Cores */}
                         <FormField
@@ -358,7 +378,9 @@ const CreateContainer = () => {
                           render={({ field }) => (
                             <FormItem>
                               <div className="flex items-center justify-between">
-                                <FormLabel>{t("resources:form.cpuCores")}</FormLabel>
+                                <FormLabel>
+                                  {t("resources:form.cpuCores")}
+                                </FormLabel>
                                 <span className="text-sm font-semibold text-primary">
                                   {field.value} Cores
                                 </span>
@@ -392,7 +414,9 @@ const CreateContainer = () => {
                           render={({ field }) => (
                             <FormItem>
                               <div className="flex items-center justify-between">
-                                <FormLabel>{t("resources:form.memory")}</FormLabel>
+                                <FormLabel>
+                                  {t("resources:form.memory")}
+                                </FormLabel>
                                 <span className="text-sm font-semibold text-primary">
                                   {(field.value / 1024).toFixed(1)} GB
                                 </span>
@@ -426,7 +450,9 @@ const CreateContainer = () => {
                           render={({ field }) => (
                             <FormItem>
                               <div className="flex items-center justify-between">
-                                <FormLabel>{t("resources:form.disk")}</FormLabel>
+                                <FormLabel>
+                                  {t("resources:form.disk")}
+                                </FormLabel>
                                 <div className="flex items-center gap-2">
                                   <Input
                                     type="number"
@@ -469,160 +495,165 @@ const CreateContainer = () => {
                   <TabsContent value="vm" className="mt-4">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className="space-y-4">
-                      {/* VM Name */}
-                      <FormField
-                        control={form.control}
-                        name="hostname"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              {t("resources:form.vmName")}{" "}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="例如：web-server-01"
-                                {...field}
-                                required
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      {/* OS Template */}
-                      <FormField
-                        control={form.control}
-                        name="template_id"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              {t("resources:form.os")}{" "}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <Select
-                              onValueChange={(value) =>
-                                field.onChange(Number.parseInt(value, 10))
-                              }
-                              value={field.value?.toString()}
-                            >
+                        {/* VM Name */}
+                        <FormField
+                          control={form.control}
+                          name="hostname"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.vmName")}{" "}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
                               <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={t("resources:form.os")} />
-                                </SelectTrigger>
+                                <Input
+                                  placeholder="例如：web-server-01"
+                                  {...field}
+                                  required
+                                />
                               </FormControl>
-                              <SelectContent>
-                                {vmTemplatesLoading ? (
-                                  <SelectItem value="loading" disabled>
-                                    {t("common:status.loading")}
-                                  </SelectItem>
-                                ) : vmTemplates && vmTemplates.length > 0 ? (
-                                  vmTemplates.map((template) => (
-                                    <SelectItem
-                                      key={template.vmid}
-                                      value={template.vmid.toString()}
-                                    >
-                                      {template.name}
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* OS Template */}
+                        <FormField
+                          control={form.control}
+                          name="template_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.os")}{" "}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <Select
+                                onValueChange={(value) =>
+                                  field.onChange(Number.parseInt(value, 10))
+                                }
+                                value={field.value?.toString()}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue
+                                      placeholder={t("resources:form.os")}
+                                    />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {vmTemplatesLoading ? (
+                                    <SelectItem value="loading" disabled>
+                                      {t("common:status.loading")}
                                     </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="none" disabled>
-                                    {t("common:common.none")}
-                                  </SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                  ) : vmTemplates && vmTemplates.length > 0 ? (
+                                    vmTemplates.map((template) => (
+                                      <SelectItem
+                                        key={template.vmid}
+                                        value={template.vmid.toString()}
+                                      >
+                                        {template.name}
+                                      </SelectItem>
+                                    ))
+                                  ) : (
+                                    <SelectItem value="none" disabled>
+                                      {t("common:common.none")}
+                                    </SelectItem>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      {/* OS Info */}
-                      <FormField
-                        control={form.control}
-                        name="os_info"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("resources:form.osInfo")}</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="例如：Ubuntu 22.04 LTS"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        {/* OS Info */}
+                        <FormField
+                          control={form.control}
+                          name="os_info"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.osInfo")}
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="例如：Ubuntu 22.04 LTS"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      {/* Username */}
-                      <FormField
-                        control={form.control}
-                        name="username"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              {t("resources:form.username")}{" "}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="例如：admin"
-                                {...field}
-                                required
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        {/* Username */}
+                        <FormField
+                          control={form.control}
+                          name="username"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.username")}{" "}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="例如：admin"
+                                  {...field}
+                                  required
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      {/* Root Password */}
-                      <FormField
-                        control={form.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              {t("resources:form.password")}{" "}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="設置使用者密碼"
-                                type="password"
-                                {...field}
-                                required
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        {/* Root Password */}
+                        <FormField
+                          control={form.control}
+                          name="password"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.password")}{" "}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="設置使用者密碼"
+                                  type="password"
+                                  {...field}
+                                  required
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      {/* Expiry Date */}
-                      <FormField
-                        control={form.control}
-                        name="expiry_date"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              {t("resources:form.expiryDate")}
-                            </FormLabel>
-                            <FormControl>
-                              <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
+                        {/* Expiry Date */}
+                        <FormField
+                          control={form.control}
+                          name="expiry_date"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {t("resources:form.expiryDate")}
+                              </FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
 
                       {/* Hardware Resources */}
                       <div className="space-y-6 border rounded-lg p-5 bg-card/50 h-fit sticky top-0">
-                        <h3 className="font-medium">{t("resources:form.hardware")}</h3>
+                        <h3 className="font-medium">
+                          {t("resources:form.hardware")}
+                        </h3>
 
                         {/* CPU Cores */}
                         <FormField
@@ -631,7 +662,9 @@ const CreateContainer = () => {
                           render={({ field }) => (
                             <FormItem>
                               <div className="flex items-center justify-between">
-                                <FormLabel>{t("resources:form.cpuCores")}</FormLabel>
+                                <FormLabel>
+                                  {t("resources:form.cpuCores")}
+                                </FormLabel>
                                 <span className="text-sm font-semibold text-primary">
                                   {field.value} Cores
                                 </span>
@@ -665,7 +698,9 @@ const CreateContainer = () => {
                           render={({ field }) => (
                             <FormItem>
                               <div className="flex items-center justify-between">
-                                <FormLabel>{t("resources:form.memory")}</FormLabel>
+                                <FormLabel>
+                                  {t("resources:form.memory")}
+                                </FormLabel>
                                 <span className="text-sm font-semibold text-primary">
                                   {(field.value / 1024).toFixed(1)} GB
                                 </span>
@@ -699,7 +734,9 @@ const CreateContainer = () => {
                           render={({ field }) => (
                             <FormItem>
                               <div className="flex items-center justify-between">
-                                <FormLabel>{t("resources:form.disk")}</FormLabel>
+                                <FormLabel>
+                                  {t("resources:form.disk")}
+                                </FormLabel>
                                 <div className="flex items-center gap-2">
                                   <Input
                                     type="number"

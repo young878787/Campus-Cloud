@@ -7,24 +7,26 @@ import { defineConfig } from "vite"
 
 function templatesPlugin() {
   return {
-    name: 'virtual-templates',
+    name: "virtual-templates",
     resolveId(id: string) {
-      if (id === 'virtual:templates') return '\0virtual:templates'
+      if (id === "virtual:templates") return "\0virtual:templates"
     },
     load(id: string) {
-      if (id === '\0virtual:templates') {
-        const jsonDir = path.resolve(__dirname, 'src/json')
-        if (!fs.existsSync(jsonDir)) return 'export default {}'
-        const files = fs.readdirSync(jsonDir).filter(f => f.endsWith('.json'))
+      if (id === "\0virtual:templates") {
+        const jsonDir = path.resolve(__dirname, "src/json")
+        if (!fs.existsSync(jsonDir)) return "export default {}"
+        const files = fs.readdirSync(jsonDir).filter((f) => f.endsWith(".json"))
         const allData: Record<string, any> = {}
         for (const f of files) {
           try {
-            allData[`../../json/${f}`] = JSON.parse(fs.readFileSync(path.join(jsonDir, f), 'utf-8'))
-          } catch(e) {}
+            allData[`../../json/${f}`] = JSON.parse(
+              fs.readFileSync(path.join(jsonDir, f), "utf-8"),
+            )
+          } catch (_e) {}
         }
         return `export default ${JSON.stringify(allData)}`
       }
-    }
+    },
   }
 }
 

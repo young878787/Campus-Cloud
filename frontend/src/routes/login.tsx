@@ -53,7 +53,9 @@ function Login() {
         password: z
           .string()
           .min(1, { message: t("validation:password.required") })
-          .min(8, { message: t("validation:password.minLength", { count: 8 }) }),
+          .min(8, {
+            message: t("validation:password.minLength", { count: 8 }),
+          }),
       }) satisfies z.ZodType<AccessToken>,
     [t],
   )

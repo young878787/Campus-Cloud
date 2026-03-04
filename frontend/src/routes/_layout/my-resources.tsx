@@ -1,7 +1,7 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { Monitor, RefreshCw } from "lucide-react"
-import { Suspense, useMemo, useState } from "react"
+import { Suspense, useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { ResourcesService } from "@/client"
@@ -36,9 +36,20 @@ function MyResourcesTableContent({
   onOpenConsole: (vmid: number, name: string, type: string) => void
 }) {
   const { t } = useTranslation(["resources"])
+  const navigate = useNavigate()
   const { data: resources } = useSuspenseQuery(getMyResourcesQueryOptions())
 
-  const columns = useMemo(() => createColumns(t, onOpenConsole), [t, onOpenConsole])
+  const handleRowClick = useCallback(
+    (vmid: number) => {
+      navigate({ to: "/my-resources/$vmid", params: { vmid: vmid.toString() } })
+    },
+    [navigate],
+  )
+
+  const columns = useMemo(
+    () => createColumns(t, onOpenConsole, handleRowClick),
+    [t, onOpenConsole, handleRowClick],
+  )
 
   if (resources.length === 0) {
     return (
@@ -46,7 +57,9 @@ function MyResourcesTableContent({
         <div className="rounded-full bg-muted p-4 mb-4">
           <Monitor className="h-8 w-8 text-muted-foreground" />
         </div>
-        <h3 className="text-lg font-semibold">{t("resources:page.noResources")}</h3>
+        <h3 className="text-lg font-semibold">
+          {t("resources:page.noResources")}
+        </h3>
         <p className="text-muted-foreground">
           {t("resources:page.noResourcesDescription")}
         </p>
@@ -54,7 +67,13 @@ function MyResourcesTableContent({
     )
   }
 
-  return <DataTable columns={columns} data={resources} />
+  return (
+    <DataTable
+      columns={columns}
+      data={resources}
+      onRowClick={(row) => handleRowClick(row.vmid)}
+    />
+  )
 }
 
 function MyResourcesTable({
@@ -106,7 +125,9 @@ function MyResources() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("resources:page.myResourcesTitle")}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {t("resources:page.myResourcesTitle")}
+          </h1>
           <p className="text-muted-foreground">
             {t("resources:page.myResourcesDescription")}
           </p>

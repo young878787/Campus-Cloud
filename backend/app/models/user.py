@@ -11,7 +11,9 @@ from sqlmodel import Field, Relationship, SQLModel
 from .base import get_datetime_utc
 
 if TYPE_CHECKING:
+    from .audit_log import AuditLog
     from .machine import Resource
+    from .spec_change_request import SpecChangeRequest
     from .vm_request import VMRequest
 
 
@@ -79,6 +81,11 @@ class User(UserBase, table=True):
         back_populates="user",
         sa_relationship_kwargs={"foreign_keys": "[VMRequest.user_id]"},
     )
+    spec_change_requests: list["SpecChangeRequest"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"foreign_keys": "[SpecChangeRequest.user_id]"},
+    )
+    audit_logs: list["AuditLog"] = Relationship(back_populates="user")
 
 
 # Properties to return via API, id is always required

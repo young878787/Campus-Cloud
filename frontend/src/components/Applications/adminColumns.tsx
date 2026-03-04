@@ -73,4 +73,5 @@ export const createAdminRequestColumns = (
   },
 ]
 
-export const adminRequestColumns: ColumnDef<VMRequestPublic>[] = createAdminRequestColumns(() => "")
+export const adminRequestColumns: ColumnDef<VMRequestPublic>[] =
+  createAdminRequestColumns(() => "")

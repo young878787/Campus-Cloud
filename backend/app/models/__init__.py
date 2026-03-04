@@ -52,6 +52,21 @@ from .user import (
     UserUpdate,
     UserUpdateMe,
 )
+from .audit_log import (
+    AuditAction,
+    AuditLog,
+    AuditLogPublic,
+    AuditLogsPublic,
+)
+from .spec_change_request import (
+    SpecChangeRequest,
+    SpecChangeRequestCreate,
+    SpecChangeRequestPublic,
+    SpecChangeRequestReview,
+    SpecChangeRequestsPublic,
+    SpecChangeRequestStatus,
+    SpecChangeType,
+)
 
 __all__ = [
     # Base
@@ -93,4 +108,17 @@ __all__ = [
     "VMRequestReview",
     "VMRequestStatus",
     "VMRequestsPublic",
+    # Audit Log models
+    "AuditAction",
+    "AuditLog",
+    "AuditLogPublic",
+    "AuditLogsPublic",
+    # Spec Change Request models
+    "SpecChangeRequest",
+    "SpecChangeRequestCreate",
+    "SpecChangeRequestPublic",
+    "SpecChangeRequestReview",
+    "SpecChangeRequestsPublic",
+    "SpecChangeRequestStatus",
+    "SpecChangeType",
 ]

@@ -49,11 +49,15 @@ function SignUp() {
       z
         .object({
           email: z.email({ message: t("validation:email.invalid") }),
-          full_name: z.string().min(1, { message: t("validation:name.fullNameRequired") }),
+          full_name: z
+            .string()
+            .min(1, { message: t("validation:name.fullNameRequired") }),
           password: z
             .string()
             .min(1, { message: t("validation:password.required") })
-            .min(8, { message: t("validation:password.minLength", { count: 8 }) }),
+            .min(8, {
+              message: t("validation:password.minLength", { count: 8 }),
+            }),
           confirm_password: z
             .string()
             .min(1, { message: t("validation:password.confirmRequired") }),

@@ -21,6 +21,9 @@ import { Route as LayoutMyResourcesRouteImport } from './routes/_layout/my-resou
 import { Route as LayoutApprovalsRouteImport } from './routes/_layout/approvals'
 import { Route as LayoutApplicationsRouteImport } from './routes/_layout/applications'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
+import { Route as LayoutResourcesVmidRouteImport } from './routes/_layout/resources_.$vmid'
+import { Route as LayoutMyResourcesVmidRouteImport } from './routes/_layout/my-resources_.$vmid'
+import { Route as LayoutAdminAuditLogsRouteImport } from './routes/_layout/admin.audit-logs'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -81,6 +84,21 @@ const LayoutAdminRoute = LayoutAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutResourcesVmidRoute = LayoutResourcesVmidRouteImport.update({
+  id: '/resources_/$vmid',
+  path: '/resources/$vmid',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutMyResourcesVmidRoute = LayoutMyResourcesVmidRouteImport.update({
+  id: '/my-resources_/$vmid',
+  path: '/my-resources/$vmid',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutAdminAuditLogsRoute = LayoutAdminAuditLogsRouteImport.update({
+  id: '/audit-logs',
+  path: '/audit-logs',
+  getParentRoute: () => LayoutAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof LayoutIndexRoute
@@ -88,25 +106,31 @@ export interface FileRoutesByFullPath {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/admin': typeof LayoutAdminRoute
+  '/admin': typeof LayoutAdminRouteWithChildren
   '/applications': typeof LayoutApplicationsRoute
   '/approvals': typeof LayoutApprovalsRoute
   '/my-resources': typeof LayoutMyResourcesRoute
   '/resources': typeof LayoutResourcesRoute
   '/settings': typeof LayoutSettingsRoute
+  '/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
+  '/my-resources/$vmid': typeof LayoutMyResourcesVmidRoute
+  '/resources/$vmid': typeof LayoutResourcesVmidRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/admin': typeof LayoutAdminRoute
+  '/admin': typeof LayoutAdminRouteWithChildren
   '/applications': typeof LayoutApplicationsRoute
   '/approvals': typeof LayoutApprovalsRoute
   '/my-resources': typeof LayoutMyResourcesRoute
   '/resources': typeof LayoutResourcesRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
+  '/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
+  '/my-resources/$vmid': typeof LayoutMyResourcesVmidRoute
+  '/resources/$vmid': typeof LayoutResourcesVmidRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -115,13 +139,16 @@ export interface FileRoutesById {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
-  '/_layout/admin': typeof LayoutAdminRoute
+  '/_layout/admin': typeof LayoutAdminRouteWithChildren
   '/_layout/applications': typeof LayoutApplicationsRoute
   '/_layout/approvals': typeof LayoutApprovalsRoute
   '/_layout/my-resources': typeof LayoutMyResourcesRoute
   '/_layout/resources': typeof LayoutResourcesRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
+  '/_layout/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
+  '/_layout/my-resources_/$vmid': typeof LayoutMyResourcesVmidRoute
+  '/_layout/resources_/$vmid': typeof LayoutResourcesVmidRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,6 +164,9 @@ export interface FileRouteTypes {
     | '/my-resources'
     | '/resources'
     | '/settings'
+    | '/admin/audit-logs'
+    | '/my-resources/$vmid'
+    | '/resources/$vmid'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -150,6 +180,9 @@ export interface FileRouteTypes {
     | '/resources'
     | '/settings'
     | '/'
+    | '/admin/audit-logs'
+    | '/my-resources/$vmid'
+    | '/resources/$vmid'
   id:
     | '__root__'
     | '/_layout'
@@ -164,6 +197,9 @@ export interface FileRouteTypes {
     | '/_layout/resources'
     | '/_layout/settings'
     | '/_layout/'
+    | '/_layout/admin/audit-logs'
+    | '/_layout/my-resources_/$vmid'
+    | '/_layout/resources_/$vmid'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -260,27 +296,64 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/resources_/$vmid': {
+      id: '/_layout/resources_/$vmid'
+      path: '/resources/$vmid'
+      fullPath: '/resources/$vmid'
+      preLoaderRoute: typeof LayoutResourcesVmidRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/my-resources_/$vmid': {
+      id: '/_layout/my-resources_/$vmid'
+      path: '/my-resources/$vmid'
+      fullPath: '/my-resources/$vmid'
+      preLoaderRoute: typeof LayoutMyResourcesVmidRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/admin/audit-logs': {
+      id: '/_layout/admin/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/admin/audit-logs'
+      preLoaderRoute: typeof LayoutAdminAuditLogsRouteImport
+      parentRoute: typeof LayoutAdminRoute
+    }
   }
 }
 
+interface LayoutAdminRouteChildren {
+  LayoutAdminAuditLogsRoute: typeof LayoutAdminAuditLogsRoute
+}
+
+const LayoutAdminRouteChildren: LayoutAdminRouteChildren = {
+  LayoutAdminAuditLogsRoute: LayoutAdminAuditLogsRoute,
+}
+
+const LayoutAdminRouteWithChildren = LayoutAdminRoute._addFileChildren(
+  LayoutAdminRouteChildren,
+)
+
 interface LayoutRouteChildren {
-  LayoutAdminRoute: typeof LayoutAdminRoute
+  LayoutAdminRoute: typeof LayoutAdminRouteWithChildren
   LayoutApplicationsRoute: typeof LayoutApplicationsRoute
   LayoutApprovalsRoute: typeof LayoutApprovalsRoute
   LayoutMyResourcesRoute: typeof LayoutMyResourcesRoute
   LayoutResourcesRoute: typeof LayoutResourcesRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
+  LayoutMyResourcesVmidRoute: typeof LayoutMyResourcesVmidRoute
+  LayoutResourcesVmidRoute: typeof LayoutResourcesVmidRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
-  LayoutAdminRoute: LayoutAdminRoute,
+  LayoutAdminRoute: LayoutAdminRouteWithChildren,
   LayoutApplicationsRoute: LayoutApplicationsRoute,
   LayoutApprovalsRoute: LayoutApprovalsRoute,
   LayoutMyResourcesRoute: LayoutMyResourcesRoute,
   LayoutResourcesRoute: LayoutResourcesRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
+  LayoutMyResourcesVmidRoute: LayoutMyResourcesVmidRoute,
+  LayoutResourcesVmidRoute: LayoutResourcesVmidRoute,
 }
 
 const LayoutRouteWithChildren =

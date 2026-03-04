@@ -10,6 +10,7 @@ from app.api.deps import (
     SessionDep,
     get_current_active_superuser,
 )
+from app.crud import audit_log as audit_log_crud
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.models import (
@@ -50,7 +51,9 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
 @router.post(
     "/", dependencies=[Depends(get_current_active_superuser)], response_model=UserPublic
 )
-def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
+def create_user(
+    *, session: SessionDep, current_user: CurrentUser, user_in: UserCreate
+) -> Any:
     """
     Create new user.
     """
@@ -62,6 +65,16 @@ def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
         )
 
     user = crud.create_user(session=session, user_create=user_in)
+
+    # Record audit log
+    audit_log_crud.create_audit_log(
+        session=session,
+        user_id=current_user.id,
+        vmid=None,
+        action="user_create",
+        details=f"Created user: {user_in.email}, is_superuser: {user_in.is_superuser}",
+    )
+
     if settings.emails_enabled and user_in.email:
         email_data = generate_new_account_email(
             email_to=user_in.email, username=user_in.email, password=user_in.password
@@ -93,6 +106,17 @@ def update_user_me(
     session.add(current_user)
     session.commit()
     session.refresh(current_user)
+
+    # Record audit log
+    changes = ", ".join([f"{k}={v}" for k, v in user_data.items()])
+    audit_log_crud.create_audit_log(
+        session=session,
+        user_id=current_user.id,
+        vmid=None,
+        action="user_update",
+        details=f"Updated own profile: {changes}",
+    )
+
     return current_user
 
 
@@ -134,6 +158,16 @@ def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
         raise HTTPException(
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
+
+    # Record audit log BEFORE deleting
+    audit_log_crud.create_audit_log(
+        session=session,
+        user_id=current_user.id,
+        vmid=None,
+        action="user_delete",
+        details=f"Deleted own account: {current_user.email}",
+    )
+
     session.delete(current_user)
     session.commit()
     return Message(message="User deleted successfully")
@@ -183,6 +217,7 @@ def read_user_by_id(
 def update_user(
     *,
     session: SessionDep,
+    current_user: CurrentUser,
     user_id: uuid.UUID,
     user_in: UserUpdate,
 ) -> Any:
@@ -204,6 +239,18 @@ def update_user(
             )
 
     db_user = crud.update_user(session=session, db_user=db_user, user_in=user_in)
+
+    # Record audit log
+    changes_dict = user_in.model_dump(exclude_unset=True)
+    changes = ", ".join([f"{k}={v}" for k, v in changes_dict.items()])
+    audit_log_crud.create_audit_log(
+        session=session,
+        user_id=current_user.id,
+        vmid=None,
+        action="user_update",
+        details=f"Updated user {db_user.email}: {changes}",
+    )
+
     return db_user
 
 
@@ -221,6 +268,16 @@ def delete_user(
         raise HTTPException(
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
+
+    # Record audit log BEFORE deleting
+    audit_log_crud.create_audit_log(
+        session=session,
+        user_id=current_user.id,
+        vmid=None,
+        action="user_delete",
+        details=f"Deleted user: {user.email}",
+    )
+
     session.delete(user)
     session.commit()
     return Message(message="User deleted successfully")

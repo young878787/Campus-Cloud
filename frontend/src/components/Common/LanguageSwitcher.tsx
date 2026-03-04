@@ -1,5 +1,4 @@
 import { Languages } from "lucide-react"
-import { useLanguage, type Language } from "@/providers/LanguageProvider"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { type Language, useLanguage } from "@/providers/LanguageProvider"
 
 const languageOptions: { value: Language; label: string; flag: string }[] = [
   { value: "zh-TW", label: "繁體中文", flag: "🇹🇼" },

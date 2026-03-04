@@ -8,6 +8,7 @@ from app.api.deps import CurrentUser, SessionDep
 from app.core.config import settings
 from app.core.proxmox import basic_blocking_task_status, get_proxmox_api
 from app.core.security import decrypt_value
+from app.crud import audit_log as audit_log_crud
 from app.crud import resource as resource_crud
 from app.crud import vm_request as vm_request_crud
 from app.models import (
@@ -83,6 +84,15 @@ def create_vm_request(
         session=session,
         vm_request_in=request_in,
         user_id=current_user.id,
+    )
+
+    # Record audit log
+    audit_log_crud.create_audit_log(
+        session=session,
+        user_id=current_user.id,
+        vmid=None,  # No VMID yet
+        action="vm_request_submit",
+        details=f"Submitted {request_in.resource_type} request: {request_in.hostname}, {request_in.cores} cores, {request_in.memory}MB RAM. Reason: {request_in.reason}",
     )
 
     logger.info(
@@ -204,6 +214,22 @@ def review_vm_request(
         action = (
             "approved" if review.status == VMRequestStatus.approved else "rejected"
         )
+
+        # Record audit log
+        details = f"Reviewed VM request {request_id}: {action}"
+        if review.status == VMRequestStatus.approved and vmid:
+            details += f", created VMID {vmid}"
+        if review.review_comment:
+            details += f". Comment: {review.review_comment}"
+
+        audit_log_crud.create_audit_log(
+            session=session,
+            user_id=current_user.id,
+            vmid=vmid,  # Will be None if rejected
+            action="vm_request_review",
+            details=details,
+        )
+
         logger.info(
             f"Admin {current_user.email} {action} VM request {request_id}"
         )

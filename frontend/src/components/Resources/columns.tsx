@@ -5,7 +5,13 @@ import type { ResourcePublic } from "@/client"
 import { VMActions } from "@/components/Resources/VMActions"
 import { cn } from "@/lib/utils"
 
-function StatusBadge({ status, t }: { status: string; t: TFunction<string, string> }) {
+function StatusBadge({
+  status,
+  t,
+}: {
+  status: string
+  t: TFunction<string, string>
+}) {
   const isRunning = status === "running"
   return (
     <span
@@ -34,9 +40,17 @@ function TypeIcon({ type }: { type: string }) {
   return <Monitor className="h-4 w-4 text-purple-500" />
 }
 
-function TypeLabel({ type, t }: { type: string; t: TFunction<string, string> }) {
+function TypeLabel({
+  type,
+  t,
+}: {
+  type: string
+  t: TFunction<string, string>
+}) {
   if (type === "lxc") {
-    return <span className="text-xs text-muted-foreground">{t("table.lxc")}</span>
+    return (
+      <span className="text-xs text-muted-foreground">{t("table.lxc")}</span>
+    )
   }
   return <span className="text-xs text-muted-foreground">{t("table.kvm")}</span>
 }
@@ -44,6 +58,7 @@ function TypeLabel({ type, t }: { type: string; t: TFunction<string, string> }) 
 export const createColumns = (
   t: TFunction<string, string>,
   onOpenConsole: (vmid: number, name: string, type: string) => void,
+  onRowClick?: (vmid: number) => void,
 ): ColumnDef<ResourcePublic>[] => [
   {
     accessorKey: "name",
@@ -124,4 +139,7 @@ export const createColumns = (
   },
 ]
 
-export const columns: ColumnDef<ResourcePublic>[] = createColumns(() => "", () => {})
+export const columns: ColumnDef<ResourcePublic>[] = createColumns(
+  () => "",
+  () => {},
+)

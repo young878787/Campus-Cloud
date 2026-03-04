@@ -6,10 +6,19 @@ import { Badge } from "@/components/ui/badge"
 export const createMyRequestColumns = (
   t: TFunction<string, string>,
 ): ColumnDef<VMRequestPublic>[] => {
-  const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  const statusMap: Record<
+    string,
+    {
+      label: string
+      variant: "default" | "secondary" | "destructive" | "outline"
+    }
+  > = {
     pending: { label: t("applications:status.pending"), variant: "outline" },
     approved: { label: t("applications:status.approved"), variant: "default" },
-    rejected: { label: t("applications:status.rejected"), variant: "destructive" },
+    rejected: {
+      label: t("applications:status.rejected"),
+      variant: "destructive",
+    },
   }
 
   return [
@@ -45,7 +54,8 @@ export const createMyRequestColumns = (
       header: t("applications:table.specs"),
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {row.original.cores} Core / {(row.original.memory / 1024).toFixed(1)} GB
+          {row.original.cores} Core / {(row.original.memory / 1024).toFixed(1)}{" "}
+          GB
         </span>
       ),
     },
@@ -78,4 +88,5 @@ export const createMyRequestColumns = (
   ]
 }
 
-export const myRequestColumns: ColumnDef<VMRequestPublic>[] = createMyRequestColumns(() => "")
+export const myRequestColumns: ColumnDef<VMRequestPublic>[] =
+  createMyRequestColumns(() => "")

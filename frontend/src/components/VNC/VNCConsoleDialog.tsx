@@ -73,7 +73,7 @@ export function VNCConsoleDialog({
       setVncTicket(null)
       setError(null)
     }
-  }, [open, vmid])
+  }, [open, vmid, t])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -177,7 +177,11 @@ export function VNCConsoleDialog({
                           : "bg-zinc-400",
                     )}
                   />
-                  {isConnected ? t("console.status.connected") : isLoading ? t("console.status.connecting") : t("console.status.disconnected")}
+                  {isConnected
+                    ? t("console.status.connected")
+                    : isLoading
+                      ? t("console.status.connecting")
+                      : t("console.status.disconnected")}
                 </span>
               </div>
             </div>
@@ -211,7 +215,11 @@ export function VNCConsoleDialog({
               onClick={toggleFullscreen}
               disabled={!isConnected}
               className="h-8 w-8 text-zinc-300 hover:text-white hover:bg-zinc-700/50 disabled:opacity-40"
-              title={isFullscreen ? t("console.buttons.exitFullscreen") : t("console.buttons.fullscreen")}
+              title={
+                isFullscreen
+                  ? t("console.buttons.exitFullscreen")
+                  : t("console.buttons.fullscreen")
+              }
             >
               {isFullscreen ? (
                 <Minimize2 className="h-4 w-4" />
@@ -268,7 +276,9 @@ export function VNCConsoleDialog({
                   {t("console.vnc.connecting")}
                 </h3>
                 <p className="text-sm text-zinc-400">
-                  {t("console.vnc.connectingDescription", { name: vmName || `VM ${vmid}` })}
+                  {t("console.vnc.connectingDescription", {
+                    name: vmName || `VM ${vmid}`,
+                  })}
                 </p>
               </div>
             </div>
@@ -299,7 +309,12 @@ export function VNCConsoleDialog({
 
         <div className="flex items-center justify-between px-4 py-1.5 bg-zinc-800/50 border-t border-zinc-700/50 shrink-0">
           <div className="flex items-center gap-4 text-[11px] text-zinc-500">
-            <span>WebSocket: {wsUrl ? t("console.websocket.connected") : t("console.websocket.disconnected")}</span>
+            <span>
+              WebSocket:{" "}
+              {wsUrl
+                ? t("console.websocket.connected")
+                : t("console.websocket.disconnected")}
+            </span>
             <span>•</span>
             <span>{t("console.protocol.vnc")}</span>
           </div>
