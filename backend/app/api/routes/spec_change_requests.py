@@ -242,7 +242,6 @@ def review_spec_change_request(
                     session=session,
                     current_user=current_user,
                     vmid=db_request.vmid,
-                    skip_ownership_check=True,  # 管理員可以操作任何資源
                 )
                 node = resource_info["node"]
                 resource_type = resource_info["type"]
