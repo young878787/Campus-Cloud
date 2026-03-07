@@ -71,34 +71,7 @@ class AuditLog(SQLModel, table=True):
     user: Optional["User"] = Relationship(back_populates="audit_logs")
 
 
-# ===== API Schemas =====
-
-
-class AuditLogPublic(SQLModel):
-    """公開的審計日誌資訊"""
-
-    id: uuid.UUID
-    user_id: uuid.UUID
-    user_email: str | None = None
-    user_full_name: str | None = None
-    vmid: int | None
-    action: AuditAction
-    details: str
-    ip_address: str | None
-    user_agent: str | None
-    created_at: datetime
-
-
-class AuditLogsPublic(SQLModel):
-    """審計日誌列表"""
-
-    data: list[AuditLogPublic]
-    count: int
-
-
 __all__ = [
     "AuditAction",
     "AuditLog",
-    "AuditLogPublic",
-    "AuditLogsPublic",
 ]

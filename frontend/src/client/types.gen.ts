@@ -6,7 +6,7 @@
 export type AuditAction = 'spec_change_request' | 'spec_change_apply' | 'snapshot_create' | 'snapshot_delete' | 'snapshot_rollback' | 'config_update' | 'vm_create' | 'lxc_create' | 'resource_start' | 'resource_stop' | 'resource_reboot' | 'resource_shutdown' | 'resource_reset' | 'resource_delete' | 'vm_request_submit' | 'vm_request_review' | 'user_create' | 'user_update' | 'user_delete';
 
 /**
- * 公開的審計日誌資訊
+ * 公開的審計日誌
  */
 export type AuditLogPublic = {
     id: string;
@@ -39,47 +39,47 @@ export type Body_login_login_access_token = {
 };
 
 /**
- * 當前實時狀態
+ * 資源即時狀態
  */
 export type CurrentStatsResponse = {
     /**
-     * CPU 使用率 (0-1)
+     * CPU usage (0-1)
      */
     cpu?: (number | null);
     /**
-     * CPU 核心數
+     * CPU cores
      */
     maxcpu?: (number | null);
     /**
-     * 當前記憶體使用 (bytes)
+     * Memory usage (bytes)
      */
     mem?: (number | null);
     /**
-     * 最大記憶體 (bytes)
+     * Max memory (bytes)
      */
     maxmem?: (number | null);
     /**
-     * 當前磁碟使用 (bytes)
+     * Disk usage (bytes)
      */
     disk?: (number | null);
     /**
-     * 最大磁碟 (bytes)
+     * Max disk (bytes)
      */
     maxdisk?: (number | null);
     /**
-     * 網絡輸入 (bytes)
+     * Network in (bytes)
      */
     netin?: (number | null);
     /**
-     * 網絡輸出 (bytes)
+     * Network out (bytes)
      */
     netout?: (number | null);
     /**
-     * 運行時間 (seconds)
+     * Uptime (seconds)
      */
     uptime?: (number | null);
     /**
-     * 狀態 (running, stopped, etc.)
+     * Status
      */
     status: string;
 };
@@ -89,15 +89,15 @@ export type CurrentStatsResponse = {
  */
 export type DirectSpecUpdateRequest = {
     /**
-     * CPU 核心數
+     * CPU cores
      */
     cores?: (number | null);
     /**
-     * 記憶體 (MB)
+     * Memory (MB)
      */
     memory?: (number | null);
     /**
-     * 磁碟大小增量 (例如 "+10G"，僅能增加)
+     * Disk size increment (e.g. "+10G")
      */
     disk_size?: (string | null);
 };
@@ -107,18 +107,9 @@ export type HTTPValidationError = {
 };
 
 /**
- * Response after creating LXC container.
+ * 建立 LXC 容器
  */
-export type LXCCreateResponse = {
-    vmid: number;
-    upid: string;
-    message: string;
-};
-
-/**
- * Schema for creating a new LXC container.
- */
-export type LXCCreateSchema = {
+export type LXCCreateRequest = {
     hostname: string;
     ostemplate: string;
     cores?: number;
@@ -131,6 +122,15 @@ export type LXCCreateSchema = {
     expiry_date?: (string | null);
     start?: boolean;
     unprivileged?: boolean;
+};
+
+/**
+ * 建立 LXC 回應
+ */
+export type LXCCreateResponse = {
+    vmid: number;
+    upid: string;
+    message: string;
 };
 
 /**
@@ -149,7 +149,7 @@ export type NewPassword = {
 };
 
 /**
- * Proxmox node information.
+ * Proxmox 節點資訊
  */
 export type NodeSchema = {
     node: string;
@@ -169,7 +169,7 @@ export type PrivateUserCreate = {
 };
 
 /**
- * 公開的資源資訊，合併Proxmox資料和資料庫額外資訊.
+ * 公開的資源資訊（合併 Proxmox + DB）
  */
 export type ResourcePublic = {
     vmid: number;
@@ -193,7 +193,7 @@ export type ResourcePublic = {
  */
 export type RRDDataPoint = {
     /**
-     * 時間戳
+     * Timestamp
      */
     time: number;
     cpu?: (number | null);
@@ -207,61 +207,61 @@ export type RRDDataPoint = {
 };
 
 /**
- * RRD 歷史數據響應
+ * RRD 歷史數據
  */
 export type RRDDataResponse = {
     /**
-     * 時間範圍
+     * Time range
      */
     timeframe: string;
     /**
-     * 數據點列表
+     * Data points
      */
     data: Array<RRDDataPoint>;
 };
 
 /**
- * 創建快照請求
+ * 建立快照
  */
 export type SnapshotCreateRequest = {
     /**
-     * 快照名稱
+     * Snapshot name
      */
     snapname: string;
     /**
-     * 快照描述
+     * Snapshot description
      */
     description?: (string | null);
     /**
-     * 是否包含 RAM 狀態 (僅 VM)
+     * Include RAM state (VM only)
      */
     vmstate?: boolean;
 };
 
 /**
- * 快照信息
+ * 快照資訊
  */
 export type SnapshotInfo = {
     /**
-     * 快照名稱
+     * Snapshot name
      */
     name: string;
     /**
-     * 快照描述
+     * Snapshot description
      */
     description?: (string | null);
     /**
-     * 創建時間戳
+     * Creation timestamp
      */
     snaptime?: (number | null);
     /**
-     * 是否包含 VM 狀態 (0/1)
+     * Includes VM state (0/1)
      */
     vmstate?: (number | null);
 };
 
 /**
- * 快照操作響應
+ * 快照操作回應
  */
 export type SnapshotResponse = {
     message: string;
@@ -269,7 +269,7 @@ export type SnapshotResponse = {
 };
 
 /**
- * 創建規格調整申請
+ * 建立規格調整申請
  */
 export type SpecChangeRequestCreate = {
     vmid: number;
@@ -335,7 +335,7 @@ export type SpecChangeRequestStatus = 'pending' | 'approved' | 'rejected';
 export type SpecChangeType = 'cpu' | 'memory' | 'disk' | 'combined';
 
 /**
- * OS template information.
+ * LXC OS template 資訊
  */
 export type TemplateSchema = {
     volid: string;
@@ -344,7 +344,7 @@ export type TemplateSchema = {
 };
 
 /**
- * Terminal console connection information for LXC containers.
+ * LXC Terminal 連線資訊
  */
 export type TerminalInfoSchema = {
     vmid: number;
@@ -362,7 +362,7 @@ export type Token = {
 };
 
 /**
- * 更新密碼請求
+ * 更新密碼
  */
 export type UpdatePassword = {
     current_password: string;
@@ -370,30 +370,30 @@ export type UpdatePassword = {
 };
 
 /**
- * 建立使用者時接收的資料
+ * 建立使用者
  */
 export type UserCreate = {
     email: string;
+    password: string;
     is_active?: boolean;
     is_superuser?: boolean;
     full_name?: (string | null);
-    password: string;
 };
 
 /**
  * API 回傳的使用者資料
  */
 export type UserPublic = {
-    email: string;
-    is_active?: boolean;
-    is_superuser?: boolean;
-    full_name?: (string | null);
     id: string;
+    email: string;
+    is_active: boolean;
+    is_superuser: boolean;
+    full_name?: (string | null);
     created_at?: (string | null);
 };
 
 /**
- * 使用者自行註冊時使用的資料
+ * 使用者自行註冊
  */
 export type UserRegister = {
     email: string;
@@ -402,7 +402,7 @@ export type UserRegister = {
 };
 
 /**
- * API 回傳的使用者列表
+ * 使用者列表回應
  */
 export type UsersPublic = {
     data: Array<UserPublic>;
@@ -410,18 +410,18 @@ export type UsersPublic = {
 };
 
 /**
- * 更新使用者時接收的資料
+ * 管理員更新使用者
  */
 export type UserUpdate = {
     email?: (string | null);
-    is_active?: boolean;
-    is_superuser?: boolean;
-    full_name?: (string | null);
     password?: (string | null);
+    is_active?: (boolean | null);
+    is_superuser?: (boolean | null);
+    full_name?: (string | null);
 };
 
 /**
- * 使用者更新自己資料時使用
+ * 使用者更新自己資料
  */
 export type UserUpdateMe = {
     full_name?: (string | null);
@@ -432,21 +432,16 @@ export type ValidationError = {
     loc: Array<(string | number)>;
     msg: string;
     type: string;
+    input?: unknown;
+    ctx?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
- * Response after creating VM.
+ * 建立 VM（cloud-init template）
  */
-export type VMCreateResponse = {
-    vmid: number;
-    upid: string;
-    message: string;
-};
-
-/**
- * Schema for creating a new VM from cloud-init template.
- */
-export type VMCreateSchema = {
+export type VMCreateRequest = {
     hostname: string;
     template_id: number;
     username: string;
@@ -462,7 +457,16 @@ export type VMCreateSchema = {
 };
 
 /**
- * 建立虛擬機申請的 Schema.
+ * 建立 VM 回應
+ */
+export type VMCreateResponse = {
+    vmid: number;
+    upid: string;
+    message: string;
+};
+
+/**
+ * 提交虛擬機申請
  */
 export type VMRequestCreate = {
     reason: string;
@@ -482,7 +486,7 @@ export type VMRequestCreate = {
 };
 
 /**
- * 公開的虛擬機申請資訊.
+ * 公開的虛擬機申請資訊
  */
 export type VMRequestPublic = {
     id: string;
@@ -512,7 +516,7 @@ export type VMRequestPublic = {
 };
 
 /**
- * 審核虛擬機申請的 Schema.
+ * 審核虛擬機申請
  */
 export type VMRequestReview = {
     status: VMRequestStatus;
@@ -520,7 +524,7 @@ export type VMRequestReview = {
 };
 
 /**
- * 虛擬機申請列表.
+ * 虛擬機申請列表
  */
 export type VMRequestsPublic = {
     data: Array<VMRequestPublic>;
@@ -533,7 +537,7 @@ export type VMRequestsPublic = {
 export type VMRequestStatus = 'pending' | 'approved' | 'rejected';
 
 /**
- * Virtual machine information.
+ * 虛擬機資訊
  */
 export type VMSchema = {
     vmid: number;
@@ -556,7 +560,7 @@ export type VMSchema = {
 };
 
 /**
- * VM template information.
+ * VM template 資訊
  */
 export type VMTemplateSchema = {
     vmid: number;
@@ -565,7 +569,7 @@ export type VMTemplateSchema = {
 };
 
 /**
- * VNC console connection information.
+ * VNC 連線資訊
  */
 export type VNCInfoSchema = {
     vmid: number;
@@ -634,7 +638,7 @@ export type LxcGetLxcTerminalResponse = (TerminalInfoSchema);
 export type LxcGetTemplatesResponse = (Array<TemplateSchema>);
 
 export type LxcCreateLxcData = {
-    requestBody: LXCCreateSchema;
+    requestBody: LXCCreateRequest;
 };
 
 export type LxcCreateLxcResponse = (LXCCreateResponse);
@@ -754,7 +758,6 @@ export type ResourcesResetResourceResponse = (unknown);
 
 export type SpecChangeRequestsCreateSpecChangeRequestData = {
     requestBody: SpecChangeRequestCreate;
-    vmid: number;
 };
 
 export type SpecChangeRequestsCreateSpecChangeRequestResponse = (SpecChangeRequestPublic);
@@ -851,7 +854,7 @@ export type VmGetVmConsoleData = {
 export type VmGetVmConsoleResponse = (VNCInfoSchema);
 
 export type VmCreateVmData = {
-    requestBody: VMCreateSchema;
+    requestBody: VMCreateRequest;
 };
 
 export type VmCreateVmResponse = (VMCreateResponse);

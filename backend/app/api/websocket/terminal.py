@@ -3,58 +3,48 @@ import logging
 import ssl
 from urllib.parse import quote
 
-import httpx
 import websockets
 from fastapi import WebSocket, WebSocketDisconnect
 
+from app.api.deps.auth import get_ws_current_user
+from app.api.deps.proxmox import check_resource_ownership
 from app.core.config import settings
-from app.core.proxmox import get_proxmox_api
+from app.exceptions import NotFoundError, ProxmoxError
+from app.services import proxmox_service
 
 logger = logging.getLogger(__name__)
 
 
-async def terminal_proxy(websocket: WebSocket, vmid: int):
+async def terminal_proxy(websocket: WebSocket, vmid: int, token: str):
     """WebSocket proxy for LXC container terminal access."""
+    # Authenticate user and check ownership before accepting
+    user, session = await get_ws_current_user(websocket, token=token)
+    try:
+        check_resource_ownership(vmid, user, session)
+    except Exception:
+        await websocket.close(code=1008, reason="Permission denied")
+        return
+
     await websocket.accept()
-    logger.info(f"Terminal proxy connection request for LXC {vmid}")
+    logger.info(f"Terminal proxy connection for LXC {vmid} by user {user.email}")
 
     pve_websocket = None
 
     try:
-        # Get session ticket using password authentication
-        # NOTE: Proxmox termproxy WebSocket does NOT support API token authentication
-        # We must use password to get a session ticket (PVEAuthCookie)
-        async with httpx.AsyncClient(verify=settings.PROXMOX_VERIFY_SSL) as client:
-            auth_response = await client.post(
-                f"https://{settings.PROXMOX_HOST}:8006/api2/json/access/ticket",
-                data={
-                    "username": settings.PROXMOX_USER,
-                    "password": settings.PROXMOX_PASSWORD,
-                },
-            )
+        # Get session ticket (password-based, required for PVE WebSocket)
+        try:
+            pve_auth_cookie, _ = await proxmox_service.get_session_ticket()
+        except ProxmoxError:
+            logger.error("Proxmox session authentication failed")
+            await websocket.close(code=1008, reason="Authentication failed")
+            return
 
-            if auth_response.status_code != 200:
-                logger.error(
-                    f"Proxmox authentication failed: {auth_response.status_code}"
-                )
-                await websocket.close(code=1008, reason="Authentication failed")
-                return
-
-            auth_data = auth_response.json()["data"]
-            pve_auth_cookie = auth_data["ticket"]
-            logger.info("Retrieved session ticket for WebSocket authentication")
-
-        # Use API token for REST API calls (more secure for resource queries)
-        proxmox = get_proxmox_api()
+        logger.info("Retrieved session ticket for WebSocket authentication")
 
         # Find LXC container in cluster resources
-        container_info = None
-        for resource in proxmox.cluster.resources.get(type="vm"):
-            if resource["vmid"] == vmid and resource["type"] == "lxc":
-                container_info = resource
-                break
-
-        if not container_info:
+        try:
+            container_info = proxmox_service.find_lxc(vmid)
+        except NotFoundError:
             logger.error(f"LXC container {vmid} not found in cluster")
             await websocket.close(code=1008, reason="LXC container not found")
             return
@@ -65,7 +55,7 @@ async def terminal_proxy(websocket: WebSocket, vmid: int):
         )
 
         # Get terminal proxy ticket
-        console_data = proxmox.nodes(node).lxc(vmid).termproxy.post()
+        console_data = proxmox_service.get_terminal_ticket(node, vmid)
         terminal_port = console_data["port"]
         terminal_ticket = console_data["ticket"]
 
@@ -90,6 +80,7 @@ async def terminal_proxy(websocket: WebSocket, vmid: int):
                 pve_ws_url,
                 ssl=ssl_context,
                 additional_headers={"Cookie": f"PVEAuthCookie={encoded_auth_cookie}"},
+                max_size=2**20,
             )
             logger.info("Successfully connected to Proxmox WebSocket for terminal")
 
@@ -108,69 +99,42 @@ async def terminal_proxy(websocket: WebSocket, vmid: int):
 
         logger.info(f"WebSocket proxy established for LXC {vmid}")
 
-        # Create an event to signal when either connection closes
-        disconnect_event = asyncio.Event()
-
         async def forward_from_proxmox():
             try:
                 async for message in pve_websocket:
-                    if disconnect_event.is_set():
-                        break
                     try:
                         if isinstance(message, bytes):
                             await websocket.send_bytes(message)
                         else:
                             await websocket.send_text(message)
-                    except Exception as e:
-                        logger.debug(f"Error sending to client: {e}")
+                    except Exception:
                         break
             except websockets.exceptions.ConnectionClosed:
-                logger.info(f"Proxmox WebSocket closed for LXC {vmid}")
+                pass
             except Exception as e:
                 logger.error(f"Error forwarding from Proxmox: {e}")
-            finally:
-                disconnect_event.set()
 
         async def forward_to_proxmox():
             try:
-                while not disconnect_event.is_set():
-                    try:
-                        data = await websocket.receive()
-                        if "bytes" in data:
-                            await pve_websocket.send(data["bytes"])
-                        elif "text" in data:
-                            await pve_websocket.send(data["text"])
-                    except RuntimeError as e:
-                        # Handle "Cannot call receive once disconnect message received"
-                        if "disconnect" in str(e).lower():
-                            logger.info(
-                                f"Frontend WebSocket disconnected for LXC {vmid}"
-                            )
-                            break
-                        raise
+                while True:
+                    data = await websocket.receive()
+                    if data.get("type") == "websocket.disconnect":
+                        break
+                    if "bytes" in data:
+                        await pve_websocket.send(data["bytes"])
+                    elif "text" in data:
+                        await pve_websocket.send(data["text"])
             except WebSocketDisconnect:
-                logger.info(f"Frontend WebSocket disconnected for LXC {vmid}")
+                pass
             except Exception as e:
                 logger.error(f"Error forwarding to Proxmox: {e}")
-            finally:
-                disconnect_event.set()
 
-        # Run both tasks and wait for either to complete
-        forward_from_task = asyncio.create_task(forward_from_proxmox())
-        forward_to_task = asyncio.create_task(forward_to_proxmox())
-
-        # Wait for either task to complete, then cancel the other
-        _, pending = await asyncio.wait(
-            {forward_from_task, forward_to_task}, return_when=asyncio.FIRST_COMPLETED
+        # Run both directions concurrently; first to finish cancels the other
+        await asyncio.gather(
+            forward_from_proxmox(),
+            forward_to_proxmox(),
+            return_exceptions=True,
         )
-
-        # Cancel any pending tasks
-        for task in pending:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
 
     except Exception as e:
         logger.error(f"Failed to establish WebSocket proxy: {e}", exc_info=True)

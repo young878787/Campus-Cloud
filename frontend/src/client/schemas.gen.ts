@@ -90,7 +90,7 @@ export const AuditLogPublicSchema = {
     type: 'object',
     required: ['id', 'user_id', 'vmid', 'action', 'details', 'ip_address', 'user_agent', 'created_at'],
     title: 'AuditLogPublic',
-    description: '公開的審計日誌資訊'
+    description: '公開的審計日誌'
 } as const;
 
 export const AuditLogsPublicSchema = {
@@ -182,7 +182,7 @@ export const CurrentStatsResponseSchema = {
                 }
             ],
             title: 'Cpu',
-            description: 'CPU 使用率 (0-1)'
+            description: 'CPU usage (0-1)'
         },
         maxcpu: {
             anyOf: [
@@ -194,7 +194,7 @@ export const CurrentStatsResponseSchema = {
                 }
             ],
             title: 'Maxcpu',
-            description: 'CPU 核心數'
+            description: 'CPU cores'
         },
         mem: {
             anyOf: [
@@ -206,7 +206,7 @@ export const CurrentStatsResponseSchema = {
                 }
             ],
             title: 'Mem',
-            description: '當前記憶體使用 (bytes)'
+            description: 'Memory usage (bytes)'
         },
         maxmem: {
             anyOf: [
@@ -218,7 +218,7 @@ export const CurrentStatsResponseSchema = {
                 }
             ],
             title: 'Maxmem',
-            description: '最大記憶體 (bytes)'
+            description: 'Max memory (bytes)'
         },
         disk: {
             anyOf: [
@@ -230,7 +230,7 @@ export const CurrentStatsResponseSchema = {
                 }
             ],
             title: 'Disk',
-            description: '當前磁碟使用 (bytes)'
+            description: 'Disk usage (bytes)'
         },
         maxdisk: {
             anyOf: [
@@ -242,7 +242,7 @@ export const CurrentStatsResponseSchema = {
                 }
             ],
             title: 'Maxdisk',
-            description: '最大磁碟 (bytes)'
+            description: 'Max disk (bytes)'
         },
         netin: {
             anyOf: [
@@ -254,7 +254,7 @@ export const CurrentStatsResponseSchema = {
                 }
             ],
             title: 'Netin',
-            description: '網絡輸入 (bytes)'
+            description: 'Network in (bytes)'
         },
         netout: {
             anyOf: [
@@ -266,7 +266,7 @@ export const CurrentStatsResponseSchema = {
                 }
             ],
             title: 'Netout',
-            description: '網絡輸出 (bytes)'
+            description: 'Network out (bytes)'
         },
         uptime: {
             anyOf: [
@@ -278,18 +278,18 @@ export const CurrentStatsResponseSchema = {
                 }
             ],
             title: 'Uptime',
-            description: '運行時間 (seconds)'
+            description: 'Uptime (seconds)'
         },
         status: {
             type: 'string',
             title: 'Status',
-            description: '狀態 (running, stopped, etc.)'
+            description: 'Status'
         }
     },
     type: 'object',
     required: ['status'],
     title: 'CurrentStatsResponse',
-    description: '當前實時狀態'
+    description: '資源即時狀態'
 } as const;
 
 export const DirectSpecUpdateRequestSchema = {
@@ -306,7 +306,7 @@ export const DirectSpecUpdateRequestSchema = {
                 }
             ],
             title: 'Cores',
-            description: 'CPU 核心數'
+            description: 'CPU cores'
         },
         memory: {
             anyOf: [
@@ -320,19 +320,20 @@ export const DirectSpecUpdateRequestSchema = {
                 }
             ],
             title: 'Memory',
-            description: '記憶體 (MB)'
+            description: 'Memory (MB)'
         },
         disk_size: {
             anyOf: [
                 {
-                    type: 'string'
+                    type: 'string',
+                    pattern: '^\\+\\d+G$'
                 },
                 {
                     type: 'null'
                 }
             ],
             title: 'Disk Size',
-            description: '磁碟大小增量 (例如 "+10G"，僅能增加)'
+            description: 'Disk size increment (e.g. "+10G")'
         }
     },
     type: 'object',
@@ -354,31 +355,12 @@ export const HTTPValidationErrorSchema = {
     title: 'HTTPValidationError'
 } as const;
 
-export const LXCCreateResponseSchema = {
-    properties: {
-        vmid: {
-            type: 'integer',
-            title: 'Vmid'
-        },
-        upid: {
-            type: 'string',
-            title: 'Upid'
-        },
-        message: {
-            type: 'string',
-            title: 'Message'
-        }
-    },
-    type: 'object',
-    required: ['vmid', 'upid', 'message'],
-    title: 'LXCCreateResponse',
-    description: 'Response after creating LXC container.'
-} as const;
-
-export const LXCCreateSchemaSchema = {
+export const LXCCreateRequestSchema = {
     properties: {
         hostname: {
             type: 'string',
+            maxLength: 63,
+            pattern: '^[a-z0-9-]+$',
             title: 'Hostname'
         },
         ostemplate: {
@@ -387,21 +369,28 @@ export const LXCCreateSchemaSchema = {
         },
         cores: {
             type: 'integer',
+            maximum: 32,
+            minimum: 1,
             title: 'Cores',
             default: 1
         },
         memory: {
             type: 'integer',
+            maximum: 65536,
+            minimum: 128,
             title: 'Memory',
             default: 512
         },
         rootfs_size: {
             type: 'integer',
+            maximum: 1000,
+            minimum: 1,
             title: 'Rootfs Size',
             default: 8
         },
         password: {
             type: 'string',
+            minLength: 6,
             title: 'Password'
         },
         storage: {
@@ -449,8 +438,29 @@ export const LXCCreateSchemaSchema = {
     },
     type: 'object',
     required: ['hostname', 'ostemplate', 'password', 'environment_type'],
-    title: 'LXCCreateSchema',
-    description: 'Schema for creating a new LXC container.'
+    title: 'LXCCreateRequest',
+    description: '建立 LXC 容器'
+} as const;
+
+export const LXCCreateResponseSchema = {
+    properties: {
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        upid: {
+            type: 'string',
+            title: 'Upid'
+        },
+        message: {
+            type: 'string',
+            title: 'Message'
+        }
+    },
+    type: 'object',
+    required: ['vmid', 'upid', 'message'],
+    title: 'LXCCreateResponse',
+    description: '建立 LXC 回應'
 } as const;
 
 export const MessageSchema = {
@@ -554,7 +564,7 @@ export const NodeSchemaSchema = {
     type: 'object',
     required: ['node', 'status'],
     title: 'NodeSchema',
-    description: 'Proxmox node information.'
+    description: 'Proxmox 節點資訊'
 } as const;
 
 export const PrivateUserCreateSchema = {
@@ -587,7 +597,7 @@ export const RRDDataPointSchema = {
         time: {
             type: 'integer',
             title: 'Time',
-            description: '時間戳'
+            description: 'Timestamp'
         },
         cpu: {
             anyOf: [
@@ -614,7 +624,7 @@ export const RRDDataPointSchema = {
         mem: {
             anyOf: [
                 {
-                    type: 'integer'
+                    type: 'number'
                 },
                 {
                     type: 'null'
@@ -625,7 +635,7 @@ export const RRDDataPointSchema = {
         maxmem: {
             anyOf: [
                 {
-                    type: 'integer'
+                    type: 'number'
                 },
                 {
                     type: 'null'
@@ -636,7 +646,7 @@ export const RRDDataPointSchema = {
         disk: {
             anyOf: [
                 {
-                    type: 'integer'
+                    type: 'number'
                 },
                 {
                     type: 'null'
@@ -647,7 +657,7 @@ export const RRDDataPointSchema = {
         maxdisk: {
             anyOf: [
                 {
-                    type: 'integer'
+                    type: 'number'
                 },
                 {
                     type: 'null'
@@ -658,7 +668,7 @@ export const RRDDataPointSchema = {
         netin: {
             anyOf: [
                 {
-                    type: 'integer'
+                    type: 'number'
                 },
                 {
                     type: 'null'
@@ -669,7 +679,7 @@ export const RRDDataPointSchema = {
         netout: {
             anyOf: [
                 {
-                    type: 'integer'
+                    type: 'number'
                 },
                 {
                     type: 'null'
@@ -689,7 +699,7 @@ export const RRDDataResponseSchema = {
         timeframe: {
             type: 'string',
             title: 'Timeframe',
-            description: '時間範圍'
+            description: 'Time range'
         },
         data: {
             items: {
@@ -697,13 +707,13 @@ export const RRDDataResponseSchema = {
             },
             type: 'array',
             title: 'Data',
-            description: '數據點列表'
+            description: 'Data points'
         }
     },
     type: 'object',
     required: ['timeframe', 'data'],
     title: 'RRDDataResponse',
-    description: 'RRD 歷史數據響應'
+    description: 'RRD 歷史數據'
 } as const;
 
 export const ResourcePublicSchema = {
@@ -832,7 +842,7 @@ export const ResourcePublicSchema = {
     type: 'object',
     required: ['vmid', 'name', 'status', 'node', 'type'],
     title: 'ResourcePublic',
-    description: '公開的資源資訊，合併Proxmox資料和資料庫額外資訊.'
+    description: '公開的資源資訊（合併 Proxmox + DB）'
 } as const;
 
 export const SnapshotCreateRequestSchema = {
@@ -842,7 +852,7 @@ export const SnapshotCreateRequestSchema = {
             maxLength: 40,
             minLength: 1,
             title: 'Snapname',
-            description: '快照名稱'
+            description: 'Snapshot name'
         },
         description: {
             anyOf: [
@@ -855,19 +865,19 @@ export const SnapshotCreateRequestSchema = {
                 }
             ],
             title: 'Description',
-            description: '快照描述'
+            description: 'Snapshot description'
         },
         vmstate: {
             type: 'boolean',
             title: 'Vmstate',
-            description: '是否包含 RAM 狀態 (僅 VM)',
+            description: 'Include RAM state (VM only)',
             default: false
         }
     },
     type: 'object',
     required: ['snapname'],
     title: 'SnapshotCreateRequest',
-    description: '創建快照請求'
+    description: '建立快照'
 } as const;
 
 export const SnapshotInfoSchema = {
@@ -875,7 +885,7 @@ export const SnapshotInfoSchema = {
         name: {
             type: 'string',
             title: 'Name',
-            description: '快照名稱'
+            description: 'Snapshot name'
         },
         description: {
             anyOf: [
@@ -887,7 +897,7 @@ export const SnapshotInfoSchema = {
                 }
             ],
             title: 'Description',
-            description: '快照描述'
+            description: 'Snapshot description'
         },
         snaptime: {
             anyOf: [
@@ -899,7 +909,7 @@ export const SnapshotInfoSchema = {
                 }
             ],
             title: 'Snaptime',
-            description: '創建時間戳'
+            description: 'Creation timestamp'
         },
         vmstate: {
             anyOf: [
@@ -911,13 +921,13 @@ export const SnapshotInfoSchema = {
                 }
             ],
             title: 'Vmstate',
-            description: '是否包含 VM 狀態 (0/1)'
+            description: 'Includes VM state (0/1)'
         }
     },
     type: 'object',
     required: ['name'],
     title: 'SnapshotInfo',
-    description: '快照信息'
+    description: '快照資訊'
 } as const;
 
 export const SnapshotResponseSchema = {
@@ -941,7 +951,7 @@ export const SnapshotResponseSchema = {
     type: 'object',
     required: ['message'],
     title: 'SnapshotResponse',
-    description: '快照操作響應'
+    description: '快照操作回應'
 } as const;
 
 export const SpecChangeRequestCreateSchema = {
@@ -1002,7 +1012,7 @@ export const SpecChangeRequestCreateSchema = {
     type: 'object',
     required: ['vmid', 'change_type', 'reason'],
     title: 'SpecChangeRequestCreate',
-    description: '創建規格調整申請'
+    description: '建立規格調整申請'
 } as const;
 
 export const SpecChangeRequestPublicSchema = {
@@ -1253,7 +1263,7 @@ export const TemplateSchemaSchema = {
     type: 'object',
     required: ['volid', 'format', 'size'],
     title: 'TemplateSchema',
-    description: 'OS template information.'
+    description: 'LXC OS template 資訊'
 } as const;
 
 export const TerminalInfoSchemaSchema = {
@@ -1285,7 +1295,7 @@ export const TerminalInfoSchemaSchema = {
     type: 'object',
     required: ['vmid', 'ws_url', 'message'],
     title: 'TerminalInfoSchema',
-    description: 'Terminal console connection information for LXC containers.'
+    description: 'LXC Terminal 連線資訊'
 } as const;
 
 export const TokenSchema = {
@@ -1324,7 +1334,7 @@ export const UpdatePasswordSchema = {
     type: 'object',
     required: ['current_password', 'new_password'],
     title: 'UpdatePassword',
-    description: '更新密碼請求'
+    description: '更新密碼'
 } as const;
 
 export const UserCreateSchema = {
@@ -1335,48 +1345,11 @@ export const UserCreateSchema = {
             format: 'email',
             title: 'Email'
         },
-        is_active: {
-            type: 'boolean',
-            title: 'Is Active',
-            default: true
-        },
-        is_superuser: {
-            type: 'boolean',
-            title: 'Is Superuser',
-            default: false
-        },
-        full_name: {
-            anyOf: [
-                {
-                    type: 'string',
-                    maxLength: 255
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Full Name'
-        },
         password: {
             type: 'string',
             maxLength: 128,
             minLength: 8,
             title: 'Password'
-        }
-    },
-    type: 'object',
-    required: ['email', 'password'],
-    title: 'UserCreate',
-    description: '建立使用者時接收的資料'
-} as const;
-
-export const UserPublicSchema = {
-    properties: {
-        email: {
-            type: 'string',
-            maxLength: 255,
-            format: 'email',
-            title: 'Email'
         },
         is_active: {
             type: 'boolean',
@@ -1399,11 +1372,44 @@ export const UserPublicSchema = {
                 }
             ],
             title: 'Full Name'
-        },
+        }
+    },
+    type: 'object',
+    required: ['email', 'password'],
+    title: 'UserCreate',
+    description: '建立使用者'
+} as const;
+
+export const UserPublicSchema = {
+    properties: {
         id: {
             type: 'string',
             format: 'uuid',
             title: 'Id'
+        },
+        email: {
+            type: 'string',
+            format: 'email',
+            title: 'Email'
+        },
+        is_active: {
+            type: 'boolean',
+            title: 'Is Active'
+        },
+        is_superuser: {
+            type: 'boolean',
+            title: 'Is Superuser'
+        },
+        full_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Full Name'
         },
         created_at: {
             anyOf: [
@@ -1419,7 +1425,7 @@ export const UserPublicSchema = {
         }
     },
     type: 'object',
-    required: ['email', 'id'],
+    required: ['id', 'email', 'is_active', 'is_superuser'],
     title: 'UserPublic',
     description: 'API 回傳的使用者資料'
 } as const;
@@ -1454,7 +1460,7 @@ export const UserRegisterSchema = {
     type: 'object',
     required: ['email', 'password'],
     title: 'UserRegister',
-    description: '使用者自行註冊時使用的資料'
+    description: '使用者自行註冊'
 } as const;
 
 export const UserUpdateSchema = {
@@ -1472,28 +1478,6 @@ export const UserUpdateSchema = {
             ],
             title: 'Email'
         },
-        is_active: {
-            type: 'boolean',
-            title: 'Is Active',
-            default: true
-        },
-        is_superuser: {
-            type: 'boolean',
-            title: 'Is Superuser',
-            default: false
-        },
-        full_name: {
-            anyOf: [
-                {
-                    type: 'string',
-                    maxLength: 255
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Full Name'
-        },
         password: {
             anyOf: [
                 {
@@ -1506,11 +1490,45 @@ export const UserUpdateSchema = {
                 }
             ],
             title: 'Password'
+        },
+        is_active: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Active'
+        },
+        is_superuser: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Is Superuser'
+        },
+        full_name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 255
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Full Name'
         }
     },
     type: 'object',
     title: 'UserUpdate',
-    description: '更新使用者時接收的資料'
+    description: '管理員更新使用者'
 } as const;
 
 export const UserUpdateMeSchema = {
@@ -1543,7 +1561,7 @@ export const UserUpdateMeSchema = {
     },
     type: 'object',
     title: 'UserUpdateMe',
-    description: '使用者更新自己資料時使用'
+    description: '使用者更新自己資料'
 } as const;
 
 export const UsersPublicSchema = {
@@ -1563,34 +1581,15 @@ export const UsersPublicSchema = {
     type: 'object',
     required: ['data', 'count'],
     title: 'UsersPublic',
-    description: 'API 回傳的使用者列表'
+    description: '使用者列表回應'
 } as const;
 
-export const VMCreateResponseSchema = {
-    properties: {
-        vmid: {
-            type: 'integer',
-            title: 'Vmid'
-        },
-        upid: {
-            type: 'string',
-            title: 'Upid'
-        },
-        message: {
-            type: 'string',
-            title: 'Message'
-        }
-    },
-    type: 'object',
-    required: ['vmid', 'upid', 'message'],
-    title: 'VMCreateResponse',
-    description: 'Response after creating VM.'
-} as const;
-
-export const VMCreateSchemaSchema = {
+export const VMCreateRequestSchema = {
     properties: {
         hostname: {
             type: 'string',
+            maxLength: 63,
+            pattern: '^[a-z0-9-]+$',
             title: 'Hostname'
         },
         template_id: {
@@ -1599,24 +1598,33 @@ export const VMCreateSchemaSchema = {
         },
         username: {
             type: 'string',
+            maxLength: 32,
+            minLength: 1,
             title: 'Username'
         },
         password: {
             type: 'string',
+            minLength: 6,
             title: 'Password'
         },
         cores: {
             type: 'integer',
+            maximum: 32,
+            minimum: 1,
             title: 'Cores',
             default: 2
         },
         memory: {
             type: 'integer',
+            maximum: 65536,
+            minimum: 512,
             title: 'Memory',
             default: 2048
         },
         disk_size: {
             type: 'integer',
+            maximum: 1000,
+            minimum: 10,
             title: 'Disk Size',
             default: 20
         },
@@ -1660,8 +1668,29 @@ export const VMCreateSchemaSchema = {
     },
     type: 'object',
     required: ['hostname', 'template_id', 'username', 'password', 'environment_type'],
-    title: 'VMCreateSchema',
-    description: 'Schema for creating a new VM from cloud-init template.'
+    title: 'VMCreateRequest',
+    description: '建立 VM（cloud-init template）'
+} as const;
+
+export const VMCreateResponseSchema = {
+    properties: {
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        upid: {
+            type: 'string',
+            title: 'Upid'
+        },
+        message: {
+            type: 'string',
+            title: 'Message'
+        }
+    },
+    type: 'object',
+    required: ['vmid', 'upid', 'message'],
+    title: 'VMCreateResponse',
+    description: '建立 VM 回應'
 } as const;
 
 export const VMRequestCreateSchema = {
@@ -1678,6 +1707,7 @@ export const VMRequestCreateSchema = {
         hostname: {
             type: 'string',
             maxLength: 63,
+            pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$',
             title: 'Hostname'
         },
         cores: {
@@ -1783,7 +1813,7 @@ export const VMRequestCreateSchema = {
     type: 'object',
     required: ['reason', 'resource_type', 'hostname', 'password'],
     title: 'VMRequestCreate',
-    description: '建立虛擬機申請的 Schema.'
+    description: '提交虛擬機申請'
 } as const;
 
 export const VMRequestPublicSchema = {
@@ -1984,7 +2014,7 @@ export const VMRequestPublicSchema = {
     type: 'object',
     required: ['id', 'user_id', 'reason', 'resource_type', 'hostname', 'cores', 'memory', 'storage', 'environment_type', 'status', 'created_at'],
     title: 'VMRequestPublic',
-    description: '公開的虛擬機申請資訊.'
+    description: '公開的虛擬機申請資訊'
 } as const;
 
 export const VMRequestReviewSchema = {
@@ -2007,7 +2037,7 @@ export const VMRequestReviewSchema = {
     type: 'object',
     required: ['status'],
     title: 'VMRequestReview',
-    description: '審核虛擬機申請的 Schema.'
+    description: '審核虛擬機申請'
 } as const;
 
 export const VMRequestStatusSchema = {
@@ -2034,7 +2064,7 @@ export const VMRequestsPublicSchema = {
     type: 'object',
     required: ['data', 'count'],
     title: 'VMRequestsPublic',
-    description: '虛擬機申請列表.'
+    description: '虛擬機申請列表'
 } as const;
 
 export const VMSchemaSchema = {
@@ -2195,7 +2225,7 @@ export const VMSchemaSchema = {
     type: 'object',
     required: ['vmid', 'name', 'status', 'node', 'type'],
     title: 'VMSchema',
-    description: 'Virtual machine information.'
+    description: '虛擬機資訊'
 } as const;
 
 export const VMTemplateSchemaSchema = {
@@ -2216,7 +2246,7 @@ export const VMTemplateSchemaSchema = {
     type: 'object',
     required: ['vmid', 'name', 'node'],
     title: 'VMTemplateSchema',
-    description: 'VM template information.'
+    description: 'VM template 資訊'
 } as const;
 
 export const VNCInfoSchemaSchema = {
@@ -2248,7 +2278,7 @@ export const VNCInfoSchemaSchema = {
     type: 'object',
     required: ['vmid', 'ws_url', 'message'],
     title: 'VNCInfoSchema',
-    description: 'VNC console connection information.'
+    description: 'VNC 連線資訊'
 } as const;
 
 export const ValidationErrorSchema = {
@@ -2274,6 +2304,13 @@ export const ValidationErrorSchema = {
         type: {
             type: 'string',
             title: 'Error Type'
+        },
+        input: {
+            title: 'Input'
+        },
+        ctx: {
+            type: 'object',
+            title: 'Context'
         }
     },
     type: 'object',

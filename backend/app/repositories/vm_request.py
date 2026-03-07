@@ -1,13 +1,11 @@
-"""VM Request CRUD operations."""
-
 import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, func, select
 
-from app.core.security import encrypt_value
-from app.models import VMRequest, VMRequestCreate, VMRequestStatus
+from app.models import VMRequest, VMRequestStatus
+from app.schemas import VMRequestCreate
 
 
 def create_vm_request(
@@ -15,8 +13,9 @@ def create_vm_request(
     session: Session,
     vm_request_in: VMRequestCreate,
     user_id: uuid.UUID,
+    encrypted_password: str,
 ) -> VMRequest:
-    """Create a new VM request."""
+    """Create VM request. Password should be pre-encrypted by the service layer."""
     db_request = VMRequest(
         user_id=user_id,
         reason=vm_request_in.reason,
@@ -24,7 +23,7 @@ def create_vm_request(
         hostname=vm_request_in.hostname,
         cores=vm_request_in.cores,
         memory=vm_request_in.memory,
-        password=encrypt_value(vm_request_in.password),
+        password=encrypted_password,
         storage=vm_request_in.storage,
         environment_type="自訂規格",
         os_info=vm_request_in.os_info,
@@ -41,10 +40,11 @@ def create_vm_request(
     session.commit()
     session.refresh(db_request)
     return db_request
+
+
 def get_vm_request_by_id(
     *, session: Session, request_id: uuid.UUID, for_update: bool = False
 ) -> VMRequest | None:
-    """Get a VM request by ID."""
     statement = (
         select(VMRequest)
         .where(VMRequest.id == request_id)
@@ -58,12 +58,9 @@ def get_vm_request_by_id(
 def get_vm_requests_by_user(
     *, session: Session, user_id: uuid.UUID, skip: int = 0, limit: int = 100
 ) -> tuple[list[VMRequest], int]:
-    """Get all VM requests by a user."""
-    count_statement = (
+    count = session.exec(
         select(func.count()).select_from(VMRequest).where(VMRequest.user_id == user_id)
-    )
-    count = session.exec(count_statement).one()
-
+    ).one()
     statement = (
         select(VMRequest)
         .where(VMRequest.user_id == user_id)
@@ -72,8 +69,7 @@ def get_vm_requests_by_user(
         .offset(skip)
         .limit(limit)
     )
-    requests = list(session.exec(statement).all())
-    return requests, count
+    return list(session.exec(statement).all()), count
 
 
 def get_all_vm_requests(
@@ -83,7 +79,6 @@ def get_all_vm_requests(
     skip: int = 0,
     limit: int = 100,
 ) -> tuple[list[VMRequest], int]:
-    """Get all VM requests (admin). Optionally filter by status."""
     base = select(func.count()).select_from(VMRequest)
     if status:
         base = base.where(VMRequest.status == status)
@@ -96,9 +91,7 @@ def get_all_vm_requests(
     )
     if status:
         statement = statement.where(VMRequest.status == status)
-    statement = statement.offset(skip).limit(limit)
-    requests = list(session.exec(statement).all())
-    return requests, count
+    return list(session.exec(statement.offset(skip).limit(limit)).all()), count
 
 
 def update_vm_request_status(
@@ -110,7 +103,6 @@ def update_vm_request_status(
     review_comment: str | None = None,
     vmid: int | None = None,
 ) -> VMRequest:
-    """Update VM request status (approve/reject)."""
     db_request.status = status
     db_request.reviewer_id = reviewer_id
     db_request.review_comment = review_comment

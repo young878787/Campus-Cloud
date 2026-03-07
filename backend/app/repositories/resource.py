@@ -1,8 +1,6 @@
-"""Resource CRUD operations."""
-
+import uuid
 from datetime import date, datetime, timezone
 from typing import Any
-import uuid
 
 from sqlmodel import Session, select
 
@@ -19,7 +17,6 @@ def create_resource(
     expiry_date: date | None = None,
     template_id: int | None = None,
 ) -> Resource:
-    """Create a new resource record."""
     db_resource = Resource(
         vmid=vmid,
         user_id=user_id,
@@ -36,26 +33,18 @@ def create_resource(
 
 
 def get_resource_by_vmid(*, session: Session, vmid: int) -> Resource | None:
-    """Get resource by VMID."""
-    statement = select(Resource).where(Resource.vmid == vmid)
-    return session.exec(statement).first()
+    return session.exec(select(Resource).where(Resource.vmid == vmid)).first()
 
 
-def get_resources_by_user(
-    *, session: Session, user_id: uuid.UUID
-) -> list[Resource]:
-    """Get all resources owned by a user."""
-    statement = select(Resource).where(Resource.user_id == user_id)
-    return list(session.exec(statement).all())
+def get_resources_by_user(*, session: Session, user_id: uuid.UUID) -> list[Resource]:
+    return list(
+        session.exec(select(Resource).where(Resource.user_id == user_id)).all()
+    )
 
 
 def update_resource(
-    *,
-    session: Session,
-    db_resource: Resource,
-    resource_update: dict[str, Any],
+    *, session: Session, db_resource: Resource, resource_update: dict[str, Any]
 ) -> Resource:
-    """Update a resource."""
     for key, value in resource_update.items():
         setattr(db_resource, key, value)
     session.add(db_resource)
@@ -65,7 +54,6 @@ def update_resource(
 
 
 def delete_resource(*, session: Session, vmid: int) -> None:
-    """Delete a resource."""
     resource = get_resource_by_vmid(session=session, vmid=vmid)
     if resource:
         session.delete(resource)

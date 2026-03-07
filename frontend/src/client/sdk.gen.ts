@@ -8,9 +8,6 @@ import type { AuditLogsGetAllAuditLogsData, AuditLogsGetAllAuditLogsResponse, Au
 export class AuditLogsService {
     /**
      * Get All Audit Logs
-     * 查看所有審計日誌（管理員專用）
-     *
-     * 支持按 VMID、用戶 ID、操作類型篩選
      * @param data The data for the request.
      * @param data.skip
      * @param data.limit
@@ -39,7 +36,6 @@ export class AuditLogsService {
     
     /**
      * Get My Audit Logs
-     * 查看當前用戶的所有操作記錄
      * @param data The data for the request.
      * @param data.skip
      * @param data.limit
@@ -62,9 +58,6 @@ export class AuditLogsService {
     
     /**
      * Get Resource Audit Logs
-     * 查看特定資源的操作記錄
-     *
-     * 權限：資源所有者或管理員
      * @param data The data for the request.
      * @param data.vmid
      * @param data.skip
@@ -93,7 +86,6 @@ export class AuditLogsService {
 export class LoginService {
     /**
      * Login Access Token
-     * OAuth2 compatible token login, get an access token for future requests
      * @param data The data for the request.
      * @param data.formData
      * @returns Token Successful Response
@@ -113,7 +105,6 @@ export class LoginService {
     
     /**
      * Test Token
-     * Test access token
      * @returns UserPublic Successful Response
      * @throws ApiError
      */
@@ -126,7 +117,6 @@ export class LoginService {
     
     /**
      * Recover Password
-     * Password Recovery
      * @param data The data for the request.
      * @param data.email
      * @returns Message Successful Response
@@ -147,7 +137,6 @@ export class LoginService {
     
     /**
      * Reset Password
-     * Reset password
      * @param data The data for the request.
      * @param data.requestBody
      * @returns Message Successful Response
@@ -167,7 +156,6 @@ export class LoginService {
     
     /**
      * Recover Password Html Content
-     * HTML Content for Password Recovery
      * @param data The data for the request.
      * @param data.email
      * @returns string Successful Response
@@ -211,7 +199,6 @@ export class LxcService {
     
     /**
      * Get Templates
-     * Get available OS templates for LXC containers. Requires authentication.
      * @returns TemplateSchema Successful Response
      * @throws ApiError
      */
@@ -224,7 +211,6 @@ export class LxcService {
     
     /**
      * Create Lxc
-     * Create a new LXC container.
      * @param data The data for the request.
      * @param data.requestBody
      * @returns LXCCreateResponse Successful Response
@@ -268,7 +254,6 @@ export class PrivateService {
 export class ResourceDetailsService {
     /**
      * Get Current Stats
-     * 獲取資源當前實時狀態
      * @param data The data for the request.
      * @param data.vmid
      * @returns CurrentStatsResponse Successful Response
@@ -289,9 +274,6 @@ export class ResourceDetailsService {
     
     /**
      * Get Rrd Stats
-     * 獲取資源歷史統計數據 (RRD)
-     *
-     * timeframe: hour, day, week, month, year
      * @param data The data for the request.
      * @param data.vmid
      * @param data.timeframe
@@ -316,7 +298,6 @@ export class ResourceDetailsService {
     
     /**
      * List Snapshots
-     * 列出所有快照
      * @param data The data for the request.
      * @param data.vmid
      * @returns SnapshotInfo Successful Response
@@ -337,7 +318,6 @@ export class ResourceDetailsService {
     
     /**
      * Create Snapshot
-     * 創建快照
      * @param data The data for the request.
      * @param data.vmid
      * @param data.requestBody
@@ -361,7 +341,6 @@ export class ResourceDetailsService {
     
     /**
      * Delete Snapshot
-     * 刪除快照
      * @param data The data for the request.
      * @param data.vmid
      * @param data.snapname
@@ -384,7 +363,6 @@ export class ResourceDetailsService {
     
     /**
      * Rollback Snapshot
-     * 回滾到指定快照
      * @param data The data for the request.
      * @param data.vmid
      * @param data.snapname
@@ -407,7 +385,6 @@ export class ResourceDetailsService {
     
     /**
      * Direct Update Spec
-     * 管理員直接調整資源規格（無需審核）
      * @param data The data for the request.
      * @param data.vmid
      * @param data.requestBody
@@ -433,7 +410,6 @@ export class ResourceDetailsService {
 export class ResourcesService {
     /**
      * List Nodes
-     * List all Proxmox nodes (requires authentication).
      * @returns NodeSchema Successful Response
      * @throws ApiError
      */
@@ -446,7 +422,6 @@ export class ResourcesService {
     
     /**
      * List Resources
-     * List all resources (admin only) or user's own resources.
      * @param data The data for the request.
      * @param data.node
      * @returns ResourcePublic Successful Response
@@ -467,7 +442,6 @@ export class ResourcesService {
     
     /**
      * List My Resources
-     * List resources owned by the current user (approved VMs/containers).
      * @returns ResourcePublic Successful Response
      * @throws ApiError
      */
@@ -480,7 +454,6 @@ export class ResourcesService {
     
     /**
      * Get Resource
-     * Get resource details (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns VMSchema Successful Response
@@ -501,14 +474,6 @@ export class ResourcesService {
     
     /**
      * Delete Resource
-     * Delete a resource (VM or LXC container).
-     *
-     * Automatically detects resource type and performs appropriate deletion.
-     *
-     * Args:
-     * vmid: Resource ID to delete
-     * purge: Remove resource from all related configurations (default: True)
-     * force: Force stop the resource if running (default: False)
      * @param data The data for the request.
      * @param data.vmid
      * @param data.purge
@@ -535,7 +500,6 @@ export class ResourcesService {
     
     /**
      * Get Resource Config
-     * Get resource configuration (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -556,7 +520,6 @@ export class ResourcesService {
     
     /**
      * Start Resource
-     * Start a resource (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -577,7 +540,6 @@ export class ResourcesService {
     
     /**
      * Stop Resource
-     * Stop a resource (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -598,7 +560,6 @@ export class ResourcesService {
     
     /**
      * Reboot Resource
-     * Reboot a resource (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -619,7 +580,6 @@ export class ResourcesService {
     
     /**
      * Shutdown Resource
-     * Shutdown a resource gracefully (requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -640,7 +600,6 @@ export class ResourcesService {
     
     /**
      * Reset Resource
-     * Reset a resource (hard reset, requires ownership or admin).
      * @param data The data for the request.
      * @param data.vmid
      * @returns unknown Successful Response
@@ -663,9 +622,7 @@ export class ResourcesService {
 export class SpecChangeRequestsService {
     /**
      * Create Spec Change Request
-     * 提交規格調整申請（一般用戶）
      * @param data The data for the request.
-     * @param data.vmid
      * @param data.requestBody
      * @returns SpecChangeRequestPublic Successful Response
      * @throws ApiError
@@ -674,9 +631,6 @@ export class SpecChangeRequestsService {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v1/spec-change-requests/',
-            query: {
-                vmid: data.vmid
-            },
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
@@ -687,7 +641,6 @@ export class SpecChangeRequestsService {
     
     /**
      * Get All Spec Change Requests
-     * 查看所有規格調整申請（管理員專用）
      * @param data The data for the request.
      * @param data.skip
      * @param data.limit
@@ -714,7 +667,6 @@ export class SpecChangeRequestsService {
     
     /**
      * Get My Spec Change Requests
-     * 查看當前用戶的所有規格調整申請
      * @param data The data for the request.
      * @param data.skip
      * @param data.limit
@@ -737,7 +689,6 @@ export class SpecChangeRequestsService {
     
     /**
      * Review Spec Change Request
-     * 審核規格調整申請（管理員專用）
      * @param data The data for the request.
      * @param data.requestId
      * @param data.requestBody
@@ -763,7 +714,6 @@ export class SpecChangeRequestsService {
 export class UsersService {
     /**
      * Read Users
-     * Retrieve users.
      * @param data The data for the request.
      * @param data.skip
      * @param data.limit
@@ -786,7 +736,6 @@ export class UsersService {
     
     /**
      * Create User
-     * Create new user.
      * @param data The data for the request.
      * @param data.requestBody
      * @returns UserPublic Successful Response
@@ -806,7 +755,6 @@ export class UsersService {
     
     /**
      * Read User Me
-     * Get current user.
      * @returns UserPublic Successful Response
      * @throws ApiError
      */
@@ -819,7 +767,6 @@ export class UsersService {
     
     /**
      * Delete User Me
-     * Delete own user.
      * @returns Message Successful Response
      * @throws ApiError
      */
@@ -832,7 +779,6 @@ export class UsersService {
     
     /**
      * Update User Me
-     * Update own user.
      * @param data The data for the request.
      * @param data.requestBody
      * @returns UserPublic Successful Response
@@ -852,7 +798,6 @@ export class UsersService {
     
     /**
      * Update Password Me
-     * Update own password.
      * @param data The data for the request.
      * @param data.requestBody
      * @returns Message Successful Response
@@ -872,7 +817,6 @@ export class UsersService {
     
     /**
      * Register User
-     * Create new user without the need to be logged in.
      * @param data The data for the request.
      * @param data.requestBody
      * @returns UserPublic Successful Response
@@ -892,7 +836,6 @@ export class UsersService {
     
     /**
      * Read User By Id
-     * Get a specific user by id.
      * @param data The data for the request.
      * @param data.userId
      * @returns UserPublic Successful Response
@@ -913,7 +856,6 @@ export class UsersService {
     
     /**
      * Update User
-     * Update a user.
      * @param data The data for the request.
      * @param data.userId
      * @param data.requestBody
@@ -937,7 +879,6 @@ export class UsersService {
     
     /**
      * Delete User
-     * Delete a user.
      * @param data The data for the request.
      * @param data.userId
      * @returns Message Successful Response
@@ -1016,7 +957,6 @@ export class VmService {
     
     /**
      * Create Vm
-     * Create a new VM from a cloud-init template.
      * @param data The data for the request.
      * @param data.requestBody
      * @returns VMCreateResponse Successful Response
@@ -1036,7 +976,6 @@ export class VmService {
     
     /**
      * Get Vm Templates
-     * Get available VM templates (VMs marked as templates). Requires authentication.
      * @returns VMTemplateSchema Successful Response
      * @throws ApiError
      */
@@ -1051,7 +990,6 @@ export class VmService {
 export class VmRequestsService {
     /**
      * Create Vm Request
-     * Submit a new VM/LXC request (requires reason).
      * @param data The data for the request.
      * @param data.requestBody
      * @returns VMRequestPublic Successful Response
@@ -1071,7 +1009,6 @@ export class VmRequestsService {
     
     /**
      * List All Vm Requests
-     * List all VM requests (admin only).
      * @param data The data for the request.
      * @param data.status
      * @param data.skip
@@ -1096,7 +1033,6 @@ export class VmRequestsService {
     
     /**
      * List My Vm Requests
-     * List the current user's VM requests.
      * @param data The data for the request.
      * @param data.skip
      * @param data.limit
@@ -1119,7 +1055,6 @@ export class VmRequestsService {
     
     /**
      * Get Vm Request
-     * Get a single VM request.
      * @param data The data for the request.
      * @param data.requestId
      * @returns VMRequestPublic Successful Response
@@ -1140,7 +1075,6 @@ export class VmRequestsService {
     
     /**
      * Review Vm Request
-     * Approve or reject a VM request (admin only). If approved, auto-create the VM/LXC.
      * @param data The data for the request.
      * @param data.requestId
      * @param data.requestBody

@@ -68,8 +68,10 @@ export default function useNoVNCDisplay({
         const RFBModule = await import("@novnc/novnc/lib/rfb")
         const RFB = RFBModule.default
 
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-        const wsUrl = `${protocol}//${window.location.hostname}:8090/ws/vnc/${vmid}`
+        const apiUrl = new URL(import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.host}`)
+        const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:"
+        const accessToken = localStorage.getItem("access_token") || ""
+        const wsUrl = `${protocol}//${apiUrl.host}/ws/vnc/${vmid}?token=${encodeURIComponent(accessToken)}`
         console.log("Connecting to backend WebSocket:", wsUrl)
 
         ws = new WebSocket(wsUrl)

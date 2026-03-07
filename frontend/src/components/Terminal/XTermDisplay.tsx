@@ -1,5 +1,6 @@
 import { FitAddon } from "@xterm/addon-fit"
 import { WebLinksAddon } from "@xterm/addon-web-links"
+import { WebglAddon } from "@xterm/addon-webgl"
 import { Terminal } from "@xterm/xterm"
 import { useCallback, useEffect, useRef, useState } from "react"
 import "@xterm/xterm/css/xterm.css"
@@ -57,8 +58,10 @@ export default function useXTermDisplay({
             cursor: "#ffffff",
             selectionBackground: "rgba(255, 255, 255, 0.3)",
           },
-          scrollback: 1000,
+          scrollback: 5000,
           convertEol: true,
+          fastScrollModifier: "alt",
+          smoothScrollDuration: 0,
         })
 
         // Add fit addon for responsive sizing
@@ -72,6 +75,17 @@ export default function useXTermDisplay({
         // Open terminal in container
         if (terminalElement) {
           term.open(terminalElement)
+
+          // Enable GPU-accelerated WebGL renderer
+          try {
+            const webglAddon = new WebglAddon()
+            webglAddon.onContextLoss(() => {
+              webglAddon.dispose()
+            })
+            term.loadAddon(webglAddon)
+          } catch {
+            // WebGL not available, fall back to default canvas renderer
+          }
 
           // Delay fit to ensure container is fully rendered
           setTimeout(() => {
@@ -87,8 +101,10 @@ export default function useXTermDisplay({
         fitAddonRef.current = fitAddon
 
         // Connect to WebSocket
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-        const wsUrl = `${protocol}//${window.location.hostname}:8090/ws/terminal/${vmid}`
+        const apiUrl = new URL(import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.host}`)
+        const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:"
+        const accessToken = localStorage.getItem("access_token") || ""
+        const wsUrl = `${protocol}//${apiUrl.host}/ws/terminal/${vmid}?token=${encodeURIComponent(accessToken)}`
 
         ws = new WebSocket(wsUrl)
         wsRef.current = ws
@@ -226,15 +242,19 @@ export default function useXTermDisplay({
           }
         })
 
-        // Handle window resize
+        // Handle window resize (debounced)
+        let resizeTimer: ReturnType<typeof setTimeout> | null = null
         const handleResize = () => {
-          if (fitAddon && term) {
-            try {
-              fitAddon.fit()
-            } catch {
-              // Silently ignore fit errors
+          if (resizeTimer) clearTimeout(resizeTimer)
+          resizeTimer = setTimeout(() => {
+            if (fitAddon && term) {
+              try {
+                fitAddon.fit()
+              } catch {
+                // Silently ignore fit errors
+              }
             }
-          }
+          }, 50)
         }
 
         window.addEventListener("resize", handleResize)

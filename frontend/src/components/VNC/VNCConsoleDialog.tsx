@@ -127,14 +127,13 @@ export function VNCConsoleDialog({
     }
   }
 
-  const protocol =
-    typeof window !== "undefined"
-      ? window.location.protocol === "https:"
-        ? "wss:"
-        : "ws:"
-      : "ws:"
+  const apiUrl = typeof window !== "undefined"
+    ? new URL(import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.host}`)
+    : new URL("http://localhost:8000")
+  const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:"
+  const accessToken = typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : ""
   const wsUrl = vmid
-    ? `${protocol}//${typeof window !== "undefined" ? window.location.hostname : "localhost"}:8090/ws/vnc/${vmid}`
+    ? `${protocol}//${apiUrl.host}/ws/vnc/${vmid}?token=${encodeURIComponent(accessToken)}`
     : ""
 
   return (

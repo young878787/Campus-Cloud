@@ -6,6 +6,8 @@ from proxmoxer import ProxmoxAPI
 
 from app.core.config import settings
 
+from app.exceptions import ProxmoxError
+
 logger = logging.getLogger(__name__)
 
 _proxmox_client: ProxmoxAPI | None = None
@@ -66,6 +68,6 @@ def basic_blocking_task_status(
             else:
                 error_msg = f"Task {task_id} failed with exitstatus: {exitstatus}"
                 logger.error(error_msg)
-                raise Exception(error_msg)
+                raise ProxmoxError(error_msg)
 
         time.sleep(check_interval)

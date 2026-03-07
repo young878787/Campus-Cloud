@@ -1,0 +1,242 @@
+"""資源與 Proxmox 相關 schemas"""
+
+from datetime import date
+
+from pydantic import BaseModel, Field, model_validator
+
+
+# ===== Proxmox Info Schemas =====
+
+
+class NodeSchema(BaseModel):
+    """Proxmox 節點資訊"""
+
+    node: str
+    status: str
+    cpu: float | None = None
+    maxcpu: int | None = None
+    mem: int | None = None
+    maxmem: int | None = None
+    uptime: int | None = None
+
+
+class VMSchema(BaseModel):
+    """虛擬機資訊"""
+
+    vmid: int
+    name: str
+    status: str
+    node: str
+    type: str
+    cpu: float | None = None
+    maxcpu: int | None = None
+    mem: int | None = None
+    maxmem: int | None = None
+    uptime: int | None = None
+    netin: int | None = None
+    diskread: int | None = None
+    diskwrite: int | None = None
+    disk: int | None = None
+    template: int | None = None
+    memhost: int | None = None
+    maxdisk: int | None = None
+
+
+class VNCInfoSchema(BaseModel):
+    """VNC 連線資訊"""
+
+    vmid: int
+    ws_url: str
+    ticket: str | None = None
+    message: str
+
+
+class TerminalInfoSchema(BaseModel):
+    """LXC Terminal 連線資訊"""
+
+    vmid: int
+    ws_url: str
+    ticket: str | None = None
+    message: str
+
+
+class TemplateSchema(BaseModel):
+    """LXC OS template 資訊"""
+
+    volid: str
+    format: str
+    size: int
+
+
+class VMTemplateSchema(BaseModel):
+    """VM template 資訊"""
+
+    vmid: int
+    name: str
+    node: str
+
+
+class NextVMIDSchema(BaseModel):
+    """下一個可用 VMID"""
+
+    next_vmid: int
+
+
+# ===== Resource Request Schemas =====
+
+
+class LXCCreateRequest(BaseModel):
+    """建立 LXC 容器"""
+
+    hostname: str = Field(..., pattern=r"^[a-z0-9-]+$", max_length=63)
+    ostemplate: str
+    cores: int = Field(1, ge=1, le=32)
+    memory: int = Field(512, ge=128, le=65536)
+    rootfs_size: int = Field(8, ge=1, le=1000)
+    password: str = Field(..., min_length=6)
+    storage: str = "local-lvm"
+    environment_type: str
+    os_info: str | None = None
+    expiry_date: date | None = None
+    start: bool = True
+    unprivileged: bool = True
+
+
+class VMCreateRequest(BaseModel):
+    """建立 VM（cloud-init template）"""
+
+    hostname: str = Field(..., pattern=r"^[a-z0-9-]+$", max_length=63)
+    template_id: int
+    username: str = Field(..., min_length=1, max_length=32)
+    password: str = Field(..., min_length=6)
+    cores: int = Field(2, ge=1, le=32)
+    memory: int = Field(2048, ge=512, le=65536)
+    disk_size: int = Field(20, ge=10, le=1000)
+    storage: str = "local-lvm"
+    environment_type: str
+    os_info: str | None = None
+    expiry_date: date | None = None
+    start: bool = True
+
+
+# ===== Resource Response Schemas =====
+
+
+class LXCCreateResponse(BaseModel):
+    """建立 LXC 回應"""
+
+    vmid: int
+    upid: str
+    message: str
+
+
+class VMCreateResponse(BaseModel):
+    """建立 VM 回應"""
+
+    vmid: int
+    upid: str
+    message: str
+
+
+class ResourcePublic(BaseModel):
+    """公開的資源資訊（合併 Proxmox + DB）"""
+
+    vmid: int
+    name: str
+    status: str
+    node: str
+    type: str
+    environment_type: str | None = None
+    os_info: str | None = None
+    expiry_date: date | None = None
+    ip_address: str | None = None
+    cpu: float | None = None
+    maxcpu: int | None = None
+    mem: int | None = None
+    maxmem: int | None = None
+    uptime: int | None = None
+
+
+# ===== Monitoring Schemas =====
+
+
+class CurrentStatsResponse(BaseModel):
+    """資源即時狀態"""
+
+    cpu: float | None = Field(None, description="CPU usage (0-1)")
+    maxcpu: int | None = Field(None, description="CPU cores")
+    mem: int | None = Field(None, description="Memory usage (bytes)")
+    maxmem: int | None = Field(None, description="Max memory (bytes)")
+    disk: int | None = Field(None, description="Disk usage (bytes)")
+    maxdisk: int | None = Field(None, description="Max disk (bytes)")
+    netin: int | None = Field(None, description="Network in (bytes)")
+    netout: int | None = Field(None, description="Network out (bytes)")
+    uptime: int | None = Field(None, description="Uptime (seconds)")
+    status: str = Field(..., description="Status")
+
+
+class RRDDataPoint(BaseModel):
+    """RRD 數據點"""
+
+    time: int = Field(..., description="Timestamp")
+    cpu: float | None = None
+    maxcpu: int | None = None
+    mem: float | None = None
+    maxmem: float | None = None
+    disk: float | None = None
+    maxdisk: float | None = None
+    netin: float | None = None
+    netout: float | None = None
+
+
+class RRDDataResponse(BaseModel):
+    """RRD 歷史數據"""
+
+    timeframe: str = Field(..., description="Time range")
+    data: list[RRDDataPoint] = Field(..., description="Data points")
+
+
+# ===== Snapshot Schemas =====
+
+
+class SnapshotInfo(BaseModel):
+    """快照資訊"""
+
+    name: str = Field(..., description="Snapshot name")
+    description: str | None = Field(None, description="Snapshot description")
+    snaptime: int | None = Field(None, description="Creation timestamp")
+    vmstate: int | None = Field(None, description="Includes VM state (0/1)")
+
+
+class SnapshotCreateRequest(BaseModel):
+    """建立快照"""
+
+    snapname: str = Field(..., min_length=1, max_length=40, description="Snapshot name")
+    description: str | None = Field(None, max_length=255, description="Snapshot description")
+    vmstate: bool = Field(False, description="Include RAM state (VM only)")
+
+
+class SnapshotResponse(BaseModel):
+    """快照操作回應"""
+
+    message: str
+    task_id: str | None = None
+
+
+# ===== Admin Spec Update Schema =====
+
+
+class DirectSpecUpdateRequest(BaseModel):
+    """管理員直接調整規格"""
+
+    cores: int | None = Field(None, ge=1, le=32, description="CPU cores")
+    memory: int | None = Field(None, ge=512, le=65536, description="Memory (MB)")
+    disk_size: str | None = Field(
+        None, pattern=r"^\+\d+G$", description='Disk size increment (e.g. "+10G")'
+    )
+
+    @model_validator(mode="after")
+    def at_least_one_field(self):
+        if self.cores is None and self.memory is None and self.disk_size is None:
+            raise ValueError("At least one of cores, memory, or disk_size must be provided")
+        return self
