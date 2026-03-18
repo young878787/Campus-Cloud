@@ -1,0 +1,712 @@
+﻿<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PVE Placement Advisor</title>
+    <style>
+      :root {
+        --bg: #ebe4d8;
+        --surface: rgba(255, 252, 247, 0.88);
+        --surface-strong: rgba(255, 255, 255, 0.96);
+        --line: rgba(68, 54, 39, 0.14);
+        --line-soft: rgba(68, 54, 39, 0.08);
+        --ink: #1f1914;
+        --muted: #6f655a;
+        --accent: #8d4f22;
+        --accent-2: #1f5a67;
+        --good: #2f6b4d;
+        --warn: #a26b19;
+        --bad: #ad4334;
+        --shadow: 0 18px 48px rgba(51, 35, 20, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(141, 79, 34, 0.14), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(31, 90, 103, 0.16), transparent 30%),
+          linear-gradient(135deg, #f6f0e6, var(--bg));
+      }
+
+      main {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 28px 18px 42px;
+      }
+
+      .hero,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: var(--surface);
+        backdrop-filter: blur(10px);
+        box-shadow: var(--shadow);
+      }
+
+      .hero {
+        padding: 24px;
+        margin-bottom: 18px;
+        background: linear-gradient(145deg, rgba(255, 252, 248, 0.95), rgba(244, 234, 221, 0.82));
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 11px;
+        border-radius: 999px;
+        color: var(--accent);
+        background: rgba(141, 79, 34, 0.12);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .hero-top,
+      .header-row,
+      .composer-foot,
+      .form-actions,
+      .placement-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: flex-start;
+      }
+
+      h1 {
+        margin: 12px 0 8px;
+        font-size: clamp(34px, 5.8vw, 58px);
+        line-height: 0.98;
+      }
+
+      h2,
+      h3 {
+        margin: 0;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .workspace {
+        display: grid;
+        gap: 18px;
+      }
+
+      .left {
+        display: grid;
+        gap: 18px;
+      }
+
+      .panel {
+        padding: 20px 22px;
+      }
+
+      .chips,
+      .placement-rationale,
+      .placement-grid,
+      .node-grid,
+      .metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .chip,
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--line-soft);
+        background: rgba(255, 255, 255, 0.64);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--muted);
+      }
+
+      .good { background: var(--good); }
+      .warn { background: var(--warn); }
+      .bad { background: var(--bad); }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        margin-top: 16px;
+      }
+
+      .metric {
+        padding: 12px 4px 14px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .metric-value {
+        margin-top: 6px;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+
+      .summary-card {
+        margin-top: 16px;
+        padding: 18px 20px;
+        border-radius: 24px;
+        color: #fff8f2;
+        background: linear-gradient(135deg, #7a3d1f, #1f5866);
+      }
+
+      .summary-card p {
+        color: inherit;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-top: 18px;
+      }
+
+      label {
+        display: grid;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      input,
+      select,
+      textarea,
+      button {
+        font: inherit;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 12px 14px;
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.9);
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 110px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 11px 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.14s ease, opacity 0.14s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-primary {
+        color: #fffaf5;
+        background: linear-gradient(135deg, #8d4f22, #c07140);
+      }
+
+      .btn-secondary {
+        color: var(--accent-2);
+        background: rgba(31, 90, 103, 0.12);
+      }
+
+      .stack {
+        display: grid;
+        gap: 14px;
+        margin-top: 16px;
+      }
+
+      .card {
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.68);
+      }
+
+      .card {
+        padding: 14px 16px;
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .subline {
+        margin-top: 6px;
+        font-size: 13px;
+      }
+
+      .placement-grid,
+      .node-grid {
+        margin-top: 16px;
+      }
+
+      .placement-item,
+      .node-item {
+        flex: 1 1 260px;
+        padding: 16px;
+        border: 1px solid var(--line-soft);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .placement-item h3,
+      .node-item h3 {
+        margin-bottom: 10px;
+      }
+
+      .kv {
+        display: grid;
+        gap: 6px;
+        font-size: 14px;
+      }
+
+      .kv span {
+        color: var(--muted);
+      }
+
+      .empty {
+        padding: 16px;
+        border-radius: 18px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.34);
+      }
+
+      @media (max-width: 1000px) {
+        .form-grid,
+        .metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 720px) {
+        .hero-top,
+        .header-row,
+        .form-actions,
+        .placement-head {
+          flex-direction: column;
+        }
+
+        .form-grid,
+        .metrics {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <span class="eyebrow">Campus Cloud PVE</span>
+        <div class="hero-top">
+          <div>
+            <h1>PVE Placement Advisor</h1>
+            <p>
+              根據目前三台或多台 PVE node 的 CPU、記憶體與磁碟餘裕，推算相同工作負載應該放在哪些主機。
+              頁面聚焦在配置建議與 node 容量，並額外評估 Guest 數量與預估使用者壓力造成的過載風險。
+            </p>
+          </div>
+          <div class="chips" id="sourceHealth"></div>
+        </div>
+
+        <div class="summary-card">
+          <p id="summaryText">正在載入 PVE node 資訊與配置分析...</p>
+        </div>
+
+        <div class="metrics" id="statsGrid"></div>
+      </section>
+
+      <section class="workspace">
+        <section class="left">
+          <section class="panel">
+            <div class="header-row">
+              <div>
+                <h2>Placement Form</h2>
+                <p id="statusLine">讀取叢集狀態後即可輸入相同機器數量與資源需求。</p>
+              </div>
+              <div class="form-actions">
+                <button id="refreshButton" class="btn-secondary">更新叢集</button>
+                <button id="recommendButton" class="btn-primary">產生放置建議</button>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                機器名稱
+                <input id="machineName" value="backend-worker" />
+              </label>
+              <label>
+                類型
+                <select id="resourceType">
+                  <option value="vm">VM</option>
+                  <option value="lxc">LXC</option>
+                </select>
+              </label>
+              <label>
+                單台 CPU Core
+                <input id="cores" type="number" min="1" value="2" />
+              </label>
+              <label>
+                同規格台數
+                <input id="instanceCount" type="number" min="1" value="2" />
+              </label>
+              <label>
+                單台記憶體 GiB
+                <input id="memoryGb" type="number" min="0.5" step="0.5" value="4" />
+              </label>
+              <label>
+                單台磁碟 GiB
+                <input id="diskGb" type="number" min="1" step="1" value="40" />
+              </label>
+              <label>
+                每台預估同時使用人數
+                <input id="estimatedUsers" type="number" min="0" step="1" value="0" />
+              </label>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="placement-head">
+              <div>
+                <h2>Placement Result</h2>
+                <p>系統會依目前安全餘裕決定分配到哪些 node。</p>
+              </div>
+            </div>
+
+            <div id="placementBlock" class="stack">
+              <div class="empty">尚未送出 placement 請求。</div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="header-row">
+              <div>
+                <h2>Recommendations</h2>
+                <p>直接說明為什麼這樣分配，以及哪些 node 因資源、Guest 或使用者壓力未被選用。</p>
+              </div>
+            </div>
+            <div class="stack" id="recommendationsList">
+              <div class="empty">尚無建議。</div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="header-row">
+              <div>
+                <h2>Node Capacity</h2>
+                <p>顯示目前可用與安全可配置容量。</p>
+              </div>
+            </div>
+            <div class="node-grid" id="nodesGrid">
+              <div class="empty">尚無 node 資料。</div>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const state = {
+        analysis: null,
+        uiConfig: { apiBaseUrl: "", apiV1Str: "/api/v1", aiConfigured: false },
+      };
+
+      const els = {
+        refreshButton: document.getElementById("refreshButton"),
+        recommendButton: document.getElementById("recommendButton"),
+        summaryText: document.getElementById("summaryText"),
+        statusLine: document.getElementById("statusLine"),
+        sourceHealth: document.getElementById("sourceHealth"),
+        statsGrid: document.getElementById("statsGrid"),
+        placementBlock: document.getElementById("placementBlock"),
+        recommendationsList: document.getElementById("recommendationsList"),
+        nodesGrid: document.getElementById("nodesGrid"),
+        machineName: document.getElementById("machineName"),
+        resourceType: document.getElementById("resourceType"),
+        cores: document.getElementById("cores"),
+        instanceCount: document.getElementById("instanceCount"),
+        memoryGb: document.getElementById("memoryGb"),
+        diskGb: document.getElementById("diskGb"),
+        estimatedUsers: document.getElementById("estimatedUsers"),
+      };
+
+      function apiUrl(path) {
+        const base = state.uiConfig.apiBaseUrl || "";
+        return `${base}${path}`;
+      }
+
+      function formatDate(value) {
+        if (!value) return "-";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return new Intl.DateTimeFormat("zh-TW", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(date);
+      }
+
+      function formatPercent(value) {
+        if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+        return `${(Number(value) * 100).toFixed(1)}%`;
+      }
+
+      function formatGiB(bytes) {
+        if (bytes === null || bytes === undefined || Number.isNaN(Number(bytes))) return "-";
+        return `${(Number(bytes) / (1024 ** 3)).toFixed(1)} GiB`;
+      }
+
+      function renderList(target, items, renderItem, emptyText) {
+        if (!items.length) {
+          target.innerHTML = `<div class="empty">${emptyText}</div>`;
+          return;
+        }
+        target.innerHTML = items.map(renderItem).join("");
+      }
+
+      function getPlacementRequest() {
+        return {
+          machine_name: els.machineName.value.trim() || "custom workload",
+          resource_type: els.resourceType.value,
+          cores: Number(els.cores.value) || 1,
+          memory_mb: Math.max(Math.round((Number(els.memoryGb.value) || 0) * 1024), 128),
+          disk_gb: Math.max(Math.round(Number(els.diskGb.value) || 0), 1),
+          instance_count: Math.max(Math.round(Number(els.instanceCount.value) || 1), 1),
+          estimated_users_per_instance: Math.max(Math.round(Number(els.estimatedUsers.value) || 0), 0),
+        };
+      }
+
+      function renderStats(aggregation) {
+        const cards = [
+          ["Nodes", aggregation.node_count],
+          ["Guests", aggregation.resource_count],
+          ["Free CPU", Number(aggregation.available_cpu_cores || 0).toFixed(1)],
+          ["Free RAM", formatGiB(aggregation.available_memory_bytes)],
+          ["Free Disk", formatGiB(aggregation.available_disk_bytes)],
+          ["Guest 壓力", Number(aggregation.avg_guest_pressure_ratio || 0).toFixed(2)],
+          ["Guest 過載節點", aggregation.guest_overloaded_node_count || 0],
+          ["Health", aggregation.cluster_health],
+        ];
+
+        els.statsGrid.innerHTML = cards
+          .map(
+            ([label, value]) => `
+              <article class="metric">
+                <div class="metric-label">${label}</div>
+                <div class="metric-value">${value}</div>
+              </article>
+            `
+          )
+          .join("");
+      }
+
+      function renderSourceHealth(items) {
+        els.sourceHealth.innerHTML = items
+          .map((item) => {
+            const cls = item.available ? "good" : item.mode === "snapshot" ? "warn" : "bad";
+            return `
+              <span class="chip">
+                <span class="dot ${cls}"></span>
+                <span>${item.name}</span>
+              </span>
+            `;
+          })
+          .join("");
+      }
+
+      function renderPlacement(placement) {
+        if (!placement) {
+          els.placementBlock.innerHTML = `<div class="empty">尚未送出 placement 請求。</div>`;
+          return;
+        }
+
+        const rationale = placement.rationale
+          .map((item) => `<span class="tag">${item}</span>`)
+          .join("");
+
+        const placements = placement.placements.length
+          ? placement.placements
+              .map(
+                (item) => `
+                  <article class="placement-item">
+                    <h3>${item.node}</h3>
+                    <div class="kv">
+                      <div><span>分配台數</span> ${item.instance_count}</div>
+                      <div><span>安全規劃 CPU</span> ${item.cpu_cores_reserved.toFixed(1)}</div>
+                      <div><span>安全規劃 RAM</span> ${formatGiB(item.memory_bytes_reserved)}</div>
+                      <div><span>保留 Disk</span> ${formatGiB(item.disk_bytes_reserved)}</div>
+                      <div><span>剩餘安全 CPU</span> ${item.remaining_cpu_cores.toFixed(1)}</div>
+                      <div><span>剩餘安全 RAM</span> ${formatGiB(item.remaining_memory_bytes)}</div>
+                      <div><span>剩餘安全 Disk</span> ${formatGiB(item.remaining_disk_bytes)}</div>
+                    </div>
+                  </article>
+                `
+              )
+              .join("")
+          : `<div class="empty">目前沒有任何 node 能安全放入這個請求。</div>`;
+
+        els.placementBlock.innerHTML = `
+          <article class="card">
+            <strong>${placement.summary}</strong>
+            <p class="subline">
+              可配置 ${placement.assigned_instances} / ${placement.request.instance_count} 台。
+              ${placement.request.estimated_users_per_instance > 0
+                ? `每台以 ${placement.request.estimated_users_per_instance} 人估算，安全規劃等效 ${placement.effective_cpu_cores_per_instance.toFixed(1)} CPU / ${formatGiB(placement.effective_memory_bytes_per_instance)} RAM。`
+                : ""}
+            </p>
+          </article>
+          <div class="placement-rationale">${rationale}</div>
+          <div class="placement-grid">${placements}</div>
+        `;
+      }
+
+      function renderRecommendations(items) {
+        renderList(
+          els.recommendationsList,
+          items,
+          (item) => `
+            <article class="card">
+              <strong>${item.action}</strong>
+              <p>${item.reason}</p>
+            </article>
+          `,
+          "尚無建議。"
+        );
+      }
+
+      function renderNodes(nodes) {
+        renderList(
+          els.nodesGrid,
+          nodes,
+          (item) => `
+            <article class="node-item">
+              <h3>${item.node}</h3>
+              <div class="kv">
+                <div><span>狀態</span> ${item.status}</div>
+                <div><span>CPU 使用率</span> ${formatPercent(item.cpu_ratio)}</div>
+                <div><span>RAM 使用率</span> ${formatPercent(item.memory_ratio)}</div>
+                <div><span>Disk 使用率</span> ${formatPercent(item.disk_ratio)}</div>
+                <div><span>目前可用 CPU</span> ${item.raw_available_cpu_cores.toFixed(1)}</div>
+                <div><span>安全可配 CPU</span> ${item.allocatable_cpu_cores.toFixed(1)}</div>
+                <div><span>目前可用 RAM</span> ${formatGiB(item.raw_available_memory_bytes)}</div>
+                <div><span>安全可配 RAM</span> ${formatGiB(item.allocatable_memory_bytes)}</div>
+                <div><span>目前可用 Disk</span> ${formatGiB(item.raw_available_disk_bytes)}</div>
+                <div><span>安全可配 Disk</span> ${formatGiB(item.allocatable_disk_bytes)}</div>
+                <div><span>現有 Guest</span> ${item.running_resources}</div>
+                <div><span>Guest 建議上限</span> ${item.guest_soft_limit}</div>
+                <div><span>Guest 壓力比</span> ${Number(item.guest_pressure_ratio || 0).toFixed(2)}</div>
+                <div><span>Guest 過載風險</span> ${item.guest_overloaded ? "是" : "否"}</div>
+                <div><span>可作候選</span> ${item.candidate ? "是" : "否"}</div>
+              </div>
+            </article>
+          `,
+          "尚無 node 資料。"
+        );
+      }
+
+      function renderAnalysis(analysis) {
+        state.analysis = analysis;
+        els.summaryText.textContent = analysis.summary;
+        els.statusLine.textContent = `更新於 ${formatDate(analysis.generated_at)}，cluster health 為 ${analysis.aggregation.cluster_health}。`;
+        renderSourceHealth(analysis.source_health || []);
+        renderStats(analysis.aggregation);
+        renderPlacement(analysis.placement);
+        renderRecommendations(analysis.recommendations || []);
+        renderNodes(analysis.node_capacities || []);
+      }
+
+      async function loadUiConfig() {
+        try {
+          const response = await fetch("/ui-config");
+          if (!response.ok) throw new Error("ui-config failed");
+          state.uiConfig = await response.json();
+        } catch (_error) {
+          state.uiConfig = { apiBaseUrl: "", apiV1Str: "/api/v1", aiConfigured: false };
+        }
+      }
+
+      async function loadAnalysis() {
+        els.refreshButton.disabled = true;
+        els.refreshButton.textContent = "更新中";
+        try {
+          const response = await fetch(apiUrl(`${state.uiConfig.apiV1Str}/analyze`));
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          renderAnalysis(data);
+        } catch (error) {
+          els.statusLine.textContent = `讀取失敗: ${error.message}`;
+          els.summaryText.textContent = "無法取得叢集資訊，請檢查 Proxmox 或 snapshot 設定。";
+        } finally {
+          els.refreshButton.disabled = false;
+          els.refreshButton.textContent = "更新叢集";
+        }
+      }
+
+      async function recommendPlacement() {
+        els.recommendButton.disabled = true;
+        els.recommendButton.textContent = "分析中";
+        try {
+          const response = await fetch(apiUrl(`${state.uiConfig.apiV1Str}/placement/recommend`), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(getPlacementRequest()),
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          renderAnalysis(data);
+        } catch (error) {
+          els.statusLine.textContent = `配置分析失敗: ${error.message}`;
+        } finally {
+          els.recommendButton.disabled = false;
+          els.recommendButton.textContent = "產生放置建議";
+        }
+      }
+
+      els.refreshButton.addEventListener("click", loadAnalysis);
+      els.recommendButton.addEventListener("click", recommendPlacement);
+
+      (async function init() {
+        await loadUiConfig();
+        await loadAnalysis();
+      })();
+    </script>
+  </body>
+</html>

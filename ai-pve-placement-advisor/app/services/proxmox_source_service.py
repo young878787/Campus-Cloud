@@ -30,6 +30,8 @@ def fetch_nodes() -> list[NodeSnapshot]:
                 maxcpu=int(item.get("maxcpu") or 0),
                 mem_bytes=int(item.get("mem") or 0),
                 maxmem_bytes=int(item.get("maxmem") or 0),
+                disk_bytes=int(item.get("disk") or 0),
+                maxdisk_bytes=int(item.get("maxdisk") or 0),
                 uptime=_optional_int(item.get("uptime")),
                 gpu_count=gpu_map.get(node_name, 0),
             )

@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 from app.core.config import settings
-from app.schemas import AnalysisResponse, SourceHealth, SourcePreviewResponse
+from app.schemas import AnalysisResponse, PlacementRequest, SourceHealth, SourcePreviewResponse
 from app.services import aggregation_service
-from app.services import audit_source_service
 from app.services import proxmox_source_service
 from app.services import snapshot_source_service
 
 
-async def build_source_preview(limit_audit_logs: int = 200) -> SourcePreviewResponse:
+async def build_source_preview() -> SourcePreviewResponse:
     nodes = []
     resources = []
-    audit_logs = []
     token_usage = snapshot_source_service.load_token_usage_snapshots()
     gpu_metrics = snapshot_source_service.load_gpu_metric_snapshots()
     source_health: list[SourceHealth] = []
@@ -51,29 +49,6 @@ async def build_source_preview(limit_audit_logs: int = 200) -> SourcePreviewResp
                 record_count=len(nodes),
             )
         )
-
-    if not audit_logs and settings.use_direct_database:
-        try:
-            audit_logs = audit_source_service.fetch_recent_audit_logs(limit=limit_audit_logs)
-            source_health.append(
-                SourceHealth(
-                    name="audit_db",
-                    available=True,
-                    mode="direct",
-                    detail="Fetched audit logs from PostgreSQL.",
-                    record_count=len(audit_logs),
-                )
-            )
-        except Exception as exc:
-            source_health.append(
-                SourceHealth(
-                    name="audit_db",
-                    available=False,
-                    mode="direct",
-                    detail=str(exc),
-                    record_count=0,
-                )
-            )
 
     if token_usage:
         source_health.append(
@@ -121,34 +96,47 @@ async def build_source_preview(limit_audit_logs: int = 200) -> SourcePreviewResp
         source_health=source_health,
         nodes=nodes,
         resources=resources,
-        audit_logs=audit_logs,
         token_usage=token_usage,
         gpu_metrics=gpu_metrics,
     )
 
 
-async def build_analysis(limit_audit_logs: int = 200) -> AnalysisResponse:
-    preview = await build_source_preview(limit_audit_logs=limit_audit_logs)
+async def build_analysis(
+    placement_request: PlacementRequest | None = None,
+) -> AnalysisResponse:
+    preview = await build_source_preview()
     aggregation = aggregation_service.build_aggregation_summary(
         nodes=preview.nodes,
         resources=preview.resources,
-        audit_logs=preview.audit_logs,
-        token_usage=preview.token_usage,
-        gpu_metrics=preview.gpu_metrics,
     )
-    features = aggregation_service.build_features(aggregation)
-    audit_available = any(
-        item.name == "audit_db" and item.available
-        for item in preview.source_health
+    node_capacities = aggregation_service.build_node_capacities(
+        nodes=preview.nodes,
+        resources=preview.resources,
+    )
+    features = aggregation_service.build_features(aggregation, node_capacities)
+    placement = (
+        aggregation_service.build_placement_recommendation(
+            request=placement_request,
+            node_capacities=node_capacities,
+        )
+        if placement_request
+        else None
     )
     events = aggregation_service.build_events(
         summary=aggregation,
-        resources=preview.resources,
-        gpu_metrics=preview.gpu_metrics,
-        audit_source_available=audit_available,
+        placement=placement,
     )
-    recommendations = aggregation_service.build_recommendations(events)
-    summary = aggregation_service.build_summary(events, aggregation)
+    recommendations = aggregation_service.build_recommendations(
+        events=events,
+        summary=aggregation,
+        node_capacities=node_capacities,
+        placement=placement,
+    )
+    summary = aggregation_service.build_summary(
+        summary=aggregation,
+        placement=placement,
+        events=events,
+    )
 
     return AnalysisResponse(
         source_health=preview.source_health,
@@ -157,4 +145,8 @@ async def build_analysis(limit_audit_logs: int = 200) -> AnalysisResponse:
         events=events,
         recommendations=recommendations,
         summary=summary,
+        nodes=preview.nodes,
+        resources=preview.resources,
+        node_capacities=node_capacities,
+        placement=placement,
     )

@@ -30,42 +30,27 @@ class Settings(BaseSettings):
     proxmox_verify_ssl: bool = Field(default=False)
     proxmox_api_timeout: int = Field(default=30, ge=3, le=300)
 
-    use_direct_database: bool = Field(default=True)
-    postgres_server: str = Field(default="localhost")
-    postgres_port: int = Field(default=5432, ge=1, le=65535)
-    postgres_db: str = Field(default="app")
-    postgres_user: str = Field(default="postgres")
-    postgres_password: str = Field(default="")
-    database_connect_timeout: int = Field(default=3, ge=1, le=30)
-
     backend_node_gpu_map: str = Field(default="{}")
     nodes_snapshot_json: str = Field(default="[]")
     token_usage_snapshot_json: str = Field(default="[]")
     gpu_metrics_snapshot_json: str = Field(default="[]")
 
-    recent_window_minutes: int = Field(default=60, ge=5, le=1440)
-    baseline_days: int = Field(default=7, ge=1, le=90)
-    case_top_k: int = Field(default=5, ge=1, le=20)
-    aggregation_window_minutes: int = Field(default=5, ge=1, le=60)
     aggregation_stair_coefficient: float = Field(default=1.2, ge=1.01, le=5.0)
 
     cpu_high_threshold: float = Field(default=0.85, ge=0.0, le=1.5)
     memory_high_threshold: float = Field(default=0.85, ge=0.0, le=1.5)
     disk_high_threshold: float = Field(default=0.9, ge=0.0, le=1.5)
+    guest_pressure_threshold: float = Field(default=0.85, ge=0.1, le=3.0)
+    guest_per_core_limit: float = Field(default=2.0, ge=0.1, le=20.0)
+    safe_users_per_cpu: float = Field(default=35.0, ge=1.0, le=10000.0)
+    safe_users_per_gib: float = Field(default=20.0, ge=1.0, le=10000.0)
     token_spike_ratio: float = Field(default=1.5, ge=1.0, le=20.0)
+    placement_headroom_ratio: float = Field(default=0.1, ge=0.0, le=0.5)
 
     vllm_base_url: str = Field(default="http://localhost:8000")
     vllm_api_key: str = Field(default="vllm-secret-key-change-me")
     vllm_model_name: str = Field(default="")
     vllm_timeout: int = Field(default=10, ge=3, le=300)
-
-    @property
-    def sqlalchemy_database_uri(self) -> str:
-        return (
-            "postgresql+psycopg://"
-            f"{self.postgres_user}:{self.postgres_password}"
-            f"@{self.postgres_server}:{self.postgres_port}/{self.postgres_db}"
-        )
 
     @property
     def parsed_backend_node_gpu_map(self) -> dict[str, int]:

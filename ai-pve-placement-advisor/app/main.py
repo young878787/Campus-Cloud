@@ -18,8 +18,8 @@ from app.core.config import settings
 STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
 
 app = FastAPI(
-    title="Campus AI Log Analytics",
-    description="Layered backend for AI-assisted log analysis and resource optimization.",
+    title="Campus PVE Placement Advisor",
+    description="Standalone service for PVE node capacity visibility and AI-assisted workload placement.",
 )
 
 app.include_router(analytics_router)
@@ -38,9 +38,9 @@ def health() -> dict:
     return {
         "status": "ok",
         "use_direct_proxmox": settings.use_direct_proxmox,
-        "use_direct_database": settings.use_direct_database,
         "ai_configured": bool(settings.vllm_model_name),
         "aggregation_stair_coefficient": settings.aggregation_stair_coefficient,
+        "placement_headroom_ratio": settings.placement_headroom_ratio,
         "gpu_map_count": len(settings.parsed_backend_node_gpu_map),
         "node_snapshot_count": len(settings.parsed_nodes_snapshot),
         "token_snapshot_count": len(settings.parsed_token_usage_snapshots),

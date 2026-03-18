@@ -10,5 +10,5 @@ router = APIRouter(prefix="/sources", tags=["sources"])
 
 
 @router.get("/preview", response_model=SourcePreviewResponse)
-async def preview_sources(limit_audit_logs: int = 50):
-    return await build_source_preview(limit_audit_logs=limit_audit_logs)
+async def preview_sources():
+    return await build_source_preview()
