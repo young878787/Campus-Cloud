@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.deps import AdminUser, CurrentUser, InstructorUser, SessionDep
+from app.api.deps import InstructorUser, SessionDep
 from app.exceptions import PermissionDeniedError
 from app.repositories import group as group_repo
 from app.schemas.common import Message
