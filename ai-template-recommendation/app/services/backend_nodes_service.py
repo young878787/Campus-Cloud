@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from app.core.config import settings
 from app.schemas.recommendation import DeviceNode
 from app.schemas.resource import NodeSchema

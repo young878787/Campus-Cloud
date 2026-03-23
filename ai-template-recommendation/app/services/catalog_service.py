@@ -81,15 +81,6 @@ def serialize_template(item: TemplateItem) -> dict[str, Any]:
     }
 
 
-def catalog_summary(template_catalog: TemplateCatalog, top_k: int) -> list[dict[str, Any]]:
-    items = sorted(
-        template_catalog.items,
-        key=lambda item: (item.updateable, item.interface_port is not None, item.slug),
-        reverse=True,
-    )
-    return [serialize_template(item) for item in items[: max(top_k * 12, 40)]]
-
-
 def catalog_lookup(template_catalog: TemplateCatalog) -> dict[str, TemplateItem]:
     return {item.slug.lower(): item for item in template_catalog.items}
 
