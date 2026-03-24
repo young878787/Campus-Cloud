@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 
 from app.api.routes.recommendation import router as recommendation_router
@@ -10,6 +10,13 @@ from app.api.routes.resources import router as resources_router
 from app.core.config import settings
 from app.main_state import catalog
 from app.services.catalog_service import serialize_template
+from app.services.proxmox_templates_service import (
+    fetch_lxc_templates as fetch_proxmox_lxc_templates,
+    fetch_vm_templates as fetch_proxmox_vm_templates,
+)
+from app.services.resource_options_service import (
+    fetch_resource_options,
+)
 
 
 STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
@@ -55,4 +62,23 @@ def catalog_preview(limit: int = 10) -> dict:
     return {
         "count": len(catalog.items),
         "items": [serialize_template(item) for item in catalog.items[:limit]],
+        "categories": catalog.categories,
     }
+
+
+@app.get("/resource-options")
+@app.get(f"{settings.api_v1_str}/resource-options")
+async def resource_options(request: Request) -> dict:
+    return await fetch_resource_options(request.headers.get("Authorization"))
+
+
+@app.get("/lxc/templates")
+@app.get(f"{settings.api_v1_str}/lxc/templates")
+async def lxc_templates() -> list[dict]:
+    return await fetch_proxmox_lxc_templates()
+
+
+@app.get("/vm/templates")
+@app.get(f"{settings.api_v1_str}/vm/templates")
+async def vm_templates() -> list[dict]:
+    return await fetch_proxmox_vm_templates()

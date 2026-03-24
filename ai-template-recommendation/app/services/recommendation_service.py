@@ -147,7 +147,23 @@ def _build_chat_catalog_context(
             name = str(item.get("name") or "").strip()
             if not slug:
                 continue
-            lines.append(f"- {slug} ({name or slug})")
+            resources = dict(item.get("default_resources") or {})
+            cpu = resources.get("cpu")
+            ram = resources.get("ram")
+            hdd = resources.get("hdd")
+            os_name = resources.get("os")
+            os_version = resources.get("version")
+            resource_parts = []
+            if cpu:
+                resource_parts.append(f"{cpu} CPU")
+            if ram:
+                resource_parts.append(f"{ram} MB RAM")
+            if hdd:
+                resource_parts.append(f"{hdd} GB Disk")
+            if os_name or os_version:
+                resource_parts.append(f"OS={str(os_name or '').strip()} {str(os_version or '').strip()}".strip())
+            resource_suffix = f" | defaults: {', '.join(resource_parts)}" if resource_parts else ""
+            lines.append(f"- {slug} ({name or slug}){resource_suffix}")
         return "\n".join(lines) if lines else "(none)"
 
     explicit_matches = _format_items(list(prompt_bundle.get("explicit_matches") or []), 10)
@@ -203,6 +219,9 @@ Your primary objective is to clarify the user's deployment needs through a natur
 - **Present-Solution Rule**: Focus on current workable paths first. If a specific tool template is not verified in the catalog, do not proactively emphasize its absence. Instead, describe the existing deployable path using currently available templates, generic Linux LXC environments, or VM environments. Only discuss「沒有這個模板」 or 「缺少這個模板」 when the user explicitly asks whether that exact template exists.
 - **Uncertainty Rule**: If a concrete template or capability is not confirmed, explicitly label it as「尚未確認」 instead of implying availability.
 - **Form-Oriented Guidance**: Whenever possible, phrase recommendations in terms the user will later fill into a request form: resource type, environment, template, CPU, memory, disk, and application reason.
+- **Sizing Consistency Rule**: If you mention concrete CPU, RAM, or disk numbers in chat, keep them consistent with the platform template defaults shown in the verified catalog reference. Do not casually suggest lower numbers than a known template default for the same service.
+- **Chat vs Planner Rule**: Your chat guidance must not conflict with the later deployment planner. If an exact service template is listed with defaults, treat that as the baseline recommendation unless the user clearly describes a heavier workload.
+- **LXC Form Rule**: For LXC, distinguish between `服務範本` and `作業系統映像檔`. Do not tell the user that the OS image field should be filled with a service template slug like `n8n`.
 - **Examples**:
   Bad: 「建議使用 pytorch-gpu-template」
   Bad: 「Windows VM 模板」
@@ -361,6 +380,8 @@ async def generate_ai_plan(
     nodes: list[DeviceNode],
     template_catalog: TemplateCatalog,
     chat_history: list[ChatMessage],
+    *,
+    resource_options: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     if not settings.vllm_model_name:
         raise HTTPException(status_code=503, detail="VLLM_MODEL_NAME is required for AI planning.")
@@ -386,6 +407,7 @@ async def generate_ai_plan(
         "needs_windows": request.needs_windows,
         "inferred_needs_database": inferred_needs_database,
     }
+    resource_options = resource_options or {"lxc_os_images": [], "vm_operating_systems": []}
 
     plan_schema = {
         "summary": "Traditional Chinese summary",
@@ -399,8 +421,10 @@ async def generate_ai_plan(
         "form_prefill": {
             "resource_type": "lxc|vm",
             "hostname": "string",
-            "lxc_template_slug": "template-slug-or-empty",
-            "os_environment": "linux|windows|gui|other-or-empty",
+            "service_template_slug": "lxc-service-template-slug-or-empty",
+            "lxc_os_image": "real-lxc-os-image-or-empty",
+            "vm_os_choice": "real-vm-os-label-or-empty",
+            "vm_template_id": "integer-or-0",
             "cores": "integer",
             "memory_mb": "integer",
             "disk_gb": "integer",
@@ -457,6 +481,7 @@ Generate a complete deployment recommendation based on the user's intent, availa
 - **Form Intuition Rule**: The output must feel like something a user can understand before filling a request form. Clearly separate service, environment, and form values.
 - **Summary Rule**: `summary` must be 3 to 4 concise sentences explaining the main architecture choice, why it matches the request, and what future scaling signal matters.
 - **Reason Rule**: Each `why` field and `form_prefill.reason` should be short, concrete, and submission-ready. Do not turn them into long essays.
+- **Reason Consistency Rule**: `form_prefill.reason` must match the final CPU, memory, and disk values you output. Do not mention different numbers, and do not invent phrases like "official recommended spec" unless that exact source is provided in the input.
 - **Explain-Why Gently Rule**: In `summary`, `environment_reason`, machine `why`, and `form_prefill.reason`, prefer plain and student-friendly wording such as "這樣比較適合你目前的需求" or "先用這種方式比較容易開始". Explain the reason, not just the architecture label.
 - **No-Report Tone Rule**: Avoid sounding like a formal architecture report. Do not use overly stiff or abstract wording. Keep explanations practical and close to a student's decision-making context.
 - **Valid Templates Rule**: Use only template slugs from the provided `Template Catalog Bundle`. Never invent templates.
@@ -481,15 +506,15 @@ Generate a complete deployment recommendation based on the user's intent, availa
 - **Capacity Constraint Rule**: If the current nodes are not ideal, reflect that limitation in `summary`, `machines.why`, `overall_config.deployment_strategy`, or `upgrade_when`.
 - **Upgrade Rule**: `upgrade_when` must mention specific measurable thresholds, such as sustained CPU, RAM, or disk pressure.
 - **Application Target Rule**: `application_target.service_name` must be a user-facing service label, not just a slug.
-- **Form Prefill Rule**: In `form_prefill`, only LXC may contain `lxc_template_slug`. If the result is VM, leave `lxc_template_slug` empty and fill `os_environment` such as `windows`, `linux`, or `gui`.
+- **Form Prefill Rule**: In `form_prefill`, `service_template_slug` is only for LXC service templates. `lxc_os_image` must come from the provided real LXC OS image list. `vm_os_choice` and `vm_template_id` must come from the provided VM operating system list. Do not treat VM operating system as a service template.
 - **Examples**:
   Bad: `service_name = "n8n-template"`
-  Bad: `resource_type = "vm"` with `lxc_template_slug = "n8n"`
+  Bad: `resource_type = "vm"` with `service_template_slug = "n8n"`
   Bad: using a template slug that is not in the catalog
   Bad: giving a 2 to 5 person class project `8 vCPU / 16GB RAM` without clear workload evidence
   Bad: treating team collaboration as equivalent to heavy concurrent service traffic
   Good: `service_name = "n8n"`, `execution_environment = "lxc"`
-  Good: VM result with `os_environment = "windows"` and empty `lxc_template_slug`
+  Good: VM result with `vm_os_choice = "Ubuntu 22.04"` or `Windows` related option, empty `service_template_slug`, and matching `vm_template_id`
   Good: a personal or small-group project receives the smallest configuration that can clearly run the required service
   Good: higher resources appear only when the request explicitly shows stronger workload needs
   Good: `form_prefill.reason` written like a short application statement
@@ -505,6 +530,9 @@ Generate a complete deployment recommendation based on the user's intent, availa
 
 ## Template Catalog Bundle
 {json.dumps(prompt_bundle, ensure_ascii=False)}
+
+## Real Resource Option Bundle
+{json.dumps(resource_options, ensure_ascii=False)}
 
 # Output Schema
 {json.dumps(plan_schema, ensure_ascii=False)}"""
@@ -561,6 +589,8 @@ def normalize_ai_result(
     request: RecommendationRequest,
     nodes: list[DeviceNode],
     template_catalog: TemplateCatalog,
+    *,
+    resource_options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     lookup = catalog_lookup(template_catalog)
     explicit_matches = find_explicit_template_matches(template_catalog, request.goal)
@@ -618,6 +648,11 @@ def normalize_ai_result(
             )
 
     # 移除對 AI 推薦支援模板的硬性截斷到 2 個的限制，允許 AI 的前 3 個推薦完整保留。
+    recommended_templates = recommended_templates[:1]
+    recommended_slugs = {item["slug"] for item in recommended_templates}
+    possible_needed_templates = [
+        item for item in possible_needed_templates if item["slug"] not in recommended_slugs
+    ]
     possible_needed_templates = possible_needed_templates[:3]
     _append_support_template_fallbacks(
         possible_needed_templates,
@@ -657,6 +692,7 @@ def normalize_ai_result(
         request=request,
         machines=machines,
         recommended_templates=recommended_templates,
+        resource_options=resource_options or {"lxc_os_images": [], "vm_operating_systems": []},
     )
 
     final_plan = {
@@ -846,6 +882,7 @@ def _build_form_prefill(
     request: RecommendationRequest,
     machines: list[dict[str, Any]],
     recommended_templates: list[dict[str, Any]],
+    resource_options: dict[str, Any],
 ) -> dict[str, Any]:
     raw = dict(ai_result.get("form_prefill") or {})
     primary_machine = machines[0] if machines else {}
@@ -859,24 +896,15 @@ def _build_form_prefill(
     if resource_type not in {"lxc", "vm"}:
         resource_type = "vm" if request.needs_windows else "lxc"
 
-    template_slug = (
-        str(raw.get("lxc_template_slug") or "").strip().lower()
+    service_template_slug = (
+        str(raw.get("service_template_slug") or raw.get("lxc_template_slug") or "").strip().lower()
         or str(primary_machine.get("template_slug") or "").strip().lower()
         or str(primary_template.get("slug") or "").strip().lower()
     )
-    os_environment = str(raw.get("os_environment") or "").strip().lower()
-    if not os_environment:
-        if resource_type == "vm":
-            if request.needs_windows:
-                os_environment = "windows"
-            else:
-                os_environment = "linux"
-        else:
-            os_environment = "linux"
     hostname = str(raw.get("hostname") or "").strip() or str(primary_machine.get("name") or "").strip()
     hostname = hostname.lower().replace("_", "-").replace(" ", "-")
     hostname = "".join(ch if (ch.isalnum() or ch == "-") else "-" for ch in hostname).strip("-")[:63] or (
-        f"{template_slug}-node"[:63] if template_slug else "ai-generated-host"
+        f"{service_template_slug}-node"[:63] if service_template_slug else "ai-generated-host"
     )
 
     def _safe_int_like(value: Any, default: int, minimum: int | None = None) -> int:
@@ -902,32 +930,79 @@ def _build_form_prefill(
             parsed = minimum
         return parsed
 
+    lxc_os_images = list(resource_options.get("lxc_os_images") or [])
+    vm_operating_systems = list(resource_options.get("vm_operating_systems") or [])
+    vm_options_by_id = {
+        int(item.get("template_id") or 0): item
+        for item in vm_operating_systems
+        if int(item.get("template_id") or 0) > 0
+    }
+
     cores = _safe_int_like(raw.get("cores") or primary_machine.get("cpu"), default=2, minimum=2)
     memory_mb = _safe_int_like(raw.get("memory_mb") or primary_machine.get("memory_mb"), default=2048, minimum=2048)
     disk_gb = _safe_int_like(raw.get("disk_gb") or primary_machine.get("disk_gb"), default=10, minimum=10)
+    vm_template_id = _safe_int_like(raw.get("vm_template_id"), default=0, minimum=0)
+    vm_os_choice = str(raw.get("vm_os_choice") or raw.get("os_environment") or "").strip()
+    if vm_template_id and not vm_os_choice:
+        vm_os_choice = str(vm_options_by_id.get(vm_template_id, {}).get("label") or "").strip()
+    if not vm_os_choice and resource_type == "vm":
+        vm_os_choice = "Windows" if request.needs_windows else "Linux"
+    lxc_os_image = str(raw.get("lxc_os_image") or "").strip()
+    if lxc_os_image and not any(str(item.get("value") or "") == lxc_os_image for item in lxc_os_images):
+        lxc_os_image = ""
     username = str(raw.get("username") or "").strip()
     if resource_type == "vm" and not username:
         username = "student"
 
-    reason = str(raw.get("reason") or "").strip()
-    if not reason:
-        service_label = str(primary_template.get("name") or template_slug or "目標服務").strip()
-        if resource_type == "vm":
-            reason = f"依 AI 建議，以 VM 部署 {service_label}，配置 {cores} CPU / {memory_mb} MB / {disk_gb} GB，符合目前需求。"
-        else:
-            reason = f"依 AI 建議，以 LXC 快速部署 {service_label}，配置 {cores} CPU / {memory_mb} MB / {disk_gb} GB，符合目前需求。"
+    service_label = str(primary_template.get("name") or service_template_slug or request.goal.strip()[:40] or "目標服務").strip()
+    reason = _build_submission_reason(
+        request=request,
+        service_label=service_label,
+        resource_type=resource_type,
+        cores=cores,
+        memory_mb=memory_mb,
+        disk_gb=disk_gb,
+    )
 
     return {
         "resource_type": resource_type,
         "hostname": hostname,
-        "lxc_template_slug": template_slug if resource_type == "lxc" else "",
-        "os_environment": os_environment,
+        "service_template_slug": service_template_slug if resource_type == "lxc" else "",
+        "lxc_template_slug": service_template_slug if resource_type == "lxc" else "",
+        "lxc_os_image": lxc_os_image if resource_type == "lxc" else "",
+        "vm_os_choice": vm_os_choice if resource_type == "vm" else "",
+        "vm_template_id": vm_template_id if resource_type == "vm" else 0,
+        "os_environment": vm_os_choice.lower() if resource_type == "vm" else "linux",
         "cores": cores,
         "memory_mb": memory_mb,
         "disk_gb": disk_gb,
         "username": username,
         "reason": reason,
     }
+
+
+def _build_submission_reason(
+    *,
+    request: RecommendationRequest,
+    service_label: str,
+    resource_type: str,
+    cores: int,
+    memory_mb: int,
+    disk_gb: int,
+) -> str:
+    usage_prefix = (
+        "課程作業" if request.course_context == "coursework"
+        else "教學使用" if request.course_context == "teaching"
+        else "研究用途"
+    )
+    sharing_text = "個人使用" if request.sharing_scope == "personal" else "小組使用"
+    deployment_label = "LXC" if resource_type == "lxc" else "VM"
+    ram_gb = memory_mb / 1024
+    return (
+        f"{sharing_text}{usage_prefix}申請，規劃以 {deployment_label} 部署 {service_label}，"
+        f"目前申請 {cores} vCPU、{ram_gb:.1f} GB RAM、{disk_gb} GB 磁碟，"
+        "配置以滿足現階段基本使用需求為主。"
+    )
 
 
 def _append_support_template_fallbacks(

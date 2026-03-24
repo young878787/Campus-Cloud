@@ -11,6 +11,7 @@ from app.services.recommendation_service import (
     extract_intent_from_chat,
     normalize_ai_result,
 )
+from app.services.resource_options_service import fetch_resource_options
 
 
 router = APIRouter(tags=["recommendation"])
@@ -27,6 +28,7 @@ async def chat(request: ChatRequest):
 async def recommend(request: ChatRequest, http_request: Request):
     payload = await fetch_backend_node_payload(http_request.headers.get("Authorization"))
     live_nodes = normalize_node_payload(payload)
+    resource_options = await fetch_resource_options(http_request.headers.get("Authorization"))
     
     extracted_intent = await extract_intent_from_chat(request)
     
@@ -43,9 +45,22 @@ async def recommend(request: ChatRequest, http_request: Request):
         top_k=request.top_k,
     )
 
-    ai_result, ai_metrics = await generate_ai_plan(merged_request, merged_request.device_nodes, catalog, request.messages)
-    result = normalize_ai_result(ai_result, merged_request, merged_request.device_nodes, catalog)
+    ai_result, ai_metrics = await generate_ai_plan(
+        merged_request,
+        merged_request.device_nodes,
+        catalog,
+        request.messages,
+        resource_options=resource_options,
+    )
+    result = normalize_ai_result(
+        ai_result,
+        merged_request,
+        merged_request.device_nodes,
+        catalog,
+        resource_options=resource_options,
+    )
     result["live_device_nodes"] = [node.model_dump() for node in merged_request.device_nodes]
     result["ai_metrics"] = ai_metrics
+    result["resource_options"] = resource_options
     return result
 

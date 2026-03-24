@@ -71,6 +71,7 @@ def serialize_template(item: TemplateItem) -> dict[str, Any]:
         "slug": item.slug,
         "name": item.name,
         "description": item.description,
+        "logo": item.raw.get("logo"),
         "type": item.template_type,
         "categories": item.categories,
         "interface_port": item.interface_port,

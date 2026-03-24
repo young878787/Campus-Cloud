@@ -6,14 +6,17 @@
     <title>AI 申請助手</title>
     <style>
       :root {
-        --bg: #eef2f7;
-        --card: rgba(255, 255, 255, 0.92);
+        --bg: #f3f6fb;
+        --card: #ffffff;
         --soft: #f8fafc;
+        --soft-2: #eef2f7;
         --line: #d6dce5;
+        --line-strong: #b8c2cf;
         --text: #0f172a;
         --muted: #5b6474;
-        --accent: #111827;
-        --blue-border: #bfdbfe;
+        --accent: #0f766e;
+        --accent-soft: rgba(15, 118, 110, 0.1);
+        --accent-line: rgba(15, 118, 110, 0.25);
         --shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
       }
 
@@ -23,27 +26,26 @@
         color: var(--text);
         font-family: "Segoe UI", "Noto Sans TC", sans-serif;
         background:
-          radial-gradient(circle at top left, rgba(191, 219, 254, 0.55), transparent 22%),
-          linear-gradient(180deg, #f3f6fb 0%, var(--bg) 100%);
+          radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 22%),
+          linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
       }
-      .page { max-width: 1560px; margin: 0 auto; padding: 24px; }
+      .page { max-width: 1560px; margin: 0 auto; padding: 18px; }
       .hero, .panel {
         background: var(--card);
-        border: 1px solid rgba(255, 255, 255, 0.7);
-        border-radius: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.85);
+        border-radius: 18px;
         box-shadow: var(--shadow);
-        backdrop-filter: blur(14px);
       }
-      .hero { padding: 26px 30px; margin-bottom: 18px; }
-      .hero h1 { margin: 0; font-size: 2rem; }
-      .hero p { margin: 10px 0 0; max-width: 900px; color: var(--muted); line-height: 1.7; }
+      .hero { padding: 22px 26px; margin-bottom: 16px; }
+      .hero h1 { margin: 0; font-size: 1.85rem; }
+      .hero p { margin: 10px 0 0; max-width: 980px; color: var(--muted); line-height: 1.7; }
       .layout {
         display: grid;
         grid-template-columns: minmax(0, 1.06fr) minmax(360px, 0.94fr);
         gap: 18px;
         align-items: start;
       }
-      .panel-header { padding: 22px 24px 16px; border-bottom: 1px solid #e5e7eb; }
+      .panel-header { padding: 20px 24px 14px; border-bottom: 1px solid #e5e7eb; }
       .panel-header h2 { margin: 0; font-size: 1.08rem; }
       .sub { margin: 8px 0 0; color: var(--muted); line-height: 1.65; font-size: 0.93rem; }
       .panel-body { padding: 22px 24px 24px; }
@@ -52,13 +54,18 @@
         padding: 11px 16px;
         border: 1px solid var(--line);
         border-radius: 15px;
-        background: #fff;
+        background: var(--soft-2);
         color: var(--text);
         font: inherit;
         cursor: pointer;
       }
-      .tab { background: var(--soft); color: var(--muted); font-weight: 700; }
-      .tab.active, .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      .tab { background: var(--soft-2); color: var(--muted); font-weight: 700; flex: 1; }
+      .tab.active {
+        background: #ffffff;
+        border-color: var(--line-strong);
+        color: var(--text);
+      }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: #ffffff; font-weight: 700; }
       .btn.secondary { background: var(--soft); }
       .btn.ghost { background: transparent; color: var(--muted); }
       .btn:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -75,29 +82,29 @@
         padding: 12px 14px;
         border: 1px solid var(--line);
         border-radius: 15px;
-        background: #fff;
+        background: var(--soft);
         color: var(--text);
         font: inherit;
       }
       textarea { min-height: 120px; resize: vertical; }
       input:focus, select:focus, textarea:focus {
         outline: none;
-        border-color: #60a5fa;
-        box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.14);
+        border-color: var(--accent-line);
+        box-shadow: 0 0 0 4px rgba(46, 196, 182, 0.12);
       }
       .hidden { display: none !important; }
       .hint { font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
       .notice {
         margin-top: 18px;
         padding: 15px 16px;
-        border: 1px solid var(--blue-border);
+        border: 1px solid var(--accent-line);
         border-radius: 16px;
-        background: #eff6ff;
+        background: var(--accent-soft);
         line-height: 1.65;
       }
       .metric, .prefill-item {
         padding: 14px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--line);
         border-radius: 16px;
         background: var(--soft);
       }
@@ -123,27 +130,27 @@
       .bubble { padding: 14px 16px; border-radius: 18px; line-height: 1.7; word-break: break-word; }
       .msg.user .bubble {
         background: var(--accent);
-        color: #fff;
+        color: #ffffff;
         border-top-right-radius: 6px;
         white-space: pre-wrap;
       }
-      .msg.ai .bubble { background: var(--soft); border: 1px solid #e5e7eb; border-top-left-radius: 6px; }
+      .msg.ai .bubble { background: var(--soft); border: 1px solid var(--line); border-top-left-radius: 6px; }
       .meta { margin-top: 5px; color: var(--muted); font-size: 0.75rem; }
       .typing { display: none; margin-top: 10px; color: var(--muted); font-size: 0.92rem; }
       .plan {
         margin-top: 18px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--line);
         border-radius: 22px;
         background: linear-gradient(180deg, #ffffff, #f8fafc);
         overflow: hidden;
       }
-      .plan-top { padding: 15px 16px; border-bottom: 1px solid #e5e7eb; font-weight: 700; }
+      .plan-top { padding: 15px 16px; border-bottom: 1px solid var(--line); font-weight: 700; }
       .plan-body { padding: 16px; }
       .plan-summary {
         padding: 14px 15px;
-        border: 1px solid var(--blue-border);
+        border: 1px solid var(--accent-line);
         border-radius: 16px;
-        background: #eff6ff;
+        background: var(--accent-soft);
       }
       .section { margin-top: 18px; }
       .section h3 {
@@ -153,7 +160,7 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
-      .card { padding: 14px; border: 1px solid #e5e7eb; border-radius: 18px; background: #fff; }
+      .card { padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--soft); }
       .card + .card { margin-top: 10px; }
       .head {
         display: flex;
@@ -167,8 +174,8 @@
         display: inline-flex;
         padding: 5px 10px;
         border-radius: 999px;
-        background: #e5e7eb;
-        color: #374151;
+        background: #242424;
+        color: #d8d8d8;
         font-size: 0.78rem;
       }
       .markdown-body, .bubble.markdown { white-space: normal; }
@@ -190,26 +197,26 @@
       .markdown-body hr, .bubble.markdown hr {
         margin: 1em 0;
         border: 0;
-        border-top: 1px solid #d6dce5;
+        border-top: 1px solid var(--line);
       }
       .markdown-body blockquote, .bubble.markdown blockquote {
         margin: 0.8em 0;
         padding: 0.15em 0 0.15em 1em;
-        border-left: 3px solid #bfdbfe;
-        color: #334155;
-        background: rgba(239, 246, 255, 0.55);
+        border-left: 3px solid var(--accent-line);
+        color: #134e4a;
+        background: rgba(15, 118, 110, 0.08);
       }
       .markdown-body table, .bubble.markdown table {
         width: 100%;
         margin: 0.8em 0;
         border-collapse: collapse;
         overflow: hidden;
-        border: 1px solid #d6dce5;
+        border: 1px solid var(--line);
         border-radius: 12px;
       }
       .markdown-body th, .markdown-body td, .bubble.markdown th, .bubble.markdown td {
         padding: 10px 12px;
-        border: 1px solid #d6dce5;
+        border: 1px solid var(--line);
         text-align: left;
         vertical-align: top;
       }
@@ -220,7 +227,7 @@
       .markdown-body code, .bubble.markdown code {
         padding: 0.1em 0.35em;
         border-radius: 6px;
-        background: rgba(148, 163, 184, 0.18);
+        background: rgba(148, 163, 184, 0.16);
         font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
         font-size: 0.92em;
       }
@@ -233,11 +240,208 @@
         color: #f8fafc;
       }
       .markdown-body pre code, .bubble.markdown pre code { padding: 0; background: transparent; color: inherit; }
+      .stack-tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 18px;
+        padding: 4px;
+        border-radius: 14px;
+        background: #edf1f6;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+        gap: 24px;
+        margin-top: 18px;
+      }
+      .hardware-card {
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #ffffff;
+      }
+      .hardware-card h3 {
+        margin: 0 0 18px;
+        font-size: 1rem;
+      }
+      .slider-block + .slider-block { margin-top: 28px; }
+      .slider-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .slider-head .value {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      input[type="range"] {
+        width: 100%;
+        padding: 0;
+        border: none;
+        background: transparent;
+        accent-color: var(--accent);
+      }
+      .scale {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 0.78rem;
+      }
+      .disk-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .disk-row input[type="number"] {
+        width: 86px;
+        text-align: right;
+      }
+      .footer-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+      }
+      .picker-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .picker-row input { flex: 1; }
+      .picker-row .btn { white-space: nowrap; }
+      .template-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 180px;
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .template-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+      .template-card {
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #ffffff;
+        cursor: pointer;
+      }
+      .template-card:hover { border-color: var(--line-strong); }
+      .template-head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+      .template-logo {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .template-logo img {
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+      }
+      .template-name {
+        font-size: 0.98rem;
+        font-weight: 700;
+      }
+      .template-desc {
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.5;
+        min-height: 46px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .template-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 12px;
+      }
+      .template-tag {
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #eef2f7;
+        color: #334155;
+        font-size: 0.72rem;
+      }
+      .template-section {
+        margin-top: 18px;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--soft);
+      }
+      .template-section h3 {
+        margin: 0 0 8px;
+        font-size: 1rem;
+      }
+      .template-section p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(15, 23, 42, 0.4);
+        z-index: 20;
+      }
+      .modal-card {
+        width: min(1080px, 100%);
+        max-height: min(80vh, 920px);
+        padding: 22px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: #ffffff;
+        box-shadow: var(--shadow);
+      }
+      .modal-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .modal-top h3 {
+        margin: 0;
+        font-size: 1.08rem;
+      }
+      .modal-top p {
+        margin: 6px 0 0;
+        color: var(--muted);
+      }
+      .dev-tools { display: none; }
       @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
       @media (max-width: 720px) {
         .page { padding: 14px; }
         .hero, .panel-header, .panel-body { padding-left: 16px; padding-right: 16px; }
         .row, .summary, .prefill-grid { grid-template-columns: 1fr; }
+        .form-grid { grid-template-columns: 1fr; }
+        .template-toolbar,
+        .template-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -246,8 +450,9 @@
       <section class="hero">
         <h1>AI 申請助手</h1>
         <p>
-          左邊是申請表單，右邊是 AI 助手。你可以先描述需求，讓 AI 產生建議配置，再把主方案直接導入表單。LXC
-          會走模板心智；VM 只走作業系統 / 環境心智，不再把 VM 當成模板選項。
+          左邊是申請表單，右邊是 AI 助手。你可以先描述需求，讓 AI 產生建議配置，再把主方案直接導入表單。
+          目前表單欄位已先對齊 frontend 的自訂申請表單；AI 推薦的服務模板會帶出建議配置，但實際送審前仍要選擇真實可提交的 OS
+          模板或 VM 範本。
         </p>
       </section>
 
@@ -255,83 +460,127 @@
         <section class="panel">
           <div class="panel-header">
             <h2>申請表單</h2>
-            <p class="sub">LXC 會顯示模板選項；VM 只顯示作業系統 / 環境，不再使用模板心智。</p>
+            <p class="sub">欄位、切換方式與送出 JSON 先對齊 frontend 目前的自訂申請表單。</p>
           </div>
           <div class="panel-body">
-            <div class="tabs">
-              <button class="tab active" type="button" data-type="lxc">LXC 容器</button>
-              <button class="tab" type="button" data-type="vm">VM 虛擬機</button>
-            </div>
-
-            <form id="request-form">
-              <input id="resource_type" type="hidden" value="lxc" />
-              <div class="row" style="margin-top: 16px;">
-                <div class="field">
-                  <label for="hostname">Hostname</label>
-                  <input id="hostname" placeholder="例如 n8n-lab-01" />
-                </div>
-                <div class="field">
-                  <label for="storage">Storage</label>
-                  <input id="storage" value="local-lvm" />
-                </div>
-                <div class="field">
-                  <label for="os_info">OS / 備註</label>
-                  <input id="os_info" placeholder="例如 Windows GUI for n8n / Ubuntu app host" />
-                </div>
-                <div class="field vm-only hidden">
-                  <label for="vm_environment">VM 作業系統 / 環境</label>
-                  <input id="vm_environment" placeholder="例如 windows / linux / gui" />
-                </div>
-                <div class="field vm-only hidden">
-                  <label for="username">Username</label>
-                  <input id="username" placeholder="例如 student" />
-                </div>
-                <div class="field">
-                  <label for="password">Password</label>
-                  <input id="password" type="password" placeholder="至少 8 碼" />
-                </div>
-                <div class="field">
-                  <label for="expiry_date">Expiry Date</label>
-                  <input id="expiry_date" type="date" />
-                </div>
-                <div class="field">
-                  <label for="cores">CPU Cores</label>
-                  <input id="cores" type="number" min="1" value="2" />
-                </div>
-                <div class="field">
-                  <label for="memory">Memory (MB)</label>
-                  <input id="memory" type="number" min="512" step="256" value="2048" />
-                </div>
-                <div class="field lxc-only">
-                  <label for="rootfs_size">RootFS Size (GB)</label>
-                  <input id="rootfs_size" type="number" min="8" value="8" />
-                </div>
-                <div class="field vm-only hidden">
-                  <label for="disk_size">Disk Size (GB)</label>
-                  <input id="disk_size" type="number" min="20" value="20" />
-                </div>
-                <div class="field full">
-                  <label for="reason">申請原因</label>
-                  <textarea id="reason" placeholder="描述用途、課程背景、是否需要公網、資料庫、Windows 或 GUI。"></textarea>
-                </div>
-                <div class="field full lxc-only">
-                  <label for="ostemplate">LXC Template</label>
-                  <select id="ostemplate"></select>
-                  <div class="hint">模板選單放在硬體欄位下方，方便先決定資源，再選擇對應映像。</div>
-                </div>
+              <div class="stack-tabs">
+                <button class="tab active" type="button" data-type="lxc">LXC 容器</button>
+                <button class="tab" type="button" data-type="vm">QEMU 虛擬機</button>
               </div>
-            </form>
 
-            <div class="summary">
+              <form id="request-form">
+              <input id="resource_type" type="hidden" value="lxc" />
+              <div class="form-grid">
+                <div>
+                  <div class="row" style="margin-top: 16px;">
+                    <div class="field full">
+                      <label id="hostname-label" for="hostname">容器名稱 <span style="color:#ef4444">*</span></label>
+                      <input id="hostname" placeholder="例如：project-alpha-web" />
+                    </div>
+                    <div class="field lxc-only full">
+                      <label for="ostemplate">作業系統映像檔 <span style="color:#ef4444">*</span></label>
+                      <select id="ostemplate"></select>
+                    </div>
+                    <div class="field lxc-only full">
+                      <label for="service_template">服務範本（選填）</label>
+                      <div class="picker-row">
+                        <input id="service_template" placeholder="尚未選擇服務範本" readonly />
+                        <button class="btn secondary" type="button" id="open-template-picker">選擇範本</button>
+                        <button class="btn ghost" type="button" id="clear-service-template">清除</button>
+                      </div>
+                    </div>
+                    <div class="field vm-only hidden full">
+                      <label id="template-label" for="template_id">作業系統 <span style="color:#ef4444">*</span></label>
+                      <select id="template_id"></select>
+                    </div>
+                    <div class="field">
+                      <label for="os_info">作業系統資訊（選填）</label>
+                      <input id="os_info" placeholder="例如：Ubuntu 22.04 LTS" />
+                    </div>
+                    <div class="field vm-only hidden">
+                      <label for="username">使用者名稱 <span style="color:#ef4444">*</span></label>
+                      <input id="username" placeholder="例如：admin" />
+                    </div>
+                    <div class="field full">
+                      <label id="password-label" for="password">Root 密碼 <span style="color:#ef4444">*</span></label>
+                      <input id="password" type="password" placeholder="設置 root 使用者密碼" />
+                    </div>
+                    <div class="field full">
+                      <label for="expiry_date">到期日（選填，留空表示無期限）</label>
+                      <input id="expiry_date" type="date" />
+                    </div>
+                  </div>
+
+                </div>
+
+                <aside class="hardware-card">
+                  <h3>硬體資源配置</h3>
+
+                  <div class="slider-block">
+                    <div class="slider-head">
+                      <label for="cores">CPU 核心數</label>
+                      <div class="value"><span id="s-cpu-display">2</span> Cores</div>
+                    </div>
+                    <input id="cores" type="range" min="1" max="8" step="1" value="2" />
+                    <div class="scale"><span>1</span><span>2</span><span>4</span><span>8</span></div>
+                  </div>
+
+                  <div class="slider-block">
+                    <div class="slider-head">
+                      <label for="memory">記憶體 (RAM)</label>
+                      <div class="value"><span id="s-memory-gb">2.0</span> GB</div>
+                    </div>
+                    <input id="memory" type="range" min="512" max="32768" step="512" value="2048" />
+                    <div class="scale"><span>1GB</span><span>8GB</span><span>16GB</span><span>32GB</span></div>
+                  </div>
+
+                  <div class="slider-block lxc-only">
+                    <div class="slider-head">
+                      <label for="rootfs_size">硬碟空間 (Disk)</label>
+                      <div class="disk-row">
+                        <input id="rootfs_size" type="number" min="8" value="8" />
+                        <div class="value">GB</div>
+                      </div>
+                    </div>
+                    <input id="rootfs_size_range" type="range" min="8" max="500" step="1" value="8" />
+                  </div>
+
+                  <div class="slider-block vm-only hidden">
+                    <div class="slider-head">
+                      <label for="disk_size">硬碟空間 (Disk)</label>
+                      <div class="disk-row">
+                        <input id="disk_size" type="number" min="20" value="20" />
+                        <div class="value">GB</div>
+                      </div>
+                    </div>
+                    <input id="disk_size_range" type="range" min="20" max="500" step="1" value="20" />
+                  </div>
+                </aside>
+              </div>
+
+              <div class="field full" style="margin-top: 16px;">
+                <label for="reason">申請原因 <span style="color:#ef4444">*</span></label>
+                <textarea id="reason" placeholder="請說明您的申請用途..."></textarea>
+              </div>
+
+              <div class="footer-actions">
+                <button class="btn secondary" type="button" id="reset-form">取消</button>
+                <button class="btn primary" type="button" id="copy-json">提交申請</button>
+              </div>
+              </form>
+
+            <div class="summary dev-tools">
               <div class="metric"><div class="k">資源類型</div><div class="v" id="s-type">LXC</div></div>
-              <div class="metric"><div class="k">CPU</div><div class="v"><span id="s-cpu">2</span> cores</div></div>
+              <div class="metric"><div class="k">CPU</div><div class="v"><span id="s-cpu-metric">2</span> cores</div></div>
               <div class="metric"><div class="k">Memory</div><div class="v"><span id="s-memory">2048</span> MB</div></div>
               <div class="metric"><div class="k">Disk</div><div class="v"><span id="s-disk">8</span> GB</div></div>
             </div>
 
-            <div class="actions" style="margin-top: 18px;">
-              <button class="btn primary" type="button" id="copy-json">複製表單 JSON</button>
-              <button class="btn secondary" type="button" id="reset-form">重設表單</button>
+            <div class="actions dev-tools" style="margin-top: 18px;">
+              <button class="btn ghost" type="button" id="copy-raw-json">複製表單 JSON</button>
+            </div>
+            <div class="notice" id="ai-note" style="margin-top: 14px;">
+              AI 推薦匯入後，請再確認模板、帳號與密碼等必填欄位。
             </div>
           </div>
         </section>
@@ -366,15 +615,34 @@
       </main>
     </div>
 
+    <div id="template-modal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-top">
+          <div>
+            <h3>選擇 LXC 服務範本</h3>
+            <p>這裡選的是服務範本，不是作業系統映像檔。選取後會帶入建議配置與申請原因。</p>
+          </div>
+          <button class="btn ghost" type="button" id="close-template-picker">關閉</button>
+        </div>
+        <div class="template-toolbar">
+          <input id="template-search" placeholder="搜尋範本名稱或描述" />
+          <select id="template-category">
+            <option value="all">所有分類</option>
+          </select>
+        </div>
+        <div id="template-grid" class="template-grid"></div>
+      </div>
+    </div>
+
     <script>
       const $ = (id) => document.getElementById(id);
 
       const fields = {
         resource_type: $("resource_type"),
         hostname: $("hostname"),
-        storage: $("storage"),
         os_info: $("os_info"),
-        vm_environment: $("vm_environment"),
+        template_id: $("template_id"),
+        service_template: $("service_template"),
         username: $("username"),
         password: $("password"),
         expiry_date: $("expiry_date"),
@@ -385,9 +653,17 @@
         ostemplate: $("ostemplate"),
         reason: $("reason"),
       };
+      const rootfsRange = $("rootfs_size_range");
+      const diskRange = $("disk_size_range");
+      const templateSearch = $("template-search");
+      const templateCategory = $("template-category");
+      const templateModal = $("template-modal");
 
       let apiBaseUrl = "";
-      let catalogItems = [];
+      let lxcTemplates = [];
+      let vmTemplates = [];
+      let templateCatalog = [];
+      let templateCategories = {};
       let conversationHistory = [];
       let latestPlan = null;
 
@@ -600,25 +876,49 @@
         $("metrics-label").textContent = `${total} tokens${seconds ? ` / ${seconds.toFixed(1)}s` : ""}${speed ? ` / ${speed.toFixed(1)} tok/s` : ""}`;
       }
 
+      function getAuthHeaders() {
+        const token = window.localStorage.getItem("access_token") || "";
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      }
+
       async function loadUiConfig() {
         try {
           const res = await fetch("/ui-config");
           const data = await res.json();
-          apiBaseUrl = String(data.api_base_url || "").replace(/\/$/, "");
+          apiBaseUrl = String(data.api_base_url || "http://127.0.0.1:8000").replace(/\/$/, "");
         } catch (_) {
-          apiBaseUrl = "";
+          apiBaseUrl = "http://127.0.0.1:8000";
         }
       }
 
-      async function loadCatalog() {
+      async function loadTemplates() {
         try {
-          const response = await fetch("/api/v1/catalog/preview?limit=500");
-          const data = await response.json();
-          catalogItems = data.items || [];
+          const [lxcResponse, vmResponse, catalogResponse] = await Promise.all([
+            fetch(`/api/v1/lxc/templates`, { headers: getAuthHeaders() }),
+            fetch(`/api/v1/vm/templates`, { headers: getAuthHeaders() }),
+            fetch(`/api/v1/catalog/preview?limit=500`),
+          ]);
+
+          lxcTemplates = lxcResponse.ok ? await lxcResponse.json() : [];
+          vmTemplates = vmResponse.ok ? await vmResponse.json() : [];
+          if (catalogResponse.ok) {
+            const catalogPayload = await catalogResponse.json();
+            templateCatalog = catalogPayload.items || [];
+            templateCategories = catalogPayload.categories || {};
+          } else {
+            templateCatalog = [];
+            templateCategories = {};
+          }
         } catch (_) {
-          catalogItems = [];
+          lxcTemplates = [];
+          vmTemplates = [];
+          templateCatalog = [];
+          templateCategories = {};
         }
         refreshTemplateOptions();
+        refreshVmTemplateOptions();
+        refreshTemplateCategoryOptions();
+        renderTemplateGrid();
       }
 
       function refreshTemplateOptions() {
@@ -627,13 +927,15 @@
 
         const placeholder = document.createElement("option");
         placeholder.value = "";
-        placeholder.textContent = "請選擇 LXC Template";
+        placeholder.textContent = "請選擇作業系統映像檔";
         fields.ostemplate.appendChild(placeholder);
 
-        catalogItems.forEach((item) => {
+        lxcTemplates.forEach((item) => {
           const option = document.createElement("option");
-          option.value = item.slug || "";
-          option.textContent = item.name ? `${item.name} (${item.slug})` : item.slug;
+          option.value = item.volid || "";
+          option.textContent = item.volid
+            ? item.volid.split("/").pop()?.replace(".tar.zst", "") || item.volid
+            : "";
           fields.ostemplate.appendChild(option);
         });
 
@@ -643,16 +945,123 @@
         }
       }
 
-      function selectTemplateBySlug(slug) {
-        if (!slug) return;
-        const found = Array.from(fields.ostemplate.options).some((option) => option.value === slug);
-        if (!found) {
+      function refreshVmTemplateOptions() {
+        const current = fields.template_id.value;
+        fields.template_id.innerHTML = "";
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "請選擇作業系統";
+        fields.template_id.appendChild(placeholder);
+
+        vmTemplates.forEach((item) => {
           const option = document.createElement("option");
-          option.value = slug;
-          option.textContent = `${slug} (AI 推薦)`;
-          fields.ostemplate.appendChild(option);
+          option.value = String(item.vmid || "");
+          option.textContent = item.name ? `${item.name} (#${item.vmid})` : String(item.vmid || "");
+          fields.template_id.appendChild(option);
+        });
+
+        if (current) {
+          const hasCurrent = Array.from(fields.template_id.options).some((opt) => opt.value === current);
+          if (hasCurrent) fields.template_id.value = current;
         }
-        fields.ostemplate.value = slug;
+      }
+
+      function refreshTemplateCategoryOptions() {
+        templateCategory.innerHTML = '<option value="all">所有分類</option>';
+        Object.entries(templateCategories)
+          .sort((a, b) => String(a[1]).localeCompare(String(b[1])))
+          .forEach(([id, name]) => {
+            const option = document.createElement("option");
+            option.value = String(id);
+            option.textContent = String(name);
+            templateCategory.appendChild(option);
+          });
+      }
+
+      function renderTemplateGrid() {
+        const query = String(templateSearch.value || "").trim().toLowerCase();
+        const category = String(templateCategory.value || "all");
+        const filtered = templateCatalog.filter((item) => {
+          const haystack = `${item.name || ""} ${item.description || ""}`.toLowerCase();
+          const matchesSearch = !query || haystack.includes(query);
+          const matchesCategory =
+            category === "all" ||
+            Array.isArray(item.categories) && item.categories.map(String).includes(category);
+          return matchesSearch && matchesCategory;
+        });
+
+        $("template-grid").innerHTML = filtered.map((item) => {
+          const categoryNames = (item.categories || [])
+            .map((id) => templateCategories[id] || templateCategories[String(id)] || "")
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((name) => `<span class="template-tag">${escapeHtml(name)}</span>`)
+            .join("");
+          return `
+            <div class="template-card" data-template-slug="${escapeHtml(item.slug || "")}">
+              <div class="template-head">
+                <div class="template-logo">${
+                  item.logo ? `<img src="${escapeHtml(item.logo)}" alt="${escapeHtml(item.name || item.slug || "")}" />` : ""
+                }</div>
+                <div class="template-name">${escapeHtml(item.name || item.slug || "未命名範本")}</div>
+              </div>
+              <div class="template-desc">${escapeHtml(item.description || "尚無描述")}</div>
+              <div class="template-tags">${categoryNames}</div>
+            </div>
+          `;
+        }).join("");
+
+        document.querySelectorAll("[data-template-slug]").forEach((node) => {
+          node.addEventListener("click", () => {
+            const slug = node.getAttribute("data-template-slug");
+            const template = templateCatalog.find((item) => String(item.slug || "") === slug);
+            if (!template) return;
+            applyQuickTemplate(template);
+          });
+        });
+      }
+
+      function openTemplatePicker() {
+        templateModal.classList.remove("hidden");
+      }
+
+      function closeTemplatePicker() {
+        templateModal.classList.add("hidden");
+      }
+
+      function clearServiceTemplate() {
+        fields.service_template.value = "";
+        delete fields.service_template.dataset.slug;
+        $("ai-note").textContent = "已清除 LXC 服務範本，作業系統映像檔與硬體配置保留不動。";
+      }
+
+      function suggestLxcImage(template) {
+        const resources = template?.default_resources || {};
+        const keywords = [resources.os, resources.version, template?.name, template?.slug]
+          .filter(Boolean)
+          .map((value) => String(value).toLowerCase());
+        return lxcTemplates.find((item) => {
+          const haystack = `${item.volid || ""}`.toLowerCase();
+          return keywords.some((keyword) => keyword && haystack.includes(keyword));
+        });
+      }
+
+      function applyQuickTemplate(template) {
+        const resources = template.default_resources || {};
+        fields.resource_type.value = "lxc";
+        fields.service_template.value = template.name || template.slug || "";
+        fields.service_template.dataset.slug = template.slug || "";
+        fields.cores.value = String(Number(resources.cpu || 2));
+        fields.memory.value = String(Number(resources.ram || 2048));
+        fields.rootfs_size.value = String(Number(resources.hdd || 10));
+        const suggestedImage = suggestLxcImage(template);
+        if (suggestedImage) fields.ostemplate.value = suggestedImage.value || "";
+        if (rootfsRange) rootfsRange.value = fields.rootfs_size.value;
+        $("ai-note").textContent = `已將 ${template.name || template.slug} 的建議配置帶入 LXC 表單，請再確認作業系統映像檔。`;
+        switchType("lxc");
+        closeTemplatePicker();
+        updateSummary();
       }
 
       function switchType(type) {
@@ -660,18 +1069,48 @@
         document.querySelectorAll(".tab").forEach((btn) => btn.classList.toggle("active", btn.dataset.type === type));
         document.querySelectorAll(".lxc-only").forEach((el) => el.classList.toggle("hidden", type !== "lxc"));
         document.querySelectorAll(".vm-only").forEach((el) => el.classList.toggle("hidden", type !== "vm"));
+
+        const hostnameLabel = $("hostname-label");
+        const templateLabel = $("template-label");
+        const passwordLabel = $("password-label");
+        if (type === "vm") {
+          hostnameLabel.innerHTML = '虛擬機名稱 <span style="color:#ef4444">*</span>';
+          templateLabel.innerHTML = '作業系統 <span style="color:#ef4444">*</span>';
+          passwordLabel.innerHTML = '密碼 <span style="color:#ef4444">*</span>';
+          fields.hostname.placeholder = "例如：web-server-01";
+          fields.password.placeholder = "設定使用者密碼";
+          fields.os_info.placeholder = "例如：Ubuntu 22.04 LTS";
+        } else {
+          hostnameLabel.innerHTML = '容器名稱 <span style="color:#ef4444">*</span>';
+          templateLabel.innerHTML = '作業系統 <span style="color:#ef4444">*</span>';
+          passwordLabel.innerHTML = 'Root 密碼 <span style="color:#ef4444">*</span>';
+          fields.hostname.placeholder = "例如：project-alpha-web";
+          fields.password.placeholder = "設置 root 使用者密碼";
+          fields.os_info.placeholder = "例如：Ubuntu 22.04 LTS";
+        }
         updateSummary();
       }
 
       function updateSummary() {
         $("s-type").textContent = fields.resource_type.value.toUpperCase();
-        $("s-cpu").textContent = fields.cores.value || "0";
+        $("s-cpu-display").textContent = fields.cores.value || "0";
+        $("s-cpu-metric").textContent = fields.cores.value || "0";
         $("s-memory").textContent = fields.memory.value || "0";
+        $("s-memory-gb").textContent = (Number(fields.memory.value || 0) / 1024).toFixed(1);
         $("s-disk").textContent = fields.resource_type.value === "vm" ? (fields.disk_size.value || "0") : (fields.rootfs_size.value || "0");
       }
 
+      function syncDiskInputs(source) {
+        if (source === "lxc") {
+          if (rootfsRange) rootfsRange.value = fields.rootfs_size.value || "8";
+        } else {
+          if (diskRange) diskRange.value = fields.disk_size.value || "20";
+        }
+        updateSummary();
+      }
+
       async function postJson(path, body) {
-        const res = await fetch(`${apiBaseUrl}${path}`, {
+        const res = await fetch(path, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -731,7 +1170,8 @@
                 <div class="prefill-grid">
                   <div class="prefill-item"><div class="k">資源類型</div><div class="v">${escapeHtml(formPrefill.resource_type || "-")}</div></div>
                   <div class="prefill-item"><div class="k">Hostname</div><div class="v">${escapeHtml(formPrefill.hostname || "-")}</div></div>
-                  <div class="prefill-item"><div class="k">${resourceType === "vm" ? "作業系統 / 環境" : "使用模板"}</div><div class="v">${escapeHtml(resourceType === "vm" ? (formPrefill.os_environment || "-") : (formPrefill.lxc_template_slug || "-"))}</div></div>
+                  <div class="prefill-item"><div class="k">${resourceType === "vm" ? "作業系統" : "服務範本"}</div><div class="v">${escapeHtml(resourceType === "vm" ? (formPrefill.vm_os_choice || formPrefill.os_environment || "-") : (formPrefill.service_template_slug || formPrefill.lxc_template_slug || "-"))}</div></div>
+                  <div class="prefill-item"><div class="k">${resourceType === "vm" ? "VM Template ID" : "LXC OS 映像檔"}</div><div class="v">${escapeHtml(resourceType === "vm" ? (formPrefill.vm_template_id || "-") : (formPrefill.lxc_os_image || "-"))}</div></div>
                   <div class="prefill-item"><div class="k">CPU / RAM</div><div class="v">${escapeHtml(formPrefill.cores || "-")} cores / ${escapeHtml(formPrefill.memory_mb || "-")} MB</div></div>
                   <div class="prefill-item"><div class="k">Disk</div><div class="v">${escapeHtml(formPrefill.disk_gb || "-")} GB</div></div>
                 </div>
@@ -768,33 +1208,48 @@
         $("ai-note").textContent = "已把 AI 摘要導入申請原因，你可以再補上帳號、密碼與必要欄位。";
       }
 
+      function syncSelectedVmOperatingSystem(vmTemplateId, vmOsChoice) {
+        const byId = vmTemplateId
+          ? vmTemplates.find((item) => Number(item.vmid || 0) === Number(vmTemplateId || 0))
+          : null;
+        const byLabel = !byId && vmOsChoice
+          ? vmTemplates.find((item) => String(item.name || "").toLowerCase() === String(vmOsChoice || "").toLowerCase())
+          : null;
+        const selected = byId || byLabel;
+        if (selected) {
+          fields.template_id.value = String(selected.vmid || "");
+          return String(selected.name || "");
+        }
+        fields.template_id.value = "";
+        return vmOsChoice || "";
+      }
+
       function importPlan() {
         const machine = latestPlan?.final_plan?.machines?.[0];
         const formPrefill = latestPlan?.final_plan?.form_prefill || {};
         const resourceType = String(formPrefill.resource_type || machine?.deployment_type || "lxc").toLowerCase() === "vm" ? "vm" : "lxc";
-        const templateSlug = formPrefill.lxc_template_slug || machine?.template_slug || latestPlan?.final_plan?.recommended_templates?.[0]?.slug || "";
+        const serviceTemplateSlug = formPrefill.service_template_slug || formPrefill.lxc_template_slug || machine?.template_slug || latestPlan?.final_plan?.recommended_templates?.[0]?.slug || "";
 
         switchType(resourceType);
-        fields.hostname.value = normalizeHostname(formPrefill.hostname || machine?.name || templateSlug || "ai-generated-host");
+        fields.hostname.value = normalizeHostname(formPrefill.hostname || machine?.name || serviceTemplateSlug || "ai-generated-host");
         fields.cores.value = String(formPrefill.cores || machine?.cpu || 2);
         fields.memory.value = String(formPrefill.memory_mb || machine?.memory_mb || 2048);
 
-        const preferredNode = machine?.assigned_node ? ` / preferred node: ${machine.assigned_node}` : "";
         if (resourceType === "vm") {
           fields.disk_size.value = String(formPrefill.disk_gb || machine?.disk_gb || 20);
-          fields.vm_environment.value = String(formPrefill.os_environment || "windows");
-          fields.os_info.value = `${fields.vm_environment.value}${preferredNode}`.trim();
+          syncSelectedVmOperatingSystem(formPrefill.vm_template_id, formPrefill.vm_os_choice || formPrefill.os_environment);
           if (!fields.username.value.trim()) fields.username.value = String(formPrefill.username || "student");
+          if (diskRange) diskRange.value = fields.disk_size.value;
+          $("ai-note").textContent = "已帶入 VM 建議規格與作業系統。請再確認帳號與密碼。";
         } else {
           fields.rootfs_size.value = String(formPrefill.disk_gb || machine?.disk_gb || 8);
-          fields.os_info.value = `${templateSlug}${preferredNode}`.trim();
-          selectTemplateBySlug(templateSlug);
+          fields.service_template.value = serviceTemplateSlug;
+          if (serviceTemplateSlug) fields.service_template.dataset.slug = serviceTemplateSlug;
+          if (formPrefill.lxc_os_image) fields.ostemplate.value = formPrefill.lxc_os_image;
+          if (rootfsRange) rootfsRange.value = fields.rootfs_size.value;
+          $("ai-note").textContent = "已帶入 LXC 建議規格、服務範本與作業系統映像建議。請再確認欄位。";
         }
 
-        if (!fields.reason.value.trim()) fields.reason.value = String(formPrefill.reason || "").trim();
-        if (!fields.reason.value.trim()) importReason();
-
-        $("ai-note").textContent = "已導入 AI 的表單預填結果。若之後接上 backend 真實模板 API，可再把 slug 映射成正式提交值。";
         updateSummary();
       }
 
@@ -847,17 +1302,42 @@
           cores: Number(fields.cores.value || 0),
           memory: Number(fields.memory.value || 0),
           password: fields.password.value,
-          storage: fields.storage.value.trim() || "local-lvm",
           os_info: fields.os_info.value.trim() || null,
           expiry_date: fields.expiry_date.value || null,
         };
         if (fields.resource_type.value === "vm") {
-          payload.os_environment = fields.vm_environment.value.trim() || null;
+          payload.template_id = fields.template_id.value ? Number(fields.template_id.value) : null;
           payload.disk_size = Number(fields.disk_size.value || 0);
           payload.username = fields.username.value.trim() || null;
         } else {
+          payload.storage = "local-lvm";
           payload.ostemplate = fields.ostemplate.value || null;
           payload.rootfs_size = Number(fields.rootfs_size.value || 0);
+        }
+        await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+        $("ai-note").textContent = "已模擬提交申請，並將目前 payload 複製到剪貼簿。";
+      }
+
+      async function copyRawJson() {
+        const payload = {
+          reason: fields.reason.value.trim(),
+          resource_type: fields.resource_type.value,
+          hostname: fields.hostname.value.trim(),
+          cores: Number(fields.cores.value || 0),
+          memory: Number(fields.memory.value || 0),
+          password: fields.password.value,
+          os_info: fields.os_info.value.trim() || null,
+          expiry_date: fields.expiry_date.value || null,
+        };
+        if (fields.resource_type.value === "vm") {
+          payload.template_id = fields.template_id.value ? Number(fields.template_id.value) : null;
+          payload.disk_size = Number(fields.disk_size.value || 0);
+          payload.username = fields.username.value.trim() || null;
+        } else {
+          payload.storage = "local-lvm";
+          payload.ostemplate = fields.ostemplate.value || null;
+          payload.rootfs_size = Number(fields.rootfs_size.value || 0);
+          payload.service_template = fields.service_template.dataset.slug || fields.service_template.value || null;
         }
         await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
         $("ai-note").textContent = "已複製目前表單 JSON。";
@@ -865,8 +1345,12 @@
 
       function resetForm() {
         $("request-form").reset();
-        fields.storage.value = "local-lvm";
         refreshTemplateOptions();
+        refreshVmTemplateOptions();
+        fields.service_template.value = "";
+        delete fields.service_template.dataset.slug;
+        if (rootfsRange) rootfsRange.value = fields.rootfs_size.value || "8";
+        if (diskRange) diskRange.value = fields.disk_size.value || "20";
         switchType("lxc");
         $("ai-note").textContent = "表單已重設，AI 對話與推薦結果保留不動。你可以重新導入主方案。";
       }
@@ -878,12 +1362,31 @@
         $("chat-log").innerHTML = '<div class="msg ai"><div class="bubble markdown">先描述需求，例如：我要在 Windows GUI 環境跑 `n8n`，需要 webhook，未來可能接資料庫。</div><div class="meta">System</div></div>';
       }
 
-      document.querySelectorAll(".tab").forEach((btn) => btn.addEventListener("click", () => switchType(btn.dataset.type)));
-      ["cores", "memory", "rootfs_size", "disk_size"].forEach((id) => $(id).addEventListener("input", updateSummary));
+      document.querySelectorAll("[data-type]").forEach((btn) => btn.addEventListener("click", () => switchType(btn.dataset.type)));
+      ["cores", "memory"].forEach((id) => $(id).addEventListener("input", updateSummary));
+      templateSearch.addEventListener("input", renderTemplateGrid);
+      templateCategory.addEventListener("change", renderTemplateGrid);
+      $("open-template-picker").addEventListener("click", openTemplatePicker);
+      $("close-template-picker").addEventListener("click", closeTemplatePicker);
+      $("clear-service-template").addEventListener("click", clearServiceTemplate);
+      templateModal.addEventListener("click", (event) => {
+        if (event.target === templateModal) closeTemplatePicker();
+      });
+      fields.rootfs_size.addEventListener("input", () => syncDiskInputs("lxc"));
+      fields.disk_size.addEventListener("input", () => syncDiskInputs("vm"));
+      if (rootfsRange) rootfsRange.addEventListener("input", () => {
+        fields.rootfs_size.value = rootfsRange.value;
+        updateSummary();
+      });
+      if (diskRange) diskRange.addEventListener("input", () => {
+        fields.disk_size.value = diskRange.value;
+        updateSummary();
+      });
       $("send-chat").addEventListener("click", sendChat);
       $("gen-plan").addEventListener("click", generatePlan);
       $("clear-chat").addEventListener("click", clearChat);
       $("copy-json").addEventListener("click", copyJson);
+      $("copy-raw-json").addEventListener("click", copyRawJson);
       $("reset-form").addEventListener("click", resetForm);
       $("chat-input").addEventListener("keydown", (event) => {
         if (event.key === "Enter" && !event.shiftKey) {
@@ -891,8 +1394,14 @@
           sendChat();
         }
       });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !templateModal.classList.contains("hidden")) {
+          closeTemplatePicker();
+        }
+      });
 
-      Promise.all([loadUiConfig(), loadCatalog()]).finally(() => {
+      Promise.all([loadUiConfig()]).finally(async () => {
+        await loadTemplates();
         switchType("lxc");
         updateSummary();
       });
