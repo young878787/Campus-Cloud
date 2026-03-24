@@ -11,11 +11,36 @@
     "description": "填寫申請表單，提交後需等待管理員審核通過後自動建立",
     "quickTemplate": "快速範本",
     "customSpec": "自訂規格",
-    "submitButton": "提交申請"
+    "submitButton": "提交申請",
+    "openAiChat": "AI 助手",
+    "closeAiChat": "關閉 AI"
   },
   "form": {
     "reason": "申請原因",
-    "reasonPlaceholder": "請說明您的申請用途..."
+    "reasonPlaceholder": "請說明您的申請用途...",
+    "serviceTemplate": "服務範本（選填）",
+    "serviceTemplatePlaceholder": "尚未選擇服務範本",
+    "selectTemplate": "選擇範本",
+    "clearTemplate": "清除"
+  },
+  "aiChat": {
+    "title": "AI 助手",
+    "placeholder": "描述您的需求，例如：我想架設一個 n8n 自動化服務...",
+    "send": "送出",
+    "clear": "清空對話",
+    "generatePlan": "產生推薦配置",
+    "importPlan": "導入主方案到表單",
+    "importReason": "只導入摘要到申請原因",
+    "systemGreeting": "嗨！我是 AI 助手。先描述您的需求，例如：我要架設 n8n 自動化服務，需要 webhook，未來可能接資料庫。",
+    "loading": "AI 正在分析需求...",
+    "noMessages": "尚未開始對話",
+    "planTitle": "AI 推薦配置",
+    "importSuccess": "已導入推薦配置到表單",
+    "reasonImportSuccess": "已導入摘要到申請原因",
+    "chatError": "對話失敗",
+    "planError": "產生推薦失敗",
+    "needChatFirst": "請先描述需求，再產生推薦配置",
+    "tokens": "{{count}} tokens"
   },
   "table": {
     "hostname": "主機名稱",

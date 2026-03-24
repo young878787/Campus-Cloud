@@ -11,11 +11,36 @@
     "description": "申請フォームに記入してください。送信後、管理者の承認を待ってリソースが自動的に作成されます",
     "quickTemplate": "クイックテンプレート",
     "customSpec": "カスタム仕様",
-    "submitButton": "申請を送信"
+    "submitButton": "申請を送信",
+    "openAiChat": "AIアシスタント",
+    "closeAiChat": "AIを閉じる"
   },
   "form": {
     "reason": "申請理由",
-    "reasonPlaceholder": "申請の目的を説明してください..."
+    "reasonPlaceholder": "申請の目的を説明してください...",
+    "serviceTemplate": "サービステンプレート（任意）",
+    "serviceTemplatePlaceholder": "サービステンプレートが選択されていません",
+    "selectTemplate": "テンプレートを選択",
+    "clearTemplate": "クリア"
+  },
+  "aiChat": {
+    "title": "AIアシスタント",
+    "placeholder": "要件を説明してください。例：n8n自動化サービスをホストしたい...",
+    "send": "送信",
+    "clear": "チャットをクリア",
+    "generatePlan": "推奨構成を生成",
+    "importPlan": "プランをフォームにインポート",
+    "importReason": "概要のみ理由にインポート",
+    "systemGreeting": "こんにちは！AIアシスタントです。要件を説明してください。例：webhookが付いたn8n自動化サービスを設置したい。",
+    "loading": "AIが要件を分析中...",
+    "noMessages": "まだ会話がありません",
+    "planTitle": "AI推奨構成",
+    "importSuccess": "推奨構成をフォームにインポートしました",
+    "reasonImportSuccess": "概要を申請理由にインポートしました",
+    "chatError": "チャットに失敗しました",
+    "planError": "推奨構成の生成に失敗しました",
+    "needChatFirst": "推奨構成を生成する前に、まず要件を説明してください",
+    "tokens": "{{count}} トークン"
   },
   "table": {
     "hostname": "ホスト名",

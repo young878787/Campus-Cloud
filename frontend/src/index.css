@@ -123,6 +123,17 @@
   }
 }
 
+@layer utilities {
+  .hidden-scroll {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hidden-scroll::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @keyframes page-loading {
   0% {
     transform: translateX(-100%);

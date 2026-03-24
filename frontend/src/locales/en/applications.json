@@ -11,11 +11,36 @@
     "description": "Fill out the application form. After submission, you need to wait for admin approval to automatically create the resource",
     "quickTemplate": "Quick Template",
     "customSpec": "Custom Spec",
-    "submitButton": "Submit Application"
+    "submitButton": "Submit Application",
+    "openAiChat": "AI Assistant",
+    "closeAiChat": "Close AI"
   },
   "form": {
     "reason": "Application Reason",
-    "reasonPlaceholder": "Please describe the purpose of your application..."
+    "reasonPlaceholder": "Please describe the purpose of your application...",
+    "serviceTemplate": "Service Template (Optional)",
+    "serviceTemplatePlaceholder": "No service template selected",
+    "selectTemplate": "Select Template",
+    "clearTemplate": "Clear"
+  },
+  "aiChat": {
+    "title": "AI Assistant",
+    "placeholder": "Describe your needs, e.g.: I want to host an n8n automation service...",
+    "send": "Send",
+    "clear": "Clear Chat",
+    "generatePlan": "Generate Recommendation",
+    "importPlan": "Import Plan to Form",
+    "importReason": "Import Summary to Reason Only",
+    "systemGreeting": "Hi! I'm the AI assistant. Describe your needs, e.g.: I want to host an n8n automation service with webhooks and possible future database integration.",
+    "loading": "AI is analyzing your request...",
+    "noMessages": "No conversation yet",
+    "planTitle": "AI Recommendation",
+    "importSuccess": "Imported recommendation to form",
+    "reasonImportSuccess": "Imported summary to application reason",
+    "chatError": "Chat failed",
+    "planError": "Failed to generate recommendation",
+    "needChatFirst": "Please describe your needs first before generating a recommendation",
+    "tokens": "{{count}} tokens"
   },
   "table": {
     "hostname": "Hostname",

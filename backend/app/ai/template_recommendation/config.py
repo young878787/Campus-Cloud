@@ -9,11 +9,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
 PROJECT_ROOT = BACKEND_ROOT.parent
+ENV_FILE = BACKEND_ROOT / ".env.ai.template_recommendation"
 
 
 class TemplateRecommendationSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=str(BACKEND_ROOT / ".env.ai.template_recommendation"),
+        env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -42,6 +43,13 @@ class TemplateRecommendationSettings(BaseSettings):
         path = Path(self.templates_dir)
         if path.is_absolute():
             return path
+
+        # Relative paths in env files should resolve from backend/, not from the
+        # project root, so `../frontend/src/json` keeps working across launch dirs.
+        backend_relative = (ENV_FILE.parent / path).resolve()
+        if backend_relative.exists():
+            return backend_relative
+
         return (PROJECT_ROOT / path).resolve()
 
     @property
