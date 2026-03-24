@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.schemas import AnalysisResponse, PlacementRequest
-from app.services.analytics_service import build_analysis
+from app.services.analytics_service import build_analysis, get_runtime_metrics
 
 
 router = APIRouter(tags=["analytics"])
@@ -19,3 +19,9 @@ async def analyze():
 @router.post("/api/v1/placement/recommend", response_model=AnalysisResponse)
 async def recommend_placement(request: PlacementRequest):
     return await build_analysis(placement_request=request)
+
+
+@router.get("/metrics")
+@router.get("/api/v1/metrics")
+async def metrics():
+    return get_runtime_metrics()

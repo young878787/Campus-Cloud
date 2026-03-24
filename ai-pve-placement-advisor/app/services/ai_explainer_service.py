@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 
 import httpx
@@ -87,14 +88,28 @@ async def _call_vllm(
         "Content-Type": "application/json",
     }
 
+    attempts = max(settings.source_retry_attempts, 1)
+    data = None
     async with httpx.AsyncClient(timeout=settings.vllm_timeout) as client:
-        response = await client.post(
-            f"{_normalized_vllm_base_url()}/chat/completions",
-            json=payload,
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json()
+        for attempt in range(1, attempts + 1):
+            try:
+                response = await client.post(
+                    f"{_normalized_vllm_base_url()}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                )
+                response.raise_for_status()
+                data = response.json()
+                break
+            except Exception:
+                if attempt >= attempts:
+                    raise
+                backoff = settings.source_retry_backoff_seconds * (2 ** (attempt - 1))
+                if backoff > 0:
+                    await asyncio.sleep(backoff)
+
+    if data is None:
+        raise RuntimeError("vLLM response is empty")
     return str(data["choices"][0]["message"]["content"]).strip()
 
 

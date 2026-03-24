@@ -1,6 +1,7 @@
 from .analytics import (
     AggregationSummary,
     AnalysisResponse,
+    BackendTrafficSnapshot,
     ChatMessage,
     EventItem,
     ExplainRequest,
@@ -14,6 +15,7 @@ from .analytics import (
     PlacementRequest,
     RecommendationItem,
     ResourceSnapshot,
+    RuntimeMetrics,
     SourceHealth,
     SourcePreviewResponse,
     TokenUsageSnapshot,
@@ -22,6 +24,7 @@ from .analytics import (
 __all__ = [
     "AggregationSummary",
     "AnalysisResponse",
+    "BackendTrafficSnapshot",
     "ChatMessage",
     "EventItem",
     "ExplainRequest",
@@ -35,6 +38,7 @@ __all__ = [
     "PlacementRequest",
     "RecommendationItem",
     "ResourceSnapshot",
+    "RuntimeMetrics",
     "SourceHealth",
     "SourcePreviewResponse",
     "TokenUsageSnapshot",

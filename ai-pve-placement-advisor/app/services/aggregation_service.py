@@ -7,6 +7,7 @@ from typing import Iterable
 from app.core.config import settings
 from app.schemas import (
     AggregationSummary,
+    BackendTrafficSnapshot,
     EventItem,
     FeatureItem,
     NodeCapacity,
@@ -28,7 +29,9 @@ def build_aggregation_summary(
     nodes: list[NodeSnapshot],
     resources: list[ResourceSnapshot],
 ) -> AggregationSummary:
-    resource_counter = Counter(resource.node for resource in resources)
+    resource_counter = Counter(
+        resource.node for resource in resources if str(resource.status).lower() == "running"
+    )
     guest_ratios = [
         _guest_pressure_ratio(resource_counter.get(node.node, 0), node.maxcpu)
         for node in nodes
@@ -75,7 +78,9 @@ def build_node_capacities(
     nodes: list[NodeSnapshot],
     resources: list[ResourceSnapshot],
 ) -> list[NodeCapacity]:
-    resource_counter = Counter(resource.node for resource in resources)
+    resource_counter = Counter(
+        resource.node for resource in resources if str(resource.status).lower() == "running"
+    )
     node_capacities: list[NodeCapacity] = []
 
     for node in nodes:
@@ -103,6 +108,7 @@ def build_node_capacities(
             NodeCapacity(
                 node=node.node,
                 status=node.status,
+                gpu_count=node.gpu_count,
                 running_resources=running_resources,
                 guest_soft_limit=guest_soft_limit,
                 guest_pressure_ratio=guest_pressure_ratio,
@@ -193,6 +199,10 @@ def build_features(
     ]
 
 
+def backend_traffic_to_feature(*, key: str, value: float | int, description: str) -> FeatureItem:
+    return FeatureItem(key=key, value=value, description=description)
+
+
 def build_placement_recommendation(
     *,
     request: PlacementRequest,
@@ -211,7 +221,14 @@ def build_placement_recommendation(
         candidates = [
             item
             for item in working_nodes
-            if item.candidate and _can_fit(item, effective_cpu, effective_memory, req_disk)
+            if item.candidate
+            and _can_fit(
+                item,
+                effective_cpu,
+                effective_memory,
+                req_disk,
+                request.gpu_required,
+            )
         ]
         if not candidates:
             break
@@ -288,6 +305,11 @@ def build_placement_recommendation(
             )
         )
 
+    if request.gpu_required > 0:
+        rationale.append(
+            f"每台需求 GPU {request.gpu_required} 張，僅會選擇 GPU 容量足夠的節點。"
+        )
+
     if overloaded_nodes:
         rationale.append(f"Guest 數量偏高的節點已降低優先順序：{', '.join(overloaded_nodes)}。")
 
@@ -326,6 +348,7 @@ def build_events(
     *,
     summary: AggregationSummary,
     placement: PlacementRecommendation | None = None,
+    backend_traffic: BackendTrafficSnapshot | None = None,
 ) -> list[EventItem]:
     events: list[EventItem] = []
 
@@ -437,6 +460,25 @@ def build_events(
                 )
             )
 
+    if (
+        backend_traffic is not None
+        and backend_traffic.pending_total >= settings.backend_pending_high_threshold
+    ):
+        events.append(
+            EventItem(
+                code="backend_pending_high",
+                severity="medium",
+                score=3,
+                summary="Backend 待審核需求偏高，短期資源壓力可能上升。",
+                evidence={
+                    "pending_total": backend_traffic.pending_total,
+                    "threshold": settings.backend_pending_high_threshold,
+                    "window_minutes": backend_traffic.window_minutes,
+                    "submitted_in_window": backend_traffic.submitted_in_window,
+                },
+            )
+        )
+
     if not events:
         events.append(
             EventItem(
@@ -457,6 +499,7 @@ def build_recommendations(
     summary: AggregationSummary,
     node_capacities: list[NodeCapacity],
     placement: PlacementRecommendation | None = None,
+    backend_traffic: BackendTrafficSnapshot | None = None,
 ) -> list[RecommendationItem]:
     recommendations: list[RecommendationItem] = []
 
@@ -470,6 +513,18 @@ def build_recommendations(
                     f"因此系統以每台 {placement.effective_cpu_cores_per_instance:.1f} CPU、"
                     f"{placement.effective_memory_bytes_per_instance / GIB:.1f} GiB 記憶體做安全判斷，"
                     "而不是只看表單填寫的原始規格。"
+                ),
+            )
+        )
+
+    if backend_traffic is not None:
+        recommendations.append(
+            RecommendationItem(
+                target="backend-traffic",
+                action="已納入 backend 近期需求流量",
+                reason=(
+                    f"最近 {backend_traffic.window_minutes} 分鐘新增 {backend_traffic.submitted_in_window} 筆申請，"
+                    f"目前待審核 {backend_traffic.pending_total} 筆。"
                 ),
             )
         )
@@ -554,6 +609,14 @@ def build_recommendations(
                     action="使用者壓力已影響本次配置判斷",
                     reason="當預估同時使用人數提高時，系統會自動提高 CPU 與記憶體的安全規劃需求，"
                     "避免只看靜態規格而低估實際負載。",
+                )
+            )
+        elif event.code == "backend_pending_high":
+            recommendations.append(
+                RecommendationItem(
+                    target="capacity-forecast",
+                    action="短期需求升高，建議預留額外容量",
+                    reason="待審核申請量超過門檻，建議先避免把節點推到過低安全餘裕。",
                 )
             )
 
@@ -657,6 +720,12 @@ def _node_skip_reason(
     if node.status != "online":
         return "該節點目前不是 online 狀態，因此不納入本次配置。"
 
+    if request.gpu_required > 0 and node.gpu_count < request.gpu_required:
+        return (
+            f"該節點 GPU 數量為 {node.gpu_count}，低於每台需求 {request.gpu_required}，"
+            "因此不納入本次配置。"
+        )
+
     shortages: list[str] = []
     if node.allocatable_cpu_cores < effective_cpu:
         shortages.append(
@@ -706,7 +775,12 @@ def _choose_node(
         key=lambda item: (
             -placements[item.node],
             _fit_count(item, cores=cores, memory_bytes=req_memory, disk_bytes=req_disk),
-            _slack_score(item, cores=cores, memory_bytes=req_memory, disk_bytes=req_disk),
+            _weighted_headroom_score(
+                item,
+                cores=cores,
+                memory_bytes=req_memory,
+                disk_bytes=req_disk,
+            ),
             -item.guest_pressure_ratio,
         ),
     )
@@ -720,20 +794,42 @@ def _fit_count(node: NodeCapacity, cores: float, memory_bytes: int, disk_bytes: 
     return max(min(cpu_fit, memory_fit, disk_fit, guest_fit), 0)
 
 
-def _slack_score(node: NodeCapacity, cores: float, memory_bytes: int, disk_bytes: int) -> float:
+def _weighted_headroom_score(
+    node: NodeCapacity,
+    cores: float,
+    memory_bytes: int,
+    disk_bytes: int,
+) -> float:
+    cpu_total = max(node.total_cpu_cores, 1.0)
+    memory_total = max(float(node.total_memory_bytes), 1.0)
+    disk_total = max(float(node.total_disk_bytes), 1.0)
+    guest_total = max(float(node.guest_soft_limit), 1.0)
+
+    cpu_headroom = max(node.allocatable_cpu_cores - cores, 0.0) / cpu_total
+    memory_headroom = max(node.allocatable_memory_bytes - memory_bytes, 0) / memory_total
+    disk_headroom = max(node.allocatable_disk_bytes - disk_bytes, 0) / disk_total
+    guest_headroom = max(node.guest_soft_limit - node.running_resources - 1, 0) / guest_total
+
     return (
-        max(node.allocatable_cpu_cores - cores, 0.0)
-        + max((node.allocatable_memory_bytes - memory_bytes) / GIB, 0.0)
-        + max((node.allocatable_disk_bytes - disk_bytes) / GIB, 0.0)
-        + max(node.guest_soft_limit - node.running_resources - 1, 0)
+        (settings.placement_weight_cpu * cpu_headroom)
+        + (settings.placement_weight_memory * memory_headroom)
+        + (settings.placement_weight_disk * disk_headroom)
+        + (settings.placement_weight_guest * guest_headroom)
     )
 
 
-def _can_fit(node: NodeCapacity, cores: float, memory_bytes: int, disk_bytes: int) -> bool:
+def _can_fit(
+    node: NodeCapacity,
+    cores: float,
+    memory_bytes: int,
+    disk_bytes: int,
+    gpu_required: int,
+) -> bool:
     return (
         node.allocatable_cpu_cores >= cores
         and node.allocatable_memory_bytes >= memory_bytes
         and node.allocatable_disk_bytes >= disk_bytes
+        and node.gpu_count >= gpu_required
         and node.running_resources < node.guest_soft_limit
     )
 

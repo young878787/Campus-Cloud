@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import time
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
@@ -13,6 +14,7 @@ from app.api.routes.analytics import router as analytics_router
 from app.api.routes.explain import router as explain_router
 from app.api.routes.sources import router as sources_router
 from app.core.config import settings
+from app.services import metrics_service
 
 
 STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
@@ -25,6 +27,19 @@ app = FastAPI(
 app.include_router(analytics_router)
 app.include_router(explain_router)
 app.include_router(sources_router, prefix=settings.api_v1_str)
+
+
+@app.middleware("http")
+async def track_request_metrics(request, call_next):
+    started = time.perf_counter()
+    success = False
+    try:
+        response = await call_next(request)
+        success = response.status_code < 500
+        return response
+    finally:
+        duration_ms = (time.perf_counter() - started) * 1000.0
+        metrics_service.observe_http_request(duration_ms=duration_ms, success=success)
 
 
 @app.get("/", include_in_schema=False)
@@ -41,6 +56,8 @@ def health() -> dict:
         "ai_configured": bool(settings.vllm_model_name),
         "aggregation_stair_coefficient": settings.aggregation_stair_coefficient,
         "placement_headroom_ratio": settings.placement_headroom_ratio,
+        "source_cache_ttl_seconds": settings.source_cache_ttl_seconds,
+        "source_retry_attempts": settings.source_retry_attempts,
         "gpu_map_count": len(settings.parsed_backend_node_gpu_map),
         "node_snapshot_count": len(settings.parsed_nodes_snapshot),
         "token_snapshot_count": len(settings.parsed_token_usage_snapshots),

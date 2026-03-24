@@ -59,6 +59,31 @@ class SourceHealth(BaseModel):
     record_count: int = Field(default=0, ge=0)
 
 
+class BackendTrafficSnapshot(BaseModel):
+    source: str = Field(default="backend_vm_requests")
+    sampled_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    sample_size: int = Field(default=0, ge=0)
+    window_minutes: int = Field(default=60, ge=1)
+    submitted_in_window: int = Field(default=0, ge=0)
+    pending_total: int = Field(default=0, ge=0)
+    approved_total: int = Field(default=0, ge=0)
+    requested_cpu_cores_total: int = Field(default=0, ge=0)
+    requested_memory_mb_total: int = Field(default=0, ge=0)
+    requested_disk_gb_total: int = Field(default=0, ge=0)
+
+
+class RuntimeMetrics(BaseModel):
+    uptime_seconds: float = Field(default=0.0, ge=0.0)
+    requests_total: int = Field(default=0, ge=0)
+    requests_error_total: int = Field(default=0, ge=0)
+    analysis_total: int = Field(default=0, ge=0)
+    analyze_with_placement_total: int = Field(default=0, ge=0)
+    proxmox_fetch_failures_total: int = Field(default=0, ge=0)
+    backend_traffic_fetch_failures_total: int = Field(default=0, ge=0)
+    avg_request_latency_ms: float = Field(default=0.0, ge=0.0)
+    avg_analysis_latency_ms: float = Field(default=0.0, ge=0.0)
+
+
 class AggregationSummary(BaseModel):
     stair_coefficient: float = Field(default=1.0, ge=1.0)
     node_count: int = Field(default=0, ge=0)
@@ -103,6 +128,7 @@ class PlacementRequest(BaseModel):
     cores: int = Field(default=2, ge=1, le=256)
     memory_mb: int = Field(default=2048, ge=128, le=1048576)
     disk_gb: int = Field(default=20, ge=1, le=65536)
+    gpu_required: int = Field(default=0, ge=0, le=16)
     instance_count: int = Field(default=1, ge=1, le=100)
     estimated_users_per_instance: int = Field(default=0, ge=0, le=1000000)
 
@@ -110,6 +136,7 @@ class PlacementRequest(BaseModel):
 class NodeCapacity(BaseModel):
     node: str
     status: str
+    gpu_count: int = Field(default=0, ge=0)
     running_resources: int = Field(default=0, ge=0)
     guest_soft_limit: int = Field(default=0, ge=0)
     guest_pressure_ratio: float = Field(default=0.0, ge=0.0)
@@ -163,6 +190,7 @@ class SourcePreviewResponse(BaseModel):
     resources: list[ResourceSnapshot] = Field(default_factory=list)
     token_usage: list[TokenUsageSnapshot] = Field(default_factory=list)
     gpu_metrics: list[GpuMetricSnapshot] = Field(default_factory=list)
+    backend_traffic: BackendTrafficSnapshot | None = None
 
 
 class AnalysisResponse(BaseModel):
@@ -173,10 +201,12 @@ class AnalysisResponse(BaseModel):
     events: list[EventItem]
     recommendations: list[RecommendationItem]
     summary: str
+    runtime_metrics: RuntimeMetrics | None = None
     nodes: list[NodeSnapshot] = Field(default_factory=list)
     resources: list[ResourceSnapshot] = Field(default_factory=list)
     node_capacities: list[NodeCapacity] = Field(default_factory=list)
     placement: PlacementRecommendation | None = None
+    backend_traffic: BackendTrafficSnapshot | None = None
 
 
 class ChatMessage(BaseModel):

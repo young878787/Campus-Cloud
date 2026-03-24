@@ -29,11 +29,21 @@ class Settings(BaseSettings):
     proxmox_password: str = Field(default="")
     proxmox_verify_ssl: bool = Field(default=False)
     proxmox_api_timeout: int = Field(default=30, ge=3, le=300)
+    source_retry_attempts: int = Field(default=3, ge=1, le=10)
+    source_retry_backoff_seconds: float = Field(default=0.3, ge=0.0, le=10.0)
+    source_cache_ttl_seconds: int = Field(default=20, ge=0, le=300)
 
     backend_node_gpu_map: str = Field(default="{}")
     nodes_snapshot_json: str = Field(default="[]")
     token_usage_snapshot_json: str = Field(default="[]")
     gpu_metrics_snapshot_json: str = Field(default="[]")
+
+    backend_api_base_url: str = Field(default="")
+    backend_api_token: str = Field(default="")
+    backend_api_timeout: int = Field(default=10, ge=3, le=120)
+    backend_traffic_window_minutes: int = Field(default=60, ge=5, le=1440)
+    backend_traffic_sample_limit: int = Field(default=200, ge=20, le=1000)
+    backend_pending_high_threshold: int = Field(default=20, ge=1, le=10000)
 
     aggregation_stair_coefficient: float = Field(default=1.2, ge=1.01, le=5.0)
 
@@ -44,8 +54,11 @@ class Settings(BaseSettings):
     guest_per_core_limit: float = Field(default=2.0, ge=0.1, le=20.0)
     safe_users_per_cpu: float = Field(default=35.0, ge=1.0, le=10000.0)
     safe_users_per_gib: float = Field(default=20.0, ge=1.0, le=10000.0)
-    token_spike_ratio: float = Field(default=1.5, ge=1.0, le=20.0)
     placement_headroom_ratio: float = Field(default=0.1, ge=0.0, le=0.5)
+    placement_weight_cpu: float = Field(default=0.35, ge=0.0, le=1.0)
+    placement_weight_memory: float = Field(default=0.35, ge=0.0, le=1.0)
+    placement_weight_disk: float = Field(default=0.15, ge=0.0, le=1.0)
+    placement_weight_guest: float = Field(default=0.15, ge=0.0, le=1.0)
 
     vllm_base_url: str = Field(default="http://localhost:8000")
     vllm_api_key: str = Field(default="vllm-secret-key-change-me")

@@ -17,51 +17,57 @@ _proxmox_ticket_ttl = 7000
 
 
 def fetch_nodes() -> list[NodeSnapshot]:
-    proxmox = _get_proxmox_api()
-    nodes: list[NodeSnapshot] = []
-    gpu_map = settings.parsed_backend_node_gpu_map
-    for item in proxmox.nodes.get():
-        node_name = str(item.get("node") or "unknown")
-        nodes.append(
-            NodeSnapshot(
-                node=node_name,
-                status=str(item.get("status") or "unknown"),
-                cpu_ratio=float(item.get("cpu") or 0.0),
-                maxcpu=int(item.get("maxcpu") or 0),
-                mem_bytes=int(item.get("mem") or 0),
-                maxmem_bytes=int(item.get("maxmem") or 0),
-                disk_bytes=int(item.get("disk") or 0),
-                maxdisk_bytes=int(item.get("maxdisk") or 0),
-                uptime=_optional_int(item.get("uptime")),
-                gpu_count=gpu_map.get(node_name, 0),
+    def _op() -> list[NodeSnapshot]:
+        proxmox = _get_proxmox_api()
+        nodes: list[NodeSnapshot] = []
+        gpu_map = settings.parsed_backend_node_gpu_map
+        for item in proxmox.nodes.get():
+            node_name = str(item.get("node") or "unknown")
+            nodes.append(
+                NodeSnapshot(
+                    node=node_name,
+                    status=str(item.get("status") or "unknown"),
+                    cpu_ratio=float(item.get("cpu") or 0.0),
+                    maxcpu=int(item.get("maxcpu") or 0),
+                    mem_bytes=int(item.get("mem") or 0),
+                    maxmem_bytes=int(item.get("maxmem") or 0),
+                    disk_bytes=int(item.get("disk") or 0),
+                    maxdisk_bytes=int(item.get("maxdisk") or 0),
+                    uptime=_optional_int(item.get("uptime")),
+                    gpu_count=gpu_map.get(node_name, 0),
+                )
             )
-        )
-    return nodes
+        return nodes
+
+    return _call_with_retry(_op)
 
 
 def fetch_resources() -> list[ResourceSnapshot]:
-    proxmox = _get_proxmox_api()
-    resources: list[ResourceSnapshot] = []
-    for item in proxmox.cluster.resources.get(type="vm"):
-        if item.get("template") == 1:
-            continue
-        resources.append(
-            ResourceSnapshot(
-                vmid=int(item.get("vmid") or 0),
-                name=str(item.get("name") or ""),
-                resource_type=str(item.get("type") or "unknown"),
-                node=str(item.get("node") or "unknown"),
-                status=str(item.get("status") or "unknown"),
-                cpu_ratio=float(item.get("cpu") or 0.0),
-                maxcpu=int(item.get("maxcpu") or 0),
-                mem_bytes=int(item.get("mem") or 0),
-                maxmem_bytes=int(item.get("maxmem") or 0),
-                disk_bytes=int(item.get("disk") or 0),
-                maxdisk_bytes=int(item.get("maxdisk") or 0),
-                uptime=_optional_int(item.get("uptime")),
+    def _op() -> list[ResourceSnapshot]:
+        proxmox = _get_proxmox_api()
+        resources: list[ResourceSnapshot] = []
+        for item in proxmox.cluster.resources.get(type="vm"):
+            if item.get("template") == 1:
+                continue
+            resources.append(
+                ResourceSnapshot(
+                    vmid=int(item.get("vmid") or 0),
+                    name=str(item.get("name") or ""),
+                    resource_type=str(item.get("type") or "unknown"),
+                    node=str(item.get("node") or "unknown"),
+                    status=str(item.get("status") or "unknown"),
+                    cpu_ratio=float(item.get("cpu") or 0.0),
+                    maxcpu=int(item.get("maxcpu") or 0),
+                    mem_bytes=int(item.get("mem") or 0),
+                    maxmem_bytes=int(item.get("maxmem") or 0),
+                    disk_bytes=int(item.get("disk") or 0),
+                    maxdisk_bytes=int(item.get("maxdisk") or 0),
+                    uptime=_optional_int(item.get("uptime")),
+                )
             )
-        )
-    return resources
+        return resources
+
+    return _call_with_retry(_op)
 
 
 def _get_proxmox_api() -> ProxmoxAPI:
@@ -96,3 +102,21 @@ def _optional_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _call_with_retry(func):
+    attempts = max(settings.source_retry_attempts, 1)
+    last_exc: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return func()
+        except Exception as exc:
+            last_exc = exc
+            if attempt >= attempts:
+                break
+            backoff = settings.source_retry_backoff_seconds * (2 ** (attempt - 1))
+            if backoff > 0:
+                time.sleep(backoff)
+    if last_exc is not None:
+        raise last_exc
+    return func()
