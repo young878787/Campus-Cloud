@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.ai.pve_advisor.router import router as ai_pve_advisor_router
 from app.ai.template_recommendation.router import router as ai_template_recommendation_router
 from app.api.routes import (
     audit_logs,
@@ -28,6 +29,7 @@ api_router.include_router(resource_details.router)
 api_router.include_router(vm.router)
 api_router.include_router(lxc.router)
 api_router.include_router(vm_requests.router)
+api_router.include_router(ai_pve_advisor_router)
 api_router.include_router(ai_template_recommendation_router)
 api_router.include_router(spec_change_requests.router)
 api_router.include_router(audit_logs.router)
