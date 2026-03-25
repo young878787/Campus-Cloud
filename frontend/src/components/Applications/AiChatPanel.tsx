@@ -14,9 +14,11 @@ import {
   Trash2,
 } from "lucide-react"
 import {
+  Fragment,
   type KeyboardEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type WheelEvent,
@@ -81,6 +83,13 @@ export interface AiPlanResult {
 interface AiChatPanelProps {
   onImportPlan?: (prefill: FormPrefill) => void
   onImportReason?: (reason: string) => void
+}
+
+type ServiceTemplateCard = {
+  isSelected: boolean
+  name: string
+  slug: string
+  why: string
 }
 
 function getApiBase(): string {
@@ -159,10 +168,7 @@ function renderPlanMarkdown(source: string): string {
   )
 }
 
-export function AiChatPanel({
-  onImportPlan,
-  onImportReason,
-}: AiChatPanelProps) {
+export function AiChatPanel({ onImportPlan }: AiChatPanelProps) {
   const { t } = useTranslation("applications")
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>(
@@ -173,12 +179,20 @@ export function AiChatPanel({
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [latestPlan, setLatestPlan] = useState<AiPlanResult | null>(null)
+  const [planInsertionIndex, setPlanInsertionIndex] = useState<number | null>(
+    null,
+  )
   const [metrics, setMetrics] = useState<AiMetrics | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const latestMessageRef = useRef<HTMLDivElement>(null)
+  const loadingRef = useRef<HTMLDivElement>(null)
+  const planCardRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToElement = useCallback((element: HTMLDivElement | null) => {
     requestAnimationFrame(() => {
+      element?.scrollIntoView({ block: "end" })
       if (scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight
       }
@@ -188,14 +202,29 @@ export function AiChatPanel({
   useEffect(() => {
     void messages
     void isLoading
-    scrollToBottom()
-  }, [messages, isLoading, scrollToBottom])
+    if (isLoading) {
+      scrollToElement(loadingRef.current)
+      return
+    }
+
+    if (messages.length > 0) {
+      scrollToElement(latestMessageRef.current)
+      return
+    }
+
+    scrollToElement(messagesEndRef.current)
+  }, [messages, isLoading, scrollToElement])
+
+  useEffect(() => {
+    if (!latestPlan) return
+    scrollToElement(planCardRef.current)
+  }, [latestPlan, scrollToElement])
 
   useEffect(() => {
     void input
     if (!inputRef.current) return
     inputRef.current.style.height = "0px"
-    inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 220)}px`
+    inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 120)}px`
   }, [input])
 
   const buildRequestMessages = useCallback(
@@ -285,6 +314,7 @@ export function AiChatPanel({
       )
       if (!res.ok) throw new Error(await res.text())
       const data: AiPlanResult = await res.json()
+      setPlanInsertionIndex(messages.length)
       setLatestPlan(data)
       if (data.ai_metrics) setMetrics(data.ai_metrics)
 
@@ -320,18 +350,12 @@ export function AiChatPanel({
     onImportPlan(latestPlan.final_plan.form_prefill)
   }
 
-  const handleImportReason = () => {
-    if (!onImportReason) return
-    const reason =
-      latestPlan?.final_plan?.form_prefill?.reason || latestPlan?.summary || ""
-    if (reason) onImportReason(reason)
-  }
-
   const clearChat = () => {
     setMessages([])
     setConversationHistory([])
     setPlanContextMessage(null)
     setLatestPlan(null)
+    setPlanInsertionIndex(null)
     setMetrics(null)
     inputRef.current?.focus()
   }
@@ -370,15 +394,48 @@ export function AiChatPanel({
     String(formPrefill?.resource_type || "lxc").toLowerCase() === "vm"
       ? "vm"
       : "lxc"
-  const templateLabel =
+  const prefillEnvironmentLabel =
     resourceType === "vm"
       ? formPrefill?.vm_os_choice || formPrefill?.vm_template_id || "-"
-      : formPrefill?.service_template_slug ||
-        formPrefill?.lxc_template_slug ||
-        "-"
-
-  const summaryReason =
+      : formPrefill?.lxc_os_image || "-"
+  const applicationReason =
     formPrefill?.reason || latestPlan?.summary || t("aiChat.planError")
+  const serviceTemplates = useMemo<ServiceTemplateCard[]>(() => {
+    if (resourceType !== "lxc") return []
+
+    const selectedSlug =
+      formPrefill?.service_template_slug || formPrefill?.lxc_template_slug || ""
+    const items = new Map<string, ServiceTemplateCard>()
+
+    if (selectedSlug) {
+      items.set(selectedSlug, {
+        isSelected: true,
+        name: selectedSlug,
+        slug: selectedSlug,
+        why: "\u9019\u500b\u670d\u52d9\u6a21\u677f\u5df2\u5e36\u5165\u8868\u55ae\u914d\u7f6e\u3002",
+      })
+    }
+
+    for (const template of plan?.recommended_templates || []) {
+      const slug = String(template.slug || "").trim()
+      if (!slug) continue
+
+      const existing = items.get(slug)
+      items.set(slug, {
+        isSelected: existing?.isSelected || slug === selectedSlug,
+        name: template.name || existing?.name || slug,
+        slug,
+        why: template.why || existing?.why || "",
+      })
+    }
+
+    return Array.from(items.values())
+  }, [
+    formPrefill?.lxc_template_slug,
+    formPrefill?.service_template_slug,
+    plan?.recommended_templates,
+    resourceType,
+  ])
   const inputLength = input.length
 
   return (
@@ -407,14 +464,14 @@ export function AiChatPanel({
         onWheel={handleMessagesWheel}
         className="hidden-scroll min-h-0 flex-1 overflow-y-auto rounded-xl border border-border/60 bg-background/40 p-2"
       >
-        <div className="flex flex-col gap-2.5 p-2.5">
+        <div className="flex min-h-full flex-col justify-end gap-2.5 p-2.5">
           {messages.length === 0 && (
             <div className="animate-in fade-in flex gap-2.5 duration-300">
               <div className="flex max-w-[90%] items-start gap-2.5">
                 <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
                   <Sparkles className="h-3 w-3 text-primary" />
                 </div>
-                <div className="rounded-xl rounded-tl-sm border border-border/60 bg-card/80 px-3 py-2 text-sm leading-relaxed">
+                <div className="rounded-xl rounded-tl-sm border border-border/60 bg-card/80 px-3 py-2 text-[13px] leading-5">
                   {t("aiChat.systemGreeting")}
                 </div>
               </div>
@@ -423,53 +480,257 @@ export function AiChatPanel({
 
           {messages.map((msg, i) => {
             const isUser = msg.role === "user"
+            const isLastMessage = i === messages.length - 1
             return (
-              <div
-                key={`msg-${i}-${msg.role}`}
-                className={`animate-in fade-in slide-in-from-bottom-2 flex gap-2.5 duration-200 ${
-                  isUser ? "justify-end" : "justify-start"
-                }`}
-              >
-                {!isUser && (
-                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    <Bot className="h-3 w-3 text-primary" />
-                  </div>
-                )}
+              <Fragment key={`msg-${i}-${msg.role}`}>
                 <div
-                  className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
-                    isUser
-                      ? "rounded-tr-sm bg-primary text-primary-foreground"
-                      : "rounded-tl-sm border border-border/60 bg-card/80"
+                  ref={isLastMessage ? latestMessageRef : null}
+                  className={`animate-in fade-in slide-in-from-bottom-2 flex gap-2.5 duration-200 ${
+                    isUser ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {isUser ? (
-                    <span className="whitespace-pre-wrap">{msg.content}</span>
-                  ) : (
-                    <div
-                      className="prose prose-sm max-w-none dark:prose-invert [&_li]:my-0.5 [&_p]:mb-1.5 [&_p:last-child]:mb-0"
-                      // biome-ignore lint/security/noDangerouslySetInnerHtml: controlled markdown
-                      dangerouslySetInnerHTML={{
-                        __html: renderMarkdown(msg.content),
-                      }}
-                    />
+                  {!isUser && (
+                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <Bot className="h-3 w-3 text-primary" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[85%] rounded-xl px-3 py-2 text-[13px] leading-5 ${
+                      isUser
+                        ? "rounded-tr-sm bg-primary text-primary-foreground"
+                        : "rounded-tl-sm border border-border/60 bg-card/80"
+                    }`}
+                  >
+                    {isUser ? (
+                      <span className="whitespace-pre-wrap text-[13px] leading-5">
+                        {msg.content}
+                      </span>
+                    ) : (
+                      <div
+                        className="prose prose-sm max-w-none text-[13px] dark:prose-invert [&_li]:my-0.5 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_p]:leading-5"
+                        // biome-ignore lint/security/noDangerouslySetInnerHtml: controlled markdown
+                        dangerouslySetInnerHTML={{
+                          __html: renderMarkdown(msg.content),
+                        }}
+                      />
+                    )}
+                  </div>
+                  {isUser && (
+                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary">
+                      <MessageSquare className="h-3 w-3 text-primary-foreground" />
+                    </div>
                   )}
                 </div>
-                {isUser && (
-                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary">
-                    <MessageSquare className="h-3 w-3 text-primary-foreground" />
+
+                {latestPlan && plan && planInsertionIndex === i + 1 && (
+                  <div
+                    ref={planCardRef}
+                    className="animate-in fade-in slide-in-from-bottom-2 flex gap-2.5 duration-300"
+                  >
+                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <Bot className="h-3 w-3 text-primary" />
+                    </div>
+                    <div className="min-w-0 max-w-[90%] overflow-hidden rounded-xl rounded-tl-sm border border-border/60 bg-card/90">
+                      <div className="border-b bg-primary/5 px-4 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                              <Layers3 className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold">
+                                {t("aiChat.planTitle")}
+                              </div>
+                              <div className="truncate text-xs text-muted-foreground">
+                                {plan.application_target?.service_name ||
+                                  "AI \u63a8\u85a6\u65b9\u6848"}
+                              </div>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className="shrink-0 uppercase"
+                          >
+                            {resourceType}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 p-4">
+                        <div className="space-y-2">
+                          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            {"\u670d\u52d9\u5b9a\u4f4d"}
+                          </div>
+                          <div className="rounded-xl border border-border/60 bg-muted/10 px-3.5 py-3">
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              <Badge variant="outline">
+                                {plan.application_target
+                                  ?.execution_environment ||
+                                  resourceType.toUpperCase()}
+                              </Badge>
+                              {plan.application_target?.service_name && (
+                                <span className="text-sm font-semibold">
+                                  {plan.application_target.service_name}
+                                </span>
+                              )}
+                            </div>
+                            <div
+                              className="text-sm text-muted-foreground [&_p]:mb-1.5 [&_p:last-child]:mb-0"
+                              // biome-ignore lint/security/noDangerouslySetInnerHtml: controlled markdown
+                              dangerouslySetInnerHTML={{
+                                __html: renderPlanMarkdown(
+                                  plan.application_target?.environment_reason ||
+                                    "This is the environment recommended by AI.",
+                                ),
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            {"\u8868\u55ae\u9810\u586b\u6b04\u4f4d"}
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="rounded-xl border border-border/60 bg-muted/10 p-3">
+                              <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                <Layers3 className="h-3.5 w-3.5" />
+                                {"\u8cc7\u6e90\u985e\u578b"}
+                              </div>
+                              <div className="text-sm font-semibold uppercase">
+                                {formPrefill?.resource_type || "-"}
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-border/60 bg-muted/10 p-3">
+                              <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                <Globe className="h-3.5 w-3.5" />
+                                Hostname
+                              </div>
+                              <div className="break-all text-sm font-semibold">
+                                {formPrefill?.hostname || "-"}
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-border/60 bg-muted/10 p-3">
+                              <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                <FileText className="h-3.5 w-3.5" />
+                                {resourceType === "vm"
+                                  ? "VM \u74b0\u5883"
+                                  : "LXC OS \u6620\u50cf"}
+                              </div>
+                              <div className="break-all text-sm font-semibold">
+                                {String(prefillEnvironmentLabel)}
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-border/60 bg-muted/10 p-3">
+                              <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                <Cpu className="h-3.5 w-3.5" />
+                                CPU / RAM / Disk
+                              </div>
+                              <div className="space-y-1 text-sm font-semibold">
+                                <div className="flex items-center gap-2">
+                                  <Cpu className="h-3.5 w-3.5 text-primary" />
+                                  {formPrefill?.cores || "-"} cores
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <MemoryStick className="h-3.5 w-3.5 text-primary" />
+                                  {formPrefill?.memory_mb || "-"} MB
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <HardDrive className="h-3.5 w-3.5 text-primary" />
+                                  {formPrefill?.disk_gb || "-"} GB
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {serviceTemplates.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                              {"\u670d\u52d9\u6a21\u677f"}
+                            </div>
+                            <div className="space-y-3">
+                              {serviceTemplates.slice(0, 3).map((template) => (
+                                <div
+                                  key={template.slug}
+                                  className="rounded-xl border border-border/60 bg-muted/10 px-3.5 py-3"
+                                >
+                                  <div className="mb-2 flex items-center justify-between gap-2">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                      <div className="truncate text-sm font-semibold">
+                                        {template.name}
+                                      </div>
+                                      {template.isSelected && (
+                                        <Badge
+                                          variant="secondary"
+                                          className="shrink-0"
+                                        >
+                                          {"\u8868\u55ae\u9810\u586b"}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <Badge variant="outline">
+                                      {template.slug}
+                                    </Badge>
+                                  </div>
+                                  <div
+                                    className="text-sm text-muted-foreground [&_p]:mb-1.5 [&_p:last-child]:mb-0"
+                                    // biome-ignore lint/security/noDangerouslySetInnerHtml: controlled markdown
+                                    dangerouslySetInnerHTML={{
+                                      __html: renderPlanMarkdown(template.why),
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            {"\u7533\u8acb\u539f\u56e0"}
+                          </div>
+                          <div
+                            className="rounded-xl border border-border/60 bg-muted/10 px-3.5 py-3 text-sm text-muted-foreground [&_p]:mb-1.5 [&_p:last-child]:mb-0"
+                            // biome-ignore lint/security/noDangerouslySetInnerHtml: controlled markdown
+                            dangerouslySetInnerHTML={{
+                              __html: renderPlanMarkdown(applicationReason),
+                            }}
+                          />
+                        </div>
+
+                        <div className="border-t pt-4">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-9 w-full"
+                            onClick={handleImportPlan}
+                          >
+                            <Download className="mr-1.5 h-3 w-3" />
+                            {t("aiChat.importPlan")}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
-              </div>
+              </Fragment>
             )
           })}
 
           {isLoading && (
-            <div className="animate-in fade-in flex gap-2.5 duration-200">
+            <div
+              ref={loadingRef}
+              className="animate-in fade-in flex gap-2.5 duration-200"
+            >
               <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
                 <Bot className="h-3 w-3 text-primary" />
               </div>
               <div className="rounded-xl rounded-tl-sm border border-border/60 bg-card/80 px-3 py-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   {t("aiChat.loading")}
                 </div>
@@ -477,251 +738,56 @@ export function AiChatPanel({
             </div>
           )}
 
-          {latestPlan && plan && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 flex gap-2.5 duration-300">
-              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <Bot className="h-3 w-3 text-primary" />
-              </div>
-              <div className="min-w-0 max-w-[90%] overflow-hidden rounded-xl rounded-tl-sm border border-border/60 bg-card/90">
-                <div className="border-b bg-primary/5 px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                        <Layers3 className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold">
-                          {t("aiChat.planTitle")}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {plan.application_target?.service_name ||
-                            "AI 推薦方案"}
-                        </div>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="shrink-0 uppercase">
-                      {resourceType}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="space-y-4 p-4">
-                  <div
-                    className="rounded-xl border border-primary/10 bg-primary/5 px-3.5 py-3"
-                    // biome-ignore lint/security/noDangerouslySetInnerHtml: controlled markdown
-                    dangerouslySetInnerHTML={{
-                      __html: renderPlanMarkdown(
-                        latestPlan.summary ||
-                          "AI generated a recommendation summary.",
-                      ),
-                    }}
-                  />
-
-                  <div className="space-y-2">
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                      服務定位
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-muted/10 px-3.5 py-3">
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">
-                          {plan.application_target?.execution_environment ||
-                            resourceType.toUpperCase()}
-                        </Badge>
-                        {plan.application_target?.service_name && (
-                          <span className="text-sm font-semibold">
-                            {plan.application_target.service_name}
-                          </span>
-                        )}
-                      </div>
-                      <div
-                        className="text-sm text-muted-foreground [&_p]:mb-1.5 [&_p:last-child]:mb-0"
-                        // biome-ignore lint/security/noDangerouslySetInnerHtml: controlled markdown
-                        dangerouslySetInnerHTML={{
-                          __html: renderPlanMarkdown(
-                            plan.application_target?.environment_reason ||
-                              "This is the environment recommended by AI.",
-                          ),
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                      表單預填欄位
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-border/60 bg-muted/10 p-3">
-                        <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          <Layers3 className="h-3.5 w-3.5" />
-                          資源類型
-                        </div>
-                        <div className="text-sm font-semibold uppercase">
-                          {formPrefill?.resource_type || "-"}
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-muted/10 p-3">
-                        <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          <Globe className="h-3.5 w-3.5" />
-                          Hostname
-                        </div>
-                        <div className="break-all text-sm font-semibold">
-                          {formPrefill?.hostname || "-"}
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-muted/10 p-3">
-                        <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          <FileText className="h-3.5 w-3.5" />
-                          {resourceType === "vm"
-                            ? "VM Template"
-                            : "Service Template"}
-                        </div>
-                        <div className="break-all text-sm font-semibold">
-                          {String(templateLabel)}
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-muted/10 p-3">
-                        <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          <Cpu className="h-3.5 w-3.5" />
-                          CPU / RAM / Disk
-                        </div>
-                        <div className="space-y-1 text-sm font-semibold">
-                          <div className="flex items-center gap-2">
-                            <Cpu className="h-3.5 w-3.5 text-primary" />
-                            {formPrefill?.cores || "-"} cores
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MemoryStick className="h-3.5 w-3.5 text-primary" />
-                            {formPrefill?.memory_mb || "-"} MB
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <HardDrive className="h-3.5 w-3.5 text-primary" />
-                            {formPrefill?.disk_gb || "-"} GB
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {plan.recommended_templates &&
-                    plan.recommended_templates.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                          推薦模板
-                        </div>
-                        <div className="space-y-3">
-                          {plan.recommended_templates
-                            .slice(0, 3)
-                            .map((template) => (
-                              <div
-                                key={template.slug}
-                                className="rounded-xl border border-border/60 bg-muted/10 px-3.5 py-3"
-                              >
-                                <div className="mb-2 flex items-center justify-between gap-2">
-                                  <div className="text-sm font-semibold">
-                                    {template.name}
-                                  </div>
-                                  <Badge variant="outline">
-                                    {template.slug}
-                                  </Badge>
-                                </div>
-                                <div
-                                  className="text-sm text-muted-foreground [&_p]:mb-1.5 [&_p:last-child]:mb-0"
-                                  // biome-ignore lint/security/noDangerouslySetInnerHtml: controlled markdown
-                                  dangerouslySetInnerHTML={{
-                                    __html: renderPlanMarkdown(template.why),
-                                  }}
-                                />
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
-                  <div className="space-y-2">
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                      申請原因
-                    </div>
-                    <div
-                      className="rounded-xl border border-border/60 bg-muted/10 px-3.5 py-3 text-sm text-muted-foreground [&_p]:mb-1.5 [&_p:last-child]:mb-0"
-                      // biome-ignore lint/security/noDangerouslySetInnerHtml: controlled markdown
-                      dangerouslySetInnerHTML={{
-                        __html: renderPlanMarkdown(summaryReason),
-                      }}
-                    />
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <Button
-                        size="sm"
-                        className="h-9"
-                        onClick={handleImportPlan}
-                      >
-                        <Download className="mr-1.5 h-3 w-3" />
-                        {t("aiChat.importPlan")}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-9"
-                        onClick={handleImportReason}
-                      >
-                        <FileText className="mr-1.5 h-3 w-3" />
-                        {t("aiChat.importReason")}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
-      <div className="mb-1 shrink-0 rounded-xl border border-border/60 bg-background/70 p-3">
+      <div className="mb-1 shrink-0 rounded-xl border border-border/60 bg-background/70 px-3 py-2.5">
         <Textarea
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={t("aiChat.placeholder")}
-          className="min-h-[88px] max-h-[220px] resize-none border-0 bg-transparent px-0 py-1 text-sm shadow-none focus-visible:ring-0"
+          className="min-h-[44px] max-h-[120px] resize-none border-0 bg-transparent px-0 py-0.5 text-[12px] leading-4.5 shadow-none focus-visible:ring-0"
           disabled={isLoading}
         />
-        <div className="flex items-center justify-between gap-3 border-t border-border/50 px-0 pb-1 pt-2.5">
+        <div className="flex items-center justify-between gap-2 border-t border-border/50 px-0 pb-0.5 pt-2">
           <div className="flex min-w-0 items-center gap-2">
             <Button
+              type="button"
               size="sm"
               variant="ghost"
-              className="h-8 px-2 text-xs text-muted-foreground"
+              className="h-7 px-1.5 text-[11px] text-muted-foreground"
               onClick={clearChat}
               disabled={isLoading}
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-3 w-3" />
             </Button>
             <Button
+              type="button"
               size="sm"
               variant="secondary"
-              className="h-8 rounded-full px-3 text-xs"
+              className="h-7 rounded-full px-2.5 text-[11px]"
               onClick={generatePlan}
               disabled={isLoading || conversationHistory.length === 0}
             >
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              <Sparkles className="mr-1 h-3 w-3" />
               {t("aiChat.generatePlan")}
             </Button>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-[10px] text-muted-foreground">
               {inputLength}
             </span>
             <Button
+              type="button"
               size="icon"
-              className="h-8 w-8 rounded-full"
+              className="h-7 w-7 rounded-full"
               onClick={sendChat}
               disabled={isLoading || !input.trim()}
             >
-              <Send className="h-3.5 w-3.5" />
+              <Send className="h-3 w-3" />
             </Button>
           </div>
         </div>
