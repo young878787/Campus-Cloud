@@ -7,3 +7,4 @@ pdfplumber
 python-docx
 openpyxl
 python-multipart
+slowapi

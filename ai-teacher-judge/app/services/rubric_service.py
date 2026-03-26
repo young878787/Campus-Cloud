@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import re
 from time import perf_counter
 from typing import Any
@@ -11,6 +12,9 @@ from fastapi import HTTPException
 
 from app.core.config import settings
 from app.schemas.rubric import ChatMessage, RubricAnalysis, RubricItem
+
+
+logger = logging.getLogger(__name__)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -109,13 +113,23 @@ def _extract_context_item_count(rubric_context: str) -> int:
 
 async def _call_vllm(payload: dict[str, Any], timeout: float = 60.0) -> tuple[str, dict]:
     """Call vLLM chat/completions and return (content, usage_metrics)."""
+    from app.core.dependencies import get_http_client
+    
     url = f"{settings.vllm_base_url}/chat/completions"
     started = perf_counter()
+    
+    logger.debug(f"Calling vLLM API: {url}")
+    
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(url, json=payload, headers=_vllm_headers())
-            resp.raise_for_status()
-            data = resp.json()
+        client = get_http_client()
+        resp = await client.post(
+            url, 
+            json=payload, 
+            headers=_vllm_headers(),
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
 
         elapsed = max(perf_counter() - started, 0.0)
         usage = data.get("usage") or {}
@@ -123,6 +137,8 @@ async def _call_vllm(payload: dict[str, Any], timeout: float = 60.0) -> tuple[st
         completion_tokens = int(usage.get("completion_tokens") or 0)
         total_tokens = int(usage.get("total_tokens") or (prompt_tokens + completion_tokens))
         tps = (completion_tokens / elapsed) if elapsed > 0 else 0.0
+
+        logger.info(f"vLLM call successful: {total_tokens} tokens in {elapsed:.2f}s ({tps:.1f} t/s)")
 
         content = data["choices"][0]["message"]["content"] or ""
         content = _strip_think_tags(content)
@@ -134,7 +150,15 @@ async def _call_vllm(payload: dict[str, Any], timeout: float = 60.0) -> tuple[st
             "tokens_per_second": round(tps, 2),
         }
         return content, metrics
+    except httpx.TimeoutException as exc:
+        logger.error(f"vLLM API timeout after {timeout}s")
+        raise HTTPException(status_code=504, detail="AI 服務回應超時，請稍後再試。") from exc
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        logger.error(f"vLLM API returned status {status}")
+        raise HTTPException(status_code=502, detail=f"AI 服務異常（狀態碼 {status}）") from exc
     except Exception as exc:
+        logger.error(f"vLLM API call failed: {exc}", exc_info=True)
         raise HTTPException(status_code=502, detail=f"AI 呼叫失敗：{exc}") from exc
 
 
@@ -199,6 +223,8 @@ async def analyze_rubric(raw_text: str) -> tuple[RubricAnalysis, dict]:
     if not settings.vllm_model_name:
         raise HTTPException(status_code=503, detail="VLLM_MODEL_NAME 未設定。")
 
+    logger.info(f"Starting rubric analysis, text length: {len(raw_text)} characters")
+    
     user_content = f"# 評分表原文\n\n{raw_text}"
 
     payload = _apply_thinking_control({
@@ -218,26 +244,19 @@ async def analyze_rubric(raw_text: str) -> tuple[RubricAnalysis, dict]:
     try:
         data = json.loads(content)
     except json.JSONDecodeError as exc:
+        logger.error(f"Failed to parse AI response as JSON: {exc}")
         raise HTTPException(status_code=502, detail=f"AI 回傳 JSON 解析失敗：{exc}") from exc
 
+    # 使用統一的正規化函數處理 AI 回傳的項目
     items_raw = data.get("items") or []
-    items: list[RubricItem] = []
-    for i, raw in enumerate(items_raw):
-        item_id = str(raw.get("id") or f"item-{i + 1}")
-        items.append(RubricItem(
-            id=item_id,
-            title=str(raw.get("title") or "未命名項目"),
-            description=str(raw.get("description") or ""),
-            max_score=float(raw.get("max_score") or 0),
-            detectable=str(raw.get("detectable") or "manual"),
-            detection_method=raw.get("detection_method"),
-            fallback=raw.get("fallback"),
-        ))
+    items = _normalize_rubric_items(items_raw)
 
     total_score = sum(item.max_score for item in items)
     auto_count = sum(1 for item in items if item.detectable == "auto")
     partial_count = sum(1 for item in items if item.detectable == "partial")
     manual_count = sum(1 for item in items if item.detectable == "manual")
+
+    logger.info(f"Analysis complete: {len(items)} items, {total_score} total points (auto: {auto_count}, partial: {partial_count}, manual: {manual_count})")
 
     analysis = RubricAnalysis(
         items=items,
@@ -279,8 +298,31 @@ _CHAT_SYSTEM_TEMPLATE = """
 {situation_instruction}
 
 # 輸出規則（不論任何情境一律遵守）
-- reply 必須用自然白話文繁體中文直接對老師說明，不得提到 id、detectable、detection_method、fallback 等內部欄位或程式變數名稱。
+
+## 對話風格
+- 使用**親切、專業但有溫度**的繁體中文白話文。
+- 想像你是老師的教學助理，用「我」稱呼自己，用「你」或「您」稱呼老師（視語境自然選擇）。
+- 避免過度正式的用語（例如「依據分析」「經判斷」），改用自然對話（例如「我看了一下」「這個的話」）。
+- 不得提到技術欄位名稱（id、detectable、detection_method、fallback 等）。
 - 不得在 reply 中重新列出所有項目，只說明變動的部分。
+
+## 語氣示範
+❌ 不好：「經分析，該項目不符合自動偵測條件，建議歸類為手動評閱。」
+✅ 良好：「這個項目需要檢查程式碼品質，目前系統還做不到自動判斷，建議由你親自評閱會比較準確。」
+
+❌ 不好：「已將項目 3 的可偵測性修改為自動。」
+✅ 良好：「好的！我已經把第 3 項改成可以自動偵測了。」
+
+❌ 不好：「根據您的需求，更新如下...」
+✅ 良好：「了解！我幫你調整好了，主要改了這幾個地方...」
+
+## 不確定性表達
+- 當問題涉及**邊界情境**（需要額外授權、學生配合、或技術上可行但不建議）時，請明確說明限制條件，並提供多種方案供老師選擇，不要一口咬定「可以」或「不行」。
+- 當你真的不確定時，誠實說「這個我需要再確認一下」或「這個情況比較複雜」，不要硬給答案。
+
+## 不確定性示範
+❌ 不好：「系統可以自動檢查資料庫內容。」
+✅ 良好：「這個需要學生在設定檔提供資料庫帳密，系統才能自動連線檢查。但這樣可能有資安疑慮，而且設定過程學生容易出錯。我建議改為『檢查資料庫服務是否啟動』（這個可以自動偵測），內容正確性的部分由你親自評閱。你覺得如何？」
 
 # 輸出格式
 只輸出合法 JSON，不要任何 markdown 包裹或自然語言。結構：
@@ -289,27 +331,90 @@ _CHAT_SYSTEM_TEMPLATE = """
   "updated_items": null
 }}
 
-IMPORTANT RULES:
-- 如果只是回答問題或給出建議、未變更評分表結構：updated_items 設為 null。
-- 如果有任何項目被新增、修改或刪除：updated_items 必須是「修改後的完整評分項目列表」（包含未修改的項目）。
+IMPORTANT RULES - 意圖識別（極為重要）
+
+請仔細判斷老師的意圖，區分「詢問/討論」和「執行指令」：
+
+## 【只聊天不改表單】（updated_items 必須為 null）
+以下情況只提供建議，不修改評分表：
+1. **詢問性問句**：句子有問號，且在徵求意見
+   - 例如：「這個可以自動偵測嗎？」「你覺得呢？」「建議怎麼改？」
+2. **試探性討論**：老師在討論可能性，未下達指令
+   - 例如：「如果改成...會不會比較好？」「這樣可以嗎？」「要不要把...」
+3. **純粹解釋**：詢問原因或要求說明
+   - 例如：「為什麼這項是人工評閱？」「有其他方案嗎？」「怎麼判斷的？」
+4. **要求建議但未明確執行**：只要建議，沒說「照做」
+   - 例如：「給我一些建議」「分析一下」「看看有什麼問題」
+
+## 【需要修改表單】（updated_items 必須為完整列表）
+以下情況才執行修改：
+1. **明確指令動詞**：有清楚的行動指示
+   - 例如：「請修改」「幫我改」「新增」「刪除」「調整為」「改成」
+2. **確認執行**：老師對前面的建議表示同意並要執行
+   - 例如：「好」「OK」「就這樣做」「照你說的改」「可以，請執行」
+3. **直接陳述變更**：直接說要改什麼，沒有問號
+   - 例如：「第 3 項改成自動偵測」「把配分改成 10 分」「刪掉第 5 項」
+
+## 黃金原則
+**當你無法確定是「詢問」還是「指令」時，優先視為「詢問」，僅提供建議。**
+如果老師滿意你的建議，會明確說「好，請修改」或「就這樣做」。
+
+## 輸出結構約束
 - 每個 item 需有：id, title, description, max_score, detectable, detection_method, fallback。
-- 未被要求變更的項目，必須原樣保留，不得省略。
+- 若修改表單（updated_items 不為 null），必須包含「完整列表」，未被要求變更的項目必須原樣保留，不得省略。
 """.strip()
 
 
 _SITUATION_NORMAL = """
-老師正在對話修改評分表。
-老師可能會要求修改某個項目的說明或配分、調整可偵測性判斷、新增或刪除項目、或詢問特定評分點的建議偵測方式。
-請依老師指令辦處。若老師詢問的項目涉及無法自動偵測的內容，請主動說明並給出替代方案。
+老師正在對話中修改或詢問評分表相關問題。
+
+## 你的任務
+- 老師可能會**詢問**特定項目的偵測方式、配分建議、可行性分析。
+- 老師也可能會**下達指令**，要求修改、新增、刪除評分項目。
+- 請依據上方的「意圖識別規則」判斷老師是在詢問還是下指令。
+
+## 處理原則
+- 若老師詢問的項目涉及無法自動偵測的內容，請主動說明限制並給出替代方案。
+- 提供建議時，語氣要自然親切，可以用「我建議...」「你覺得...如何？」等句式。
+- 只有在老師明確下達指令時，才修改評分表（updated_items 不為 null）。
 """.strip()
 
 _SITUATION_REFINE = """
 老師剛剛親手調整了評分表，現在請你進行「全表審核潤飾」。
-下列是你必須完成的工作：
-1. 審核每一個項目的可偵測性與其檢查方式是否一致，若不符請更正。
-2. 針對所有未填寫的「偵測方式」與「替代建議」欄位，依平台能力推斷並補齊內容。
-3. 潤飾所有項目的名稱與說明文字，使其明確清晰、語氣統一。
-4. 回覆請用文字清楚地告訴老師：潤飾了哪些項目、調整了哪些判斷，不需逐一重展所有內容。
+
+## 你的任務（按優先順序執行）
+
+### 1. 審核一致性（最重要）
+檢查每個項目的「可偵測性判斷」與「檢查方式」是否邏輯一致：
+- 例如：標記為可自動偵測，但檢查方式是「人工檢視程式碼」→ 不一致，需更正。
+- 例如：標記為人工評閱，但檢查方式是「偵測 Port 80」→ 不一致，需更正。
+
+### 2. 補齊空白欄位
+針對未填寫的「偵測方式」(detection_method) 和「替代建議」(fallback)，依平台能力推斷並補充：
+- **重要**：若老師已填寫，絕不修改，除非明顯與可偵測性矛盾。
+- 只補充「空白」或「null」的欄位。
+
+### 3. 語氣統一與明確化（保守原則）
+只潤飾以下情況的項目：
+- 說明過於簡略（例如只有 2-3 個字，看不懂在說什麼）。
+- 語氣明顯不統一（例如有些用「學生須...」，有些用「請檢查...」）。
+- 有明顯的錯字或語病。
+
+**絕對不要**：
+- 不要自作主張改寫老師的專業術語（例如老師寫「LAMP 架構」就保留，不要改成「Linux + Apache + MySQL + PHP」）。
+- 不要改動老師仔細填寫過的完整說明文字。
+- 不要為了「統一風格」而大幅改寫原文。
+
+## 保守原則（極為重要）
+**當你不確定是否該修改時，保持原樣。**
+只修正明顯的錯誤（矛盾、空白、語病），不做「美化」或「風格統一」的過度編輯。
+
+## 回覆要求
+在 reply 中清楚列出你做了哪些調整，分類說明：
+- 更正了 X 個可偵測性矛盾的項目（說明是哪幾項）
+- 補齊了 Y 個空白的檢查方式或替代建議
+- 潤飾了 Z 個說明文字過於簡略的項目
+- 如果沒有需要調整的地方，請說「檢查完畢，評分表目前狀態良好，沒有需要調整的地方」
 """.strip()
 
 

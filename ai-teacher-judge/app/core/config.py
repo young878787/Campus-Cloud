@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
 
@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     api_v1_str: str = Field(default="/api/v1")
     frontend_api_base_url: str = Field(default="")
 
+    # Security settings
+    max_upload_size_mb: int = Field(default=10, ge=1, le=100, description="最大上傳檔案大小（MB）")
+    cors_origins: str = Field(default="", description="允許的 CORS 來源，逗號分隔")
+
     # vLLM settings
     vllm_base_url: str = Field(default="http://localhost:8000/v1")
     vllm_api_key: str = Field(default="vllm-secret-key-change-me")
@@ -35,6 +39,19 @@ class Settings(BaseSettings):
     vllm_max_tokens: int = Field(default=2048, ge=256, le=300000)
     vllm_chat_max_tokens: int = Field(default=1024, ge=256, le=300000)
     vllm_repetition_penalty: float = Field(default=1.0, ge=0.0, le=2.0)
+
+    @field_validator('vllm_base_url')
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        """驗證 vLLM URL 格式。"""
+        if not v.startswith(('http://', 'https://')):
+            raise ValueError('vLLM URL 必須以 http:// 或 https:// 開頭')
+        return v.rstrip('/')
+
+    @property
+    def max_upload_size_bytes(self) -> int:
+        """取得最大上傳檔案大小（位元組）。"""
+        return self.max_upload_size_mb * 1024 * 1024
 
 
 settings = Settings()

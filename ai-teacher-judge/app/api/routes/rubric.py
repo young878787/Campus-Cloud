@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request
 from fastapi.responses import Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.schemas.rubric import RubricChatRequest
 from app.services.rubric_parser import parse_document
@@ -13,12 +15,16 @@ from app.services.rubric_service import (
 )
 
 router = APIRouter(tags=["rubric"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/upload-rubric")
 @router.post("/api/v1/upload-rubric")
-async def upload_rubric(file: UploadFile = File(...)):
+@limiter.limit("10/minute")  # 每分鐘最多 10 次上傳
+async def upload_rubric(request: Request, file: UploadFile = File(...)):
     """上傳評分表文件（.docx / .pdf），AI 解析並回傳結構化評分分析。"""
+    from app.core.config import settings
+    
     filename = file.filename or "unknown"
     allowed = {".docx", ".pdf"}
     suffix = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
@@ -29,6 +35,15 @@ async def upload_rubric(file: UploadFile = File(...)):
         )
 
     file_bytes = await file.read()
+    
+    # 檔案大小檢查
+    file_size_mb = len(file_bytes) / (1024 * 1024)
+    if len(file_bytes) > settings.max_upload_size_bytes:
+        raise HTTPException(
+            status_code=413, 
+            detail=f"檔案大小 {file_size_mb:.1f}MB 超過限制（最大 {settings.max_upload_size_mb}MB）"
+        )
+    
     if not file_bytes:
         raise HTTPException(status_code=400, detail="上傳的檔案是空的。")
 
@@ -49,12 +64,13 @@ async def upload_rubric(file: UploadFile = File(...)):
 
 @router.post("/chat")
 @router.post("/api/v1/chat")
-async def chat(request: RubricChatRequest):
+@limiter.limit("30/minute")  # 每分鐘最多 30 次對話
+async def chat(request: Request, chat_request: RubricChatRequest):
     """與 AI 對話，精煉評分表；rubric_context 帶入目前評分表的 JSON 字串。"""
     reply, updated_items, metrics = await chat_with_rubric(
-        request.messages,
-        request.rubric_context,
-        is_refine=request.is_refine,
+        chat_request.messages,
+        chat_request.rubric_context,
+        is_refine=chat_request.is_refine,
     )
     return {
         "reply": reply,
@@ -69,7 +85,8 @@ async def chat(request: RubricChatRequest):
 
 @router.post("/download-excel")
 @router.post("/api/v1/download-excel")
-async def download_excel(payload: dict):
+@limiter.limit("20/minute")  # 每分鐘最多 20 次下載
+async def download_excel(request: Request, payload: dict):
     """
     接收 { items: [...RubricItem], summary: str }，
     產出並回傳 .xlsx 檔案。

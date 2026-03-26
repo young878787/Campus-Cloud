@@ -489,6 +489,25 @@
         return stripped || str.trim();
       }
 
+      // ── 統一的統計計算函數 ──
+      function calculateRubricStats(items) {
+        return {
+          autoCount: items.filter(i => i.detectable === "auto").length,
+          partialCount: items.filter(i => i.detectable === "partial").length,
+          manualCount: items.filter(i => i.detectable === "manual").length,
+          totalScore: items.reduce((s, i) => s + (parseFloat(i.max_score) || 0), 0)
+        };
+      }
+
+      // ── 防抖函數 ──
+      function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+      }
+
       function updateMetrics(m) {
         if (!m) return;
         metricInput.textContent = m.prompt_tokens ?? 0;
@@ -612,13 +631,10 @@
           currentRubricItems[index][field] = val;
           
           if (field === "max_score" || field === "detectable") {
-            const autoCount    = currentRubricItems.filter(i => i.detectable === "auto").length;
-            const partialCount = currentRubricItems.filter(i => i.detectable === "partial").length;
-            const manualCount  = currentRubricItems.filter(i => i.detectable === "manual").length;
-            const totalScore   = currentRubricItems.reduce((s, i) => s + (parseFloat(i.max_score) || 0), 0);
+            const stats = calculateRubricStats(currentRubricItems);
             const header = el.closest('.plan-card').querySelector('.header-metrics');
             if (header) {
-              header.innerHTML = `總分 <span class="score-total">${totalScore}</span> ｜ 自動 ${autoCount} / 部分 ${partialCount} / 人工 ${manualCount}`;
+              header.innerHTML = `總分 <span class="score-total">${stats.totalScore}</span> ｜ 自動 ${stats.autoCount} / 部分 ${stats.partialCount} / 人工 ${stats.manualCount}`;
             }
           }
         }
@@ -646,17 +662,14 @@
 
       function reRenderCurrentCard() {
         if (!currentEditableCardDiv) return;
-        const autoCount    = currentRubricItems.filter(i => i.detectable === "auto").length;
-        const partialCount = currentRubricItems.filter(i => i.detectable === "partial").length;
-        const manualCount  = currentRubricItems.filter(i => i.detectable === "manual").length;
-        const totalScore   = currentRubricItems.reduce((s, i) => s + (parseFloat(i.max_score) || 0), 0);
+        const stats = calculateRubricStats(currentRubricItems);
         
         const analysis = {
             items: currentRubricItems,
-            total_score: totalScore,
-            auto_count: autoCount,
-            partial_count: partialCount,
-            manual_count: manualCount,
+            total_score: stats.totalScore,
+            auto_count: stats.autoCount,
+            partial_count: stats.partialCount,
+            manual_count: stats.manualCount,
             summary: currentRubricSummary
         };
         const newHtml = renderRubricCard(analysis, "🔄 評分表（編輯中）", true);
@@ -795,13 +808,10 @@
             currentRubricItems = updatedItems;
 
             // 重新計算 summary 統計
-            const autoCount    = updatedItems.filter(i => i.detectable === "auto").length;
-            const partialCount = updatedItems.filter(i => i.detectable === "partial").length;
-            const manualCount  = updatedItems.filter(i => i.detectable === "manual").length;
-            const totalScore   = updatedItems.reduce((s, i) => s + (parseFloat(i.max_score) || 0), 0);
+            const stats = calculateRubricStats(updatedItems);
 
             // 強制使用前端計算的摘要，避免 AI 加減法算錯總分
-            const updatedSummary = buildSummaryText(updatedItems, totalScore, autoCount, partialCount, manualCount);
+            const updatedSummary = buildSummaryText(updatedItems, stats.totalScore, stats.autoCount, stats.partialCount, stats.manualCount);
             currentRubricSummary = updatedSummary;
 
             // 顯示 AI 說明訊息
@@ -810,10 +820,10 @@
             // 在對話中插入更新後的評分表卡片
             const updatedAnalysis = {
               items: updatedItems,
-              total_score: totalScore,
-              auto_count: autoCount,
-              partial_count: partialCount,
-              manual_count: manualCount,
+              total_score: stats.totalScore,
+              auto_count: stats.autoCount,
+              partial_count: stats.partialCount,
+              manual_count: stats.manualCount,
               summary: updatedSummary,
             };
             currentEditableCardDiv = renderMessage("assistant", renderRubricCard(updatedAnalysis, "🔄 評分表已更新", true));
@@ -823,16 +833,13 @@
             if (reply) renderMessage("assistant", escapeHtml(reply));
             
             // 將原本被 freeze 的表單重新渲染為可編輯（因為我們沒有更新最新版本，所以仍然使用原本的）
-            const autoCount    = currentRubricItems.filter(i => i.detectable === "auto").length;
-            const partialCount = currentRubricItems.filter(i => i.detectable === "partial").length;
-            const manualCount  = currentRubricItems.filter(i => i.detectable === "manual").length;
-            const totalScore   = currentRubricItems.reduce((s, i) => s + (parseFloat(i.max_score) || 0), 0);
+            const stats = calculateRubricStats(currentRubricItems);
             const refAnalysis = {
               items: currentRubricItems,
-              total_score: totalScore,
-              auto_count: autoCount,
-              partial_count: partialCount,
-              manual_count: manualCount,
+              total_score: stats.totalScore,
+              auto_count: stats.autoCount,
+              partial_count: stats.partialCount,
+              manual_count: stats.manualCount,
               summary: currentRubricSummary,
             };
             currentEditableCardDiv = renderMessage("assistant", renderRubricCard(refAnalysis, "📋 評分表目前狀態", true));
