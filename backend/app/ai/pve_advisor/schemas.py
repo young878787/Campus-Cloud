@@ -1,19 +1,60 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
+
+ResourceType = Literal["lxc", "vm"]
 
 
 class PlacementRequest(BaseModel):
-    machine_name: str = Field(default="custom workload", min_length=1, max_length=80)
-    resource_type: str = Field(default="vm", min_length=1, max_length=20)
-    cores: int = Field(default=2, ge=1, le=256)
-    memory_mb: int = Field(default=2048, ge=128, le=1048576)
-    disk_gb: int = Field(default=20, ge=1, le=65536)
+    model_config = ConfigDict(populate_by_name=True)
+
+    resource_type: ResourceType = Field(
+        default="vm",
+        validation_alias=AliasChoices("resource_type", "container_type"),
+    )
+    cpu_cores: int = Field(
+        default=2,
+        ge=1,
+        le=256,
+        validation_alias=AliasChoices("cpu_cores", "cores", "cpu"),
+    )
+    memory_mb: int = Field(
+        default=2048,
+        ge=128,
+        le=1048576,
+        validation_alias=AliasChoices("memory_mb", "ram_mb"),
+    )
+    disk_gb: int = Field(
+        default=20,
+        ge=1,
+        le=65536,
+        validation_alias=AliasChoices("disk_gb", "disk"),
+    )
+    instance_count: int = Field(
+        default=1,
+        ge=1,
+        le=100,
+        validation_alias=AliasChoices("instance_count", "count", "machines"),
+    )
     gpu_required: int = Field(default=0, ge=0, le=16)
-    instance_count: int = Field(default=1, ge=1, le=100)
-    estimated_users_per_instance: int = Field(default=0, ge=0, le=1000000)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_compat_fields(cls, raw: Any) -> Any:
+        if not isinstance(raw, dict):
+            return raw
+
+        data = dict(raw)
+        memory_gb = data.get("memory_gb", data.get("ram_gb"))
+        if memory_gb is not None and "memory_mb" not in data and "ram_mb" not in data:
+            try:
+                data["memory_mb"] = int(float(memory_gb) * 1024)
+            except (TypeError, ValueError):
+                pass
+        return data
 
 
 class AiMetrics(BaseModel):
@@ -43,35 +84,6 @@ class ResourceSnapshot(BaseModel):
     resource_type: str = Field(default="unknown")
     node: str = Field(default="unknown")
     status: str = Field(default="unknown")
-    cpu_ratio: float = Field(default=0.0, ge=0.0)
-    maxcpu: int = Field(default=0, ge=0)
-    mem_bytes: int = Field(default=0, ge=0)
-    maxmem_bytes: int = Field(default=0, ge=0)
-    disk_bytes: int = Field(default=0, ge=0)
-    maxdisk_bytes: int = Field(default=0, ge=0)
-    uptime: int | None = Field(default=None, ge=0)
-
-
-class BackendTrafficSnapshot(BaseModel):
-    sample_size: int = Field(default=0, ge=0)
-    window_minutes: int = Field(default=60, ge=1)
-    submitted_in_window: int = Field(default=0, ge=0)
-    pending_total: int = Field(default=0, ge=0)
-    approved_total: int = Field(default=0, ge=0)
-    requested_cpu_cores_total: int = Field(default=0, ge=0)
-    requested_memory_mb_total: int = Field(default=0, ge=0)
-    requested_disk_gb_total: int = Field(default=0, ge=0)
-
-
-class AuditSignalSnapshot(BaseModel):
-    sample_size: int = Field(default=0, ge=0)
-    window_minutes: int = Field(default=60, ge=1)
-    recent_total: int = Field(default=0, ge=0)
-    create_events: int = Field(default=0, ge=0)
-    start_events: int = Field(default=0, ge=0)
-    stop_events: int = Field(default=0, ge=0)
-    delete_events: int = Field(default=0, ge=0)
-    review_events: int = Field(default=0, ge=0)
 
 
 class NodeCapacity(BaseModel):
@@ -107,10 +119,11 @@ class PlacementDecision(BaseModel):
 
 class PlacementPlan(BaseModel):
     feasible: bool = False
+    requested_resource_type: ResourceType
+    effective_resource_type: ResourceType
+    resource_type_reason: str
     assigned_instances: int = Field(default=0, ge=0)
     unassigned_instances: int = Field(default=0, ge=0)
-    effective_cpu_cores_per_instance: float = Field(default=0.0, ge=0.0)
-    effective_memory_bytes_per_instance: int = Field(default=0, ge=0)
     recommended_node: str | None = None
     summary: str
     rationale: list[str] = Field(default_factory=list)
@@ -119,24 +132,34 @@ class PlacementPlan(BaseModel):
     candidate_nodes: list[NodeCapacity] = Field(default_factory=list)
 
 
-class SuggestedAction(BaseModel):
-    kind: str = Field(default="provision_on_node")
-    execute_now: bool = False
-    node: str | None = None
-    resource_type: str
-    instance_count: int = Field(default=1, ge=1)
+class RecommendedMachine(BaseModel):
+    node: str
+    resource_type: ResourceType
+    instance_count: int = Field(default=0, ge=0)
+    reason: str
+
+
+class MachineCurrentStatus(BaseModel):
+    node: str
+    status: str
+    candidate: bool
+    running_resources: int = Field(default=0, ge=0)
+    cpu_usage_ratio: float = Field(default=0.0, ge=0.0)
+    memory_usage_ratio: float = Field(default=0.0, ge=0.0)
+    disk_usage_ratio: float = Field(default=0.0, ge=0.0)
+    allocatable_cpu_cores: float = Field(default=0.0, ge=0.0)
+    allocatable_memory_gb: float = Field(default=0.0, ge=0.0)
+    allocatable_disk_gb: float = Field(default=0.0, ge=0.0)
+    gpu_count: int = Field(default=0, ge=0)
 
 
 class PlacementAdvisorResponse(BaseModel):
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     reply: str
+    machines_to_open: list[RecommendedMachine] = Field(default_factory=list)
+    reasons: list[str] = Field(default_factory=list)
+    current_status: list[MachineCurrentStatus] = Field(default_factory=list)
     ai_used: bool = False
     model: str | None = None
     warning: str | None = None
     ai_metrics: AiMetrics | None = None
-    request: PlacementRequest
-    placement: PlacementPlan
-    suggested_action: SuggestedAction | None = None
-    backend_traffic: BackendTrafficSnapshot | None = None
-    audit_signals: AuditSignalSnapshot | None = None
-    node_capacities: list[NodeCapacity] = Field(default_factory=list)

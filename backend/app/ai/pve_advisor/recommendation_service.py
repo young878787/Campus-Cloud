@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 import threading
 import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
-from math import ceil, floor
+from math import floor
 from time import perf_counter
-from typing import Any
+from typing import Any, cast
 
 from sqlmodel import Session, func, select
 
@@ -18,23 +19,92 @@ from app.ai.pve_advisor.prompt import (
 )
 from app.ai.pve_advisor.schemas import (
     AiMetrics,
-    AuditSignalSnapshot,
-    BackendTrafficSnapshot,
+    MachineCurrentStatus,
     NodeCapacity,
     NodeSnapshot,
     PlacementAdvisorResponse,
     PlacementDecision,
     PlacementPlan,
     PlacementRequest,
+    RecommendedMachine,
     ResourceSnapshot,
-    SuggestedAction,
+    ResourceType,
 )
 from app.models import AuditAction, AuditLog, VMRequest, VMRequestStatus
 from app.services import proxmox_service
 
-
 GIB = 1024**3
 MIB = 1024**2
+
+
+class _BackendTrafficSnapshot:
+    def __init__(
+        self,
+        *,
+        sample_size: int = 0,
+        window_minutes: int = 60,
+        submitted_in_window: int = 0,
+        pending_total: int = 0,
+        approved_total: int = 0,
+        requested_cpu_cores_total: int = 0,
+        requested_memory_mb_total: int = 0,
+        requested_disk_gb_total: int = 0,
+    ) -> None:
+        self.sample_size = sample_size
+        self.window_minutes = window_minutes
+        self.submitted_in_window = submitted_in_window
+        self.pending_total = pending_total
+        self.approved_total = approved_total
+        self.requested_cpu_cores_total = requested_cpu_cores_total
+        self.requested_memory_mb_total = requested_memory_mb_total
+        self.requested_disk_gb_total = requested_disk_gb_total
+
+    def model_dump(self) -> dict[str, int]:
+        return {
+            "sample_size": self.sample_size,
+            "window_minutes": self.window_minutes,
+            "submitted_in_window": self.submitted_in_window,
+            "pending_total": self.pending_total,
+            "approved_total": self.approved_total,
+            "requested_cpu_cores_total": self.requested_cpu_cores_total,
+            "requested_memory_mb_total": self.requested_memory_mb_total,
+            "requested_disk_gb_total": self.requested_disk_gb_total,
+        }
+
+
+class _AuditSignalSnapshot:
+    def __init__(
+        self,
+        *,
+        sample_size: int = 0,
+        window_minutes: int = 60,
+        recent_total: int = 0,
+        create_events: int = 0,
+        start_events: int = 0,
+        stop_events: int = 0,
+        delete_events: int = 0,
+        review_events: int = 0,
+    ) -> None:
+        self.sample_size = sample_size
+        self.window_minutes = window_minutes
+        self.recent_total = recent_total
+        self.create_events = create_events
+        self.start_events = start_events
+        self.stop_events = stop_events
+        self.delete_events = delete_events
+        self.review_events = review_events
+
+    def model_dump(self) -> dict[str, int]:
+        return {
+            "sample_size": self.sample_size,
+            "window_minutes": self.window_minutes,
+            "recent_total": self.recent_total,
+            "create_events": self.create_events,
+            "start_events": self.start_events,
+            "stop_events": self.stop_events,
+            "delete_events": self.delete_events,
+            "review_events": self.review_events,
+        }
 
 
 class _ClusterCacheEntry:
@@ -62,80 +132,70 @@ async def generate_recommendation(
     backend_traffic = _load_backend_traffic_snapshot(session=session)
     audit_signals = _load_audit_signal_snapshot(session=session)
     node_capacities = _build_node_capacities(nodes=nodes, resources=resources)
-    placement = _build_placement_plan(
+    default_resource_type, default_reason = _decide_resource_type(request)
+    rule_based_plan = _build_rule_based_plan(
         request=request,
         node_capacities=node_capacities,
+        effective_resource_type=default_resource_type,
+        resource_type_reason=default_reason,
     )
-    fallback_reply = _build_fallback_reply(
-        request=request,
-        placement=placement,
-        backend_traffic=backend_traffic,
-        audit_signals=audit_signals,
-    )
+    current_status = _build_current_status(node_capacities)
 
-    suggested_action = None
-    if placement.recommended_node:
-        suggested_action = SuggestedAction(
-            node=placement.recommended_node,
-            resource_type=request.resource_type,
-            instance_count=request.instance_count,
-        )
-
-    if not settings.vllm_model_name:
-        return PlacementAdvisorResponse(
-            reply=fallback_reply,
+    if not settings.vllm_model_name.strip():
+        return _build_response_from_plan(
+            plan=rule_based_plan,
+            current_status=current_status,
             ai_used=False,
-            warning="VLLM_MODEL_NAME is not configured, so the service returned a rule-based answer.",
-            request=request,
-            placement=placement,
-            suggested_action=suggested_action,
-            backend_traffic=backend_traffic,
-            audit_signals=audit_signals,
-            node_capacities=node_capacities,
+            warning="VLLM_MODEL_NAME 未設定，因此使用基本容量規則決定。",
         )
 
     try:
-        reply, metrics = await _generate_ai_reply(
+        ai_decision, metrics = await _generate_ai_decision(
             request=request,
-            placement=placement,
+            rule_based_plan=rule_based_plan,
             backend_traffic=backend_traffic,
             audit_signals=audit_signals,
             node_capacities=node_capacities,
         )
-        return PlacementAdvisorResponse(
-            reply=reply,
+        ai_plan = _build_ai_plan_from_decision(
+            request=request,
+            node_capacities=node_capacities,
+            decision=ai_decision,
+            fallback_plan=rule_based_plan,
+        )
+        if ai_plan is None:
+            return _build_response_from_plan(
+                plan=rule_based_plan,
+                current_status=current_status,
+                ai_used=False,
+                ai_metrics=metrics,
+                warning="AI 決策不合法，因此改用基本容量規則決定。",
+            )
+        return _build_response_from_plan(
+            plan=ai_plan,
+            current_status=current_status,
             ai_used=True,
             model=settings.vllm_model_name,
             ai_metrics=metrics,
-            request=request,
-            placement=placement,
-            suggested_action=suggested_action,
-            backend_traffic=backend_traffic,
-            audit_signals=audit_signals,
-            node_capacities=node_capacities,
+            reply_override=str(ai_decision.get("reply") or "").strip() or None,
         )
     except Exception as exc:
-        return PlacementAdvisorResponse(
-            reply=fallback_reply,
+        return _build_response_from_plan(
+            plan=rule_based_plan,
+            current_status=current_status,
             ai_used=False,
-            warning=f"AI call failed, so the service returned a rule-based answer: {exc}",
-            request=request,
-            placement=placement,
-            suggested_action=suggested_action,
-            backend_traffic=backend_traffic,
-            audit_signals=audit_signals,
-            node_capacities=node_capacities,
+            warning=f"AI 呼叫失敗，因此改用基本容量規則決定：{exc}",
         )
 
 
-async def _generate_ai_reply(
+async def _generate_ai_decision(
     *,
     request: PlacementRequest,
-    placement: PlacementPlan,
-    backend_traffic: BackendTrafficSnapshot,
-    audit_signals: AuditSignalSnapshot,
+    rule_based_plan: PlacementPlan,
+    backend_traffic: _BackendTrafficSnapshot,
+    audit_signals: _AuditSignalSnapshot,
     node_capacities: list[NodeCapacity],
-) -> tuple[str, AiMetrics]:
+) -> tuple[dict[str, Any], AiMetrics]:
     payload = _apply_thinking_control(
         {
             "model": settings.vllm_model_name,
@@ -145,7 +205,7 @@ async def _generate_ai_reply(
                     "role": "user",
                     "content": build_advisor_user_prompt(
                         request=request.model_dump(),
-                        placement=placement.model_dump(),
+                        rule_based_plan=rule_based_plan.model_dump(),
                         backend_traffic=backend_traffic.model_dump(),
                         audit_signals=audit_signals.model_dump(),
                         node_capacities=[item.model_dump() for item in node_capacities],
@@ -158,6 +218,7 @@ async def _generate_ai_reply(
             "top_k": settings.vllm_top_k,
             "min_p": settings.vllm_min_p,
             "repetition_penalty": settings.vllm_repetition_penalty,
+            "response_format": {"type": "json_object"},
         }
     )
 
@@ -168,8 +229,9 @@ async def _generate_ai_reply(
     prompt_tokens = int(usage.get("prompt_tokens") or 0)
     completion_tokens = int(usage.get("completion_tokens") or 0)
     total_tokens = int(usage.get("total_tokens") or (prompt_tokens + completion_tokens))
-    reply = _strip_think_tags(str(data["choices"][0]["message"]["content"] or ""))
-    metrics = AiMetrics(
+    content = _strip_think_tags(str(data["choices"][0]["message"]["content"] or ""))
+
+    return json.loads(content), AiMetrics(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         total_tokens=total_tokens,
@@ -179,7 +241,157 @@ async def _generate_ai_reply(
             2,
         ),
     )
-    return reply, metrics
+
+
+def _build_response_from_plan(
+    *,
+    plan: PlacementPlan,
+    current_status: list[MachineCurrentStatus],
+    ai_used: bool,
+    model: str | None = None,
+    warning: str | None = None,
+    ai_metrics: AiMetrics | None = None,
+    reply_override: str | None = None,
+) -> PlacementAdvisorResponse:
+    reasons = list(dict.fromkeys(plan.rationale + plan.warnings))
+    return PlacementAdvisorResponse(
+        reply=reply_override or _build_reply_from_plan(plan),
+        machines_to_open=_build_machine_recommendations(plan),
+        reasons=reasons,
+        current_status=current_status,
+        ai_used=ai_used,
+        model=model,
+        warning=warning,
+        ai_metrics=ai_metrics,
+    )
+
+
+def _build_ai_plan_from_decision(
+    *,
+    request: PlacementRequest,
+    node_capacities: list[NodeCapacity],
+    decision: dict[str, Any],
+    fallback_plan: PlacementPlan,
+) -> PlacementPlan | None:
+    raw_resource_type = str(
+        decision.get("effective_resource_type") or fallback_plan.effective_resource_type
+    ).lower()
+    if raw_resource_type not in {"lxc", "vm"}:
+        return None
+
+    effective_resource_type = cast(ResourceType, raw_resource_type)
+    effective_cpu = _effective_cpu_cores(request, effective_resource_type)
+    effective_memory = _effective_memory_bytes(request, effective_resource_type)
+    disk_bytes = request.disk_gb * GIB
+    capacity_map = {item.node: item for item in node_capacities}
+
+    raw_machines = decision.get("machines_to_open") or []
+    if not isinstance(raw_machines, list):
+        return None
+
+    placements: list[PlacementDecision] = []
+    machine_reasons: list[str] = []
+    total_instances = 0
+
+    for item in raw_machines:
+        if not isinstance(item, dict):
+            return None
+
+        node = str(item.get("node") or "").strip()
+        instance_count = _safe_int(item.get("instance_count"), minimum=0)
+        reason = str(item.get("reason") or "").strip()
+        if not node or instance_count <= 0:
+            continue
+
+        capacity = capacity_map.get(node)
+        if capacity is None:
+            return None
+
+        node_fit = _fit_count(
+            capacity,
+            cores=effective_cpu,
+            memory_bytes=effective_memory,
+            disk_bytes=disk_bytes,
+        )
+        if request.gpu_required > 0 and capacity.gpu_count < request.gpu_required:
+            return None
+        if instance_count > node_fit:
+            return None
+
+        total_instances += instance_count
+        if total_instances > request.instance_count:
+            return None
+
+        if reason:
+            machine_reasons.append(reason)
+
+        placements.append(
+            PlacementDecision(
+                node=node,
+                instance_count=instance_count,
+                cpu_cores_reserved=round(instance_count * effective_cpu, 2),
+                memory_bytes_reserved=instance_count * effective_memory,
+                disk_bytes_reserved=instance_count * disk_bytes,
+                remaining_cpu_cores=round(
+                    max(capacity.allocatable_cpu_cores - (instance_count * effective_cpu), 0.0),
+                    2,
+                ),
+                remaining_memory_bytes=max(
+                    capacity.allocatable_memory_bytes - (instance_count * effective_memory),
+                    0,
+                ),
+                remaining_disk_bytes=max(
+                    capacity.allocatable_disk_bytes - (instance_count * disk_bytes),
+                    0,
+                ),
+            )
+        )
+
+    if total_instances == 0 and fallback_plan.assigned_instances > 0:
+        return None
+
+    raw_reasons = decision.get("reasons") or []
+    reasons = [
+        str(item).strip()
+        for item in raw_reasons
+        if str(item).strip()
+    ] if isinstance(raw_reasons, list) else []
+    if not reasons:
+        reasons = machine_reasons or fallback_plan.rationale
+
+    warnings = list(fallback_plan.warnings)
+    remaining = max(request.instance_count - total_instances, 0)
+    if remaining > 0:
+        warnings.append(
+            f"AI 僅分配 {total_instances} / {request.instance_count} 台，剩餘需求改由容量限制保留。"
+        )
+
+    placements.sort(key=lambda item: (-item.instance_count, item.node))
+    summary = _build_summary_text(
+        request=request,
+        placement_decisions=placements,
+        effective_resource_type=effective_resource_type,
+        assigned=total_instances,
+        remaining=remaining,
+    )
+
+    return PlacementPlan(
+        feasible=remaining == 0,
+        requested_resource_type=request.resource_type,
+        effective_resource_type=effective_resource_type,
+        resource_type_reason=_resource_type_reason_from_choice(
+            request=request,
+            effective_resource_type=effective_resource_type,
+        ),
+        assigned_instances=total_instances,
+        unassigned_instances=remaining,
+        recommended_node=placements[0].node if placements else None,
+        summary=summary,
+        rationale=reasons,
+        warnings=warnings,
+        placements=placements,
+        candidate_nodes=node_capacities,
+    )
 
 
 def _strip_think_tags(text: str) -> str:
@@ -207,7 +419,7 @@ def _load_cluster_state() -> tuple[list[NodeSnapshot], list[ResourceSnapshot]]:
     nodes = [
         NodeSnapshot(
             node=str(item.get("node") or "unknown"),
-            status=str(item.get("status") or "unknown"),
+            status=str(item.get("status") or "unknown").lower(),
             cpu_ratio=float(item.get("cpu") or 0.0),
             maxcpu=int(item.get("maxcpu") or 0),
             mem_bytes=int(item.get("mem") or 0),
@@ -225,26 +437,19 @@ def _load_cluster_state() -> tuple[list[NodeSnapshot], list[ResourceSnapshot]]:
             name=str(item.get("name") or ""),
             resource_type=str(item.get("type") or "unknown"),
             node=str(item.get("node") or "unknown"),
-            status=str(item.get("status") or "unknown"),
-            cpu_ratio=float(item.get("cpu") or 0.0),
-            maxcpu=int(item.get("maxcpu") or 0),
-            mem_bytes=int(item.get("mem") or 0),
-            maxmem_bytes=int(item.get("maxmem") or 0),
-            disk_bytes=int(item.get("disk") or 0),
-            maxdisk_bytes=int(item.get("maxdisk") or 0),
-            uptime=_optional_int(item.get("uptime")),
+            status=str(item.get("status") or "unknown").lower(),
         )
         for item in proxmox_service.list_all_resources()
-        if item.get("template") != 1
+        if item.get("template") != 1 and str(item.get("type") or "") in {"lxc", "qemu", "vm"}
     ]
+
     _set_cached_cluster_state(nodes=nodes, resources=resources)
     return nodes, resources
 
 
-def _load_backend_traffic_snapshot(*, session: Session) -> BackendTrafficSnapshot:
+def _load_backend_traffic_snapshot(*, session: Session) -> _BackendTrafficSnapshot:
     now = datetime.now(timezone.utc)
     window_start = now - timedelta(minutes=settings.backend_traffic_window_minutes)
-
     recent_requests = list(
         session.exec(
             select(VMRequest)
@@ -253,14 +458,10 @@ def _load_backend_traffic_snapshot(*, session: Session) -> BackendTrafficSnapsho
         ).all()
     )
     pending_total = session.exec(
-        select(func.count())
-        .select_from(VMRequest)
-        .where(VMRequest.status == VMRequestStatus.pending)
+        select(func.count()).select_from(VMRequest).where(VMRequest.status == VMRequestStatus.pending)
     ).one()
     approved_total = session.exec(
-        select(func.count())
-        .select_from(VMRequest)
-        .where(VMRequest.status == VMRequestStatus.approved)
+        select(func.count()).select_from(VMRequest).where(VMRequest.status == VMRequestStatus.approved)
     ).one()
 
     submitted = 0
@@ -268,13 +469,17 @@ def _load_backend_traffic_snapshot(*, session: Session) -> BackendTrafficSnapsho
     requested_memory_mb = 0
     requested_disk_gb = 0
     for item in recent_requests:
-        if item.created_at and item.created_at >= window_start:
-            submitted += 1
+        created_at = item.created_at
+        if created_at is not None:
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            if created_at >= window_start:
+                submitted += 1
         requested_cpu += max(int(item.cores or 0), 0)
         requested_memory_mb += max(int(item.memory or 0), 0)
         requested_disk_gb += max(int(item.disk_size or item.rootfs_size or 0), 0)
 
-    return BackendTrafficSnapshot(
+    return _BackendTrafficSnapshot(
         sample_size=len(recent_requests),
         window_minutes=settings.backend_traffic_window_minutes,
         submitted_in_window=submitted,
@@ -286,7 +491,7 @@ def _load_backend_traffic_snapshot(*, session: Session) -> BackendTrafficSnapsho
     )
 
 
-def _load_audit_signal_snapshot(*, session: Session) -> AuditSignalSnapshot:
+def _load_audit_signal_snapshot(*, session: Session) -> _AuditSignalSnapshot:
     now = datetime.now(timezone.utc)
     window_start = now - timedelta(minutes=settings.audit_log_window_minutes)
     rows = list(
@@ -301,15 +506,13 @@ def _load_audit_signal_snapshot(*, session: Session) -> AuditSignalSnapshot:
         str(row.action.value if isinstance(row.action, AuditAction) else row.action)
         for row in rows
     )
-    return AuditSignalSnapshot(
+    return _AuditSignalSnapshot(
         sample_size=len(rows),
         window_minutes=settings.audit_log_window_minutes,
         recent_total=len(rows),
         create_events=counts["vm_create"] + counts["lxc_create"],
         start_events=counts["resource_start"],
-        stop_events=counts["resource_stop"]
-        + counts["resource_shutdown"]
-        + counts["resource_reset"],
+        stop_events=counts["resource_stop"] + counts["resource_shutdown"] + counts["resource_reset"],
         delete_events=counts["resource_delete"],
         review_events=counts["vm_request_review"],
     )
@@ -321,9 +524,7 @@ def _build_node_capacities(
     resources: list[ResourceSnapshot],
 ) -> list[NodeCapacity]:
     running_counter = Counter(
-        resource.node
-        for resource in resources
-        if str(resource.status).lower() == "running"
+        resource.node for resource in resources if resource.status == "running"
     )
     capacities: list[NodeCapacity] = []
     for node in nodes:
@@ -337,6 +538,7 @@ def _build_node_capacities(
         allocatable_memory = _safe_available_int(raw_available_memory, node.maxmem_bytes)
         allocatable_disk = _safe_available_int(raw_available_disk, node.maxdisk_bytes)
         guest_overloaded = guest_pressure_ratio >= settings.guest_pressure_threshold
+
         capacities.append(
             NodeCapacity(
                 node=node.node,
@@ -364,18 +566,21 @@ def _build_node_capacities(
                 allocatable_disk_bytes=allocatable_disk,
             )
         )
+
     return sorted(capacities, key=lambda item: item.node)
 
 
-def _build_placement_plan(
+def _build_rule_based_plan(
     *,
     request: PlacementRequest,
     node_capacities: list[NodeCapacity],
+    effective_resource_type: ResourceType,
+    resource_type_reason: str,
 ) -> PlacementPlan:
     working_nodes = [item.model_copy(deep=True) for item in node_capacities]
-    req_disk = request.disk_gb * GIB
-    effective_cpu = _effective_cpu_cores(request)
-    effective_memory = _effective_memory_bytes(request)
+    required_cpu = _effective_cpu_cores(request, effective_resource_type)
+    required_memory = _effective_memory_bytes(request, effective_resource_type)
+    required_disk = request.disk_gb * GIB
     placements: dict[str, int] = {item.node: 0 for item in working_nodes}
     remaining = request.instance_count
 
@@ -386,9 +591,9 @@ def _build_placement_plan(
             if item.candidate
             and _can_fit(
                 item,
-                cores=effective_cpu,
-                memory_bytes=effective_memory,
-                disk_bytes=req_disk,
+                cores=required_cpu,
+                memory_bytes=required_memory,
+                disk_bytes=required_disk,
                 gpu_required=request.gpu_required,
             )
         ]
@@ -398,23 +603,17 @@ def _build_placement_plan(
         chosen = _choose_node(
             nodes=candidates,
             placements=placements,
-            cores=effective_cpu,
-            memory_bytes=effective_memory,
-            disk_bytes=req_disk,
+            cores=required_cpu,
+            memory_bytes=required_memory,
+            disk_bytes=required_disk,
         )
         placements[chosen.node] += 1
-        chosen.allocatable_cpu_cores = max(
-            chosen.allocatable_cpu_cores - effective_cpu,
-            0.0,
-        )
+        chosen.allocatable_cpu_cores = max(chosen.allocatable_cpu_cores - required_cpu, 0.0)
         chosen.allocatable_memory_bytes = max(
-            chosen.allocatable_memory_bytes - effective_memory,
+            chosen.allocatable_memory_bytes - required_memory,
             0,
         )
-        chosen.allocatable_disk_bytes = max(
-            chosen.allocatable_disk_bytes - req_disk,
-            0,
-        )
+        chosen.allocatable_disk_bytes = max(chosen.allocatable_disk_bytes - required_disk, 0)
         chosen.running_resources += 1
         chosen.guest_pressure_ratio = _guest_pressure_ratio(
             chosen.running_resources,
@@ -437,9 +636,9 @@ def _build_placement_plan(
         PlacementDecision(
             node=item.node,
             instance_count=placements[item.node],
-            cpu_cores_reserved=round(placements[item.node] * effective_cpu, 2),
-            memory_bytes_reserved=placements[item.node] * effective_memory,
-            disk_bytes_reserved=placements[item.node] * req_disk,
+            cpu_cores_reserved=round(placements[item.node] * required_cpu, 2),
+            memory_bytes_reserved=placements[item.node] * required_memory,
+            disk_bytes_reserved=placements[item.node] * required_disk,
             remaining_cpu_cores=round(item.allocatable_cpu_cores, 2),
             remaining_memory_bytes=item.allocatable_memory_bytes,
             remaining_disk_bytes=item.allocatable_disk_bytes,
@@ -449,109 +648,104 @@ def _build_placement_plan(
     ]
     placement_decisions.sort(key=lambda item: (-item.instance_count, item.node))
 
-    recommended_node = placement_decisions[0].node if placement_decisions else None
-    warnings = _build_warnings(
-        node_capacities=node_capacities,
-        request=request,
-        remaining=remaining,
-    )
-    rationale = _build_rationale(
-        request=request,
-        placement_decisions=placement_decisions,
-        effective_cpu=effective_cpu,
-        effective_memory=effective_memory,
-        node_capacities=node_capacities,
-    )
-    summary = _build_summary_text(
-        request=request,
-        placement_decisions=placement_decisions,
-        assigned=assigned,
-        remaining=remaining,
-    )
-
     return PlacementPlan(
         feasible=remaining == 0,
+        requested_resource_type=request.resource_type,
+        effective_resource_type=effective_resource_type,
+        resource_type_reason=resource_type_reason,
         assigned_instances=assigned,
         unassigned_instances=remaining,
-        effective_cpu_cores_per_instance=round(effective_cpu, 2),
-        effective_memory_bytes_per_instance=effective_memory,
-        recommended_node=recommended_node,
-        summary=summary,
-        rationale=rationale,
-        warnings=warnings,
+        recommended_node=placement_decisions[0].node if placement_decisions else None,
+        summary=_build_summary_text(
+            request=request,
+            placement_decisions=placement_decisions,
+            effective_resource_type=effective_resource_type,
+            assigned=assigned,
+            remaining=remaining,
+        ),
+        rationale=_build_rationale(
+            request=request,
+            placement_decisions=placement_decisions,
+            effective_resource_type=effective_resource_type,
+            node_capacities=node_capacities,
+        ),
+        warnings=_build_warnings(
+            node_capacities=node_capacities,
+            request=request,
+            effective_resource_type=effective_resource_type,
+            remaining=remaining,
+        ),
         placements=placement_decisions,
-        candidate_nodes=working_nodes,
+        candidate_nodes=node_capacities,
     )
 
 
-def _build_fallback_reply(
-    *,
-    request: PlacementRequest,
-    placement: PlacementPlan,
-    backend_traffic: BackendTrafficSnapshot,
-    audit_signals: AuditSignalSnapshot,
-) -> str:
-    lines: list[str] = []
-    if placement.recommended_node:
-        if placement.feasible:
-            lines.append(
-                f"建議先把 {request.machine_name} 放在 {placement.recommended_node}。"
+def _build_machine_recommendations(plan: PlacementPlan) -> list[RecommendedMachine]:
+    machines: list[RecommendedMachine] = []
+    primary_reason = plan.rationale[0] if plan.rationale else plan.resource_type_reason
+    for item in plan.placements:
+        reason = next(
+            (entry for entry in plan.rationale if item.node in entry),
+            primary_reason,
+        )
+        machines.append(
+            RecommendedMachine(
+                node=item.node,
+                resource_type=plan.effective_resource_type,
+                instance_count=item.instance_count,
+                reason=reason,
             )
-        else:
-            lines.append(
-                f"目前最適合的節點是 {placement.recommended_node}，但只能先容納 {placement.assigned_instances} / {request.instance_count} 台。"
-            )
-    else:
-        lines.append(
-            f"目前找不到能安全放置 {request.machine_name} 的 PVE 節點。"
         )
+    return machines
 
-    if placement.placements:
-        lines.append(
-            "建議分配: "
-            + ", ".join(f"{item.node} x{item.instance_count}" for item in placement.placements)
-            + "。"
+
+def _build_current_status(node_capacities: list[NodeCapacity]) -> list[MachineCurrentStatus]:
+    return [
+        MachineCurrentStatus(
+            node=item.node,
+            status=item.status,
+            candidate=item.candidate,
+            running_resources=item.running_resources,
+            cpu_usage_ratio=round(item.cpu_ratio, 4),
+            memory_usage_ratio=round(item.memory_ratio, 4),
+            disk_usage_ratio=round(item.disk_ratio, 4),
+            allocatable_cpu_cores=round(item.allocatable_cpu_cores, 2),
+            allocatable_memory_gb=round(item.allocatable_memory_bytes / GIB, 2),
+            allocatable_disk_gb=round(item.allocatable_disk_bytes / GIB, 2),
+            gpu_count=item.gpu_count,
         )
+        for item in node_capacities
+    ]
 
-    if placement.rationale:
-        lines.append(f"主要原因: {placement.rationale[0]}")
 
-    signal_parts: list[str] = []
-    if backend_traffic.pending_total >= settings.backend_pending_high_threshold:
-        signal_parts.append(
-            f"後端目前有 {backend_traffic.pending_total} 筆待審核申請"
-        )
-    if audit_signals.recent_total >= settings.audit_log_burst_threshold:
-        signal_parts.append(
-            f"最近 {audit_signals.window_minutes} 分鐘內有 {audit_signals.recent_total} 筆操作紀錄"
-        )
-    if signal_parts:
-        lines.append("風險訊號: " + "，".join(signal_parts) + "。")
-
-    lines.append("這是建議結果，尚未執行實際開機、建立或分配動作。")
-    return " ".join(lines)
+def _build_reply_from_plan(plan: PlacementPlan) -> str:
+    if not plan.placements:
+        return plan.summary
+    distribution = ", ".join(f"{item.node} x{item.instance_count}" for item in plan.placements)
+    return f"{plan.summary} 建議開啟 {distribution}。"
 
 
 def _build_warnings(
     *,
     node_capacities: list[NodeCapacity],
     request: PlacementRequest,
+    effective_resource_type: ResourceType,
     remaining: int,
 ) -> list[str]:
     warnings: list[str] = []
     overloaded = [item.node for item in node_capacities if item.guest_overloaded]
     if overloaded:
-        warnings.append("Guest pressure is already high on: " + ", ".join(overloaded))
+        warnings.append(f"以下節點 guest 壓力偏高，已降低優先權：{', '.join(overloaded)}。")
     if request.gpu_required > 0 and not any(
         item.gpu_count >= request.gpu_required for item in node_capacities
     ):
+        warnings.append(f"目前沒有節點滿足每台至少 {request.gpu_required} 張 GPU 的需求。")
+    if request.resource_type != effective_resource_type:
         warnings.append(
-            f"No node currently exposes at least {request.gpu_required} GPU(s)."
+            f"原始需求為 {request.resource_type.upper()}，已改用 {effective_resource_type.upper()} 進行評估。"
         )
     if remaining > 0:
-        warnings.append(
-            f"Capacity is insufficient for {remaining} remaining instance(s)."
-        )
+        warnings.append(f"仍有 {remaining} 台尚未分配，表示目前叢集剩餘容量不足。")
     return warnings
 
 
@@ -559,30 +753,27 @@ def _build_rationale(
     *,
     request: PlacementRequest,
     placement_decisions: list[PlacementDecision],
-    effective_cpu: float,
-    effective_memory: int,
+    effective_resource_type: ResourceType,
     node_capacities: list[NodeCapacity],
 ) -> list[str]:
     capacity_map = {item.node: item for item in node_capacities}
-    reasons: list[str] = []
-    if request.estimated_users_per_instance > 0:
-        reasons.append(
-            (
-                f"依照每台約 {request.estimated_users_per_instance} 位使用者估算，"
-                f"單台需求以 {effective_cpu:.1f} vCPU / {effective_memory / GIB:.1f} GiB RAM 計算。"
-            )
+    reasons = [
+        _resource_type_summary(
+            requested_type=request.resource_type,
+            effective_type=effective_resource_type,
+            gpu_required=request.gpu_required,
         )
+    ]
     for item in placement_decisions:
         baseline = capacity_map.get(item.node)
         if baseline is None:
             continue
         reasons.append(
-            (
-                f"{item.node} 放入後仍保留約 {item.remaining_cpu_cores:.1f} vCPU、"
-                f"{item.remaining_memory_bytes / GIB:.1f} GiB RAM、"
-                f"{item.remaining_disk_bytes / GIB:.1f} GiB Disk，"
-                f"目前 guest 壓力 {baseline.guest_pressure_ratio:.2f}。"
-            )
+            f"節點 {item.node} 分配後仍保留 "
+            f"{item.remaining_cpu_cores:.2f} vCPU、"
+            f"{item.remaining_memory_bytes / GIB:.1f} GiB RAM、"
+            f"{item.remaining_disk_bytes / GIB:.1f} GiB Disk，"
+            f"目前狀態為 {baseline.status}。"
         )
     return reasons
 
@@ -591,22 +782,71 @@ def _build_summary_text(
     *,
     request: PlacementRequest,
     placement_decisions: list[PlacementDecision],
+    effective_resource_type: ResourceType,
     assigned: int,
     remaining: int,
 ) -> str:
+    request_label = _request_label(request)
     if not placement_decisions:
-        return (
-            f"{request.machine_name} 目前無法放置，沒有節點同時滿足 CPU、記憶體、磁碟與 GPU 條件。"
-        )
-    distribution = ", ".join(
-        f"{item.node} x{item.instance_count}" for item in placement_decisions
-    )
+        return f"{request_label} 目前找不到可承載的 PVE 節點。"
+
+    distribution = ", ".join(f"{item.node} x{item.instance_count}" for item in placement_decisions)
     if remaining == 0:
-        return f"{request.machine_name} 可完整放置，建議分配為 {distribution}。"
+        return (
+            f"{request_label} 可完整分配 {assigned} 台 "
+            f"{effective_resource_type.upper()}，建議節點分布為 {distribution}。"
+        )
     return (
-        f"{request.machine_name} 只能部分放置，目前可先分配 {assigned} / {request.instance_count} 台，"
-        f"建議分配為 {distribution}。"
+        f"{request_label} 目前只能分配 {assigned} / {request.instance_count} 台 "
+        f"{effective_resource_type.upper()}，暫定節點分布為 {distribution}。"
     )
+
+
+def _decide_resource_type(request: PlacementRequest) -> tuple[ResourceType, str]:
+    if request.resource_type == "lxc":
+        if request.gpu_required > 0:
+            return (
+                "vm",
+                "需求包含 GPU，為避免 LXC 對驅動與裝置直通的限制，改以 VM 評估。",
+            )
+        return (
+            "lxc",
+            "需求為 Linux 容器且未要求 GPU，優先以 LXC 評估以保留較高密度。",
+        )
+    return (
+        "vm",
+        "需求指定 VM，將以較完整隔離與作業系統相容性進行評估。",
+    )
+
+
+def _resource_type_summary(
+    *,
+    requested_type: ResourceType,
+    effective_type: ResourceType,
+    gpu_required: int,
+) -> str:
+    if requested_type != effective_type:
+        return (
+            f"原始需求為 {requested_type.upper()}，因 GPU 需求為 {gpu_required}，"
+            f"本次改以 {effective_type.upper()} 進行分配。"
+        )
+    if effective_type == "lxc":
+        return "本次以 LXC 評估，因為資源密度較高且符合一般 Linux 容器需求。"
+    return "本次以 VM 評估，因為隔離性與相容性較完整。"
+
+
+def _resource_type_reason_from_choice(
+    *,
+    request: PlacementRequest,
+    effective_resource_type: ResourceType,
+) -> str:
+    if request.resource_type == effective_resource_type:
+        return _decide_resource_type(request)[1]
+    return f"AI 改用 {effective_resource_type.upper()}，以符合整體相容性與容量條件。"
+
+
+def _request_label(request: PlacementRequest) -> str:
+    return f"{request.resource_type.upper()} 需求"
 
 
 def _get_cached_cluster_state() -> _ClusterCacheEntry | None:
@@ -626,6 +866,7 @@ def _set_cached_cluster_state(
 ) -> None:
     if settings.source_cache_ttl_seconds <= 0:
         return
+
     with _cluster_cache_lock:
         global _cluster_cache
         _cluster_cache = _ClusterCacheEntry(
@@ -646,19 +887,14 @@ def _choose_node(
     return max(
         nodes,
         key=lambda item: (
-            -placements[item.node],
-            _fit_count(
-                item,
-                cores=cores,
-                memory_bytes=memory_bytes,
-                disk_bytes=disk_bytes,
-            ),
+            _fit_count(item, cores=cores, memory_bytes=memory_bytes, disk_bytes=disk_bytes),
             _weighted_headroom_score(
                 item,
                 cores=cores,
                 memory_bytes=memory_bytes,
                 disk_bytes=disk_bytes,
             ),
+            -placements[item.node],
             -item.guest_pressure_ratio,
         ),
     )
@@ -672,9 +908,7 @@ def _fit_count(
     disk_bytes: int,
 ) -> int:
     cpu_fit = floor(node.allocatable_cpu_cores / float(cores)) if cores > 0 else 0
-    memory_fit = (
-        floor(node.allocatable_memory_bytes / memory_bytes) if memory_bytes > 0 else 0
-    )
+    memory_fit = floor(node.allocatable_memory_bytes / memory_bytes) if memory_bytes > 0 else 0
     disk_fit = floor(node.allocatable_disk_bytes / disk_bytes) if disk_bytes > 0 else 0
     guest_fit = max(node.guest_soft_limit - node.running_resources, 0)
     return max(min(cpu_fit, memory_fit, disk_fit, guest_fit), 0)
@@ -722,22 +956,16 @@ def _can_fit(
     )
 
 
-def _effective_cpu_cores(request: PlacementRequest) -> float:
-    requested = float(request.cores)
-    if request.estimated_users_per_instance <= 0:
-        return requested
-    user_driven_cpu = request.estimated_users_per_instance / settings.safe_users_per_cpu
-    return round(max(requested, user_driven_cpu), 2)
+def _effective_cpu_cores(request: PlacementRequest, resource_type: ResourceType) -> float:
+    requested = float(request.cpu_cores)
+    hypervisor_overhead = 0.25 if resource_type == "vm" else 0.0
+    return round(requested + hypervisor_overhead, 2)
 
 
-def _effective_memory_bytes(request: PlacementRequest) -> int:
-    requested = request.memory_mb * MIB
-    if request.estimated_users_per_instance <= 0:
-        return requested
-    user_driven_memory_mb = ceil(
-        (request.estimated_users_per_instance / settings.safe_users_per_gib) * 1024
-    )
-    return max(requested, user_driven_memory_mb * MIB)
+def _effective_memory_bytes(request: PlacementRequest, resource_type: ResourceType) -> int:
+    base = request.memory_mb * MIB
+    hypervisor_overhead = 256 * MIB if resource_type == "vm" else 0
+    return base + hypervisor_overhead
 
 
 def _guest_soft_limit(maxcpu: int) -> int:
@@ -774,6 +1002,14 @@ def _ratio(used: int, total: int) -> float:
     if total <= 0:
         return 0.0
     return max(float(used) / float(total), 0.0)
+
+
+def _safe_int(value: object, *, minimum: int = 0) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = minimum
+    return max(parsed, minimum)
 
 
 def _optional_int(value: object) -> int | None:

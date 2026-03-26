@@ -5,8 +5,7 @@ from fastapi import APIRouter, HTTPException
 from app.ai.pve_advisor.config import settings
 from app.ai.pve_advisor.recommendation_service import generate_recommendation
 from app.ai.pve_advisor.schemas import PlacementAdvisorResponse, PlacementRequest
-from app.api.deps import CurrentUser, SessionDep
-
+from app.api.deps import SessionDep
 
 router = APIRouter(
     prefix="/ai/pve-advisor",
@@ -18,9 +17,7 @@ router = APIRouter(
 async def recommend_placement(
     request: PlacementRequest,
     session: SessionDep,
-    current_user: CurrentUser,
 ) -> PlacementAdvisorResponse:
-    del current_user
     if not settings.enabled:
         raise HTTPException(status_code=503, detail="PVE advisor is disabled.")
     return await generate_recommendation(session=session, request=request)

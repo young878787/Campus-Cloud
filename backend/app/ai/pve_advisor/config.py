@@ -6,7 +6,6 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
 ENV_FILE = BACKEND_ROOT / ".env.ai.pve_advisor"
 
