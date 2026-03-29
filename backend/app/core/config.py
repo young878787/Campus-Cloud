@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER: EmailStr
     FIRST_SUPERUSER_PASSWORD: str
 
+    GOOGLE_CLIENT_ID: str | None = None
+
     PROXMOX_HOST: str = "localhost"
     PROXMOX_USER: str = ""
     PROXMOX_PASSWORD: str = ""
