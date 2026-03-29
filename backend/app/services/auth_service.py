@@ -45,7 +45,14 @@ def google_login(*, session: Session, id_token: str) -> Token:
     data = r.json()
     if settings.GOOGLE_CLIENT_ID and data.get("aud") != settings.GOOGLE_CLIENT_ID:
         raise BadRequestError("Invalid Google token audience")
-    if not data.get("email_verified"):
+    email_verified_raw = data.get("email_verified")
+    if isinstance(email_verified_raw, bool):
+        email_verified = email_verified_raw
+    elif isinstance(email_verified_raw, str):
+        email_verified = email_verified_raw.lower() == "true"
+    else:
+        email_verified = False
+    if not email_verified:
         raise BadRequestError("Google email not verified")
     email = data.get("email")
     if not email:
