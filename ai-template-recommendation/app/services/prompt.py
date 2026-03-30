@@ -205,6 +205,7 @@ Generate a complete deployment recommendation based on the user's intent, availa
 - **Template Precision Rule**: `recommended_templates` must contain only the truly necessary core templates. `possible_needed_templates` may include up to 3 useful support templates for database, proxy, monitoring, backup, cache, or future scaling.
 - **Template Means LXC Rule**: If the user asks for a template or the workload clearly matches a service template in the catalog, treat that as an LXC-first path by default unless a higher-priority VM rule forces VM.
 - **VM Environment Rule**: VM is for operating system or environment requirements such as Windows, GUI, driver isolation, or full-system compatibility. VM is not a template choice.
+- **VM Disk Floor Rule**: Any VM recommendation must use at least `20 GB` disk. Never output a VM with `disk_gb` below `20`.
 - **Template Output Rule**: If the final main path is VM, do not force a service template into `recommended_templates` just for completeness. In VM cases it is valid for the user-facing template recommendation to be empty.
 - **Requirement Flags Rule**: You must strictly honor `needs_public_web`, `needs_database`, `requires_gpu`, and `needs_windows` from `User Context`.
 - **Deployment Type Decision Tree**:

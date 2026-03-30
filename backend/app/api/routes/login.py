@@ -3,6 +3,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.schemas import Message, NewPassword, Token, UserPublic
@@ -18,6 +19,15 @@ def login_access_token(
     return auth_service.login(
         session=session, email=form_data.username, password=form_data.password
     )
+
+
+class GoogleLoginRequest(BaseModel):
+    id_token: str
+
+
+@router.post("/login/google")
+def login_google(session: SessionDep, body: GoogleLoginRequest) -> Token:
+    return auth_service.google_login(session=session, id_token=body.id_token)
 
 
 @router.post("/login/test-token", response_model=UserPublic)

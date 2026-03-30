@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Request
 
 from app.main_state import catalog
@@ -26,11 +28,13 @@ async def chat(request: ChatRequest):
 @router.post("/recommend")
 @router.post("/api/v1/recommend")
 async def recommend(request: ChatRequest, http_request: Request):
-    payload = await fetch_backend_node_payload(http_request.headers.get("Authorization"))
+    auth_header = http_request.headers.get("Authorization")
+    payload, resource_options, extracted_intent = await asyncio.gather(
+        fetch_backend_node_payload(auth_header),
+        fetch_resource_options(auth_header),
+        extract_intent_from_chat(request),
+    )
     live_nodes = normalize_node_payload(payload)
-    resource_options = await fetch_resource_options(http_request.headers.get("Authorization"))
-    
-    extracted_intent = await extract_intent_from_chat(request)
     
     merged_request = RecommendationRequest(
         goal=extracted_intent.goal_summary,

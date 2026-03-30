@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import httpx
 from sqlmodel import Session
 
 from app.core import security
@@ -19,6 +20,46 @@ def login(*, session: Session, email: str, password: str) -> Token:
     user = user_repo.authenticate(session=session, email=email, password=password)
     if not user:
         raise BadRequestError("Incorrect email or password")
+    if not user.is_active:
+        raise BadRequestError("Inactive user")
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    return Token(
+        access_token=security.create_access_token(
+            user.id, expires_delta=access_token_expires
+        )
+    )
+
+
+def google_login(*, session: Session, id_token: str) -> Token:
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            r = client.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"id_token": id_token},
+            )
+    except httpx.RequestError as exc:
+        # Ensure network/timeout issues become deterministic application errors
+        raise BadRequestError("Unable to verify Google token") from exc
+    if r.status_code != 200:
+        raise BadRequestError("Invalid Google token")
+    data = r.json()
+    if settings.GOOGLE_CLIENT_ID and data.get("aud") != settings.GOOGLE_CLIENT_ID:
+        raise BadRequestError("Invalid Google token audience")
+    email_verified_raw = data.get("email_verified")
+    if isinstance(email_verified_raw, bool):
+        email_verified = email_verified_raw
+    elif isinstance(email_verified_raw, str):
+        email_verified = email_verified_raw.lower() == "true"
+    else:
+        email_verified = False
+    if not email_verified:
+        raise BadRequestError("Google email not verified")
+    email = data.get("email")
+    if not email:
+        raise BadRequestError("Could not retrieve email from Google token")
+    user = user_repo.get_user_by_email(session=session, email=email)
+    if not user:
+        raise BadRequestError("Invalid Google token")
     if not user.is_active:
         raise BadRequestError("Inactive user")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)

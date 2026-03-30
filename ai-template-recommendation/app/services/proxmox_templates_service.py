@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import httpx
@@ -45,13 +46,13 @@ async def _get_auth_cookie() -> str:
     return ticket
 
 
-async def _get_json(path: str) -> Any:
-    ticket = await _get_auth_cookie()
+async def _get_json(path: str, *, ticket: str | None = None) -> Any:
+    auth_ticket = ticket or await _get_auth_cookie()
     try:
         async with httpx.AsyncClient(
             verify=settings.proxmox_verify_ssl,
             timeout=settings.proxmox_api_timeout,
-            cookies={"PVEAuthCookie": ticket},
+            cookies={"PVEAuthCookie": auth_ticket},
         ) as client:
             response = await client.get(f"{_proxmox_base_url()}{path}")
     except Exception as exc:
@@ -63,9 +64,10 @@ async def _get_json(path: str) -> Any:
     return response.json()
 
 
-async def fetch_lxc_templates() -> list[dict[str, Any]]:
+async def fetch_lxc_templates(*, ticket: str | None = None) -> list[dict[str, Any]]:
     payload = await _get_json(
-        f"/api2/json/nodes/{settings.proxmox_node}/storage/{settings.proxmox_iso_storage}/content"
+        f"/api2/json/nodes/{settings.proxmox_node}/storage/{settings.proxmox_iso_storage}/content",
+        ticket=ticket,
     )
     raw_items = list((payload.get("data") or []))
     return [
@@ -79,8 +81,8 @@ async def fetch_lxc_templates() -> list[dict[str, Any]]:
     ]
 
 
-async def fetch_vm_templates() -> list[dict[str, Any]]:
-    payload = await _get_json("/api2/json/cluster/resources?type=vm")
+async def fetch_vm_templates(*, ticket: str | None = None) -> list[dict[str, Any]]:
+    payload = await _get_json("/api2/json/cluster/resources?type=vm", ticket=ticket)
     raw_items = list((payload.get("data") or []))
     return [
         {
@@ -91,3 +93,11 @@ async def fetch_vm_templates() -> list[dict[str, Any]]:
         for item in raw_items
         if item.get("template") == 1 and item.get("vmid")
     ]
+
+
+async def fetch_all_templates() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    ticket = await _get_auth_cookie()
+    return await asyncio.gather(
+        fetch_lxc_templates(ticket=ticket),
+        fetch_vm_templates(ticket=ticket),
+    )

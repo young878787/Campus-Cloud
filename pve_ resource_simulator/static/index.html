@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PVE Resource Simulator</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <p class="eyebrow">PVE Resource Simulator</p>
+        <h1>用日曆時段觀察 PVE 一天內的 VM 預約與分配</h1>
+        <p class="hero-copy">每台 VM 只能設定一段連續的預約時段，例如 09:00-12:00。新增後會自動模擬，右側可切換 hour 看當下有哪些預約生效，以及它們被放到哪台 PVE。</p>
+      </header>
+
+      <section class="layout">
+        <section class="controls">
+          <div class="section-head">
+            <div>
+              <p class="section-kicker">Add VM</p>
+              <h2>新增預約 VM</h2>
+            </div>
+            <button id="reset-all" class="button subtle" type="button">重設</button>
+          </div>
+
+          <form id="vm-form" class="vm-form">
+            <label>
+              <span>名稱</span>
+              <input id="vm-name" type="text" placeholder="例如 vm-101" />
+            </label>
+            <label>
+              <span>CPU</span>
+              <input id="vm-cpu" type="number" min="0.5" step="0.5" value="2" />
+            </label>
+            <label>
+              <span>RAM GB</span>
+              <input id="vm-ram" type="number" min="0.5" step="0.5" value="4" />
+            </label>
+            <label>
+              <span>Disk GB</span>
+              <input id="vm-disk" type="number" min="1" step="1" value="40" />
+            </label>
+
+            <section class="slot-picker">
+              <div class="slot-head">
+                <p class="field-title">預約時段</p>
+                <p id="slot-summary" class="helper-text"></p>
+              </div>
+              <div class="range-picker">
+                <label class="range-field">
+                  <span>開始</span>
+                  <select id="vm-start-hour"></select>
+                </label>
+                <label class="range-field">
+                  <span>結束</span>
+                  <select id="vm-end-hour"></select>
+                </label>
+              </div>
+            </section>
+
+            <div class="form-actions">
+              <button class="button primary" type="submit">新增 VM</button>
+            </div>
+          </form>
+
+          <p id="error-banner" class="error-banner" hidden></p>
+
+          <div class="section-head compact">
+            <div>
+              <p class="section-kicker">Reservations</p>
+              <h2>今日預約 VM</h2>
+            </div>
+            <p id="vm-count" class="count-label">0 台</p>
+          </div>
+
+          <div id="vm-list" class="vm-list"></div>
+        </section>
+
+        <section class="results">
+          <div class="section-head compact">
+            <div>
+              <p class="section-kicker">Day View</p>
+              <h2>日曆與 PVE 配置</h2>
+            </div>
+          </div>
+
+          <div id="day-calendar" class="day-calendar"></div>
+
+          <div class="timeline">
+            <div class="timeline-top">
+              <p id="hour-summary" class="hour-summary"></p>
+              <input id="step-slider" type="range" min="0" max="0" step="1" value="0" />
+            </div>
+            <div class="timeline-meta">
+              <p id="step-label">先新增 VM 預約</p>
+              <p id="step-caption">右側會依 hour 顯示當下哪些預約生效，以及每台 PVE 的分配結果。</p>
+            </div>
+          </div>
+
+          <div id="server-board" class="server-board"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

@@ -4,7 +4,7 @@ import {
   Link as RouterLink,
   redirect,
 } from "@tanstack/react-router"
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
@@ -24,6 +24,25 @@ import { LoadingButton } from "@/components/ui/loading-button"
 import { PasswordInput } from "@/components/ui/password-input"
 import useAuth, { isLoggedIn } from "@/hooks/useAuth"
 
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string
+            callback: (response: { credential: string }) => void
+          }) => void
+          renderButton: (
+            element: HTMLElement,
+            options: Record<string, unknown>,
+          ) => void
+        }
+      }
+    }
+  }
+}
+
 export const Route = createFileRoute("/login")({
   component: Login,
   beforeLoad: async () => {
@@ -42,9 +61,45 @@ export const Route = createFileRoute("/login")({
   }),
 })
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
+
 function Login() {
-  const { loginMutation } = useAuth()
+  const { loginMutation, googleLoginMutation } = useAuth()
   const { t } = useTranslation(["auth", "validation"])
+  const googleButtonRef = useRef<HTMLDivElement>(null)
+  const mutationRef = useRef(googleLoginMutation)
+  mutationRef.current = googleLoginMutation
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return
+
+    const init = () => {
+      if (!window.google || !googleButtonRef.current) return
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: ({ credential }) => {
+          mutationRef.current.mutate(credential)
+        },
+      })
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        type: "standard",
+        theme: "outline",
+        size: "large",
+        width: googleButtonRef.current.offsetWidth || 400,
+        logo_alignment: "center",
+      })
+    }
+
+    if (window.google) {
+      init()
+    } else {
+      const script = document.querySelector(
+        'script[src*="accounts.google.com/gsi/client"]',
+      )
+      script?.addEventListener("load", init)
+      return () => script?.removeEventListener("load", init)
+    }
+  }, [])
 
   const formSchema = useMemo(
     () =>
@@ -138,6 +193,17 @@ function Login() {
               {t("auth:login.submitButton")}
             </LoadingButton>
           </div>
+
+          {GOOGLE_CLIENT_ID && (
+            <>
+              <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
+                <span className="relative z-10 bg-background px-2 text-muted-foreground">
+                  {t("auth:login.orContinueWith")}
+                </span>
+              </div>
+              <div ref={googleButtonRef} className="flex justify-center" />
+            </>
+          )}
 
           <div className="text-center text-sm">
             {t("auth:login.noAccount")}{" "}

@@ -33,6 +33,9 @@ from app.services.prompt import (
     build_intent_extraction_prompt,
 )
 
+MIN_LXC_DISK_GB = 10
+MIN_VM_DISK_GB = 20
+
 
 def _extract_user_signal_flags(messages: list[ChatMessage]) -> dict[str, bool]:
     user_text = "\n".join(
@@ -567,17 +570,24 @@ def _normalize_machine(
     default_resources = dict((install_methods[0].get("resources") or {})) if install_methods else {}
     default_cpu = _safe_int(default_resources.get("cpu"), 1)
     default_ram_mb = _safe_int(default_resources.get("ram"), 1024)
-    default_disk_gb = _safe_int(default_resources.get("hdd"), 10)
+    default_disk_gb = _safe_int(default_resources.get("hdd"), MIN_LXC_DISK_GB)
 
     cpu_value = machine.get("cpu")
     memory_value = machine.get("memory_mb")
     disk_value = machine.get("disk_gb")
     gpu_value = machine.get("gpu")
+    ai_deployment_type = str(machine.get("deployment_type") or "").strip().lower()
+    requested_gpu = max(_safe_int(gpu_value, 1 if request_requires_gpu else 0), 0)
+    if request_needs_windows or requested_gpu >= 1:
+        deployment_type = "vm"
+    else:
+        deployment_type = "vm" if ai_deployment_type == "vm" else "lxc"
+    min_disk_gb = MIN_VM_DISK_GB if deployment_type == "vm" else 2
 
     # Allow AI to decide CPU/RAM/Disk, using 1/256/2 as absolute minimums, relying on default if missing.
     cpu = max(_safe_int(cpu_value, default_cpu), 1)
     memory_mb = max(_safe_int(memory_value, default_ram_mb), 256)
-    disk_gb = max(_safe_int(disk_value, default_disk_gb), 2)
+    disk_gb = max(_safe_int(disk_value, max(default_disk_gb, min_disk_gb)), min_disk_gb)
 
     # Let AI decide GPU natively based on its system prompt judgment.
     # Default fallback to 1 only if user globally checked requires_gpu and AI omitted the key.
@@ -588,11 +598,10 @@ def _normalize_machine(
         gpu = fallback_gpu
 
     ai_deployment_type = str(machine.get("deployment_type") or "").strip().lower()
-    complex_vm_keywords = {"comfy", "ollama", "llm", "stable", "pytorch", "jupyter"}
-    gui_vm_keywords = {"windows", "desktop", "gui", "ubuntu-desktop"}
+    requested_windows = request_needs_windows
     
-    # 強制防呆：只要有配置 GPU、屬於已知複雜 AI 服務或明確為 GUI 系統，一律轉為 VM
-    if gpu >= 1 or any(kw in template.slug.lower() for kw in complex_vm_keywords | gui_vm_keywords):
+    # Keep explicit Windows/GPU requests on VM; otherwise trust the model's deployment type.
+    if requested_windows or gpu >= 1:
         deployment_type = "vm"
     else:
         deployment_type = "vm" if ai_deployment_type == "vm" else "lxc"
@@ -743,7 +752,12 @@ def _build_form_prefill(
 
     cores = _safe_int_like(raw.get("cores") or primary_machine.get("cpu"), default=2, minimum=2)
     memory_mb = _safe_int_like(raw.get("memory_mb") or primary_machine.get("memory_mb"), default=2048, minimum=2048)
-    disk_gb = _safe_int_like(raw.get("disk_gb") or primary_machine.get("disk_gb"), default=10, minimum=10)
+    disk_default = MIN_VM_DISK_GB if resource_type == "vm" else MIN_LXC_DISK_GB
+    disk_gb = _safe_int_like(
+        raw.get("disk_gb") or primary_machine.get("disk_gb"),
+        default=disk_default,
+        minimum=disk_default,
+    )
     vm_template_id = _safe_int_like(raw.get("vm_template_id"), default=0, minimum=0)
     vm_os_choice = str(raw.get("vm_os_choice") or raw.get("os_environment") or "").strip()
     if vm_template_id and not vm_os_choice:

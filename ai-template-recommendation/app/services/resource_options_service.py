@@ -1,35 +1,37 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
+from time import perf_counter
 from typing import Any
 
-from app.services.proxmox_templates_service import fetch_lxc_templates, fetch_vm_templates
+from app.services.proxmox_templates_service import fetch_all_templates
+
+RESOURCE_OPTIONS_CACHE_TTL_SECONDS = 30.0
+_resource_options_cache: dict[str, list[dict[str, Any]]] | None = None
+_resource_options_cache_expires_at = 0.0
+_resource_options_cache_lock: asyncio.Lock | None = None
 
 
-def _derive_lxc_label(volid: str) -> str:
-    filename = volid.split("/")[-1] if volid else ""
-    return filename.replace(".tar.zst", "") or volid
+def _empty_resource_options() -> dict[str, list[dict[str, Any]]]:
+    return {"lxc_os_images": [], "vm_operating_systems": []}
 
 
-def _derive_vm_os_family(name: str) -> str:
-    normalized = name.lower()
-    if "windows" in normalized:
-        return "windows"
-    for distro in ("ubuntu", "debian", "rocky", "alma", "centos", "fedora", "arch", "kali", "linux"):
-        if distro in normalized:
-            return distro
-    return "other"
+def _get_resource_options_cache_lock() -> asyncio.Lock:
+    global _resource_options_cache_lock
+    if _resource_options_cache_lock is None:
+        _resource_options_cache_lock = asyncio.Lock()
+    return _resource_options_cache_lock
 
 
-async def fetch_resource_options(auth_header: str | None = None) -> dict[str, list[dict[str, Any]]]:
-    try:
-        lxc_raw, vm_raw = await asyncio.gather(
-            fetch_lxc_templates(),
-            fetch_vm_templates(),
-        )
-    except Exception:
-        return {"lxc_os_images": [], "vm_operating_systems": []}
+def _cache_is_fresh(now: float) -> bool:
+    return _resource_options_cache is not None and now < _resource_options_cache_expires_at
 
+
+def _build_resource_options(
+    lxc_raw: list[dict[str, Any]],
+    vm_raw: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     return {
         "lxc_os_images": [
             {
@@ -53,3 +55,42 @@ async def fetch_resource_options(auth_header: str | None = None) -> dict[str, li
             if item.get("vmid")
         ],
     }
+
+
+def _derive_lxc_label(volid: str) -> str:
+    filename = volid.split("/")[-1] if volid else ""
+    return filename.replace(".tar.zst", "") or volid
+
+
+def _derive_vm_os_family(name: str) -> str:
+    normalized = name.lower()
+    if "windows" in normalized:
+        return "windows"
+    for distro in ("ubuntu", "debian", "rocky", "alma", "centos", "fedora", "arch", "kali", "linux"):
+        if distro in normalized:
+            return distro
+    return "other"
+
+
+async def fetch_resource_options(auth_header: str | None = None) -> dict[str, list[dict[str, Any]]]:
+    global _resource_options_cache, _resource_options_cache_expires_at
+    del auth_header
+    now = perf_counter()
+    if _cache_is_fresh(now):
+        return deepcopy(_resource_options_cache)
+
+    cache_lock = _get_resource_options_cache_lock()
+    async with cache_lock:
+        now = perf_counter()
+        if _cache_is_fresh(now):
+            return deepcopy(_resource_options_cache)
+
+        try:
+            lxc_raw, vm_raw = await fetch_all_templates()
+            resource_options = _build_resource_options(lxc_raw, vm_raw)
+        except Exception:
+            resource_options = _empty_resource_options()
+
+        _resource_options_cache = resource_options
+        _resource_options_cache_expires_at = perf_counter() + RESOURCE_OPTIONS_CACHE_TTL_SECONDS
+        return deepcopy(resource_options)

@@ -53,6 +53,29 @@ const useAuth = () => {
     onError: handleError.bind(showErrorToast),
   })
 
+  const googleLogin = async (idToken: string) => {
+    const apiBase = import.meta.env.VITE_API_URL ?? ""
+    const response = await fetch(`${apiBase}/api/v1/login/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id_token: idToken }),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.detail ?? "Google login failed")
+    }
+    const data = await response.json()
+    localStorage.setItem("access_token", data.access_token)
+  }
+
+  const googleLoginMutation = useMutation({
+    mutationFn: googleLogin,
+    onSuccess: () => {
+      navigate({ to: "/" })
+    },
+    onError: handleError.bind(showErrorToast),
+  })
+
   const logout = () => {
     localStorage.removeItem("access_token")
     navigate({ to: "/login" })
@@ -61,6 +84,7 @@ const useAuth = () => {
   return {
     signUpMutation,
     loginMutation,
+    googleLoginMutation,
     logout,
     user,
   }
