@@ -1,4 +1,4 @@
-.vscode/*
+*.vscode/
 !.vscode/extensions.json
 node_modules/
 /test-results/
@@ -20,9 +20,12 @@ __pycache__/
 *benchmark_results/
 *.egg-info/
 *build/
+*.gemini/
 *.github/
 *.agents/
 *.agent
 *test_datasets/
 *webapp/frontend/node_modules
 .idea
+*tiktoken_encodings/
+*AImodels/

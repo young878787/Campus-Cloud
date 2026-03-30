@@ -1,0 +1,68 @@
+/home/hmr0836/young/vllm-inference/.venv/lib/python3.12/site-packages/torch/cuda/__init__.py:435: UserWarning: 
+    Found GPU0 NVIDIA GB10 which is of cuda capability 12.1.
+    Minimum and Maximum cuda capability supported by this version of PyTorch is
+    (8.0) - (12.0)
+    
+  queued_call()
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/hmr0836/young/vllm-inference/.venv/lib/python3.12/site-packages/vllm/entrypoints/openai/api_server.py", line 25, in <module>
+    from vllm.config import VllmConfig
+  File "/home/hmr0836/young/vllm-inference/.venv/lib/python3.12/site-packages/vllm/config/__init__.py", line 19, in <module>
+    from vllm.config.model import (
+  File "/home/hmr0836/young/vllm-inference/.venv/lib/python3.12/site-packages/vllm/config/model.py", line 24, in <module>
+    from vllm.transformers_utils.config import (
+  File "/home/hmr0836/young/vllm-inference/.venv/lib/python3.12/site-packages/vllm/transformers_utils/config.py", line 18, in <module>
+    from transformers import GenerationConfig, PretrainedConfig
+  File "/home/hmr0836/young/vllm-inference/.venv/lib/python3.12/site-packages/transformers/__init__.py", line 27, in <module>
+    from . import dependency_versions_check
+  File "/home/hmr0836/young/vllm-inference/.venv/lib/python3.12/site-packages/transformers/dependency_versions_check.py", line 57, in <module>
+    require_version_core(deps[pkg])
+  File "/home/hmr0836/young/vllm-inference/.venv/lib/python3.12/site-packages/transformers/utils/versions.py", line 117, in require_version_core
+    return require_version(requirement, hint)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hmr0836/young/vllm-inference/.venv/lib/python3.12/site-packages/transformers/utils/versions.py", line 111, in require_version
+    _compare_versions(op, got_ver, want_ver, requirement, pkg, hint)
+  File "/home/hmr0836/young/vllm-inference/.venv/lib/python3.12/site-packages/transformers/utils/versions.py", line 44, in _compare_versions
+    raise ImportError(
+ImportError: huggingface-hub>=0.34.0,<1.0 is required for a normal functioning of this module, but found huggingface-hub==1.8.0.
+Try: `pip install transformers -U` or `pip install -e '.[dev]'` if you're working with git main
+15:06:34 [ERROR] [Cluster] 模型 qwen-9b 啟動失敗，開始回滾停止已啟動實例
+15:06:34 [ERROR] [ClusterLauncher] 集群啟動失敗: [Engine] vLLM 程序異常退出
+  退出碼: 1
+  已耗時: 2.0s
+  提示: 檢查 GPU 記憶體、CUDA 版本、模型路徑
+  最後錯誤: 連接錯誤: [Errno 111] Connection refused
+
+============================================================
+  啟動前檢查
+============================================================
+
+15:06:30 [SUCCESS] [PreCheck:qwen-9b] 檢測到 1 個 GPU
+15:06:30 [INFO] [PreCheck:qwen-9b] GPU 0: 119.7 GB 可用 / 119.7 GB 總計
+15:06:30 [SUCCESS] [PreCheck:qwen-9b] 系統記憶體充足: 113.6 GB 可用
+15:06:30 [SUCCESS] [PreCheck:qwen-9b] 模型已存在: /home/hmr0836/young/vllm-inference/AImodels/Qwen3.5-9B
+
+============================================================
+  啟動前檢查
+============================================================
+
+15:06:31 [SUCCESS] [PreCheck:nemotron-30b] 檢測到 1 個 GPU
+15:06:31 [INFO] [PreCheck:nemotron-30b] GPU 0: 119.7 GB 可用 / 119.7 GB 總計
+15:06:31 [SUCCESS] [PreCheck:nemotron-30b] 系統記憶體充足: 113.4 GB 可用
+15:06:31 [SUCCESS] [PreCheck:nemotron-30b] 模型已存在: /home/hmr0836/young/vllm-inference/AImodels/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4
+
+============================================================
+  啟動前檢查
+============================================================
+
+15:06:32 [SUCCESS] [PreCheck:gemma-27b] 檢測到 1 個 GPU
+15:06:32 [INFO] [PreCheck:gemma-27b] GPU 0: 119.7 GB 可用 / 119.7 GB 總計
+15:06:32 [SUCCESS] [PreCheck:gemma-27b] 系統記憶體充足: 113.4 GB 可用
+15:06:32 [SUCCESS] [PreCheck:gemma-27b] 模型已存在: /home/hmr0836/young/vllm-inference/AImodels/gemma-3-27b-it
+15:06:32 [INFO] [Cluster] 啟動模型 qwen-9b: ./AImodels/Qwen3.5-9B (127.0.0.1:8101)
+[Engine] 啟動指令: /home/hmr0836/young/vllm-inference/.venv/bin/python -m vllm.entrypoints.openai.api_server --model /home/hmr0836/young/vllm-inference/AImodels/Qwen3.5-9B --host 127.0.0.1 --port 8101 --dtype auto --max-model-len 32768 --gpu-memory-utilization 0.24 --max-num-seqs 48 --max-num-batched-tokens 65536 --tensor-parallel-size 1 --api-key Rushia_Secret_Key_Change_Me --trust-remote-code --enable-prefix-caching --allowed-local-media-path / --enable-auto-tool-choice --tool-call-parser qwen3_coder
+[Engine] 模型路徑: /home/hmr0836/young/vllm-inference/AImodels/Qwen3.5-9B
+[Engine] 監聽地址: http://127.0.0.1:8101
+[Engine] 等待伺服器就緒 (逾時: 900s)...
