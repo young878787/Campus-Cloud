@@ -42,11 +42,11 @@ class ServerInput(BaseModel):
     memory_used_gb: float = Field(default=0.0, ge=0.0)
     disk_used_gb: float = Field(default=0.0, ge=0.0)
     gpu_used: float = Field(default=0.0, ge=0.0)
+    current_loadavg_1: float | None = Field(default=None, ge=0.0)
+    average_loadavg_1: float | None = Field(default=None, ge=0.0)
 
     @model_validator(mode="after")
     def validate_usage(self) -> "ServerInput":
-        if self.cpu_used > self.cpu_cores:
-            raise ValueError("cpu_used cannot exceed cpu_cores")
         if self.memory_used_gb > self.memory_gb:
             raise ValueError("memory_used_gb cannot exceed memory_gb")
         if self.disk_used_gb > self.disk_gb:
@@ -82,9 +82,24 @@ class VMTemplate(BaseModel):
         return self
 
 
+class HistoricalProfile(BaseModel):
+    type_label: str
+    configured_cpu_cores: float | None = Field(default=None, ge=0.0)
+    configured_memory_gb: float | None = Field(default=None, ge=0.0)
+    guest_count: int = Field(default=0, ge=0)
+    average_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    average_memory_ratio: float | None = Field(default=None, ge=0.0)
+    trend_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    trend_memory_ratio: float | None = Field(default=None, ge=0.0)
+    peak_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    peak_memory_ratio: float | None = Field(default=None, ge=0.0)
+    hourly: list["HourlyUsagePoint"] = Field(default_factory=list)
+
+
 class SimulationRequest(BaseModel):
     servers: list[ServerInput] = Field(min_length=1, max_length=64)
     vm_templates: list[VMTemplate] = Field(default_factory=list, max_length=128)
+    historical_profiles: list[HistoricalProfile] = Field(default_factory=list)
     selected_vm_template_id: str | None = None
     allow_rebalance: bool = True
     max_steps: int = Field(default=200, ge=1, le=2000)
@@ -100,6 +115,8 @@ class ServerSnapshot(BaseModel):
     dominant_share: float = Field(default=0.0, ge=0.0)
     average_share: float = Field(default=0.0, ge=0.0)
     placement_count: int = Field(default=0, ge=0)
+    current_loadavg_1: float | None = Field(default=None, ge=0.0)
+    average_loadavg_1: float | None = Field(default=None, ge=0.0)
     placed_vms: list[str] = Field(default_factory=list)
     vm_stack: list[VmStackItem] = Field(default_factory=list)
 
@@ -114,6 +131,25 @@ class PlacementRecord(BaseModel):
     average_share_after: float = Field(default=0.0, ge=0.0)
     shares_after: ResourceShares
     reason: str
+
+
+class SimulationCalculationRow(BaseModel):
+    vm_template_id: str
+    vm_name: str
+    requested_cpu_cores: float = Field(gt=0.0)
+    requested_memory_gb: float = Field(gt=0.0)
+    requested_disk_gb: float = Field(gt=0.0)
+    effective_cpu_cores: float = Field(gt=0.0)
+    effective_memory_gb: float = Field(gt=0.0)
+    peak_cpu_cores: float = Field(gt=0.0)
+    peak_memory_gb: float = Field(gt=0.0)
+    source: str
+    profile_label: str | None = None
+    cpu_ratio: float | None = Field(default=None, ge=0.0)
+    memory_ratio: float | None = Field(default=None, ge=0.0)
+    placed_server_name: str | None = None
+    placement_status: str
+    peak_risk: str = "pending"
 
 
 class SimulationState(BaseModel):
@@ -147,6 +183,7 @@ class HourlySimulation(BaseModel):
     label: str
     active_vm_names: list[str] = Field(default_factory=list)
     reserved_vm_names: list[str] = Field(default_factory=list)
+    calculations: list[SimulationCalculationRow] = Field(default_factory=list)
     placements: list[PlacementRecord] = Field(default_factory=list)
     states: list[SimulationState] = Field(default_factory=list)
     summary: SimulationSummary
@@ -172,3 +209,119 @@ class DefaultScenarioResponse(BaseModel):
     servers: list[ServerInput]
     vm_templates: list[VMTemplate]
     note: str
+    source: str = "default"
+    historical_profiles: list[HistoricalProfile] = Field(default_factory=list)
+    historical_peak_hours: list[int] = Field(default_factory=list)
+    historical_hourly_peaks: dict[str, float | None] = Field(default_factory=dict)
+
+
+class HourlyUsagePoint(BaseModel):
+    hour: int = Field(ge=0, lt=HOURS_IN_DAY)
+    label: str
+    sample_count: int = Field(default=0, ge=0)
+    cpu_ratio: float | None = Field(default=None, ge=0.0)
+    memory_ratio: float | None = Field(default=None, ge=0.0)
+    disk_ratio: float | None = Field(default=None, ge=0.0)
+    peak_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    peak_memory_ratio: float | None = Field(default=None, ge=0.0)
+    peak_disk_ratio: float | None = Field(default=None, ge=0.0)
+    loadavg_1: float | None = Field(default=None, ge=0.0)
+
+
+class ClusterUsageSummary(BaseModel):
+    node_count: int = Field(default=0, ge=0)
+    guest_count: int = Field(default=0, ge=0)
+    current_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    current_memory_ratio: float | None = Field(default=None, ge=0.0)
+    current_disk_ratio: float | None = Field(default=None, ge=0.0)
+    average_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    average_memory_ratio: float | None = Field(default=None, ge=0.0)
+    average_disk_ratio: float | None = Field(default=None, ge=0.0)
+    trend_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    trend_memory_ratio: float | None = Field(default=None, ge=0.0)
+    trend_disk_ratio: float | None = Field(default=None, ge=0.0)
+    peak_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    peak_memory_ratio: float | None = Field(default=None, ge=0.0)
+    peak_disk_ratio: float | None = Field(default=None, ge=0.0)
+    hourly: list[HourlyUsagePoint] = Field(default_factory=list)
+
+
+class NodeUsageSummary(BaseModel):
+    name: str
+    status: str | None = None
+    fetch_error: str | None = None
+    total_cpu_cores: float | None = Field(default=None, ge=0.0)
+    total_memory_gb: float | None = Field(default=None, ge=0.0)
+    total_disk_gb: float | None = Field(default=None, ge=0.0)
+    current_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    current_memory_ratio: float | None = Field(default=None, ge=0.0)
+    current_disk_ratio: float | None = Field(default=None, ge=0.0)
+    average_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    average_memory_ratio: float | None = Field(default=None, ge=0.0)
+    average_disk_ratio: float | None = Field(default=None, ge=0.0)
+    trend_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    trend_memory_ratio: float | None = Field(default=None, ge=0.0)
+    trend_disk_ratio: float | None = Field(default=None, ge=0.0)
+    peak_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    peak_memory_ratio: float | None = Field(default=None, ge=0.0)
+    peak_disk_ratio: float | None = Field(default=None, ge=0.0)
+    current_loadavg: list[float] = Field(default_factory=list)
+    average_loadavg_1: float | None = Field(default=None, ge=0.0)
+    hourly: list[HourlyUsagePoint] = Field(default_factory=list)
+
+
+class GuestUsageSummary(BaseModel):
+    vmid: int
+    name: str
+    resource_type: str
+    node: str
+    status: str | None = None
+    fetch_error: str | None = None
+    configured_cpu_cores: float | None = Field(default=None, ge=0.0)
+    configured_memory_gb: float | None = Field(default=None, ge=0.0)
+    configured_disk_gb: float | None = Field(default=None, ge=0.0)
+    current_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    current_memory_ratio: float | None = Field(default=None, ge=0.0)
+    current_disk_ratio: float | None = Field(default=None, ge=0.0)
+    average_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    average_memory_ratio: float | None = Field(default=None, ge=0.0)
+    average_disk_ratio: float | None = Field(default=None, ge=0.0)
+    trend_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    trend_memory_ratio: float | None = Field(default=None, ge=0.0)
+    trend_disk_ratio: float | None = Field(default=None, ge=0.0)
+    peak_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    peak_memory_ratio: float | None = Field(default=None, ge=0.0)
+    peak_disk_ratio: float | None = Field(default=None, ge=0.0)
+    hourly: list[HourlyUsagePoint] = Field(default_factory=list)
+
+
+class GuestTypeUsageSummary(BaseModel):
+    type_label: str
+    configured_cpu_cores: float | None = Field(default=None, ge=0.0)
+    configured_memory_gb: float | None = Field(default=None, ge=0.0)
+    guest_count: int = Field(default=0, ge=0)
+    current_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    current_memory_ratio: float | None = Field(default=None, ge=0.0)
+    current_disk_ratio: float | None = Field(default=None, ge=0.0)
+    average_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    average_memory_ratio: float | None = Field(default=None, ge=0.0)
+    average_disk_ratio: float | None = Field(default=None, ge=0.0)
+    trend_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    trend_memory_ratio: float | None = Field(default=None, ge=0.0)
+    trend_disk_ratio: float | None = Field(default=None, ge=0.0)
+    peak_cpu_ratio: float | None = Field(default=None, ge=0.0)
+    peak_memory_ratio: float | None = Field(default=None, ge=0.0)
+    peak_disk_ratio: float | None = Field(default=None, ge=0.0)
+    sample_names: list[str] = Field(default_factory=list)
+    hourly: list[HourlyUsagePoint] = Field(default_factory=list)
+
+
+class ProxmoxMonthlyAnalyticsResponse(BaseModel):
+    host: str
+    timezone: str
+    generated_at: str
+    month_label: str
+    cluster: ClusterUsageSummary
+    nodes: list[NodeUsageSummary] = Field(default_factory=list)
+    guests: list[GuestUsageSummary] = Field(default_factory=list)
+    guest_types: list[GuestTypeUsageSummary] = Field(default_factory=list)

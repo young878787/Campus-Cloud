@@ -10,8 +10,8 @@
     <main class="page">
       <header class="hero">
         <p class="eyebrow">PVE Resource Simulator</p>
-        <h1>用日曆時段觀察 PVE 一天內的 VM 預約與分配</h1>
-        <p class="hero-copy">每台 VM 只能設定一段連續的預約時段，例如 09:00-12:00。新增後會自動模擬，右側可切換 hour 看當下有哪些預約生效，以及它們被放到哪台 PVE。</p>
+        <h1>以真實 PVE 資料推估 VM 放置與時段容量</h1>
+        <p id="scenario-note" class="hero-copy"></p>
       </header>
 
       <section class="layout">
@@ -19,7 +19,7 @@
           <div class="section-head">
             <div>
               <p class="section-kicker">Add VM</p>
-              <h2>新增預約 VM</h2>
+              <h2>新增待申請 VM</h2>
             </div>
             <button id="reset-all" class="button subtle" type="button">重設</button>
           </div>
@@ -44,7 +44,7 @@
 
             <section class="slot-picker">
               <div class="slot-head">
-                <p class="field-title">預約時段</p>
+                <p class="field-title">啟用時段</p>
                 <p id="slot-summary" class="helper-text"></p>
               </div>
               <div class="range-picker">
@@ -60,7 +60,7 @@
             </section>
 
             <div class="form-actions">
-              <button class="button primary" type="submit">新增 VM</button>
+              <button class="button primary" type="submit">加入模擬</button>
             </div>
           </form>
 
@@ -69,7 +69,7 @@
           <div class="section-head compact">
             <div>
               <p class="section-kicker">Reservations</p>
-              <h2>今日預約 VM</h2>
+              <h2>待排程 VM</h2>
             </div>
             <p id="vm-count" class="count-label">0 台</p>
           </div>
@@ -81,11 +81,37 @@
           <div class="section-head compact">
             <div>
               <p class="section-kicker">Day View</p>
-              <h2>日曆與 PVE 配置</h2>
+              <h2>PVE 每小時放置結果</h2>
             </div>
           </div>
 
           <div id="day-calendar" class="day-calendar"></div>
+
+          <div class="timeline calculation-panel">
+            <div class="timeline-meta">
+              <p id="calc-label">本時段放置計算表</p>
+              <p id="calc-caption">系統會先顯示申請值、命中的歷史類型與換算後的有效 CPU / RAM，再顯示放置結果。</p>
+            </div>
+            <div class="guest-table-wrap">
+              <table class="guest-table simulator-table">
+                <thead>
+                  <tr>
+                    <th>VM</th>
+                    <th>Req</th>
+                    <th>Profile</th>
+                    <th>CPU%</th>
+                    <th>RAM%</th>
+                    <th>Base</th>
+                    <th>Peak</th>
+                    <th>Risk</th>
+                    <th>Status</th>
+                    <th>Node</th>
+                  </tr>
+                </thead>
+                <tbody id="calculation-table-body"></tbody>
+              </table>
+            </div>
+          </div>
 
           <div class="timeline">
             <div class="timeline-top">
@@ -93,8 +119,8 @@
               <input id="step-slider" type="range" min="0" max="0" step="1" value="0" />
             </div>
             <div class="timeline-meta">
-              <p id="step-label">先新增 VM 預約</p>
-              <p id="step-caption">右側會依 hour 顯示當下哪些預約生效，以及每台 PVE 的分配結果。</p>
+              <p id="step-label">逐步放置 VM</p>
+              <p id="step-caption">系統會優先使用真實 PVE 的同類型歷史 CPU / RAM 平均，沒有歷史就退回保守申請值。</p>
             </div>
           </div>
 
@@ -103,6 +129,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js" defer></script>
+    <script src="/static/app.js?v=20260331-2" defer></script>
   </body>
 </html>

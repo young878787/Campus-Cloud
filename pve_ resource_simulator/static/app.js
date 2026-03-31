@@ -3,6 +3,11 @@ const HOURS_IN_DAY = 24;
 const state = {
   servers: [],
   vmList: [],
+  historicalProfiles: [],
+  historicalPeakHours: [],
+  historicalHourlyPeaks: {},
+  scenarioSource: "default",
+  scenarioNote: "",
   result: null,
   currentHour: 9,
   currentStep: 0,
@@ -23,44 +28,79 @@ const elements = {
   vmCount: document.querySelector("#vm-count"),
   errorBanner: document.querySelector("#error-banner"),
   dayCalendar: document.querySelector("#day-calendar"),
+  calculationTableBody: document.querySelector("#calculation-table-body"),
   hourSummary: document.querySelector("#hour-summary"),
   slider: document.querySelector("#step-slider"),
   stepLabel: document.querySelector("#step-label"),
   stepCaption: document.querySelector("#step-caption"),
   serverBoard: document.querySelector("#server-board"),
+  scenarioNote: document.querySelector("#scenario-note"),
 };
 
 elements.form?.addEventListener("submit", (event) => {
   event.preventDefault();
-  addVmFromForm();
+  void addVmFromForm();
 });
 elements.reset?.addEventListener("click", resetAll);
 elements.startHour?.addEventListener("change", handleRangeChange);
 elements.endHour?.addEventListener("change", handleRangeChange);
 elements.slider?.addEventListener("input", (event) => {
   state.currentStep = Number(event.target.value || 0);
+  renderCalculationTable();
   renderHourPanel();
   renderServerBoard();
 });
 
-init();
+void init();
 
 async function init() {
-  await loadDefaultScenario();
+  await loadScenario();
+  renderScenarioNote();
   renderRangeControls();
   renderVmList();
   renderDayCalendar();
+  renderCalculationTable();
   renderHourPanel();
   renderServerBoard();
 }
 
-async function loadDefaultScenario() {
+async function loadScenario() {
   clearError();
+
+  try {
+    const liveResponse = await fetch("/api/v1/scenario/live");
+    const livePayload = await liveResponse.json();
+    if (!liveResponse.ok) {
+      throw new Error(livePayload.detail || "Failed to load live scenario.");
+    }
+    applyScenario(livePayload);
+    return;
+  } catch (error) {
+    console.warn("Live scenario unavailable, fallback to default scenario.", error);
+  }
+
   const response = await fetch("/api/v1/scenario/default");
   const payload = await response.json();
+  applyScenario(payload);
+}
+
+function applyScenario(payload) {
   state.servers = payload.servers || [];
+  state.historicalProfiles = payload.historical_profiles || [];
+  state.historicalPeakHours = payload.historical_peak_hours || [];
+  state.historicalHourlyPeaks = payload.historical_hourly_peaks || {};
+  state.scenarioSource = payload.source || "default";
+  state.scenarioNote = payload.note || "";
   state.vmList = [];
   state.result = null;
+}
+
+function renderScenarioNote() {
+  if (!elements.scenarioNote) return;
+  const prefix = state.scenarioSource === "live"
+    ? "目前使用真實 PVE node 狀態與同類型歷史平均進行模擬。"
+    : "目前使用靜態示範資料，未接上真實 PVE。";
+  elements.scenarioNote.textContent = `${prefix} ${state.scenarioNote}`.trim();
 }
 
 function handleRangeChange() {
@@ -76,11 +116,11 @@ function renderRangeControls() {
   if (!elements.slotSummary) return;
 
   if (!isValidRange(state.selectedRange.start, state.selectedRange.end)) {
-    elements.slotSummary.textContent = "結束時間需晚於開始時間";
+    elements.slotSummary.textContent = "結束時段必須大於開始時段。";
     return;
   }
 
-  elements.slotSummary.textContent = `${formatRange(state.selectedRange.start, state.selectedRange.end)} · ${state.selectedRange.end - state.selectedRange.start}hr`;
+  elements.slotSummary.textContent = `${formatRange(state.selectedRange.start, state.selectedRange.end)} · ${state.selectedRange.end - state.selectedRange.start} hr`;
 }
 
 function renderRangeSelects() {
@@ -117,7 +157,7 @@ async function addVmFromForm() {
   }
 
   if (!isValidRange(start, end)) {
-    showError("預約時段必須是單一連續區間，且結束時間要晚於開始時間。");
+    showError("啟用時段無效，請重新選擇。");
     return;
   }
 
@@ -150,6 +190,7 @@ async function removeVm(index) {
   state.currentStep = 0;
   renderVmList();
   renderDayCalendar();
+  renderCalculationTable();
 
   if (state.vmList.length) {
     await runSimulation();
@@ -170,6 +211,7 @@ function resetAll() {
   renderRangeControls();
   renderVmList();
   renderDayCalendar();
+  renderCalculationTable();
   renderHourPanel();
   renderServerBoard();
 }
@@ -185,7 +227,7 @@ function renderVmList() {
     elements.vmList.innerHTML = `
       <div class="vm-item empty-state">
         <div class="vm-main">
-          <p class="vm-spec">目前還沒有 VM 預約，先在上方填表單與單一時段。</p>
+          <p class="vm-spec">新增待申請 VM 後，系統會優先使用真實 PVE 的同類型歷史平均換算有效 CPU / RAM，沒有歷史就退回保守申請值。</p>
         </div>
       </div>
     `;
@@ -193,18 +235,20 @@ function renderVmList() {
   }
 
   elements.vmList.innerHTML = state.vmList
-    .map(
-      (vm, index) => `
+    .map((vm, index) => {
+      const historyHint = findProfileHint(vm);
+      return `
         <article class="vm-item">
           <div class="vm-main">
             <p class="vm-name">${escapeHtml(vm.name)}</p>
             <p class="vm-spec">CPU ${formatCompact(vm.cpu_cores)} · RAM ${formatCompact(vm.memory_gb)} GB · Disk ${formatCompact(vm.disk_gb)} GB</p>
             <p class="vm-slot-line">${escapeHtml(formatHoursAsSingleRange(vm.active_hours || []))}</p>
+            <p class="vm-slot-line">${escapeHtml(historyHint)}</p>
           </div>
-          <button class="link-button" type="button" data-remove-index="${index}">刪除</button>
+          <button class="link-button" type="button" data-remove-index="${index}">移除</button>
         </article>
-      `,
-    )
+      `;
+    })
     .join("");
 
   elements.vmList.querySelectorAll("[data-remove-index]").forEach((button) => {
@@ -212,6 +256,17 @@ function renderVmList() {
       await removeVm(Number(button.getAttribute("data-remove-index")));
     });
   });
+}
+
+function findProfileHint(vm) {
+  const match = state.historicalProfiles.find((profile) =>
+    Number(profile.configured_cpu_cores) === Number(vm.cpu_cores)
+    && Number(profile.configured_memory_gb) === Number(vm.memory_gb),
+  );
+  if (!match) {
+    return "No matching history: use conservative requested CPU / RAM.";
+  }
+  return `Historical type match: ${match.type_label} from ${match.guest_count} real guest(s).`;
 }
 
 async function runSimulation() {
@@ -224,6 +279,7 @@ async function runSimulation() {
       body: JSON.stringify({
         servers: state.servers,
         vm_templates: state.vmList,
+        historical_profiles: state.historicalProfiles,
       }),
     });
     const payload = await response.json();
@@ -240,6 +296,7 @@ async function runSimulation() {
     }
     syncSliderToHourEnd();
     renderDayCalendar();
+    renderCalculationTable();
     renderHourPanel();
     renderServerBoard();
   } catch (error) {
@@ -251,19 +308,36 @@ function renderDayCalendar() {
   if (!elements.dayCalendar) return;
 
   const reservations = state.result?.summary?.reservations_by_hour || buildHourCountsFromVmList();
+  const counts = Array.from({ length: HOURS_IN_DAY }, (_, hour) => Number(reservations[String(hour)] || 0));
+  const peakCount = Math.max(...counts, 0);
+  const useHistoricalPeak = peakCount === 0 && state.historicalPeakHours.length > 0;
 
   elements.dayCalendar.innerHTML = Array.from({ length: HOURS_IN_DAY }, (_, hour) => {
-    const count = Number(reservations[String(hour)] || 0);
+    const count = counts[hour];
     const selected = state.currentHour === hour;
     const busy = count > 0;
+    const historicalPeakValue = state.historicalHourlyPeaks[String(hour)];
+    const isPeak = useHistoricalPeak
+      ? state.historicalPeakHours.includes(hour)
+      : peakCount > 0 && count === peakCount;
+    const peakTitle = useHistoricalPeak
+      ? "Historical PVE peak hour."
+      : `Peak hour with ${count} active VM reservation(s).`;
     return `
       <button
-        class="calendar-hour ${selected ? "selected" : ""} ${busy ? "busy" : ""}"
+        class="calendar-hour ${selected ? "selected" : ""} ${busy ? "busy" : ""} ${isPeak ? "peak" : ""}"
         type="button"
         data-hour-select="${hour}"
+        title="${isPeak ? peakTitle : `${count} active VM reservation(s).`}"
       >
-        <span class="calendar-label">${formatHour(hour)}</span>
-        <span class="calendar-count">${count}</span>
+        <span class="calendar-label-row">
+          <span class="calendar-label">${formatHour(hour)}</span>
+          ${isPeak ? `<span class="calendar-peak-pill">${useHistoricalPeak ? "PVE PEAK" : "PEAK"}</span>` : ""}
+        </span>
+        <span class="calendar-value-row">
+          <span class="calendar-count">${count}</span>
+          <span class="calendar-peak-value">${formatCalendarPeakValue(historicalPeakValue)}</span>
+        </span>
       </button>
     `;
   }).join("");
@@ -273,10 +347,44 @@ function renderDayCalendar() {
       state.currentHour = Number(button.getAttribute("data-hour-select"));
       syncSliderToHourEnd();
       renderDayCalendar();
+      renderCalculationTable();
       renderHourPanel();
       renderServerBoard();
     });
   });
+}
+
+function renderCalculationTable() {
+  if (!elements.calculationTableBody) return;
+
+  const calculations = getCurrentHourResult()?.calculations || [];
+  if (!calculations.length) {
+    elements.calculationTableBody.innerHTML = `
+      <tr>
+        <td colspan="10" class="guest-empty">This hour has no active VM reservation.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  elements.calculationTableBody.innerHTML = calculations
+    .map(
+      (row) => `
+        <tr>
+          <td>${escapeHtml(row.vm_name)}</td>
+          <td>${formatCompact(row.requested_cpu_cores)}C / ${formatCompact(row.requested_memory_gb)}G / ${formatCompact(row.requested_disk_gb)}D</td>
+          <td>${escapeHtml(row.profile_label || "Fallback")}</td>
+          <td>${formatRatioSource(row.cpu_ratio, row.source)}</td>
+          <td>${formatRatioSource(row.memory_ratio, row.source)}</td>
+          <td>${formatCompact(row.effective_cpu_cores)}C / ${formatCompact(row.effective_memory_gb)}G</td>
+          <td>${formatCompact(row.peak_cpu_cores)}C / ${formatCompact(row.peak_memory_gb)}G</td>
+          <td><span class="risk-pill ${peakRiskClass(row.peak_risk)}">${escapeHtml(formatPeakRisk(row.peak_risk))}</span></td>
+          <td>${escapeHtml(formatPlacementStatus(row.placement_status))}</td>
+          <td>${escapeHtml(row.placed_server_name || "-")}</td>
+        </tr>
+      `,
+    )
+    .join("");
 }
 
 function renderHourPanel() {
@@ -284,13 +392,13 @@ function renderHourPanel() {
 
   if (!currentHourResult) {
     if (elements.hourSummary) {
-      elements.hourSummary.textContent = `${formatRange(state.currentHour, state.currentHour + 1)} · 尚未有預約`;
+      elements.hourSummary.textContent = `${formatRange(state.currentHour, state.currentHour + 1)} · 沒有待放置 VM`;
     }
     if (elements.stepLabel) {
-      elements.stepLabel.textContent = "先新增 VM 預約";
+      elements.stepLabel.textContent = "逐步放置 VM";
     }
     if (elements.stepCaption) {
-      elements.stepCaption.textContent = "每台 VM 只能設定一段連續時段，系統會逐 hour 自動模擬。";
+      elements.stepCaption.textContent = "新增 VM 後，系統會依照真實 PVE node 現況與同類型歷史平均重新計算放置結果。";
     }
     syncSlider();
     return;
@@ -301,7 +409,7 @@ function renderHourPanel() {
   const failed = currentHourResult.summary?.failed_vm_names || [];
 
   if (elements.hourSummary) {
-    elements.hourSummary.textContent = `${currentHourResult.label} · ${requested} 個生效預約 · ${placed} 個已放入${failed.length ? ` · ${failed.length} 個未放入` : ""}`;
+    elements.hourSummary.textContent = `${currentHourResult.label} · ${requested} 台待放置 · ${placed} 台成功${failed.length ? ` · ${failed.length} 台未放入` : ""}`;
   }
 
   const currentState = currentHourResult.states[state.currentStep] || currentHourResult.states[0];
@@ -309,14 +417,14 @@ function renderHourPanel() {
 
   if (elements.stepLabel) {
     elements.stepLabel.textContent = lastStep === 0
-      ? `${currentHourResult.label} · 無新增步驟`
+      ? `${currentHourResult.label} · 初始狀態`
       : `${currentState?.title || currentHourResult.label} · Step ${state.currentStep}/${lastStep}`;
   }
 
   if (elements.stepCaption) {
     elements.stepCaption.textContent = currentState?.latest_placement?.reason
       || currentHourResult.summary?.stop_reason
-      || "這個時段目前沒有生效中的 VM。";
+      || "目前沒有可顯示的放置說明。";
   }
 
   syncSlider();
@@ -330,6 +438,16 @@ function renderServerBoard() {
     ? currentHourResult.states[state.currentStep]?.servers
     : state.servers.map((server) => ({
         name: server.name,
+        total: {
+          cpu_cores: Number(server.cpu_cores || 0),
+          memory_gb: Number(server.memory_gb || 0),
+          disk_gb: Number(server.disk_gb || 0),
+        },
+        used: {
+          cpu_cores: Number(server.cpu_used || 0),
+          memory_gb: Number(server.memory_used_gb || 0),
+          disk_gb: Number(server.disk_used_gb || 0),
+        },
         remaining: {
           cpu_cores: Number(server.cpu_cores) - Number(server.cpu_used || 0),
           memory_gb: Number(server.memory_gb) - Number(server.memory_used_gb || 0),
@@ -350,16 +468,32 @@ function renderServerBoard() {
           </div>
           <div class="server-footer">
             <h3>${escapeHtml(server.name)}</h3>
-            <p class="server-meta">
-              CPU ${formatCompact(server.remaining?.cpu_cores)} free ·
-              RAM ${formatCompact(server.remaining?.memory_gb)} free ·
-              Disk ${formatCompact(server.remaining?.disk_gb)} free
-            </p>
+            <p class="server-meta">${escapeHtml(formatServerMeta(server))}</p>
           </div>
         </article>
       `,
     )
     .join("");
+}
+
+function formatServerMeta(server) {
+  const cpuPhysicalFree = Math.max(
+    Number(server.total?.cpu_cores || 0) - Number(server.used?.cpu_cores || 0),
+    0,
+  );
+  const memoryPhysicalFree = Math.max(
+    Number(server.total?.memory_gb || 0) - Number(server.used?.memory_gb || 0),
+    0,
+  );
+  const cpuPolicyFree = Math.max(Number(server.remaining?.cpu_cores || 0), 0);
+  const memoryPolicyFree = Math.max(Number(server.remaining?.memory_gb || 0), 0);
+  const diskFree = Math.max(Number(server.remaining?.disk_gb || 0), 0);
+
+  return [
+    `CPU ${formatCompact(cpuPhysicalFree)} physical free / ${formatCompact(cpuPolicyFree)} policy`,
+    `RAM ${formatCompact(memoryPhysicalFree)} physical free / ${formatCompact(memoryPolicyFree)} safe`,
+    `Disk ${formatCompact(diskFree)} free`,
+  ].join(" | ");
 }
 
 function syncSlider() {
@@ -441,7 +575,7 @@ function formatRange(start, end) {
 
 function formatHoursAsSingleRange(hours) {
   if (!Array.isArray(hours) || !hours.length) {
-    return "未設定時段";
+    return "No schedule";
   }
   const sorted = [...new Set(hours)].sort((left, right) => left - right);
   return formatRange(sorted[0], sorted[sorted.length - 1] + 1);
@@ -450,6 +584,55 @@ function formatHoursAsSingleRange(hours) {
 function formatCompact(value) {
   const numeric = Number(value || 0);
   return numeric % 1 === 0 ? String(numeric) : numeric.toFixed(1);
+}
+
+function formatRatioSource(value, source) {
+  if (value == null) {
+    return source === "requested" ? "fallback" : "n/a";
+  }
+  const percentage = Number(value) * 100;
+  if (percentage > 0 && percentage < 1) {
+    return "<1%";
+  }
+  if (percentage < 10) {
+    return `${percentage.toFixed(1)}%`;
+  }
+  return `${Math.round(percentage)}%`;
+}
+
+function formatPlacementStatus(status) {
+  if (status === "placed") return "Placed";
+  if (status === "no_fit") return "No fit";
+  return "Pending";
+}
+
+function formatCalendarPeakValue(value) {
+  if (value == null) {
+    return "Peak --";
+  }
+  const percentage = Number(value) * 100;
+  if (percentage > 0 && percentage < 1) {
+    return "Peak <1%";
+  }
+  if (percentage < 10) {
+    return `Peak ${percentage.toFixed(1)}%`;
+  }
+  return `Peak ${Math.round(percentage)}%`;
+}
+
+function formatPeakRisk(risk) {
+  if (risk === "safe") return "Safe";
+  if (risk === "guarded") return "Guarded";
+  if (risk === "high") return "High";
+  if (risk === "n/a") return "n/a";
+  return "Pending";
+}
+
+function peakRiskClass(risk) {
+  if (risk === "safe") return "is-safe";
+  if (risk === "guarded") return "is-guarded";
+  if (risk === "high") return "is-high";
+  return "is-neutral";
 }
 
 function showError(message) {

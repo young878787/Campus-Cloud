@@ -27,3 +27,8 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 @app.get("/", include_in_schema=False)
 def serve_index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/monthly-analytics", include_in_schema=False)
+def serve_monthly_analytics() -> FileResponse:
+    return FileResponse(STATIC_DIR / "monthly-analytics.html")
