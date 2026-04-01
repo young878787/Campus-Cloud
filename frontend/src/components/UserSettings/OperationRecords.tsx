@@ -1,9 +1,11 @@
 import { useSuspenseQuery } from "@tanstack/react-query"
-import { useTranslation } from "react-i18next"
-import { useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
+import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { AuditLogsService } from "@/client"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -19,8 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 
 export default function OperationRecords() {
   const { t } = useTranslation("settings")
@@ -40,7 +40,8 @@ export default function OperationRecords() {
   const getActionBadgeColor = (action: string) => {
     if (action.includes("create")) return "bg-green-500"
     if (action.includes("delete")) return "bg-red-500"
-    if (action.includes("update") || action.includes("spec_change")) return "bg-blue-500"
+    if (action.includes("update") || action.includes("spec_change"))
+      return "bg-blue-500"
     if (action.includes("snapshot")) return "bg-purple-500"
     if (action.includes("request")) return "bg-orange-500"
     return "bg-gray-500"
@@ -59,7 +60,8 @@ export default function OperationRecords() {
       <CardHeader>
         <CardTitle>{t("operationRecords.title")}</CardTitle>
         <CardDescription>
-          {t("operationRecords.description")} - {t("admin.auditLogs.showing")} {auditLogs.count} {t("operationRecords.records")}
+          {t("operationRecords.description")} - {t("admin.auditLogs.showing")}{" "}
+          {auditLogs.count} {t("operationRecords.records")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -101,10 +103,15 @@ export default function OperationRecords() {
                     </TableCell>
                     <TableCell>
                       <Badge className={getActionBadgeColor(log.action)}>
-                        {t(`resourceDetail.auditLogs.actions.${log.action}`, log.action)}
+                        {t(
+                          `resourceDetail.auditLogs.actions.${log.action}`,
+                          log.action,
+                        )}
                       </Badge>
                     </TableCell>
-                    <TableCell className="max-w-md truncate">{log.details}</TableCell>
+                    <TableCell className="max-w-md truncate">
+                      {log.details}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {log.ip_address || "-"}
                     </TableCell>

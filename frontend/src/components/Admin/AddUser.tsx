@@ -149,7 +149,9 @@ const AddUser = () => {
                 name="full_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings:admin.userForm.fullName")}</FormLabel>
+                    <FormLabel>
+                      {t("settings:admin.userForm.fullName")}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         placeholder={t("settings:admin.userForm.fullName")}
@@ -195,7 +197,9 @@ const AddUser = () => {
                     </FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t("settings:admin.userForm.confirmPassword")}
+                        placeholder={t(
+                          "settings:admin.userForm.confirmPassword",
+                        )}
                         type="password"
                         {...field}
                         required
@@ -237,9 +241,13 @@ const AddUser = () => {
                 name="is_active"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings:admin.userForm.isActive")}</FormLabel>
+                    <FormLabel>
+                      {t("settings:admin.userForm.isActive")}
+                    </FormLabel>
                     <Select
-                      onValueChange={(value) => field.onChange(value === "true")}
+                      onValueChange={(value) =>
+                        field.onChange(value === "true")
+                      }
                       defaultValue={field.value ? "true" : "false"}
                     >
                       <FormControl>

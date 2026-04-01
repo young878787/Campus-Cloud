@@ -1,34 +1,34 @@
 import {
   Background,
   BackgroundVariant,
+  type Connection,
   Controls,
+  type Edge,
   MiniMap,
+  type Node,
   ReactFlow,
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
   useReactFlow,
-  type Connection,
-  type Edge,
-  type Node,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Eye, EyeOff, LayoutGrid, RefreshCw, Shield } from "lucide-react"
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import type React from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-
-import { FirewallService } from "@/services/firewall"
 import { Button } from "@/components/ui/button"
-import type { VMNodeData } from "./VMNode"
-import type { GatewayNodeData } from "./GatewayNode"
-import type { ConnectionEdgeData } from "./ConnectionEdge"
-import { VMNode } from "./VMNode"
-import { GatewayNode } from "./GatewayNode"
-import { ConnectionEdge } from "./ConnectionEdge"
+import { FirewallService } from "@/services/firewall"
 import { ConnectionDialog } from "./ConnectionDialog"
+import type { ConnectionEdgeData } from "./ConnectionEdge"
+import { ConnectionEdge } from "./ConnectionEdge"
 import { DeleteGatewayWarning } from "./DeleteGatewayWarning"
+import type { GatewayNodeData } from "./GatewayNode"
+import { GatewayNode } from "./GatewayNode"
 import { RulesPanel } from "./RulesPanel"
+import type { VMNodeData } from "./VMNode"
+import { VMNode } from "./VMNode"
 
 // 自訂節點和邊類型
 const nodeTypes = {
@@ -138,7 +138,7 @@ function FirewallTopologyInner() {
         }
       }),
     )
-  }, [focusedNodeId, showLabels])
+  }, [focusedNodeId, showLabels, setEdges, setNodes])
 
   // ─── showLabels 變更時更新所有邊的 data ──────────────────────────────────
 
@@ -153,15 +153,63 @@ function FirewallTopologyInner() {
         } as ConnectionEdgeData,
       })),
     )
-  }, [showLabels])
+  }, [showLabels, focusedNodeId, setEdges])
 
   // ─── 載入拓撲 ─────────────────────────────────────────────────────────────
 
-  const { data: topology, isLoading, refetch } = useQuery({
+  const {
+    data: topology,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["firewall-topology"],
     queryFn: () => FirewallService.getFirewallTopology(),
     staleTime: 30_000,
   })
+
+  // ─── 刪除連線 ─────────────────────────────────────────────────────────────
+
+  const deleteConnectionMutation = useMutation({
+    mutationFn: ({
+      sourceVmid,
+      targetVmid,
+    }: {
+      sourceVmid: number | null
+      targetVmid: number | null
+    }) =>
+      FirewallService.deleteFirewallConnection({
+        requestBody: {
+          source_vmid: sourceVmid as number,
+          target_vmid: targetVmid,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("連線已刪除")
+      queryClient.invalidateQueries({ queryKey: ["firewall-topology"] })
+    },
+    onError: (e: Error) => {
+      toast.error(`刪除連線失敗: ${e.message}`)
+    },
+  })
+
+  const handleDeleteConnection = useCallback(
+    (sourceVmid: number | null, targetVmid: number | null) => {
+      if (targetVmid === null && sourceVmid !== null) {
+        // 刪除往網關的連線 → 顯示警告
+        const vmName =
+          topology?.nodes.find((n) => n.vmid === sourceVmid)?.name ??
+          `VM-${sourceVmid}`
+        setGatewayWarning({ vmid: sourceVmid, vmName })
+      } else {
+        deleteConnectionMutation.mutate({ sourceVmid, targetVmid })
+      }
+    },
+    [topology, deleteConnectionMutation],
+  )
+
+  // 用 ref 穩定 handleDeleteConnection 引用，避免 useEffect 無限迴圈
+  const handleDeleteConnectionRef = useRef(handleDeleteConnection)
+  handleDeleteConnectionRef.current = handleDeleteConnection
 
   // 將 topology 資料轉換為 React Flow 格式
   useEffect(() => {
@@ -186,13 +234,21 @@ function FirewallTopologyInner() {
     const rfEdges: Edge[] = topology.edges.map((e, i) => {
       const srcId = e.source_vmid !== null ? `vm-${e.source_vmid}` : "gateway"
       const tgtId = e.target_vmid !== null ? `vm-${e.target_vmid}` : "gateway"
-      const isGateway = e.source_vmid !== null && e.target_vmid === null  // VM→internet 出站
-      const isInbound = e.source_vmid === null && e.target_vmid !== null  // internet→VM 入站
-      const isVMtoVM = e.source_vmid !== null && e.target_vmid !== null   // VM→VM
+      const isGateway = e.source_vmid !== null && e.target_vmid === null // VM→internet 出站
+      const isInbound = e.source_vmid === null && e.target_vmid !== null // internet→VM 入站
+      const isVMtoVM = e.source_vmid !== null && e.target_vmid !== null // VM→VM
 
       // 依連線類型選擇對應 handle，確保線路不交叉
-      const sourceHandle = isGateway ? "out-internet" : isInbound ? "out" : "out-vm"
-      const targetHandle = isGateway ? "in" : isInbound ? "in-internet" : "in-vm"
+      const sourceHandle = isGateway
+        ? "out-internet"
+        : isInbound
+          ? "out"
+          : "out-vm"
+      const targetHandle = isGateway
+        ? "in"
+        : isInbound
+          ? "in-internet"
+          : "in-vm"
 
       return {
         id: `edge-${i}`,
@@ -212,7 +268,8 @@ function FirewallTopologyInner() {
           targetVmid: e.target_vmid,
           showLabels,
           isHighlighted: false,
-          onDelete: handleDeleteConnection,
+          onDelete: (...args: Parameters<typeof handleDeleteConnection>) =>
+            handleDeleteConnectionRef.current(...args),
         } satisfies ConnectionEdgeData,
       }
     })
@@ -221,14 +278,14 @@ function FirewallTopologyInner() {
     setEdges(rfEdges)
     // 重新載入後清除聚焦
     setFocusedNodeId(null)
-  }, [topology])
+  }, [topology, setEdges, setNodes, showLabels])
 
   // ─── 儲存佈局（debounce 500ms）────────────────────────────────────────────
 
   const saveLayoutMutation = useMutation({
     mutationFn: (nodes: Node[]) => {
       const layoutNodes = nodes.map((n) => ({
-        vmid: n.id === "gateway" ? null : parseInt(n.id.replace("vm-", "")),
+        vmid: n.id === "gateway" ? null : parseInt(n.id.replace("vm-", ""), 10),
         node_type: (n.id === "gateway" ? "gateway" : "vm") as "vm" | "gateway",
         position_x: n.position.x,
         position_y: n.position.y,
@@ -292,11 +349,11 @@ function FirewallTopologyInner() {
       const sourceVmid =
         connection.source === "gateway"
           ? null
-          : parseInt(connection.source!.replace("vm-", ""))
+          : parseInt(connection.source!.replace("vm-", ""), 10)
       const targetVmid =
         connection.target === "gateway"
           ? null
-          : parseInt(connection.target!.replace("vm-", ""))
+          : parseInt(connection.target!.replace("vm-", ""), 10)
 
       // 兩端都是網關（無意義）
       if (sourceVmid === null && targetVmid === null) {
@@ -333,7 +390,12 @@ function FirewallTopologyInner() {
       direction: string
     }) =>
       FirewallService.createFirewallConnection({
-        requestBody: { source_vmid: sourceVmid!, target_vmid: targetVmid, ports, direction },
+        requestBody: {
+          source_vmid: sourceVmid!,
+          target_vmid: targetVmid,
+          ports,
+          direction,
+        },
       }),
     onSuccess: () => {
       toast.success("連線已建立")
@@ -358,43 +420,6 @@ function FirewallTopologyInner() {
     setPendingConnection(null)
   }
 
-  // ─── 刪除連線 ─────────────────────────────────────────────────────────────
-
-  const deleteConnectionMutation = useMutation({
-    mutationFn: ({
-      sourceVmid,
-      targetVmid,
-    }: {
-      sourceVmid: number | null
-      targetVmid: number | null
-    }) =>
-      FirewallService.deleteFirewallConnection({
-        requestBody: { source_vmid: sourceVmid as number, target_vmid: targetVmid },
-      }),
-    onSuccess: () => {
-      toast.success("連線已刪除")
-      queryClient.invalidateQueries({ queryKey: ["firewall-topology"] })
-    },
-    onError: (e: Error) => {
-      toast.error(`刪除連線失敗: ${e.message}`)
-    },
-  })
-
-  const handleDeleteConnection = useCallback(
-    (sourceVmid: number | null, targetVmid: number | null) => {
-      if (targetVmid === null && sourceVmid !== null) {
-        // 刪除往網關的連線 → 顯示警告
-        const vmName =
-          topology?.nodes.find((n) => n.vmid === sourceVmid)?.name ??
-          `VM-${sourceVmid}`
-        setGatewayWarning({ vmid: sourceVmid, vmName })
-      } else {
-        deleteConnectionMutation.mutate({ sourceVmid, targetVmid })
-      }
-    },
-    [topology, deleteConnectionMutation],
-  )
-
   // ─── 節點點擊（顯示規則面板 + 聚焦模式）────────────────────────────────
 
   const onNodeClick = useCallback(
@@ -406,7 +431,7 @@ function FirewallTopologyInner() {
         setSelectedVmid(null)
         return
       }
-      const vmid = parseInt(node.id.replace("vm-", ""))
+      const vmid = parseInt(node.id.replace("vm-", ""), 10)
       const vmName =
         topology?.nodes.find((n) => n.vmid === vmid)?.name ?? `VM-${vmid}`
       setSelectedVmid(vmid)
@@ -474,7 +499,9 @@ function FirewallTopologyInner() {
         <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
           <div className="flex items-center gap-2 bg-[#1a1a1a] border border-[#2e2e2e] rounded-lg px-3 py-2">
             <Shield className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm font-medium text-gray-200">防火牆管理</span>
+            <span className="text-sm font-medium text-gray-200">
+              防火牆管理
+            </span>
           </div>
           <Button
             size="sm"
@@ -515,7 +542,8 @@ function FirewallTopologyInner() {
 
         {/* 使用說明 */}
         <div className="absolute bottom-4 left-4 z-10 text-xs text-gray-600 bg-[#111]/80 rounded-md px-3 py-2 border border-[#1e1e1e]">
-          拖拉節點移動位置 · 從節點右側拖拉到另一個節點建立連線 · 點擊節點聚焦 · 再次點擊或點空白處取消
+          拖拉節點移動位置 · 從節點右側拖拉到另一個節點建立連線 · 點擊節點聚焦 ·
+          再次點擊或點空白處取消
         </div>
       </ReactFlow>
 

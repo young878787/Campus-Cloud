@@ -1,4 +1,9 @@
-import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Outlet,
+  redirect,
+  useRouterState,
+} from "@tanstack/react-router"
 
 import { Footer } from "@/components/Common/Footer"
 import AppSidebar from "@/components/Sidebar/AppSidebar"
@@ -27,7 +32,9 @@ export const Route = createFileRoute("/_layout")({
 function Layout() {
   const { location } = useRouterState()
   const isFullscreen = FULLSCREEN_ROUTES.includes(location.pathname)
-  const hasFixedFooter = location.pathname === "/applications-create" || location.pathname === "/resources-create"
+  const hasFixedFooter =
+    location.pathname === "/applications-create" ||
+    location.pathname === "/resources-create"
 
   return (
     <SidebarProvider>

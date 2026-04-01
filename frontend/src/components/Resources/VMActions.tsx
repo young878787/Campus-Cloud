@@ -123,7 +123,8 @@ export function VMActions({
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => ResourcesService.deleteResource({ vmid, force: isRunning }),
+    mutationFn: () =>
+      ResourcesService.deleteResource({ vmid, force: isRunning }),
     onSuccess: () => {
       showSuccessToast(t("messages:vm.deleted", { name }))
       queryClient.invalidateQueries({ queryKey: ["resources"] })
@@ -146,7 +147,10 @@ export function VMActions({
     deleteMutation.isPending
 
   return (
-    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="flex items-center gap-2"
+      onClick={(e) => e.stopPropagation()}
+    >
       <Button
         variant="outline"
         size="sm"

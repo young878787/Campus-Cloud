@@ -1,9 +1,7 @@
 {
   "name": "GWN Manager",
   "slug": "gwn-manager",
-  "categories": [
-    9
-  ],
+  "categories": [9],
   "date_created": "2026-01-08",
   "type": "ct",
   "updateable": true,

@@ -22,19 +22,19 @@ import {
 
 // PVE 支援的所有協定
 const PVE_PROTOCOLS = [
-  { value: "tcp",     label: "TCP",     hasPort: true  },
-  { value: "udp",     label: "UDP",     hasPort: true  },
-  { value: "sctp",    label: "SCTP",    hasPort: true  },
-  { value: "dccp",    label: "DCCP",    hasPort: true  },
-  { value: "udplite", label: "UDPLite", hasPort: true  },
-  { value: "icmp",    label: "ICMP",    hasPort: false },
-  { value: "icmpv6",  label: "ICMPv6",  hasPort: false },
-  { value: "igmp",    label: "IGMP",    hasPort: false },
-  { value: "esp",     label: "ESP",     hasPort: false },
-  { value: "ah",      label: "AH",      hasPort: false },
-  { value: "gre",     label: "GRE",     hasPort: false },
-  { value: "ospf",    label: "OSPF",    hasPort: false },
-  { value: "vrrp",    label: "VRRP",    hasPort: false },
+  { value: "tcp", label: "TCP", hasPort: true },
+  { value: "udp", label: "UDP", hasPort: true },
+  { value: "sctp", label: "SCTP", hasPort: true },
+  { value: "dccp", label: "DCCP", hasPort: true },
+  { value: "udplite", label: "UDPLite", hasPort: true },
+  { value: "icmp", label: "ICMP", hasPort: false },
+  { value: "icmpv6", label: "ICMPv6", hasPort: false },
+  { value: "igmp", label: "IGMP", hasPort: false },
+  { value: "esp", label: "ESP", hasPort: false },
+  { value: "ah", label: "AH", hasPort: false },
+  { value: "gre", label: "GRE", hasPort: false },
+  { value: "ospf", label: "OSPF", hasPort: false },
+  { value: "vrrp", label: "VRRP", hasPort: false },
 ] as const
 
 const PROTOCOLS_WITH_PORT = new Set(
@@ -48,7 +48,7 @@ type PortSpec = {
 
 type Props = {
   open: boolean
-  sourceVmid: number | null  // null = Internet
+  sourceVmid: number | null // null = Internet
   sourceName: string
   targetVmid: number | null
   targetName: string
@@ -73,7 +73,7 @@ export function ConnectionDialog({
   )
 
   const isGateway = targetVmid === null
-  const isInbound = sourceVmid === null  // Internet → VM 入站
+  const isInbound = sourceVmid === null // Internet → VM 入站
 
   const addPort = () => {
     setPorts([...ports, { port: 443, protocol: "tcp" }])
@@ -135,9 +135,14 @@ export function ConnectionDialog({
               </>
             ) : (
               <>
-                <span className="text-emerald-400 font-medium">{sourceName}</span>
+                <span className="text-emerald-400 font-medium">
+                  {sourceName}
+                </span>
                 {isGateway ? (
-                  <span className="text-gray-400"> → 連到 Internet（上網）</span>
+                  <span className="text-gray-400">
+                    {" "}
+                    → 連到 Internet（上網）
+                  </span>
                 ) : (
                   <>
                     <span className="text-gray-500"> → </span>
@@ -162,7 +167,11 @@ export function ConnectionDialog({
                     max={65535}
                     value={port.port}
                     onChange={(e) =>
-                      updatePort(index, "port", parseInt(e.target.value) || 80)
+                      updatePort(
+                        index,
+                        "port",
+                        parseInt(e.target.value, 10) || 80,
+                      )
                     }
                     className="bg-[#111] border-[#2e2e2e] text-gray-100 w-24 h-8 text-sm"
                     placeholder="80"
@@ -174,9 +183,7 @@ export function ConnectionDialog({
                 )}
                 <Select
                   value={port.protocol}
-                  onValueChange={(v) =>
-                    updatePort(index, "protocol", v)
-                  }
+                  onValueChange={(v) => updatePort(index, "protocol", v)}
                 >
                   <SelectTrigger className="bg-[#111] border-[#2e2e2e] text-gray-100 w-24 h-8 text-sm">
                     <SelectValue />
@@ -219,9 +226,10 @@ export function ConnectionDialog({
                     onClick={() => setDirection(dir)}
                     className={`
                       px-3 py-1.5 rounded-md text-xs font-medium transition-colors
-                      ${direction === dir
-                        ? "bg-emerald-900/50 border border-emerald-600 text-emerald-400"
-                        : "bg-[#111] border border-[#2e2e2e] text-gray-400 hover:border-[#3e3e3e]"
+                      ${
+                        direction === dir
+                          ? "bg-emerald-900/50 border border-emerald-600 text-emerald-400"
+                          : "bg-[#111] border border-[#2e2e2e] text-gray-400 hover:border-[#3e3e3e]"
                       }
                     `}
                   >

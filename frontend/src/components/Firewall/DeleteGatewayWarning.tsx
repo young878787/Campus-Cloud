@@ -15,7 +15,12 @@ type Props = {
   onClose: () => void
 }
 
-export function DeleteGatewayWarning({ open, vmName, onConfirm, onClose }: Props) {
+export function DeleteGatewayWarning({
+  open,
+  vmName,
+  onConfirm,
+  onClose,
+}: Props) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="bg-[#1a1a1a] border-[#2e2e2e] text-gray-100 sm:max-w-sm">

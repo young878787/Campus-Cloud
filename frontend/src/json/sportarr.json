@@ -1,9 +1,7 @@
 {
   "name": "Sportarr",
   "slug": "sportarr",
-  "categories": [
-    14
-  ],
+  "categories": [14],
   "date_created": "2026-01-06",
   "type": "ct",
   "updateable": true,

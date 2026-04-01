@@ -1,4 +1,4 @@
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react"
+import { Handle, type Node, type NodeProps, Position } from "@xyflow/react"
 import { Server, Shield, ShieldOff } from "lucide-react"
 
 export type VMNodeData = {
@@ -21,9 +21,10 @@ export function VMNode({ data, selected }: NodeProps<VMNodeType>) {
         relative flex items-center gap-3 px-4 py-3
         bg-[#1a1a1a] border rounded-xl cursor-pointer
         transition-all duration-200 min-w-[180px]
-        ${selected
-          ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.4)]"
-          : "border-[#2e2e2e] hover:border-[#3e3e3e]"
+        ${
+          selected
+            ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.4)]"
+            : "border-[#2e2e2e] hover:border-[#3e3e3e]"
         }
       `}
     >
@@ -51,7 +52,10 @@ export function VMNode({ data, selected }: NodeProps<VMNodeType>) {
       </div>
 
       {/* 防火牆狀態圖示 */}
-      <div className="flex-shrink-0" title={data.firewall_enabled ? "防火牆已啟用" : "防火牆未啟用"}>
+      <div
+        className="flex-shrink-0"
+        title={data.firewall_enabled ? "防火牆已啟用" : "防火牆未啟用"}
+      >
         {data.firewall_enabled ? (
           <Shield className="w-3.5 h-3.5 text-emerald-400" />
         ) : (

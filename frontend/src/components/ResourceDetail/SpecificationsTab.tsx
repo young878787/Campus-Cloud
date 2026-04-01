@@ -1,9 +1,18 @@
-import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useTranslation } from "react-i18next"
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query"
 import { useState } from "react"
-
-import { ResourcesService, ResourceDetailsService, SpecChangeRequestsService } from "@/client"
+import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 import type { Body_create_spec_change_request_api_v1_spec_change_requests__post } from "@/client"
+import {
+  ResourceDetailsService,
+  ResourcesService,
+  SpecChangeRequestsService,
+} from "@/client"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -11,11 +20,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "sonner"
 import useAuth from "@/hooks/useAuth"
 
 interface SpecificationsTabProps {
@@ -50,7 +57,9 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
   })
 
   const requestMutation = useMutation({
-    mutationFn: (data: Body_create_spec_change_request_api_v1_spec_change_requests__post) =>
+    mutationFn: (
+      data: Body_create_spec_change_request_api_v1_spec_change_requests__post,
+    ) =>
       SpecChangeRequestsService.createSpecChangeRequest({ requestBody: data }),
     onSuccess: () => {
       toast.success(t("specifications.requestSubmitted"))
@@ -105,16 +114,14 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="cores">
-                CPU {t("overview.cores")}
-              </Label>
+              <Label htmlFor="cores">CPU {t("overview.cores")}</Label>
               <Input
                 id="cores"
                 type="number"
                 min={1}
                 max={32}
                 value={cores}
-                onChange={(e) => setCores(Number.parseInt(e.target.value))}
+                onChange={(e) => setCores(Number.parseInt(e.target.value, 10))}
               />
               <p className="text-xs text-muted-foreground">
                 {t("specifications.currentValue")}: {config.cores}
@@ -122,9 +129,7 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="memory">
-                {t("overview.memory")} (MB)
-              </Label>
+              <Label htmlFor="memory">{t("overview.memory")} (MB)</Label>
               <Input
                 id="memory"
                 type="number"
@@ -132,7 +137,7 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
                 max={65536}
                 step={512}
                 value={memory}
-                onChange={(e) => setMemory(Number.parseInt(e.target.value))}
+                onChange={(e) => setMemory(Number.parseInt(e.target.value, 10))}
               />
               <p className="text-xs text-muted-foreground">
                 {t("specifications.currentValue")}: {config.memory} MB
@@ -142,9 +147,7 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
 
           {!isAdmin && (
             <div className="space-y-2">
-              <Label htmlFor="reason">
-                {t("specifications.reason")} *
-              </Label>
+              <Label htmlFor="reason">{t("specifications.reason")} *</Label>
               <Textarea
                 id="reason"
                 placeholder={t("specifications.reasonPlaceholder")}
@@ -160,7 +163,9 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
 
           <Button
             onClick={handleSubmit}
-            disabled={directUpdateMutation.isPending || requestMutation.isPending}
+            disabled={
+              directUpdateMutation.isPending || requestMutation.isPending
+            }
           >
             {isAdmin
               ? t("specifications.applyChanges")

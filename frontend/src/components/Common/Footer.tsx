@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils"
 import { FaGithub, FaLinkedinIn } from "react-icons/fa"
 import { FaXTwitter } from "react-icons/fa6"
+import { cn } from "@/lib/utils"
 
 const socialLinks = [
   {

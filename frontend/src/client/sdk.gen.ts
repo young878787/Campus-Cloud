@@ -3,7 +3,240 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { AuditLogsGetAllAuditLogsData, AuditLogsGetAllAuditLogsResponse, AuditLogsGetMyAuditLogsData, AuditLogsGetMyAuditLogsResponse, AuditLogsGetResourceAuditLogsData, AuditLogsGetResourceAuditLogsResponse, GroupsListGroupsResponse, GroupsCreateGroupData, GroupsCreateGroupResponse, GroupsGetGroupData, GroupsGetGroupResponse, GroupsDeleteGroupData, GroupsDeleteGroupResponse, GroupsAddMembersData, GroupsAddMembersResponse, GroupsRemoveMemberData, GroupsRemoveMemberResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenResponse, LoginTestTokenResponse, LoginRecoverPasswordData, LoginRecoverPasswordResponse, LoginResetPasswordData, LoginResetPasswordResponse, LoginRecoverPasswordHtmlContentData, LoginRecoverPasswordHtmlContentResponse, LxcGetLxcTerminalData, LxcGetLxcTerminalResponse, LxcGetTemplatesResponse, LxcCreateLxcData, LxcCreateLxcResponse, PrivateCreateUserData, PrivateCreateUserResponse, ResourceDetailsGetCurrentStatsData, ResourceDetailsGetCurrentStatsResponse, ResourceDetailsGetRrdStatsData, ResourceDetailsGetRrdStatsResponse, ResourceDetailsListSnapshotsData, ResourceDetailsListSnapshotsResponse, ResourceDetailsCreateSnapshotData, ResourceDetailsCreateSnapshotResponse, ResourceDetailsDeleteSnapshotData, ResourceDetailsDeleteSnapshotResponse, ResourceDetailsRollbackSnapshotData, ResourceDetailsRollbackSnapshotResponse, ResourceDetailsDirectUpdateSpecData, ResourceDetailsDirectUpdateSpecResponse, ResourcesListNodesResponse, ResourcesListResourcesData, ResourcesListResourcesResponse, ResourcesListMyResourcesResponse, ResourcesGetResourceData, ResourcesGetResourceResponse, ResourcesDeleteResourceData, ResourcesDeleteResourceResponse, ResourcesGetResourceConfigData, ResourcesGetResourceConfigResponse, ResourcesStartResourceData, ResourcesStartResourceResponse, ResourcesStopResourceData, ResourcesStopResourceResponse, ResourcesRebootResourceData, ResourcesRebootResourceResponse, ResourcesShutdownResourceData, ResourcesShutdownResourceResponse, ResourcesResetResourceData, ResourcesResetResourceResponse, SpecChangeRequestsCreateSpecChangeRequestData, SpecChangeRequestsCreateSpecChangeRequestResponse, SpecChangeRequestsGetAllSpecChangeRequestsData, SpecChangeRequestsGetAllSpecChangeRequestsResponse, SpecChangeRequestsGetMySpecChangeRequestsData, SpecChangeRequestsGetMySpecChangeRequestsResponse, SpecChangeRequestsReviewSpecChangeRequestData, SpecChangeRequestsReviewSpecChangeRequestResponse, UsersReadUsersData, UsersReadUsersResponse, UsersCreateUserData, UsersCreateUserResponse, UsersReadUserMeResponse, UsersDeleteUserMeResponse, UsersUpdateUserMeData, UsersUpdateUserMeResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeResponse, UsersRegisterUserData, UsersRegisterUserResponse, UsersReadUserByIdData, UsersReadUserByIdResponse, UsersUpdateUserData, UsersUpdateUserResponse, UsersDeleteUserData, UsersDeleteUserResponse, UtilsTestEmailData, UtilsTestEmailResponse, UtilsHealthCheckResponse, VmGetVmConsoleData, VmGetVmConsoleResponse, VmCreateVmData, VmCreateVmResponse, VmGetVmTemplatesResponse, VmRequestsCreateVmRequestData, VmRequestsCreateVmRequestResponse, VmRequestsListAllVmRequestsData, VmRequestsListAllVmRequestsResponse, VmRequestsListMyVmRequestsData, VmRequestsListMyVmRequestsResponse, VmRequestsGetVmRequestData, VmRequestsGetVmRequestResponse, VmRequestsReviewVmRequestData, VmRequestsReviewVmRequestResponse } from './types.gen';
+import type { AiApiCreateAiApiRequestData, AiApiCreateAiApiRequestResponse, AiApiListAllAiApiRequestsData, AiApiListAllAiApiRequestsResponse, AiApiListMyAiApiRequestsData, AiApiListMyAiApiRequestsResponse, AiApiGetAiApiRequestData, AiApiGetAiApiRequestResponse, AiApiReviewAiApiRequestData, AiApiReviewAiApiRequestResponse, AiApiListMyAiApiCredentialsData, AiApiListMyAiApiCredentialsResponse, AiApiRotateMyAiApiCredentialData, AiApiRotateMyAiApiCredentialResponse, AiApiDeleteMyAiApiCredentialData, AiApiDeleteMyAiApiCredentialResponse, AiPveAdvisorRecommendPlacementData, AiPveAdvisorRecommendPlacementResponse, AiTemplateRecommendationChatData, AiTemplateRecommendationChatResponse, AiTemplateRecommendationRecommendData, AiTemplateRecommendationRecommendResponse, AuditLogsGetAllAuditLogsData, AuditLogsGetAllAuditLogsResponse, AuditLogsGetMyAuditLogsData, AuditLogsGetMyAuditLogsResponse, AuditLogsGetResourceAuditLogsData, AuditLogsGetResourceAuditLogsResponse, FirewallGetTopologyResponse, FirewallGetLayoutResponse, FirewallSaveLayoutData, FirewallSaveLayoutResponse, FirewallCreateConnectionData, FirewallCreateConnectionResponse, FirewallDeleteConnectionData, FirewallDeleteConnectionResponse, FirewallListRulesData, FirewallListRulesResponse, FirewallCreateRuleData, FirewallCreateRuleResponse, FirewallUpdateRuleData, FirewallUpdateRuleResponse, FirewallDeleteRuleData, FirewallDeleteRuleResponse, FirewallGetOptionsData, FirewallGetOptionsResponse, GroupsListGroupsResponse, GroupsCreateGroupData, GroupsCreateGroupResponse, GroupsGetGroupData, GroupsGetGroupResponse, GroupsDeleteGroupData, GroupsDeleteGroupResponse, GroupsAddMembersData, GroupsAddMembersResponse, GroupsRemoveMemberData, GroupsRemoveMemberResponse, GroupsImportMembersFromCsvData, GroupsImportMembersFromCsvResponse, LoginLoginAccessTokenData, LoginLoginAccessTokenResponse, LoginTestTokenResponse, LoginRecoverPasswordData, LoginRecoverPasswordResponse, LoginResetPasswordData, LoginResetPasswordResponse, LoginRecoverPasswordHtmlContentData, LoginRecoverPasswordHtmlContentResponse, LxcGetLxcTerminalData, LxcGetLxcTerminalResponse, LxcGetTemplatesResponse, LxcCreateLxcData, LxcCreateLxcResponse, PrivateCreateUserData, PrivateCreateUserResponse, ProxmoxConfigGetProxmoxConfigResponse, ProxmoxConfigUpdateProxmoxConfigData, ProxmoxConfigUpdateProxmoxConfigResponse, ProxmoxConfigPreviewClusterData, ProxmoxConfigPreviewClusterResponse, ProxmoxConfigSyncNodesData, ProxmoxConfigSyncNodesResponse, ProxmoxConfigGetNodesResponse, ProxmoxConfigCheckNodesResponse, ProxmoxConfigParseCertData, ProxmoxConfigParseCertResponse, ProxmoxConfigTestProxmoxConnectionResponse, ResourceDetailsGetCurrentStatsData, ResourceDetailsGetCurrentStatsResponse, ResourceDetailsGetRrdStatsData, ResourceDetailsGetRrdStatsResponse, ResourceDetailsListSnapshotsData, ResourceDetailsListSnapshotsResponse, ResourceDetailsCreateSnapshotData, ResourceDetailsCreateSnapshotResponse, ResourceDetailsDeleteSnapshotData, ResourceDetailsDeleteSnapshotResponse, ResourceDetailsRollbackSnapshotData, ResourceDetailsRollbackSnapshotResponse, ResourceDetailsDirectUpdateSpecData, ResourceDetailsDirectUpdateSpecResponse, ResourcesListNodesResponse, ResourcesListResourcesData, ResourcesListResourcesResponse, ResourcesListMyResourcesResponse, ResourcesGetResourceData, ResourcesGetResourceResponse, ResourcesDeleteResourceData, ResourcesDeleteResourceResponse, ResourcesGetResourceConfigData, ResourcesGetResourceConfigResponse, ResourcesStartResourceData, ResourcesStartResourceResponse, ResourcesStopResourceData, ResourcesStopResourceResponse, ResourcesRebootResourceData, ResourcesRebootResourceResponse, ResourcesShutdownResourceData, ResourcesShutdownResourceResponse, ResourcesResetResourceData, ResourcesResetResourceResponse, ScriptDeployDeployServiceTemplateData, ScriptDeployDeployServiceTemplateResponse, ScriptDeployGetDeployStatusData, ScriptDeployGetDeployStatusResponse, ScriptDeployRegisterDeployedResourceData, ScriptDeployRegisterDeployedResourceResponse, SpecChangeRequestsCreateSpecChangeRequestData, SpecChangeRequestsCreateSpecChangeRequestResponse, SpecChangeRequestsGetAllSpecChangeRequestsData, SpecChangeRequestsGetAllSpecChangeRequestsResponse, SpecChangeRequestsGetMySpecChangeRequestsData, SpecChangeRequestsGetMySpecChangeRequestsResponse, SpecChangeRequestsReviewSpecChangeRequestData, SpecChangeRequestsReviewSpecChangeRequestResponse, UsersReadUsersData, UsersReadUsersResponse, UsersCreateUserData, UsersCreateUserResponse, UsersReadUserMeResponse, UsersDeleteUserMeResponse, UsersUpdateUserMeData, UsersUpdateUserMeResponse, UsersUpdatePasswordMeData, UsersUpdatePasswordMeResponse, UsersRegisterUserData, UsersRegisterUserResponse, UsersReadUserByIdData, UsersReadUserByIdResponse, UsersUpdateUserData, UsersUpdateUserResponse, UsersDeleteUserData, UsersDeleteUserResponse, UtilsTestEmailData, UtilsTestEmailResponse, UtilsHealthCheckResponse, VmGetVmConsoleData, VmGetVmConsoleResponse, VmCreateVmData, VmCreateVmResponse, VmGetVmTemplatesResponse, VmRequestsCreateVmRequestData, VmRequestsCreateVmRequestResponse, VmRequestsListAllVmRequestsData, VmRequestsListAllVmRequestsResponse, VmRequestsListMyVmRequestsData, VmRequestsListMyVmRequestsResponse, VmRequestsGetVmRequestData, VmRequestsGetVmRequestResponse, VmRequestsReviewVmRequestData, VmRequestsReviewVmRequestResponse } from './types.gen';
+
+export class AiApiService {
+    /**
+     * Create Ai Api Request
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns AIAPIRequestPublic Successful Response
+     * @throws ApiError
+     */
+    public static createAiApiRequest(data: AiApiCreateAiApiRequestData): CancelablePromise<AiApiCreateAiApiRequestResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/ai-api/requests',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * List All Ai Api Requests
+     * @param data The data for the request.
+     * @param data.status
+     * @param data.skip
+     * @param data.limit
+     * @returns AIAPIRequestsPublic Successful Response
+     * @throws ApiError
+     */
+    public static listAllAiApiRequests(data: AiApiListAllAiApiRequestsData = {}): CancelablePromise<AiApiListAllAiApiRequestsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/ai-api/requests',
+            query: {
+                status: data.status,
+                skip: data.skip,
+                limit: data.limit
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * List My Ai Api Requests
+     * @param data The data for the request.
+     * @param data.skip
+     * @param data.limit
+     * @returns AIAPIRequestsPublic Successful Response
+     * @throws ApiError
+     */
+    public static listMyAiApiRequests(data: AiApiListMyAiApiRequestsData = {}): CancelablePromise<AiApiListMyAiApiRequestsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/ai-api/requests/my',
+            query: {
+                skip: data.skip,
+                limit: data.limit
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Ai Api Request
+     * @param data The data for the request.
+     * @param data.requestId
+     * @returns AIAPIRequestPublic Successful Response
+     * @throws ApiError
+     */
+    public static getAiApiRequest(data: AiApiGetAiApiRequestData): CancelablePromise<AiApiGetAiApiRequestResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/ai-api/requests/{request_id}',
+            path: {
+                request_id: data.requestId
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Review Ai Api Request
+     * @param data The data for the request.
+     * @param data.requestId
+     * @param data.requestBody
+     * @returns AIAPIRequestPublic Successful Response
+     * @throws ApiError
+     */
+    public static reviewAiApiRequest(data: AiApiReviewAiApiRequestData): CancelablePromise<AiApiReviewAiApiRequestResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/ai-api/requests/{request_id}/review',
+            path: {
+                request_id: data.requestId
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * List My Ai Api Credentials
+     * @param data The data for the request.
+     * @param data.skip
+     * @param data.limit
+     * @returns AIAPICredentialsPublic Successful Response
+     * @throws ApiError
+     */
+    public static listMyAiApiCredentials(data: AiApiListMyAiApiCredentialsData = {}): CancelablePromise<AiApiListMyAiApiCredentialsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/ai-api/credentials/my',
+            query: {
+                skip: data.skip,
+                limit: data.limit
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Rotate My Ai Api Credential
+     * @param data The data for the request.
+     * @param data.credentialId
+     * @returns AIAPICredentialPublic Successful Response
+     * @throws ApiError
+     */
+    public static rotateMyAiApiCredential(data: AiApiRotateMyAiApiCredentialData): CancelablePromise<AiApiRotateMyAiApiCredentialResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/ai-api/credentials/{credential_id}/rotate',
+            path: {
+                credential_id: data.credentialId
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Delete My Ai Api Credential
+     * @param data The data for the request.
+     * @param data.credentialId
+     * @returns Message Successful Response
+     * @throws ApiError
+     */
+    public static deleteMyAiApiCredential(data: AiApiDeleteMyAiApiCredentialData): CancelablePromise<AiApiDeleteMyAiApiCredentialResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/ai-api/credentials/{credential_id}',
+            path: {
+                credential_id: data.credentialId
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+}
+
+export class AiPveAdvisorService {
+    /**
+     * Recommend Placement
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns PlacementAdvisorResponse Successful Response
+     * @throws ApiError
+     */
+    public static recommendPlacement(data: AiPveAdvisorRecommendPlacementData): CancelablePromise<AiPveAdvisorRecommendPlacementResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/ai/pve-advisor/recommend',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+}
+
+export class AiTemplateRecommendationService {
+    /**
+     * Chat
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns ChatResponse Successful Response
+     * @throws ApiError
+     */
+    public static chat(data: AiTemplateRecommendationChatData): CancelablePromise<AiTemplateRecommendationChatResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/ai/template-recommendation/chat',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Recommend
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static recommend(data: AiTemplateRecommendationRecommendData): CancelablePromise<AiTemplateRecommendationRecommendResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/ai/template-recommendation/recommend',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+}
 
 export class AuditLogsService {
     /**
@@ -75,6 +308,212 @@ export class AuditLogsService {
             query: {
                 skip: data.skip,
                 limit: data.limit
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+}
+
+export class FirewallService {
+    /**
+     * Get Topology
+     * 取得當前使用者有權限的 VM 防火牆拓撲（節點 + 連線）
+     * @returns TopologyResponse Successful Response
+     * @throws ApiError
+     */
+    public static getTopology(): CancelablePromise<FirewallGetTopologyResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/firewall/topology'
+        });
+    }
+    
+    /**
+     * Get Layout
+     * 取得使用者儲存的圖形佈局節點位置
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static getLayout(): CancelablePromise<FirewallGetLayoutResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/firewall/layout'
+        });
+    }
+    
+    /**
+     * Save Layout
+     * 批次儲存圖形佈局節點位置
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns Message Successful Response
+     * @throws ApiError
+     */
+    public static saveLayout(data: FirewallSaveLayoutData): CancelablePromise<FirewallSaveLayoutResponse> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/v1/firewall/layout',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Create Connection
+     * 建立 VM 間連線（或 VM 到網關）
+     *
+     * - 來源 VM 必須為當前使用者有權限的機器
+     * - 目標 VM（如果有）也必須在當前使用者的可見範圍內
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns Message Successful Response
+     * @throws ApiError
+     */
+    public static createConnection(data: FirewallCreateConnectionData): CancelablePromise<FirewallCreateConnectionResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/firewall/connections',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Delete Connection
+     * 刪除 VM 間連線
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns Message Successful Response
+     * @throws ApiError
+     */
+    public static deleteConnection(data: FirewallDeleteConnectionData): CancelablePromise<FirewallDeleteConnectionResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/firewall/connections',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * List Rules
+     * 列出 VM 防火牆規則（包含 campus-cloud 管理的規則）
+     * @param data The data for the request.
+     * @param data.vmid
+     * @returns FirewallRulePublic Successful Response
+     * @throws ApiError
+     */
+    public static listRules(data: FirewallListRulesData): CancelablePromise<FirewallListRulesResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/firewall/{vmid}/rules',
+            path: {
+                vmid: data.vmid
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Create Rule
+     * 在 VM 上建立防火牆規則
+     * @param data The data for the request.
+     * @param data.vmid
+     * @param data.requestBody
+     * @returns Message Successful Response
+     * @throws ApiError
+     */
+    public static createRule(data: FirewallCreateRuleData): CancelablePromise<FirewallCreateRuleResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/firewall/{vmid}/rules',
+            path: {
+                vmid: data.vmid
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Update Rule
+     * 更新 VM 防火牆規則（不可修改 campus-cloud 管理的規則）
+     * @param data The data for the request.
+     * @param data.vmid
+     * @param data.pos
+     * @param data.requestBody
+     * @returns Message Successful Response
+     * @throws ApiError
+     */
+    public static updateRule(data: FirewallUpdateRuleData): CancelablePromise<FirewallUpdateRuleResponse> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/v1/firewall/{vmid}/rules/{pos}',
+            path: {
+                vmid: data.vmid,
+                pos: data.pos
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Delete Rule
+     * 刪除 VM 防火牆規則（不可刪除 campus-cloud 管理的規則，請使用連線刪除 API）
+     * @param data The data for the request.
+     * @param data.vmid
+     * @param data.pos
+     * @returns Message Successful Response
+     * @throws ApiError
+     */
+    public static deleteRule(data: FirewallDeleteRuleData): CancelablePromise<FirewallDeleteRuleResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/firewall/{vmid}/rules/{pos}',
+            path: {
+                vmid: data.vmid,
+                pos: data.pos
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Options
+     * 取得 VM 防火牆選項（是否啟用、預設策略）
+     * @param data The data for the request.
+     * @param data.vmid
+     * @returns FirewallOptionsPublic Successful Response
+     * @throws ApiError
+     */
+    public static getOptions(data: FirewallGetOptionsData): CancelablePromise<FirewallGetOptionsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/firewall/{vmid}/options',
+            path: {
+                vmid: data.vmid
             },
             errors: {
                 422: 'Validation Error'
@@ -194,6 +633,33 @@ export class GroupsService {
                 group_id: data.groupId,
                 user_id: data.userId
             },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Import Members From Csv
+     * 從 CSV 大量匯入學生帳號並加入群組。
+     *
+     * CSV 格式（支援 Big5/UTF-8）：學號, 姓名, 班級
+     * 帳號不存在時自動建立，email 為 {學號}@ntub.edu.tw，並發送通知信。
+     * @param data The data for the request.
+     * @param data.groupId
+     * @param data.formData
+     * @returns CsvImportResult Successful Response
+     * @throws ApiError
+     */
+    public static importMembersFromCsv(data: GroupsImportMembersFromCsvData): CancelablePromise<GroupsImportMembersFromCsvResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/groups/{group_id}/import-csv',
+            path: {
+                group_id: data.groupId
+            },
+            formData: data.formData,
+            mediaType: 'multipart/form-data',
             errors: {
                 422: 'Validation Error'
             }
@@ -365,6 +831,143 @@ export class PrivateService {
             errors: {
                 422: 'Validation Error'
             }
+        });
+    }
+}
+
+export class ProxmoxConfigService {
+    /**
+     * Get Proxmox Config
+     * 取得目前的 Proxmox 連線設定（密碼不回傳）
+     * @returns ProxmoxConfigPublic Successful Response
+     * @throws ApiError
+     */
+    public static getProxmoxConfig(): CancelablePromise<ProxmoxConfigGetProxmoxConfigResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/proxmox-config/'
+        });
+    }
+    
+    /**
+     * Update Proxmox Config
+     * 新增或更新 Proxmox 連線設定
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns ProxmoxConfigPublic Successful Response
+     * @throws ApiError
+     */
+    public static updateProxmoxConfig(data: ProxmoxConfigUpdateProxmoxConfigData): CancelablePromise<ProxmoxConfigUpdateProxmoxConfigResponse> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/v1/proxmox-config/',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Preview Cluster
+     * 用表單內容臨時連線，偵測叢集節點。不儲存任何資料。
+     * 前端在儲存前呼叫此 endpoint，根據回傳決定是否顯示確認 popup。
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns ClusterPreviewResult Successful Response
+     * @throws ApiError
+     */
+    public static previewCluster(data: ProxmoxConfigPreviewClusterData): CancelablePromise<ProxmoxConfigPreviewClusterResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox-config/preview',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Sync Nodes
+     * 將前端確認過的節點清單寫入資料庫。
+     * 先清除舊節點再寫入新節點。
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns ProxmoxNodePublic Successful Response
+     * @throws ApiError
+     */
+    public static syncNodes(data: ProxmoxConfigSyncNodesData): CancelablePromise<ProxmoxConfigSyncNodesResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox-config/sync-nodes',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Nodes
+     * 取得所有已儲存的叢集節點清單。
+     * @returns ProxmoxNodePublic Successful Response
+     * @throws ApiError
+     */
+    public static getNodes(): CancelablePromise<ProxmoxConfigGetNodesResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/proxmox-config/nodes'
+        });
+    }
+    
+    /**
+     * Check Nodes
+     * 對所有已儲存的節點做 TCP ping 健康檢查，更新 is_online 狀態後回傳最新清單。
+     * 前端開啟 Proxmox 設定頁面時呼叫。
+     * @returns ProxmoxNodePublic Successful Response
+     * @throws ApiError
+     */
+    public static checkNodes(): CancelablePromise<ProxmoxConfigCheckNodesResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox-config/check-nodes'
+        });
+    }
+    
+    /**
+     * Parse Cert
+     * 解析貼上的 PEM 憑證，回傳指紋與基本資訊供管理員確認
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns CertParseResult Successful Response
+     * @throws ApiError
+     */
+    public static parseCert(data: ProxmoxConfigParseCertData): CancelablePromise<ProxmoxConfigParseCertResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox-config/parse-cert',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Test Proxmox Connection
+     * 測試目前設定的 Proxmox 連線
+     * @returns ProxmoxConnectionTestResult Successful Response
+     * @throws ApiError
+     */
+    public static testProxmoxConnection(): CancelablePromise<ProxmoxConfigTestProxmoxConnectionResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/proxmox-config/test'
         });
     }
 }
@@ -729,6 +1332,76 @@ export class ResourcesService {
             url: '/api/v1/resources/{vmid}/reset',
             path: {
                 vmid: data.vmid
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+}
+
+export class ScriptDeployService {
+    /**
+     * Deploy Service Template
+     * 啟動服務模板的無人值守部署。
+     *
+     * 從 GitHub community-scripts/ProxmoxVE 下載腳本，
+     * 以無人值守方式在 Proxmox 節點上部署服務容器。
+     * @param data The data for the request.
+     * @param data.requestBody
+     * @returns ScriptDeployResponse Successful Response
+     * @throws ApiError
+     */
+    public static deployServiceTemplate(data: ScriptDeployDeployServiceTemplateData): CancelablePromise<ScriptDeployDeployServiceTemplateResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/script-deploy/deploy',
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Get Deploy Status
+     * 查詢部署任務的當前狀態。
+     * @param data The data for the request.
+     * @param data.taskId
+     * @returns ScriptDeployStatus Successful Response
+     * @throws ApiError
+     */
+    public static getDeployStatus(data: ScriptDeployGetDeployStatusData): CancelablePromise<ScriptDeployGetDeployStatusResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/script-deploy/status/{task_id}',
+            path: {
+                task_id: data.taskId
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Register Deployed Resource
+     * 部署成功後，將容器註冊到資料庫。
+     *
+     * 前端在確認部署成功（status=completed）後呼叫此端點，
+     * 將新建的容器資訊寫入資料庫以便追蹤管理。
+     * @param data The data for the request.
+     * @param data.taskId
+     * @returns unknown Successful Response
+     * @throws ApiError
+     */
+    public static registerDeployedResource(data: ScriptDeployRegisterDeployedResourceData): CancelablePromise<ScriptDeployRegisterDeployedResourceResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/v1/script-deploy/register/{task_id}',
+            path: {
+                task_id: data.taskId
             },
             errors: {
                 422: 'Validation Error'

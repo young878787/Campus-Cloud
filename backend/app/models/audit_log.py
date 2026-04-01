@@ -58,6 +58,9 @@ class AuditAction(str, enum.Enum):
     batch_provision_vm = "batch_provision_vm"
     batch_provision_lxc = "batch_provision_lxc"
 
+    # 腳本部署
+    script_deploy = "script_deploy"
+
 
 class AuditLog(SQLModel, table=True):
     """審計日誌表"""

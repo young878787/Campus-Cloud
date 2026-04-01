@@ -1,17 +1,17 @@
 import { useSuspenseQuery } from "@tanstack/react-query"
-import { useTranslation } from "react-i18next"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import {
-  LineChart,
-  Line,
-  AreaChart,
   Area,
+  AreaChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
 } from "recharts"
 
 import { ResourceDetailsService } from "@/client"
@@ -59,7 +59,10 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
     return `${mb.toFixed(2)} MB`
   }
 
-  const formatPercentage = (value: number | null | undefined, max: number | null | undefined) => {
+  const formatPercentage = (
+    value: number | null | undefined,
+    max: number | null | undefined,
+  ) => {
     if (!value || !max) return "0%"
     return `${((value / max) * 100).toFixed(1)}%`
   }
@@ -78,9 +81,15 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
       time: formatTimestamp(point.time),
       timestamp: point.time,
       cpu: point.cpu ? (point.cpu * 100).toFixed(2) : null,
-      memory: point.mem && point.maxmem ? ((point.mem / point.maxmem) * 100).toFixed(2) : null,
+      memory:
+        point.mem && point.maxmem
+          ? ((point.mem / point.maxmem) * 100).toFixed(2)
+          : null,
       memoryGB: point.mem ? (point.mem / 1024 / 1024 / 1024).toFixed(2) : null,
-      disk: point.disk && point.maxdisk ? ((point.disk / point.maxdisk) * 100).toFixed(2) : null,
+      disk:
+        point.disk && point.maxdisk
+          ? ((point.disk / point.maxdisk) * 100).toFixed(2)
+          : null,
       diskGB: point.disk ? (point.disk / 1024 / 1024 / 1024).toFixed(2) : null,
       netinMB: point.netin ? (point.netin / 1024 / 1024).toFixed(2) : null,
       netoutMB: point.netout ? (point.netout / 1024 / 1024).toFixed(2) : null,
@@ -93,9 +102,7 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
     <div className="space-y-6">
       {/* Timeframe Selector */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">
-          {t("monitoring.title")}
-        </h3>
+        <h3 className="text-lg font-semibold">{t("monitoring.title")}</h3>
         <Select value={timeframe} onValueChange={setTimeframe}>
           <SelectTrigger className="w-[180px]">
             <SelectValue />
@@ -114,11 +121,15 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">CPU {t("monitoring.usage")}</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              CPU {t("monitoring.usage")}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {currentStats.cpu ? `${(currentStats.cpu * 100).toFixed(1)}%` : "0%"}
+              {currentStats.cpu
+                ? `${(currentStats.cpu * 100).toFixed(1)}%`
+                : "0%"}
             </div>
             <p className="text-xs text-muted-foreground">
               {currentStats.maxcpu} {t("overview.cores")}
@@ -137,7 +148,8 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
               {formatPercentage(currentStats.mem, currentStats.maxmem)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {formatBytes(currentStats.mem)} / {formatBytes(currentStats.maxmem)}
+              {formatBytes(currentStats.mem)} /{" "}
+              {formatBytes(currentStats.maxmem)}
             </p>
           </CardContent>
         </Card>
@@ -153,7 +165,8 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
               {formatPercentage(currentStats.disk, currentStats.maxdisk)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {formatBytes(currentStats.disk)} / {formatBytes(currentStats.maxdisk)}
+              {formatBytes(currentStats.disk)} /{" "}
+              {formatBytes(currentStats.maxdisk)}
             </p>
           </CardContent>
         </Card>
@@ -168,11 +181,15 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
             <div className="text-sm">
               <div className="flex justify-between">
                 <span>{t("monitoring.in")}:</span>
-                <span className="font-semibold">{formatBytes(currentStats.netin)}</span>
+                <span className="font-semibold">
+                  {formatBytes(currentStats.netin)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>{t("monitoring.out")}:</span>
-                <span className="font-semibold">{formatBytes(currentStats.netout)}</span>
+                <span className="font-semibold">
+                  {formatBytes(currentStats.netout)}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -184,7 +201,8 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
         <CardHeader>
           <CardTitle>{t("monitoring.historicalData")}</CardTitle>
           <CardDescription>
-            {t("monitoring.showing")} {rrdData?.data.length || 0} {t("monitoring.dataPoints")}
+            {t("monitoring.showing")} {rrdData?.data.length || 0}{" "}
+            {t("monitoring.dataPoints")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -192,7 +210,9 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="cpu">CPU</TabsTrigger>
               <TabsTrigger value="memory">{t("overview.memory")}</TabsTrigger>
-              <TabsTrigger value="network">{t("monitoring.network")}</TabsTrigger>
+              <TabsTrigger value="network">
+                {t("monitoring.network")}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="cpu" className="space-y-4">
@@ -201,11 +221,22 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        <stop
+                          offset="5%"
+                          stopColor="hsl(var(--primary))"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="hsl(var(--primary))"
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-muted"
+                    />
                     <XAxis
                       dataKey="time"
                       className="text-xs"
@@ -241,12 +272,29 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
-                      <linearGradient id="colorMemory" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      <linearGradient
+                        id="colorMemory"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#10b981"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#10b981"
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-muted"
+                    />
                     <XAxis
                       dataKey="time"
                       className="text-xs"
@@ -281,7 +329,10 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-muted"
+                    />
                     <XAxis
                       dataKey="time"
                       className="text-xs"

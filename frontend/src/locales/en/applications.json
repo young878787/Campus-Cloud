@@ -88,5 +88,23 @@
     "allCategories": "All Categories",
     "noTemplatesFound": "No templates found matching your search criteria",
     "port": "Port {{port}}"
+  },
+  "deploy": {
+    "title": "One-Click Deploy",
+    "description": "Download script from community-scripts and deploy the service container in unattended mode.",
+    "scriptPath": "Script Path",
+    "hostname": "Hostname",
+    "password": "Root Password",
+    "passwordPlaceholder": "At least 5 characters",
+    "cores": "cores",
+    "ram": "Memory",
+    "disk": "Disk",
+    "unprivileged": "Unprivileged Container",
+    "ssh": "Enable SSH",
+    "cancel": "Cancel",
+    "start": "Start Deploy",
+    "close": "Close",
+    "failed": "Deployment Failed",
+    "errorDetail": "Error Details (Auto Rolled Back)"
   }
 }

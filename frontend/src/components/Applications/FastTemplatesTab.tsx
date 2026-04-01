@@ -7,6 +7,7 @@ import {
   Globe,
   Info,
   LayoutTemplate,
+  Rocket,
   Search,
   Server,
   X,
@@ -24,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+// ScriptDeployDialog is used by ApplicationRequestPage, not here
 
 const allData = rawData as Record<string, any>
 
@@ -125,7 +127,12 @@ export function FastTemplatesTab({
     <div className="relative flex flex-col gap-4 animate-in fade-in duration-300 overflow-hidden">
       {onBack && (
         <div className="flex justify-start">
-          <Button type="button" variant="ghost" onClick={onBack} className="-ml-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onBack}
+            className="-ml-2"
+          >
             <ArrowLeft className="h-4 w-4" />
             {t("templates.backToList")}
           </Button>
@@ -259,11 +266,13 @@ export function FastTemplatesTab({
                           {t("templates.supportsUpdate")}
                         </Badge>
                       )}
-                      {selectedTemplate.categories?.slice(0, 3).map((catId: number) => (
-                        <Badge variant="outline" key={catId}>
-                          {categoriesMap.get(catId) || "Unknown"}
-                        </Badge>
-                      ))}
+                      {selectedTemplate.categories
+                        ?.slice(0, 3)
+                        .map((catId: number) => (
+                          <Badge variant="outline" key={catId}>
+                            {categoriesMap.get(catId) || "Unknown"}
+                          </Badge>
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -284,17 +293,19 @@ export function FastTemplatesTab({
                     {t("templates.description")}
                   </h4>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                    {selectedTemplate.description || t("templates.noDescription")}
+                    {selectedTemplate.description ||
+                      t("templates.noDescription")}
                   </p>
                 </div>
 
-                {selectedTemplate.notes && selectedTemplate.notes.length > 0 && (
-                  <div className="space-y-3">
-                    {selectedTemplate.notes.map((note: any, idx: number) => (
-                      <NoteBox key={idx} note={note} />
-                    ))}
-                  </div>
-                )}
+                {selectedTemplate.notes &&
+                  selectedTemplate.notes.length > 0 && (
+                    <div className="space-y-3">
+                      {selectedTemplate.notes.map((note: any, idx: number) => (
+                        <NoteBox key={idx} note={note} />
+                      ))}
+                    </div>
+                  )}
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {selectedTemplate.config_path && (
@@ -345,7 +356,8 @@ export function FastTemplatesTab({
                   )}
                 </div>
 
-                {(selectedTemplate.website || selectedTemplate.documentation) && (
+                {(selectedTemplate.website ||
+                  selectedTemplate.documentation) && (
                   <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row">
                     {selectedTemplate.website && (
                       <Button
@@ -388,13 +400,22 @@ export function FastTemplatesTab({
                   <div className="border-t pt-4">
                     <Button
                       type="button"
+                      variant="default"
                       className="w-full"
                       onClick={() => {
                         onSelectTemplate(selectedTemplate)
                         setSelectedTemplate(null)
                       }}
                     >
-                      {t("form.selectTemplate")}
+                      {selectedTemplate.type === "ct" &&
+                      selectedTemplate.install_methods?.length > 0 ? (
+                        <>
+                          <Rocket className="mr-2 h-4 w-4" />
+                          {t("form.selectTemplate")}
+                        </>
+                      ) : (
+                        t("form.selectTemplate")
+                      )}
                     </Button>
                   </div>
                 )}

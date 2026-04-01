@@ -2,6 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 
 import { AuditLogsService } from "@/client"
+import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -17,7 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 
 interface AuditLogsTabProps {
   vmid: number
@@ -28,13 +28,15 @@ export default function AuditLogsTab({ vmid }: AuditLogsTabProps) {
 
   const { data: auditLogs } = useSuspenseQuery({
     queryKey: ["auditLogs", vmid],
-    queryFn: () => AuditLogsService.getResourceAuditLogs({ vmid, skip: 0, limit: 100 }),
+    queryFn: () =>
+      AuditLogsService.getResourceAuditLogs({ vmid, skip: 0, limit: 100 }),
   })
 
   const getActionBadgeColor = (action: string) => {
     if (action.includes("create")) return "bg-green-500"
     if (action.includes("delete")) return "bg-red-500"
-    if (action.includes("update") || action.includes("spec_change")) return "bg-blue-500"
+    if (action.includes("update") || action.includes("spec_change"))
+      return "bg-blue-500"
     if (action.includes("snapshot")) return "bg-purple-500"
     return "bg-gray-500"
   }
@@ -45,7 +47,8 @@ export default function AuditLogsTab({ vmid }: AuditLogsTabProps) {
         <CardHeader>
           <CardTitle>{t("auditLogs.title")}</CardTitle>
           <CardDescription>
-            {t("auditLogs.description")} ({auditLogs.count} {t("auditLogs.records")})
+            {t("auditLogs.description")} ({auditLogs.count}{" "}
+            {t("auditLogs.records")})
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -71,16 +74,25 @@ export default function AuditLogsTab({ vmid }: AuditLogsTabProps) {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{log.user_full_name || "Unknown"}</div>
-                        <div className="text-xs text-muted-foreground">{log.user_email}</div>
+                        <div className="font-medium">
+                          {log.user_full_name || "Unknown"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {log.user_email}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge className={getActionBadgeColor(log.action)}>
-                        {t(`resourceDetail.auditLogs.actions.${log.action}`, log.action)}
+                        {t(
+                          `resourceDetail.auditLogs.actions.${log.action}`,
+                          log.action,
+                        )}
                       </Badge>
                     </TableCell>
-                    <TableCell className="max-w-md truncate">{log.details}</TableCell>
+                    <TableCell className="max-w-md truncate">
+                      {log.details}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

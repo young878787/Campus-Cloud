@@ -1,4 +1,4 @@
-import { Handle, Position, type Node, type NodeProps } from "@xyflow/react"
+import { Handle, type Node, type NodeProps, Position } from "@xyflow/react"
 import { Globe } from "lucide-react"
 
 export type GatewayNodeData = {
@@ -14,9 +14,10 @@ export function GatewayNode({ selected }: NodeProps<GatewayNodeType>) {
         relative flex items-center gap-3 px-4 py-3
         bg-[#1a1a1a] border border-dashed rounded-xl cursor-default
         transition-all duration-200 min-w-[160px]
-        ${selected
-          ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.3)]"
-          : "border-[#3e3e3e]"
+        ${
+          selected
+            ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.3)]"
+            : "border-[#3e3e3e]"
         }
       `}
     >

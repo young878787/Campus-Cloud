@@ -141,4 +141,7 @@ export const createColumns = (
 
 const noopT = ((key: string) => key) as TFunction
 
-export const columns: ColumnDef<ResourcePublic>[] = createColumns(noopT, () => {})
+export const columns: ColumnDef<ResourcePublic>[] = createColumns(
+  noopT,
+  () => {},
+)

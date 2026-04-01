@@ -1,8 +1,8 @@
 import {
-  EdgeLabelRenderer,
-  getBezierPath,
   type Edge,
+  EdgeLabelRenderer,
   type EdgeProps,
+  getBezierPath,
 } from "@xyflow/react"
 import { X } from "lucide-react"
 import { useState } from "react"
@@ -14,11 +14,11 @@ export type ConnectionEdgeData = {
   sourceVmid: number | null
   targetVmid: number | null
   isGateway?: boolean
-  isInbound?: boolean   // internet→VM 入站
-  isVMtoVM?: boolean    // VM→VM 連線
-  showLabels?: boolean  // 全域標籤開關
+  isInbound?: boolean // internet→VM 入站
+  isVMtoVM?: boolean // VM→VM 連線
+  showLabels?: boolean // 全域標籤開關
   isHighlighted?: boolean // 節點聚焦時強制顯示
-  hidden?: boolean        // 聚焦模式下非關聯邊隱藏
+  hidden?: boolean // 聚焦模式下非關聯邊隱藏
 }
 
 type ConnectionEdgeType = Edge<ConnectionEdgeData, "connection">
@@ -69,10 +69,16 @@ export function ConnectionEdge({
   const lineOpacity = data?.hidden ? 0 : 1
 
   const color = isInbound
-    ? (hovered ? "#93c5fd" : "#60a5fa")   // 藍色：internet→VM
+    ? hovered
+      ? "#93c5fd"
+      : "#60a5fa" // 藍色：internet→VM
     : isVMtoVM
-      ? (hovered ? "#fcd34d" : "#f59e0b") // 橘色：VM→VM
-      : (hovered ? "#6ee7b7" : "#4ade80") // 綠色：VM→internet
+      ? hovered
+        ? "#fcd34d"
+        : "#f59e0b" // 橘色：VM→VM
+      : hovered
+        ? "#6ee7b7"
+        : "#4ade80" // 綠色：VM→internet
   const dashArray = "8 4"
   const animDuration = "1.2s"
 
@@ -114,7 +120,15 @@ export function ConnectionEdge({
         <path
           d={edgePath}
           fill="none"
-          stroke={isInbound ? (hovered ? "#bfdbfe" : "#93c5fd") : (hovered ? "#a7f3d0" : "#86efac")}
+          stroke={
+            isInbound
+              ? hovered
+                ? "#bfdbfe"
+                : "#93c5fd"
+              : hovered
+                ? "#a7f3d0"
+                : "#86efac"
+          }
           strokeWidth={1.2}
           strokeDasharray={dashArray}
           strokeDashoffset={6}
@@ -140,14 +154,24 @@ export function ConnectionEdge({
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
         >
-          <div className={`flex items-center gap-1.5 rounded-md px-2 py-0.5 ${
-            isInbound ? "bg-[#1e2533] border border-[#2e4e7e]"
-            : isVMtoVM ? "bg-[#2a1f0e] border border-[#5e3a0e]"
-            : "bg-[#1e2e1e] border border-[#2e4e2e]"
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-              isInbound ? "bg-blue-400" : isVMtoVM ? "bg-amber-400" : "bg-emerald-400"
-            }`} />
+          <div
+            className={`flex items-center gap-1.5 rounded-md px-2 py-0.5 ${
+              isInbound
+                ? "bg-[#1e2533] border border-[#2e4e7e]"
+                : isVMtoVM
+                  ? "bg-[#2a1f0e] border border-[#5e3a0e]"
+                  : "bg-[#1e2e1e] border border-[#2e4e2e]"
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                isInbound
+                  ? "bg-blue-400"
+                  : isVMtoVM
+                    ? "bg-amber-400"
+                    : "bg-emerald-400"
+              }`}
+            />
             <span className="text-xs text-gray-300 whitespace-nowrap">
               {isInbound ? `入站 ${portLabel}` : isGateway ? "上網" : portLabel}
             </span>

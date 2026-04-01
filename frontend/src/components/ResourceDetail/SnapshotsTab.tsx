@@ -1,10 +1,15 @@
-import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { useTranslation } from "react-i18next"
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query"
+import { RotateCcw, Trash2 } from "lucide-react"
 import { useState } from "react"
-import { Trash2, RotateCcw } from "lucide-react"
-
-import { ResourceDetailsService } from "@/client"
+import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 import type { SnapshotCreateRequest } from "@/client"
+import { ResourceDetailsService } from "@/client"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -12,10 +17,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Table,
   TableBody,
@@ -33,7 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { toast } from "sonner"
+import { Textarea } from "@/components/ui/textarea"
 
 interface SnapshotsTabProps {
   vmid: number
@@ -135,7 +138,9 @@ export default function SnapshotsTab({ vmid }: SnapshotsTabProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="desc">{t("snapshots.descriptionLabel")}</Label>
+                    <Label htmlFor="desc">
+                      {t("snapshots.descriptionLabel")}
+                    </Label>
                     <Textarea
                       id="desc"
                       value={description}
@@ -145,10 +150,16 @@ export default function SnapshotsTab({ vmid }: SnapshotsTabProps) {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setCreateDialogOpen(false)}
+                  >
                     {t("common.cancel")}
                   </Button>
-                  <Button onClick={handleCreate} disabled={createMutation.isPending}>
+                  <Button
+                    onClick={handleCreate}
+                    disabled={createMutation.isPending}
+                  >
                     {t("common.create")}
                   </Button>
                 </DialogFooter>
@@ -168,7 +179,9 @@ export default function SnapshotsTab({ vmid }: SnapshotsTabProps) {
                   <TableHead>{t("snapshots.name")}</TableHead>
                   <TableHead>{t("snapshots.descriptionLabel")}</TableHead>
                   <TableHead>{t("snapshots.createdAt")}</TableHead>
-                  <TableHead className="text-right">{t("common.actions")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("common.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

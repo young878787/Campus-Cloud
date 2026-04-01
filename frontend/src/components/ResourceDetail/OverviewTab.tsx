@@ -1,8 +1,16 @@
 import { useSuspenseQuery } from "@tanstack/react-query"
+import {
+  Calendar,
+  Cpu,
+  MemoryStick,
+  Network,
+  Package,
+  Server,
+} from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { Server, Cpu, MemoryStick, Calendar, Package, Network } from "lucide-react"
 
 import { ResourcesService } from "@/client"
+import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -10,7 +18,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 
 interface OverviewTabProps {
   vmid: number
@@ -26,11 +33,22 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      running: { variant: "default" as const, className: "bg-green-500 hover:bg-green-600 text-white" },
-      stopped: { variant: "secondary" as const, className: "bg-gray-500 hover:bg-gray-600 text-white" },
-      paused: { variant: "default" as const, className: "bg-yellow-500 hover:bg-yellow-600 text-white" },
+      running: {
+        variant: "default" as const,
+        className: "bg-green-500 hover:bg-green-600 text-white",
+      },
+      stopped: {
+        variant: "secondary" as const,
+        className: "bg-gray-500 hover:bg-gray-600 text-white",
+      },
+      paused: {
+        variant: "default" as const,
+        className: "bg-yellow-500 hover:bg-yellow-600 text-white",
+      },
     }
-    return statusConfig[status as keyof typeof statusConfig] || statusConfig.stopped
+    return (
+      statusConfig[status as keyof typeof statusConfig] || statusConfig.stopped
+    )
   }
 
   const statusBadge = getStatusBadge(resource.status as string)
@@ -44,9 +62,7 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
             <Server className="h-5 w-5 text-muted-foreground" />
             <CardTitle>{t("overview.basicInfo")}</CardTitle>
           </div>
-          <CardDescription>
-            {t("overview.basicInfoDesc")}
-          </CardDescription>
+          <CardDescription>{t("overview.basicInfoDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1">
@@ -72,7 +88,10 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
               {t("overview.status")}
             </div>
             <div className="pt-1">
-              <Badge className={statusBadge.className} variant={statusBadge.variant}>
+              <Badge
+                className={statusBadge.className}
+                variant={statusBadge.variant}
+              >
                 {resource.status}
               </Badge>
             </div>
@@ -89,7 +108,9 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
                 <Network className="h-3 w-3" />
                 {t("overview.ipAddress")}
               </div>
-              <div className="text-2xl font-bold font-mono">{resource.ip_address}</div>
+              <div className="text-2xl font-bold font-mono">
+                {resource.ip_address}
+              </div>
             </div>
           )}
         </CardContent>
@@ -102,9 +123,7 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
             <Package className="h-5 w-5 text-muted-foreground" />
             <CardTitle>{t("overview.resourceConfig")}</CardTitle>
           </div>
-          <CardDescription>
-            {t("overview.resourceConfigDesc")}
-          </CardDescription>
+          <CardDescription>{t("overview.resourceConfigDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2">
           <div className="flex items-start gap-4 p-4 rounded-lg bg-muted/50 border">
@@ -115,9 +134,7 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 CPU
               </div>
-              <div className="text-3xl font-bold">
-                {resource.maxcpu}
-              </div>
+              <div className="text-3xl font-bold">{resource.maxcpu}</div>
               <div className="text-sm text-muted-foreground">
                 {t("overview.cores")}
               </div>
@@ -132,7 +149,9 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
                 {t("overview.memory")}
               </div>
               <div className="text-3xl font-bold">
-                {resource.maxmem ? (resource.maxmem / 1024 / 1024 / 1024).toFixed(2) : "N/A"}
+                {resource.maxmem
+                  ? (resource.maxmem / 1024 / 1024 / 1024).toFixed(2)
+                  : "N/A"}
               </div>
               <div className="text-sm text-muted-foreground">GB</div>
             </div>
@@ -141,7 +160,9 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
       </Card>
 
       {/* Environment Information */}
-      {(resource.environment_type || resource.os_info || resource.expiry_date) && (
+      {(resource.environment_type ||
+        resource.os_info ||
+        resource.expiry_date) && (
         <Card className="border-2">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">

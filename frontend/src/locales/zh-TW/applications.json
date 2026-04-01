@@ -92,5 +92,23 @@
     "allCategories": "所有分類",
     "noTemplatesFound": "找不到符合搜尋條件的模板",
     "port": "Port {{port}}"
+  },
+  "deploy": {
+    "title": "一鍵部署",
+    "description": "從 community-scripts 下載腳本，以無人值守方式部署服務容器。",
+    "scriptPath": "腳本路徑",
+    "hostname": "主機名稱",
+    "password": "Root 密碼",
+    "passwordPlaceholder": "至少 5 個字元",
+    "cores": "核心",
+    "ram": "記憶體",
+    "disk": "磁碟",
+    "unprivileged": "非特權容器",
+    "ssh": "啟用 SSH",
+    "cancel": "取消",
+    "start": "開始部署",
+    "close": "關閉",
+    "failed": "部署失敗",
+    "errorDetail": "錯誤詳情（已自動回滾）"
   }
 }

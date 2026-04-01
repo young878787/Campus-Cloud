@@ -1,9 +1,7 @@
 {
   "name": "Manyfold",
   "slug": "manyfold",
-  "categories": [
-    24
-  ],
+  "categories": [24],
   "date_created": "2026-01-24",
   "type": "ct",
   "updateable": true,

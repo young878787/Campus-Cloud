@@ -1,9 +1,7 @@
 {
   "name": "ThingsBoard",
   "slug": "thingsboard",
-  "categories": [
-    7
-  ],
+  "categories": [7],
   "date_created": "2026-01-18",
   "type": "ct",
   "updateable": true,

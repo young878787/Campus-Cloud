@@ -88,5 +88,23 @@
     "allCategories": "すべてのカテゴリ",
     "noTemplatesFound": "検索条件に一致するテンプレートが見つかりません",
     "port": "Port {{port}}"
+  },
+  "deploy": {
+    "title": "ワンクリックデプロイ",
+    "description": "community-scriptsからスクリプトをダウンロードし、無人モードでサービスコンテナをデプロイします。",
+    "scriptPath": "スクリプトパス",
+    "hostname": "ホスト名",
+    "password": "Rootパスワード",
+    "passwordPlaceholder": "5文字以上",
+    "cores": "コア",
+    "ram": "メモリ",
+    "disk": "ディスク",
+    "unprivileged": "非特権コンテナ",
+    "ssh": "SSHを有効化",
+    "cancel": "キャンセル",
+    "start": "デプロイ開始",
+    "close": "閉じる",
+    "failed": "デプロイ失敗",
+    "errorDetail": "エラー詳細（自動ロールバック済み）"
   }
 }

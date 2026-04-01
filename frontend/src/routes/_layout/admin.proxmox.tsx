@@ -21,10 +21,9 @@ import {
 import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
-
+import { UsersService } from "@/client"
 import { OpenAPI } from "@/client/core/OpenAPI"
 import { request as __request } from "@/client/core/request"
-import { UsersService } from "@/client"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -157,7 +156,10 @@ const ProxmoxConfigService = {
     __request(OpenAPI, { method: "GET", url: "/api/v1/proxmox-config/nodes" }),
 
   checkNodes: (): Promise<ProxmoxNodePublic[]> =>
-    __request(OpenAPI, { method: "POST", url: "/api/v1/proxmox-config/check-nodes" }),
+    __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/proxmox-config/check-nodes",
+    }),
 
   testConnection: (): Promise<ProxmoxConnectionTestResult> =>
     __request(OpenAPI, { method: "POST", url: "/api/v1/proxmox-config/test" }),
@@ -206,18 +208,22 @@ interface FormData {
 
 function AdminProxmoxPage() {
   const queryClient = useQueryClient()
-  const [testResult, setTestResult] = useState<ProxmoxConnectionTestResult | null>(null)
+  const [testResult, setTestResult] =
+    useState<ProxmoxConnectionTestResult | null>(null)
 
   // CA cert state
   const [caCertInput, setCaCertInput] = useState("")
   const [certInfo, setCertInfo] = useState<CertParseResult | null>(null)
   const [isParsing, setIsParsing] = useState(false)
-  const [caCertAction, setCaCertAction] = useState<"keep" | "clear" | "replace">("keep")
+  const [caCertAction, setCaCertAction] = useState<
+    "keep" | "clear" | "replace"
+  >("keep")
 
   // Cluster confirm dialog
   const [dialogOpen, setDialogOpen] = useState(false)
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null)
-  const [previewResult, setPreviewResult] = useState<ClusterPreviewResult | null>(null)
+  const [previewResult, setPreviewResult] =
+    useState<ClusterPreviewResult | null>(null)
   const [isPreviewing, setIsPreviewing] = useState(false)
 
   const { data: config, isLoading } = useQuery({
@@ -278,7 +284,15 @@ function AdminProxmoxPage() {
       const result = await ProxmoxConfigService.parseCert(value.trim())
       setCertInfo(result)
     } catch {
-      setCertInfo({ valid: false, fingerprint: null, subject: null, issuer: null, not_before: null, not_after: null, error: "解析失敗" })
+      setCertInfo({
+        valid: false,
+        fingerprint: null,
+        subject: null,
+        issuer: null,
+        not_before: null,
+        not_after: null,
+        error: "解析失敗",
+      })
     } finally {
       setIsParsing(false)
     }
@@ -316,7 +330,13 @@ function AdminProxmoxPage() {
   }
 
   const saveMutation = useMutation({
-    mutationFn: async ({ data, nodes }: { data: FormData; nodes: ProxmoxNodePublic[] }) => {
+    mutationFn: async ({
+      data,
+      nodes,
+    }: {
+      data: FormData
+      nodes: ProxmoxNodePublic[]
+    }) => {
       await ProxmoxConfigService.updateConfig(buildConfigPayload(data))
       if (nodes.length > 0) {
         await ProxmoxConfigService.syncNodes(nodes)
@@ -353,7 +373,9 @@ function AdminProxmoxPage() {
   const onSubmit = async (data: FormData) => {
     setIsPreviewing(true)
     try {
-      const preview = await ProxmoxConfigService.previewCluster(buildConfigPayload(data))
+      const preview = await ProxmoxConfigService.previewCluster(
+        buildConfigPayload(data),
+      )
       if (!preview.success) {
         toast.error(`無法連線偵測節點：${preview.error}`)
         return
@@ -407,7 +429,9 @@ function AdminProxmoxPage() {
                 {isLoading ? (
                   <Badge variant="outline">載入中...</Badge>
                 ) : config?.is_configured ? (
-                  <Badge className="bg-green-500 hover:bg-green-600">已設定</Badge>
+                  <Badge className="bg-green-500 hover:bg-green-600">
+                    已設定
+                  </Badge>
                 ) : (
                   <Badge variant="destructive">未設定</Badge>
                 )}
@@ -447,17 +471,24 @@ function AdminProxmoxPage() {
                     ) : (
                       <ShieldOff className="h-3.5 w-3.5 shrink-0" />
                     )}
-                    <span>{config.has_ca_cert ? "已設定 CA 憑證" : "未設定 CA 憑證"}</span>
+                    <span>
+                      {config.has_ca_cert ? "已設定 CA 憑證" : "未設定 CA 憑證"}
+                    </span>
                   </div>
                   {config.ca_fingerprint && (
                     <div className="rounded-md bg-muted p-2">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">CA 指紋</p>
-                      <p className="break-all font-mono text-xs">{config.ca_fingerprint}</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">
+                        CA 指紋
+                      </p>
+                      <p className="break-all font-mono text-xs">
+                        {config.ca_fingerprint}
+                      </p>
                     </div>
                   )}
                   {config.updated_at && (
                     <p className="pt-1 text-xs text-muted-foreground">
-                      最後更新：{new Date(config.updated_at).toLocaleString("zh-TW")}
+                      最後更新：
+                      {new Date(config.updated_at).toLocaleString("zh-TW")}
                     </p>
                   )}
                 </div>
@@ -473,18 +504,27 @@ function AdminProxmoxPage() {
                 onClick={() => testMutation.mutate()}
               >
                 {testMutation.isPending ? (
-                  <><RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />測試中...</>
+                  <>
+                    <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    測試中...
+                  </>
                 ) : (
-                  <><ShieldCheck className="mr-2 h-3.5 w-3.5" />測試連線</>
+                  <>
+                    <ShieldCheck className="mr-2 h-3.5 w-3.5" />
+                    測試連線
+                  </>
                 )}
               </Button>
 
               {testResult && (
-                <div className={`flex items-start gap-2 rounded-md p-3 text-sm ${testResult.success ? "bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-200" : "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200"}`}>
-                  {testResult.success
-                    ? <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    : <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  }
+                <div
+                  className={`flex items-start gap-2 rounded-md p-3 text-sm ${testResult.success ? "bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-200" : "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200"}`}
+                >
+                  {testResult.success ? (
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  ) : (
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  )}
                   <span>{testResult.message}</span>
                 </div>
               )}
@@ -499,7 +539,9 @@ function AdminProxmoxPage() {
                   <Server className="h-4 w-4" />
                   叢集節點
                   {!nodesLoading && nodes && (
-                    <Badge variant="outline" className="ml-auto">{nodes.length} 台</Badge>
+                    <Badge variant="outline" className="ml-auto">
+                      {nodes.length} 台
+                    </Badge>
                   )}
                   {nodesLoading && (
                     <div className="ml-auto h-5 w-10 animate-pulse rounded-full bg-muted" />
@@ -530,18 +572,26 @@ function AdminProxmoxPage() {
                         className="flex items-center justify-between rounded-md border p-2.5 text-sm"
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          {node.is_online
-                            ? <Wifi className="h-3.5 w-3.5 shrink-0 text-green-500" />
-                            : <WifiOff className="h-3.5 w-3.5 shrink-0 text-red-500" />
-                          }
+                          {node.is_online ? (
+                            <Wifi className="h-3.5 w-3.5 shrink-0 text-green-500" />
+                          ) : (
+                            <WifiOff className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                          )}
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <span className="font-medium">{node.name}</span>
                               {node.is_primary && (
-                                <Badge variant="outline" className="text-xs px-1 py-0">主</Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs px-1 py-0"
+                                >
+                                  主
+                                </Badge>
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground truncate">{node.host}:{node.port}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {node.host}:{node.port}
+                            </p>
                           </div>
                         </div>
                         <Badge
@@ -551,8 +601,7 @@ function AdminProxmoxPage() {
                           {node.is_online ? "在線" : "離線"}
                         </Badge>
                       </div>
-                    ))
-                }
+                    ))}
               </CardContent>
             </Card>
           )}
@@ -570,18 +619,28 @@ function AdminProxmoxPage() {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="host"
                   rules={{ required: "請輸入主機位址" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>主機位址 <span className="text-destructive">*</span></FormLabel>
+                      <FormLabel>
+                        主機位址 <span className="text-destructive">*</span>
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="192.168.1.100 或 pve.example.com" {...field} />
+                        <Input
+                          placeholder="192.168.1.100 或 pve.example.com"
+                          {...field}
+                        />
                       </FormControl>
-                      <FormDescription>Proxmox VE 主機的 IP 或網域名稱（初始節點）</FormDescription>
+                      <FormDescription>
+                        Proxmox VE 主機的 IP 或網域名稱（初始節點）
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -593,11 +652,15 @@ function AdminProxmoxPage() {
                   rules={{ required: "請輸入 API 使用者" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>API 使用者 <span className="text-destructive">*</span></FormLabel>
+                      <FormLabel>
+                        API 使用者 <span className="text-destructive">*</span>
+                      </FormLabel>
                       <FormControl>
                         <Input placeholder="root@pam" {...field} />
                       </FormControl>
-                      <FormDescription>格式：username@realm（例如 root@pam）</FormDescription>
+                      <FormDescription>
+                        格式：username@realm（例如 root@pam）
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -606,24 +669,35 @@ function AdminProxmoxPage() {
                 <FormField
                   control={form.control}
                   name="password"
-                  rules={{ required: config?.is_configured ? false : "請輸入密碼" }}
+                  rules={{
+                    required: config?.is_configured ? false : "請輸入密碼",
+                  }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        密碼{!config?.is_configured && <span className="text-destructive"> *</span>}
+                        密碼
+                        {!config?.is_configured && (
+                          <span className="text-destructive"> *</span>
+                        )}
                       </FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                           <Input
                             type="password"
-                            placeholder={config?.is_configured ? "留空表示不更改密碼" : "請輸入 API 密碼"}
+                            placeholder={
+                              config?.is_configured
+                                ? "留空表示不更改密碼"
+                                : "請輸入 API 密碼"
+                            }
                             className="pl-9"
                             {...field}
                           />
                         </div>
                       </FormControl>
-                      <FormDescription>密碼將使用 Fernet 對稱加密後儲存</FormDescription>
+                      <FormDescription>
+                        密碼將使用 Fernet 對稱加密後儲存
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -636,9 +710,15 @@ function AdminProxmoxPage() {
                     rules={{ required: "請輸入 ISO 儲存區名稱" }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>ISO 儲存區 <span className="text-destructive">*</span></FormLabel>
-                        <FormControl><Input placeholder="local" {...field} /></FormControl>
-                        <FormDescription>存放 ISO 映像檔的儲存區</FormDescription>
+                        <FormLabel>
+                          ISO 儲存區 <span className="text-destructive">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="local" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          存放 ISO 映像檔的儲存區
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -649,9 +729,15 @@ function AdminProxmoxPage() {
                     rules={{ required: "請輸入資料儲存區名稱" }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>資料儲存區 <span className="text-destructive">*</span></FormLabel>
-                        <FormControl><Input placeholder="local-lvm" {...field} /></FormControl>
-                        <FormDescription>存放 VM/LXC 磁碟的儲存區</FormDescription>
+                        <FormLabel>
+                          資料儲存區 <span className="text-destructive">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="local-lvm" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          存放 VM/LXC 磁碟的儲存區
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -664,14 +750,23 @@ function AdminProxmoxPage() {
                   rules={{ required: "請輸入集區名稱" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>集區名稱（Pool）<span className="text-destructive"> *</span></FormLabel>
+                      <FormLabel>
+                        集區名稱（Pool）
+                        <span className="text-destructive"> *</span>
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Layers className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input placeholder="CampusCloud" className="pl-9" {...field} />
+                          <Input
+                            placeholder="CampusCloud"
+                            className="pl-9"
+                            {...field}
+                          />
                         </div>
                       </FormControl>
-                      <FormDescription>僅顯示屬於此集區的 VM/LXC</FormDescription>
+                      <FormDescription>
+                        僅顯示屬於此集區的 VM/LXC
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -683,11 +778,16 @@ function AdminProxmoxPage() {
                   rules={{ required: "請輸入網關地址" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>網關地址（Gateway IP）<span className="text-destructive"> *</span></FormLabel>
+                      <FormLabel>
+                        網關地址（Gateway IP）
+                        <span className="text-destructive"> *</span>
+                      </FormLabel>
                       <FormControl>
                         <Input placeholder="192.168.1.1" {...field} />
                       </FormControl>
-                      <FormDescription>防火牆拓撲中「Internet / 上網」節點所代表的網關 IP</FormDescription>
+                      <FormDescription>
+                        防火牆拓撲中「Internet / 上網」節點所代表的網關 IP
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -702,7 +802,10 @@ function AdminProxmoxPage() {
                       <FormControl>
                         <Input placeholder="192.168.100.0/24" {...field} />
                       </FormControl>
-                      <FormDescription>新建容器/VM 預設封鎖出站至此網段，防止同網段互連。留空則不限制。</FormDescription>
+                      <FormDescription>
+                        新建容器/VM
+                        預設封鎖出站至此網段，防止同網段互連。留空則不限制。
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -715,11 +818,23 @@ function AdminProxmoxPage() {
                     rules={{ required: true, min: 1 }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>API 逾時（秒）<span className="text-destructive"> *</span></FormLabel>
+                        <FormLabel>
+                          API 逾時（秒）
+                          <span className="text-destructive"> *</span>
+                        </FormLabel>
                         <FormControl>
-                          <Input type="number" min={1} {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                          <Input
+                            type="number"
+                            min={1}
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                          />
                         </FormControl>
-                        <FormDescription>API 請求等待上限（預設 30 秒）</FormDescription>
+                        <FormDescription>
+                          API 請求等待上限（預設 30 秒）
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -730,11 +845,23 @@ function AdminProxmoxPage() {
                     rules={{ required: true, min: 1 }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>任務輪詢間隔（秒）<span className="text-destructive"> *</span></FormLabel>
+                        <FormLabel>
+                          任務輪詢間隔（秒）
+                          <span className="text-destructive"> *</span>
+                        </FormLabel>
                         <FormControl>
-                          <Input type="number" min={1} {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                          <Input
+                            type="number"
+                            min={1}
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                          />
                         </FormControl>
-                        <FormDescription>等待 Proxmox 任務完成的輪詢頻率</FormDescription>
+                        <FormDescription>
+                          等待 Proxmox 任務完成的輪詢頻率
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -746,11 +873,20 @@ function AdminProxmoxPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium">CA 憑證（選填）</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">設定後啟用 SSL 憑證驗證，防止中間人攻擊</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        設定後啟用 SSL 憑證驗證，防止中間人攻擊
+                      </p>
                     </div>
                     {(config?.has_ca_cert || caCertAction === "replace") && (
-                      <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={handleClearCert}>
-                        <Trash2 className="mr-1 h-3.5 w-3.5" />清除憑證
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={handleClearCert}
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        清除憑證
                       </Button>
                     )}
                   </div>
@@ -758,12 +894,17 @@ function AdminProxmoxPage() {
                   {config?.has_ca_cert && caCertAction === "keep" && (
                     <div className="rounded-md bg-green-50 dark:bg-green-950 p-3 text-sm">
                       <div className="flex items-center gap-2 text-green-700 dark:text-green-300 font-medium mb-1">
-                        <ShieldCheck className="h-4 w-4" />已設定 CA 憑證
+                        <ShieldCheck className="h-4 w-4" />
+                        已設定 CA 憑證
                       </div>
                       {config.ca_fingerprint && (
-                        <p className="font-mono text-xs break-all text-green-800 dark:text-green-200">{config.ca_fingerprint}</p>
+                        <p className="font-mono text-xs break-all text-green-800 dark:text-green-200">
+                          {config.ca_fingerprint}
+                        </p>
                       )}
-                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">貼上新憑證可覆蓋，或點擊「清除憑證」移除</p>
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                        貼上新憑證可覆蓋，或點擊「清除憑證」移除
+                      </p>
                     </div>
                   )}
 
@@ -774,12 +915,18 @@ function AdminProxmoxPage() {
                   )}
 
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">在 Proxmox 主機執行以下指令取得憑證：</p>
-                    <code className="block rounded bg-muted px-3 py-1.5 text-xs font-mono">cat /etc/pve/pve-root-ca.pem</code>
+                    <p className="text-xs text-muted-foreground">
+                      在 Proxmox 主機執行以下指令取得憑證：
+                    </p>
+                    <code className="block rounded bg-muted px-3 py-1.5 text-xs font-mono">
+                      cat /etc/pve/pve-root-ca.pem
+                    </code>
                   </div>
 
                   <Textarea
-                    placeholder={"-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"}
+                    placeholder={
+                      "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+                    }
                     className="font-mono text-xs min-h-[120px] resize-y"
                     value={caCertInput}
                     onChange={(e) => handleCertInput(e.target.value)}
@@ -787,28 +934,48 @@ function AdminProxmoxPage() {
 
                   {isParsing && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />解析憑證中...
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      解析憑證中...
                     </div>
                   )}
 
                   {certInfo && (
-                    <div className={`rounded-md p-3 text-sm space-y-1 ${certInfo.valid ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
+                    <div
+                      className={`rounded-md p-3 text-sm space-y-1 ${certInfo.valid ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}
+                    >
                       {certInfo.valid ? (
                         <>
                           <div className="flex items-center gap-2 font-medium text-green-700 dark:text-green-300">
-                            <CheckCircle className="h-4 w-4" />憑證有效，請確認指紋與 PVE 介面一致後再儲存
+                            <CheckCircle className="h-4 w-4" />
+                            憑證有效，請確認指紋與 PVE 介面一致後再儲存
                           </div>
                           <div className="mt-2 space-y-1 text-xs text-green-800 dark:text-green-200">
-                            <div><span className="font-medium">SHA-256 指紋：</span><span className="font-mono break-all">{certInfo.fingerprint}</span></div>
-                            {certInfo.subject && <div><span className="font-medium">主體：</span>{certInfo.subject}</div>}
+                            <div>
+                              <span className="font-medium">
+                                SHA-256 指紋：
+                              </span>
+                              <span className="font-mono break-all">
+                                {certInfo.fingerprint}
+                              </span>
+                            </div>
+                            {certInfo.subject && (
+                              <div>
+                                <span className="font-medium">主體：</span>
+                                {certInfo.subject}
+                              </div>
+                            )}
                             {certInfo.not_before && certInfo.not_after && (
-                              <div><span className="font-medium">有效期：</span>{certInfo.not_before} ～ {certInfo.not_after}</div>
+                              <div>
+                                <span className="font-medium">有效期：</span>
+                                {certInfo.not_before} ～ {certInfo.not_after}
+                              </div>
                             )}
                           </div>
                         </>
                       ) : (
                         <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
-                          <XCircle className="h-4 w-4" />憑證格式無效：{certInfo.error}
+                          <XCircle className="h-4 w-4" />
+                          憑證格式無效：{certInfo.error}
                         </div>
                       )}
                     </div>
@@ -821,10 +988,15 @@ function AdminProxmoxPage() {
                   render={({ field }) => (
                     <FormItem className="flex items-start gap-3 space-y-0 rounded-md border p-4">
                       <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
                       </FormControl>
                       <div className="space-y-1">
-                        <FormLabel className="font-normal">驗證 SSL 憑證（備用）</FormLabel>
+                        <FormLabel className="font-normal">
+                          驗證 SSL 憑證（備用）
+                        </FormLabel>
                         <FormDescription>
                           已設定 CA 憑證時會優先使用 CA 憑證驗證，忽略此選項。
                           若 Proxmox 使用自簽憑證且未設定 CA 憑證，請取消勾選。
@@ -838,13 +1010,23 @@ function AdminProxmoxPage() {
                   <LoadingButton
                     type="submit"
                     loading={isSubmitting}
-                    disabled={caCertAction === "replace" && certInfo !== null && !certInfo.valid}
+                    disabled={
+                      caCertAction === "replace" &&
+                      certInfo !== null &&
+                      !certInfo.valid
+                    }
                     className="min-w-[120px]"
                   >
                     {isPreviewing ? (
-                      <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />偵測節點中...</>
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        偵測節點中...
+                      </>
                     ) : (
-                      <><Save className="mr-2 h-4 w-4" />儲存設定</>
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        儲存設定
+                      </>
                     )}
                   </LoadingButton>
                 </div>
@@ -855,7 +1037,12 @@ function AdminProxmoxPage() {
       </div>
 
       {/* 叢集確認 Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!isSaving) setDialogOpen(open) }}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          if (!isSaving) setDialogOpen(open)
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -863,21 +1050,31 @@ function AdminProxmoxPage() {
               偵測到 Proxmox 叢集
             </DialogTitle>
             <DialogDescription>
-              系統偵測到以下 {previewResult?.nodes.length} 個節點。確認後將儲存設定並啟用 HA 自動切換。
+              系統偵測到以下 {previewResult?.nodes.length}{" "}
+              個節點。確認後將儲存設定並啟用 HA 自動切換。
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2 py-2">
             {previewResult?.nodes.map((node, idx) => (
-              <div key={idx} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+              <div
+                key={idx}
+                className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+              >
                 <div className="flex items-center gap-2">
                   <Wifi className="h-3.5 w-3.5 text-green-500" />
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium">{node.name}</span>
-                      {node.is_primary && <Badge variant="outline" className="text-xs px-1 py-0">主節點</Badge>}
+                      {node.is_primary && (
+                        <Badge variant="outline" className="text-xs px-1 py-0">
+                          主節點
+                        </Badge>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground">{node.host}:{node.port}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {node.host}:{node.port}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -885,11 +1082,16 @@ function AdminProxmoxPage() {
           </div>
 
           <div className="rounded-md bg-blue-50 dark:bg-blue-950 p-3 text-xs text-blue-800 dark:text-blue-200">
-            連線時系統會先 TCP ping 各節點（2 秒逾時），主節點無回應時自動切換至其他可用節點。
+            連線時系統會先 TCP ping 各節點（2
+            秒逾時），主節點無回應時自動切換至其他可用節點。
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSaving}>
+            <Button
+              variant="outline"
+              onClick={() => setDialogOpen(false)}
+              disabled={isSaving}
+            >
               取消
             </Button>
             <LoadingButton loading={isSaving} onClick={handleConfirmSave}>

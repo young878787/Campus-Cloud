@@ -1,9 +1,7 @@
 {
   "name": "TRIP",
   "slug": "trip",
-  "categories": [
-    21
-  ],
+  "categories": [21],
   "date_created": "2026-01-17",
   "type": "ct",
   "updateable": true,

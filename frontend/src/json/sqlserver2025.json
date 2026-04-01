@@ -1,9 +1,7 @@
 {
   "name": "SQL Server 2025",
   "slug": "sqlserver2025",
-  "categories": [
-    8
-  ],
+  "categories": [8],
   "date_created": "2026-02-05",
   "type": "ct",
   "updateable": true,

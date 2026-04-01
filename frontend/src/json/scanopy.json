@@ -1,9 +1,7 @@
 {
   "name": "Scanopy",
   "slug": "scanopy",
-  "categories": [
-    9
-  ],
+  "categories": [9],
   "date_created": "2025-11-13",
   "type": "ct",
   "updateable": true,

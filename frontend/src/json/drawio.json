@@ -1,9 +1,7 @@
 {
   "name": "Draw.IO",
   "slug": "drawio",
-  "categories": [
-    12
-  ],
+  "categories": [12],
   "date_created": "2026-02-11",
   "type": "ct",
   "updateable": true,

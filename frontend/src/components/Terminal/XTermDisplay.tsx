@@ -101,7 +101,10 @@ export default function useXTermDisplay({
         fitAddonRef.current = fitAddon
 
         // Connect to WebSocket
-        const apiUrl = new URL(import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.host}`)
+        const apiUrl = new URL(
+          import.meta.env.VITE_API_URL ||
+            `${window.location.protocol}//${window.location.host}`,
+        )
         const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:"
         const accessToken = localStorage.getItem("access_token") || ""
         const wsUrl = `${protocol}//${apiUrl.host}/ws/terminal/${vmid}?token=${encodeURIComponent(accessToken)}`

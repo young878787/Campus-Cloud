@@ -1,9 +1,7 @@
 {
   "name": "KitchenOwl",
   "slug": "kitchenowl",
-  "categories": [
-    13
-  ],
+  "categories": [13],
   "date_created": "2026-02-02",
   "type": "ct",
   "updateable": true,

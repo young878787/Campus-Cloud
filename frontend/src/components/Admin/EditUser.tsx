@@ -158,7 +158,9 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                 name="full_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings:admin.userForm.fullName")}</FormLabel>
+                    <FormLabel>
+                      {t("settings:admin.userForm.fullName")}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         placeholder={t("settings:admin.userForm.fullName")}
@@ -176,7 +178,9 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings:admin.userForm.setPassword")}</FormLabel>
+                    <FormLabel>
+                      {t("settings:admin.userForm.setPassword")}
+                    </FormLabel>
                     <FormControl>
                       <Input
                         placeholder={t("settings:admin.userForm.setPassword")}
@@ -194,10 +198,14 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                 name="confirm_password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings:admin.userForm.confirmPassword")}</FormLabel>
+                    <FormLabel>
+                      {t("settings:admin.userForm.confirmPassword")}
+                    </FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={t("settings:admin.userForm.confirmPassword")}
+                        placeholder={t(
+                          "settings:admin.userForm.confirmPassword",
+                        )}
                         type="password"
                         {...field}
                       />
@@ -238,9 +246,13 @@ const EditUser = ({ user, onSuccess }: EditUserProps) => {
                 name="is_active"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("settings:admin.userForm.isActive")}</FormLabel>
+                    <FormLabel>
+                      {t("settings:admin.userForm.isActive")}
+                    </FormLabel>
                     <Select
-                      onValueChange={(value) => field.onChange(value === "true")}
+                      onValueChange={(value) =>
+                        field.onChange(value === "true")
+                      }
                       defaultValue={field.value ? "true" : "false"}
                     >
                       <FormControl>

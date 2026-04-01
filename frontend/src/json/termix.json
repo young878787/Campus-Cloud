@@ -1,9 +1,7 @@
 {
   "name": "Termix",
   "slug": "termix",
-  "categories": [
-    6
-  ],
+  "categories": [6],
   "date_created": "2026-01-18",
   "type": "ct",
   "updateable": true,

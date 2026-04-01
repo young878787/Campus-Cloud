@@ -1,11 +1,14 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query"
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { Plus, Trash2, Users } from "lucide-react"
 import { Suspense, useState } from "react"
 import { useForm } from "react-hook-form"
-
-import { GroupsService, UsersService } from "@/client"
 import type { GroupPublic } from "@/client"
+import { GroupsService, UsersService } from "@/client"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -46,7 +49,12 @@ function CreateGroupDialog() {
 
   const mutation = useMutation({
     mutationFn: (data: { name: string; description: string }) =>
-      GroupsService.createGroup({ requestBody: { name: data.name, description: data.description || undefined } }),
+      GroupsService.createGroup({
+        requestBody: {
+          name: data.name,
+          description: data.description || undefined,
+        },
+      }),
     onSuccess: () => {
       showSuccessToast("群組已建立")
       reset()
@@ -72,18 +80,31 @@ function CreateGroupDialog() {
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="name">群組名稱 *</Label>
-              <Input id="name" {...register("name", { required: true })} placeholder="例：2024 Spring CS101" />
+              <Input
+                id="name"
+                {...register("name", { required: true })}
+                placeholder="例：2024 Spring CS101"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="description">說明</Label>
-              <Textarea id="description" {...register("description")} placeholder="群組說明（選填）" rows={3} />
+              <Textarea
+                id="description"
+                {...register("description")}
+                placeholder="群組說明（選填）"
+                rows={3}
+              />
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" disabled={mutation.isPending}>取消</Button>
+              <Button variant="outline" disabled={mutation.isPending}>
+                取消
+              </Button>
             </DialogClose>
-            <LoadingButton type="submit" loading={mutation.isPending}>建立</LoadingButton>
+            <LoadingButton type="submit" loading={mutation.isPending}>
+              建立
+            </LoadingButton>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -106,11 +127,17 @@ function GroupCard({ group }: { group: GroupPublic }) {
 
   return (
     <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
-      <Link to="/groups/$groupId" params={{ groupId: group.id }} className="flex-1">
+      <Link
+        to="/groups/$groupId"
+        params={{ groupId: group.id }}
+        className="flex-1"
+      >
         <div>
           <div className="font-semibold">{group.name}</div>
           {group.description && (
-            <div className="text-sm text-muted-foreground mt-1">{group.description}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {group.description}
+            </div>
           )}
           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
             <Users className="h-3 w-3" />
@@ -161,7 +188,9 @@ function GroupsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">群組管理</h1>
-          <p className="text-muted-foreground">管理課程/班級群組，批量分配虛擬機</p>
+          <p className="text-muted-foreground">
+            管理課程/班級群組，批量分配虛擬機
+          </p>
         </div>
         <CreateGroupDialog />
       </div>

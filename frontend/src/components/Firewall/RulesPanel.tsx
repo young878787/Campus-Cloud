@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { ChevronRight, Shield } from "lucide-react"
 import { useState } from "react"
-
-import { FirewallService } from "@/services/firewall"
 import { Badge } from "@/components/ui/badge"
+import { FirewallService } from "@/services/firewall"
 
 type Props = {
   vmid: number | null
@@ -47,7 +46,10 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
           </span>
         </div>
         <button
-          onClick={() => { setShow(false); onClose() }}
+          onClick={() => {
+            setShow(false)
+            onClose()
+          }}
           className="p-1 text-gray-500 hover:text-gray-100 transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
@@ -60,9 +62,10 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-500">狀態</span>
             <Badge
-              className={options.enable
-                ? "bg-emerald-900/50 text-emerald-400 border-emerald-700"
-                : "bg-red-900/50 text-red-400 border-red-700"
+              className={
+                options.enable
+                  ? "bg-emerald-900/50 text-emerald-400 border-emerald-700"
+                  : "bg-red-900/50 text-red-400 border-red-700"
               }
             >
               {options.enable ? "已啟用" : "未啟用"}
@@ -109,9 +112,10 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
               <span
                 className={`
                   text-xs font-mono px-1.5 py-0.5 rounded
-                  ${rule.type === "in"
-                    ? "bg-blue-900/40 text-blue-400"
-                    : "bg-orange-900/40 text-orange-400"
+                  ${
+                    rule.type === "in"
+                      ? "bg-blue-900/40 text-blue-400"
+                      : "bg-orange-900/40 text-orange-400"
                   }
                 `}
               >
@@ -120,9 +124,10 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
               <span
                 className={`
                   text-xs font-mono px-1.5 py-0.5 rounded
-                  ${rule.action === "ACCEPT"
-                    ? "bg-emerald-900/40 text-emerald-400"
-                    : "bg-red-900/40 text-red-400"
+                  ${
+                    rule.action === "ACCEPT"
+                      ? "bg-emerald-900/40 text-emerald-400"
+                      : "bg-red-900/40 text-red-400"
                   }
                 `}
               >

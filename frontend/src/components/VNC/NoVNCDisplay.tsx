@@ -68,7 +68,10 @@ export default function useNoVNCDisplay({
         const RFBModule = await import("@novnc/novnc/lib/rfb")
         const RFB = RFBModule.default
 
-        const apiUrl = new URL(import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.host}`)
+        const apiUrl = new URL(
+          import.meta.env.VITE_API_URL ||
+            `${window.location.protocol}//${window.location.host}`,
+        )
         const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:"
         const accessToken = localStorage.getItem("access_token") || ""
         const wsUrl = `${protocol}//${apiUrl.host}/ws/vnc/${vmid}?token=${encodeURIComponent(accessToken)}`

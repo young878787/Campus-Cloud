@@ -1,9 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router"
 import { useSuspenseQuery } from "@tanstack/react-query"
+import { createFileRoute } from "@tanstack/react-router"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Suspense, useState } from "react"
 
 import { AuditLogsService } from "@/client"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -11,6 +13,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -19,16 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 
 export const Route = createFileRoute("/_layout/admin/audit-logs")({
   component: AdminAuditLogsPage,
@@ -47,7 +47,7 @@ function AdminAuditLogsPage() {
       AuditLogsService.getAllAuditLogs({
         skip: page * limit,
         limit,
-        vmid: vmidFilter ? Number.parseInt(vmidFilter) : undefined,
+        vmid: vmidFilter ? Number.parseInt(vmidFilter, 10) : undefined,
         action: actionFilter !== "all" ? actionFilter : undefined,
       }),
   })
@@ -55,7 +55,8 @@ function AdminAuditLogsPage() {
   const getActionBadgeColor = (action: string) => {
     if (action.includes("create")) return "bg-green-500"
     if (action.includes("delete")) return "bg-red-500"
-    if (action.includes("update") || action.includes("spec_change")) return "bg-blue-500"
+    if (action.includes("update") || action.includes("spec_change"))
+      return "bg-blue-500"
     if (action.includes("snapshot")) return "bg-purple-500"
     if (action.includes("request")) return "bg-orange-500"
     return "bg-gray-500"
@@ -76,7 +77,8 @@ function AdminAuditLogsPage() {
         <CardHeader>
           <CardTitle>{t("admin.auditLogs.allRecords")}</CardTitle>
           <CardDescription>
-            {t("admin.auditLogs.showing")} {auditLogs.count} {t("admin.auditLogs.records")}
+            {t("admin.auditLogs.showing")} {auditLogs.count}{" "}
+            {t("admin.auditLogs.records")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -105,15 +107,33 @@ function AdminAuditLogsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("admin.auditLogs.allActions")}</SelectItem>
-                  <SelectItem value="vm_create">{t("resourceDetail.auditLogs.actions.vm_create")}</SelectItem>
-                  <SelectItem value="lxc_create">{t("resourceDetail.auditLogs.actions.lxc_create")}</SelectItem>
-                  <SelectItem value="resource_start">{t("resourceDetail.auditLogs.actions.resource_start")}</SelectItem>
-                  <SelectItem value="resource_stop">{t("resourceDetail.auditLogs.actions.resource_stop")}</SelectItem>
-                  <SelectItem value="resource_delete">{t("resourceDetail.auditLogs.actions.resource_delete")}</SelectItem>
-                  <SelectItem value="snapshot_create">{t("resourceDetail.auditLogs.actions.snapshot_create")}</SelectItem>
-                  <SelectItem value="spec_change_request">{t("resourceDetail.auditLogs.actions.spec_change_request")}</SelectItem>
-                  <SelectItem value="user_create">{t("admin.auditLogs.userCreate")}</SelectItem>
+                  <SelectItem value="all">
+                    {t("admin.auditLogs.allActions")}
+                  </SelectItem>
+                  <SelectItem value="vm_create">
+                    {t("resourceDetail.auditLogs.actions.vm_create")}
+                  </SelectItem>
+                  <SelectItem value="lxc_create">
+                    {t("resourceDetail.auditLogs.actions.lxc_create")}
+                  </SelectItem>
+                  <SelectItem value="resource_start">
+                    {t("resourceDetail.auditLogs.actions.resource_start")}
+                  </SelectItem>
+                  <SelectItem value="resource_stop">
+                    {t("resourceDetail.auditLogs.actions.resource_stop")}
+                  </SelectItem>
+                  <SelectItem value="resource_delete">
+                    {t("resourceDetail.auditLogs.actions.resource_delete")}
+                  </SelectItem>
+                  <SelectItem value="snapshot_create">
+                    {t("resourceDetail.auditLogs.actions.snapshot_create")}
+                  </SelectItem>
+                  <SelectItem value="spec_change_request">
+                    {t("resourceDetail.auditLogs.actions.spec_change_request")}
+                  </SelectItem>
+                  <SelectItem value="user_create">
+                    {t("admin.auditLogs.userCreate")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -134,9 +154,15 @@ function AdminAuditLogsPage() {
                   <TableRow>
                     <TableHead>{t("resourceDetail.auditLogs.time")}</TableHead>
                     <TableHead>{t("admin.auditLogs.vmid")}</TableHead>
-                    <TableHead>{t("resourceDetail.auditLogs.operator")}</TableHead>
-                    <TableHead>{t("resourceDetail.auditLogs.action")}</TableHead>
-                    <TableHead>{t("resourceDetail.auditLogs.details")}</TableHead>
+                    <TableHead>
+                      {t("resourceDetail.auditLogs.operator")}
+                    </TableHead>
+                    <TableHead>
+                      {t("resourceDetail.auditLogs.action")}
+                    </TableHead>
+                    <TableHead>
+                      {t("resourceDetail.auditLogs.details")}
+                    </TableHead>
                     <TableHead>{t("admin.auditLogs.ipAddress")}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -149,16 +175,25 @@ function AdminAuditLogsPage() {
                       <TableCell>{log.vmid || "-"}</TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{log.user_full_name || "Unknown"}</div>
-                          <div className="text-xs text-muted-foreground">{log.user_email}</div>
+                          <div className="font-medium">
+                            {log.user_full_name || "Unknown"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {log.user_email}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <Badge className={getActionBadgeColor(log.action)}>
-                          {t(`resourceDetail.auditLogs.actions.${log.action}`, log.action)}
+                          {t(
+                            `resourceDetail.auditLogs.actions.${log.action}`,
+                            log.action,
+                          )}
                         </Badge>
                       </TableCell>
-                      <TableCell className="max-w-md truncate">{log.details}</TableCell>
+                      <TableCell className="max-w-md truncate">
+                        {log.details}
+                      </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {log.ip_address || "-"}
                       </TableCell>
@@ -183,7 +218,9 @@ function AdminAuditLogsPage() {
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                      onClick={() =>
+                        setPage(Math.min(totalPages - 1, page + 1))
+                      }
                       disabled={page >= totalPages - 1}
                     >
                       {t("common.next")}

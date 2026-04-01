@@ -1,9 +1,7 @@
 {
   "name": "Tracearr",
   "slug": "tracearr",
-  "categories": [
-    14
-  ],
+  "categories": [14],
   "date_created": "2026-01-23",
   "type": "ct",
   "updateable": true,

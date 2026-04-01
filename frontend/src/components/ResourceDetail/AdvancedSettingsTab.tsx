@@ -12,7 +12,9 @@ interface AdvancedSettingsTabProps {
   vmid: number
 }
 
-export default function AdvancedSettingsTab({ vmid }: AdvancedSettingsTabProps) {
+export default function AdvancedSettingsTab({
+  vmid,
+}: AdvancedSettingsTabProps) {
   const { t } = useTranslation("resourceDetail")
 
   return (

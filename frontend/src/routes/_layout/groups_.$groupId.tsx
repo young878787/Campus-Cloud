@@ -1,4 +1,8 @@
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query"
 
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { ArrowLeft, Plus, Upload, UserMinus } from "lucide-react"
@@ -71,7 +75,9 @@ function ImportCsvDialog({ groupId }: { groupId: string }) {
       })
       setResult(data)
       queryClient.invalidateQueries({ queryKey: ["group", groupId] })
-      showSuccessToast(`匯入完成：新建 ${data.created.length} 人，加入群組 ${data.added_to_group} 人`)
+      showSuccessToast(
+        `匯入完成：新建 ${data.created.length} 人，加入群組 ${data.added_to_group} 人`,
+      )
     } catch (err: any) {
       showErrorToast(err?.body?.detail ?? "匯入失敗")
     } finally {
@@ -102,7 +108,8 @@ function ImportCsvDialog({ groupId }: { groupId: string }) {
         <div className="grid gap-4 py-4">
           <p className="text-sm text-muted-foreground">
             CSV 格式：學號, 姓名, 班級（支援 Big5 / UTF-8）。
-            帳號不存在時自動建立，email 為 <code>學號@ntub.edu.tw</code>，系統將寄送通知信。
+            帳號不存在時自動建立，email 為 <code>學號@ntub.edu.tw</code>
+            ，系統將寄送通知信。
           </p>
           <div className="grid gap-2">
             <Label htmlFor="csv-file">選擇 CSV 檔案</Label>
@@ -116,14 +123,23 @@ function ImportCsvDialog({ groupId }: { groupId: string }) {
           </div>
           {result && (
             <div className="rounded border bg-muted/40 p-3 text-sm space-y-1">
-              <p>✅ 新建帳號：<strong>{result.created.length}</strong> 人</p>
-              <p>ℹ️ 帳號已存在：<strong>{result.already_existed.length}</strong> 人</p>
-              <p>👥 加入群組：<strong>{result.added_to_group}</strong> 人</p>
+              <p>
+                ✅ 新建帳號：<strong>{result.created.length}</strong> 人
+              </p>
+              <p>
+                ℹ️ 帳號已存在：<strong>{result.already_existed.length}</strong>{" "}
+                人
+              </p>
+              <p>
+                👥 加入群組：<strong>{result.added_to_group}</strong> 人
+              </p>
               {result.errors.length > 0 && (
                 <div className="text-destructive">
                   <p>❌ 錯誤（{result.errors.length}）：</p>
                   <ul className="ml-4 list-disc text-xs">
-                    {result.errors.map((e, i) => <li key={i}>{e}</li>)}
+                    {result.errors.map((e, i) => (
+                      <li key={i}>{e}</li>
+                    ))}
                   </ul>
                 </div>
               )}
@@ -132,9 +148,13 @@ function ImportCsvDialog({ groupId }: { groupId: string }) {
         </div>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline" disabled={loading}>關閉</Button>
+            <Button variant="outline" disabled={loading}>
+              關閉
+            </Button>
           </DialogClose>
-          <LoadingButton loading={loading} onClick={handleImport}>匯入</LoadingButton>
+          <LoadingButton loading={loading} onClick={handleImport}>
+            匯入
+          </LoadingButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -160,8 +180,7 @@ function AddMembersDialog({ groupId }: { groupId: string }) {
         setOpen(false)
       }
     },
-    onError: (err: any) =>
-      showErrorToast(err?.body?.detail ?? "加入成員失敗"),
+    onError: (err: any) => showErrorToast(err?.body?.detail ?? "加入成員失敗"),
   })
 
   const onSubmit = ({ emailsText }: { emailsText: string }) => {
@@ -197,16 +216,19 @@ function AddMembersDialog({ groupId }: { groupId: string }) {
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" disabled={mutation.isPending}>取消</Button>
+              <Button variant="outline" disabled={mutation.isPending}>
+                取消
+              </Button>
             </DialogClose>
-            <LoadingButton type="submit" loading={mutation.isPending}>加入</LoadingButton>
+            <LoadingButton type="submit" loading={mutation.isPending}>
+              加入
+            </LoadingButton>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
   )
 }
-
 
 function GroupDetailContent({ groupId }: { groupId: string }) {
   const queryClient = useQueryClient()
@@ -225,8 +247,7 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
       showSuccessToast("成員已移除")
       queryClient.invalidateQueries({ queryKey: ["group", groupId] })
     },
-    onError: (err: any) =>
-      showErrorToast(err?.body?.detail ?? "移除失敗"),
+    onError: (err: any) => showErrorToast(err?.body?.detail ?? "移除失敗"),
   })
 
   return (
@@ -234,7 +255,10 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Link to="/groups" className="text-muted-foreground hover:text-foreground">
+            <Link
+              to="/groups"
+              className="text-muted-foreground hover:text-foreground"
+            >
               <ArrowLeft className="h-4 w-4" />
             </Link>
             <h1 className="text-2xl font-bold tracking-tight">{group.name}</h1>
@@ -250,9 +274,13 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-3">成員列表（{members.length} 人）</h2>
+        <h2 className="text-lg font-semibold mb-3">
+          成員列表（{members.length} 人）
+        </h2>
         {members.length === 0 ? (
-          <p className="text-muted-foreground text-sm">尚無成員，點擊「加入成員」開始新增</p>
+          <p className="text-muted-foreground text-sm">
+            尚無成員，點擊「加入成員」開始新增
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -260,7 +288,7 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
                 <TableHead>姓名</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>加入時間</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -269,7 +297,9 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
                   <TableCell>{member.full_name ?? "-"}</TableCell>
                   <TableCell>{member.email}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {member.added_at ? new Date(member.added_at).toLocaleDateString("zh-TW") : "-"}
+                    {member.added_at
+                      ? new Date(member.added_at).toLocaleDateString("zh-TW")
+                      : "-"}
                   </TableCell>
                   <TableCell>
                     <Button
