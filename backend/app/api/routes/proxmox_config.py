@@ -7,7 +7,7 @@ from typing import Any
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, HTTPException
 
 from app.api.deps import AdminUser, SessionDep
 from app.exceptions import BadRequestError
@@ -324,7 +324,6 @@ def update_node(
         priority=node_in.priority,
     )
     if node is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Node not found")
     return _node_to_public(node)
 
@@ -354,7 +353,6 @@ def update_storage(
         user_priority=storage_in.user_priority,
     )
     if s is None:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Storage not found")
     return _storage_to_public(s)
 
