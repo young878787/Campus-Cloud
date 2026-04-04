@@ -1501,9 +1501,9 @@ def _projected_disk_share(server: _WorkingServer, template: VMTemplate) -> float
 def _clone_servers(servers: list[_WorkingServer]) -> list[_WorkingServer]:
     """Deep-clone the server cluster for rebalance search.
 
-    Shared pools (is_shared=True) are identified by Python object identity
-    (id()) so that the same physical pool referenced by multiple servers
-    becomes one cloned object shared by the same multiple cloned servers.
+    Shared pools (is_shared=True) are deduplicated by ``pool.storage``
+    so that pools with the same storage name referenced by multiple
+    servers become one cloned object shared by those cloned servers.
     """
     shared_pool_map: dict[str, _StorageState] = {}
     cloned: list[_WorkingServer] = []
