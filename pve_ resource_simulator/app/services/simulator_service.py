@@ -22,7 +22,6 @@ from app.schemas import (
     SimulationState,
     SimulationSummary,
     StorageInfo,
-    StorageSpeedTier,
     VMTemplate,
     VmStackItem,
 )
@@ -619,8 +618,10 @@ def _build_servers(
                 local_used += s.used_gb
 
         # If storage list is provided, derive disk from local pools only.
+        # This keeps total/used disk scoped consistently and avoids mixing
+        # node-level totals with local-pool-only usage on shared-only nodes.
         if inp.storages:
-            total_disk = local_total if local_total > 0 else float(inp.disk_gb)
+            total_disk = local_total
             used_disk = local_used
         else:
             total_disk = float(inp.disk_gb)
@@ -1500,9 +1501,9 @@ def _projected_disk_share(server: _WorkingServer, template: VMTemplate) -> float
 def _clone_servers(servers: list[_WorkingServer]) -> list[_WorkingServer]:
     """Deep-clone the server cluster for rebalance search.
 
-    Shared pools (is_shared=True) are identified by Python object identity
-    (id()) so that the same physical pool referenced by multiple servers
-    becomes one cloned object shared by the same multiple cloned servers.
+    Shared pools (is_shared=True) are deduplicated by ``pool.storage``
+    so that pools with the same storage name referenced by multiple
+    servers become one cloned object shared by those cloned servers.
     """
     shared_pool_map: dict[str, _StorageState] = {}
     cloned: list[_WorkingServer] = []
