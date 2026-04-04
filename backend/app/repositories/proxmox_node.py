@@ -22,7 +22,7 @@ def upsert_nodes(
 ) -> list[ProxmoxNode]:
     """
     同步節點清單到資料庫。
-    以 name 為 key：存在則更新 host/port/is_primary，保留既有 priority；
+    以 name 為 key：存在則更新 host/port/is_primary/is_online/last_checked，保留既有 priority；
     不存在則新建（priority 預設 5）。
     刪除本次同步中不再出現的舊節點。
     """
