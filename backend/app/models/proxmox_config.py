@@ -27,6 +27,7 @@ class ProxmoxConfig(SQLModel, table=True):
     ca_cert: str | None = Field(default=None, sa_type=sa.Text())
     gateway_ip: str | None = Field(default=None, max_length=255)
     local_subnet: str | None = Field(default=None, max_length=50)
+    default_node: str | None = Field(default=None, max_length=255)
     updated_at: datetime = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),

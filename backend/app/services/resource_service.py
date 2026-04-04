@@ -7,9 +7,25 @@ from sqlmodel import Session
 from app.exceptions import BadRequestError, ProxmoxError
 from app.schemas import ResourcePublic
 from app.repositories import resource as resource_repo
+from app.repositories import audit_log as audit_log_repo
 from app.services import audit_service, firewall_service, proxmox_service
 
 logger = logging.getLogger(__name__)
+
+
+def _from_punycode_hostname(hostname: str) -> str:
+    """將 Punycode hostname 解碼回 Unicode 顯示給使用者。"""
+    result_labels = []
+    for label in hostname.split("."):
+        if label.lower().startswith("xn--"):
+            try:
+                decoded = label[4:].encode("ascii").decode("punycode")
+                result_labels.append(decoded)
+            except Exception:
+                result_labels.append(label)
+        else:
+            result_labels.append(label)
+    return ".".join(result_labels)
 
 
 def _get_ip_address(node: str, vmid: int, vm_type: str) -> str | None:
@@ -22,7 +38,7 @@ def _build_resource_public(
     ip_address = _get_ip_address(node, resource.get("vmid"), vm_type)
     return ResourcePublic(
         vmid=resource.get("vmid"),
-        name=resource.get("name", ""),
+        name=_from_punycode_hostname(resource.get("name", "")),
         status=resource.get("status", ""),
         node=node,
         type=vm_type,
@@ -192,8 +208,9 @@ def delete(
 
         proxmox_service.delete_resource(node, vmid, resource_type, **delete_params)
 
-        # Remove from database
+        # Remove from database (resource record + all associated audit logs)
         resource_repo.delete_resource(session=session, vmid=vmid)
+        audit_log_repo.delete_audit_logs_by_vmid(session=session, vmid=vmid)
 
         audit_service.log_action(
             session=session,

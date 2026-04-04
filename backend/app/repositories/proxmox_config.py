@@ -28,6 +28,7 @@ def upsert_proxmox_config(
     ca_cert: str | None = None,  # None=不更新，空字串=清除
     gateway_ip: str = "",
     local_subnet: str | None = None,
+    default_node: str | None = None,
 ) -> ProxmoxConfig:
     config = session.get(ProxmoxConfig, _SINGLETON_ID)
 
@@ -48,6 +49,7 @@ def upsert_proxmox_config(
             ca_cert=ca_cert if ca_cert else None,
             gateway_ip=gateway_ip or None,
             local_subnet=local_subnet or None,
+            default_node=default_node or None,
         )
         session.add(config)
     else:
@@ -65,6 +67,7 @@ def upsert_proxmox_config(
             config.ca_cert = ca_cert if ca_cert else None
         config.gateway_ip = gateway_ip or None
         config.local_subnet = local_subnet or None
+        config.default_node = default_node or None
         config.updated_at = datetime.now(timezone.utc)
         session.add(config)
 

@@ -1,11 +1,33 @@
 """虛擬機申請 schemas"""
 
+import unicodedata
 import uuid
 from datetime import date, datetime
+from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
 
 from app.models.vm_request import VMRequestStatus
+
+
+def _validate_unicode_hostname(v: str) -> str:
+    """驗證 hostname：允許 Unicode 字母/數字和連字符。"""
+    if not v:
+        raise ValueError("Hostname cannot be empty")
+    if v.startswith("-") or v.endswith("-"):
+        raise ValueError("Hostname cannot start or end with a hyphen")
+    for ch in v:
+        if ch == "-":
+            continue
+        cat = unicodedata.category(ch)
+        if not (cat.startswith("L") or cat.startswith("N")):
+            raise ValueError(
+                "Only Unicode letters, digits, and hyphens are allowed in hostname"
+            )
+    return v
+
+
+UnicodeHostname = Annotated[str, AfterValidator(_validate_unicode_hostname)]
 
 
 # ===== Request Schemas =====
@@ -16,7 +38,7 @@ class VMRequestCreate(BaseModel):
 
     reason: str = Field(min_length=10)
     resource_type: str  # "lxc" 或 "vm"
-    hostname: str = Field(pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", max_length=63)
+    hostname: UnicodeHostname = Field(min_length=1, max_length=63)
     cores: int = 2
     memory: int = 2048
     password: str = Field(min_length=8, max_length=128)

@@ -21,6 +21,28 @@ from app.services import audit_service, firewall_service, proxmox_service
 logger = logging.getLogger(__name__)
 
 
+def _to_punycode_hostname(hostname: str) -> str:
+    """將 Unicode hostname 轉換為 Punycode（ACE 格式）傳給 PVE。"""
+    if not isinstance(hostname, str):
+        logger.error(
+            "Expected str for hostname, got %s: %r", type(hostname).__name__, hostname
+        )
+        raise TypeError(f"hostname must be str, got {type(hostname).__name__!r}: {hostname!r}")
+    result_labels = []
+    for label in hostname.split("."):
+        try:
+            label.encode("ascii")
+            result_labels.append(label)  # 純 ASCII，無需轉換
+        except UnicodeEncodeError:
+            # 使用 punycode codec 編碼非 ASCII 字元
+            try:
+                ace = "xn--" + label.encode("punycode").decode("ascii")
+                result_labels.append(ace)
+            except Exception as e:
+                raise ValueError(f"Cannot encode hostname label '{label}' to Punycode: {e}") from e
+    return ".".join(result_labels)
+
+
 def _cleanup_failed_resource(node: str, vmid: int, resource_type: str) -> None:
     """Best-effort cleanup for a partially provisioned resource."""
     try:
@@ -80,7 +102,7 @@ def create_lxc(
     try:
         config = {
             "vmid": vmid,
-            "hostname": lxc_data.hostname,
+            "hostname": _to_punycode_hostname(lxc_data.hostname),
             "ostemplate": lxc_data.ostemplate,
             "cores": lxc_data.cores,
             "memory": lxc_data.memory,
@@ -150,7 +172,7 @@ def create_vm(
     try:
         clone_config = {
             "newid": new_vmid,
-            "name": vm_data.hostname,
+            "name": _to_punycode_hostname(vm_data.hostname),
             "full": 1,
             "storage": target_storage,
             "pool": get_proxmox_settings().pool_name,
@@ -241,7 +263,7 @@ def provision_from_request(*, session: Session, db_request) -> int:
         if db_request.resource_type == "lxc":
             config = {
                 "vmid": new_vmid,
-                "hostname": db_request.hostname,
+                "hostname": _to_punycode_hostname(db_request.hostname),
                 "ostemplate": db_request.ostemplate,
                 "cores": db_request.cores,
                 "memory": db_request.memory,
@@ -270,7 +292,7 @@ def provision_from_request(*, session: Session, db_request) -> int:
         else:
             clone_config = {
                 "newid": new_vmid,
-                "name": db_request.hostname,
+                "name": _to_punycode_hostname(db_request.hostname),
                 "full": 1,
                 "storage": target_storage,
                 "pool": get_proxmox_settings().pool_name,

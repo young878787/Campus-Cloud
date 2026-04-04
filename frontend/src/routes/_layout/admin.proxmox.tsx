@@ -69,6 +69,7 @@ interface ProxmoxConfigPublic {
   pool_name: string
   gateway_ip: string | null
   local_subnet: string | null
+  default_node: string | null
   updated_at: string | null
   is_configured: boolean
   has_ca_cert: boolean
@@ -88,6 +89,7 @@ interface ProxmoxConfigUpdate {
   ca_cert?: string | null
   gateway_ip?: string | null
   local_subnet?: string | null
+  default_node?: string | null
 }
 
 interface ProxmoxNodePublic {
@@ -202,6 +204,7 @@ interface FormData {
   pool_name: string
   gateway_ip: string
   local_subnet: string
+  default_node: string
 }
 
 // ---- Component ----
@@ -249,6 +252,7 @@ function AdminProxmoxPage() {
       pool_name: "CampusCloud",
       gateway_ip: "",
       local_subnet: "",
+      default_node: "",
     },
   })
 
@@ -266,6 +270,7 @@ function AdminProxmoxPage() {
         pool_name: config.pool_name,
         gateway_ip: config.gateway_ip ?? "",
         local_subnet: config.local_subnet ?? "",
+        default_node: config.default_node ?? "",
       })
     }
   }, [config, form])
@@ -326,6 +331,7 @@ function AdminProxmoxPage() {
       ca_cert,
       gateway_ip: data.gateway_ip || null,
       local_subnet: data.local_subnet || null,
+      default_node: data.default_node || null,
     }
   }
 
@@ -805,6 +811,24 @@ function AdminProxmoxPage() {
                       <FormDescription>
                         新建容器/VM
                         預設封鎖出站至此網段，防止同網段互連。留空則不限制。
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="default_node"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>預設建立節點（Default Node）</FormLabel>
+                      <FormControl>
+                        <Input placeholder="pve1" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        新建 LXC/VM 時優先選用的 Proxmox
+                        節點名稱。留空則自動選取第一個可用節點。
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

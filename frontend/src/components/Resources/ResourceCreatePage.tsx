@@ -38,7 +38,8 @@ import { handleError } from "@/utils"
 function normalizeHostname(value: string) {
   return String(value || "")
     .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-")
+    // 保留 Unicode 字母、數字和連字符，其他替換為連字符
+    .replace(/[^\p{L}\p{N}-]/gu, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 63)
@@ -67,7 +68,8 @@ export function ResourceCreatePage() {
         hostname: z
           .string()
           .min(1, { message: t("validation:name.required") })
-          .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, {
+          .max(63)
+          .regex(/^[\p{L}\p{N}]([\p{L}\p{N}-]*[\p{L}\p{N}])?$/u, {
             message: t("validation:name.invalid"),
           }),
         ostemplate: z.string().optional(),
