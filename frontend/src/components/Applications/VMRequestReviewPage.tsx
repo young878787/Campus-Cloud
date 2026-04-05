@@ -107,6 +107,47 @@ function summarizeSelectedSlots(selectedSlots: VmRequestAvailabilitySlot[]) {
   }
 }
 
+function summarizeSlotStatus(selectedSlots: VmRequestAvailabilitySlot[]) {
+  const counts = selectedSlots.reduce(
+    (acc, slot) => {
+      acc[slot.status] += 1
+      return acc
+    },
+    {
+      available: 0,
+      limited: 0,
+      unavailable: 0,
+      policy_blocked: 0,
+    },
+  )
+
+  const blockedReasons = Array.from(
+    new Set(
+      selectedSlots
+        .filter((slot) => slot.status !== "available" && slot.status !== "limited")
+        .flatMap((slot) => slot.reasons),
+    ),
+  ).slice(0, 4)
+
+  return {
+    counts,
+    blockedReasons,
+    total: selectedSlots.length,
+  }
+}
+
+function formatSlotRange(slot: VmRequestAvailabilitySlot) {
+  const formatter = new Intl.DateTimeFormat("zh-TW", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Taipei",
+  })
+
+  return `${formatter.format(new Date(slot.start_at))} - ${formatter.format(new Date(slot.end_at))}`
+}
+
 function statusMeta(status: string, t: (key: string) => string) {
   if (status === "approved") {
     return { label: t("approvals:filters.approved"), variant: "default" as const }
@@ -342,6 +383,11 @@ export function VMRequestReviewPage({ requestId }: { requestId: string }) {
     [selectedSlots],
   )
 
+  const slotSummary = useMemo(
+    () => summarizeSlotStatus(selectedSlots),
+    [selectedSlots],
+  )
+
   const reviewMutation = useMutation({
     mutationFn: (status: "approved" | "rejected") =>
       VmRequestsService.reviewVmRequest({
@@ -521,6 +567,68 @@ export function VMRequestReviewPage({ requestId }: { requestId: string }) {
             </span>
           </div>
         </div>
+
+        {!availabilityQuery.isLoading && !availabilityQuery.isError && (
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                時段總數
+              </div>
+              <div className="mt-2 text-2xl font-semibold">{slotSummary.total}</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                已納入這筆申請的整段時窗模擬
+              </div>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                可放入
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-emerald-500">
+                {slotSummary.counts.available + slotSummary.counts.limited}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                這些時段會保留可正常開機
+              </div>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                被占用 / 不可用
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-rose-500">
+                {slotSummary.counts.unavailable + slotSummary.counts.policy_blocked}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                這些時段會被排除或顯示為不可選
+              </div>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                最終節點
+              </div>
+              <div className="mt-2 text-2xl font-semibold">
+                {previewSummary.nodes[0] ?? request.assigned_node ?? "未定"}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                依目前模擬結果保留的主要落點
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!availabilityQuery.isLoading &&
+          !availabilityQuery.isError &&
+          slotSummary.blockedReasons.length > 0 && (
+            <div className="mt-4 rounded-xl border border-dashed border-border/70 bg-background/40 p-3">
+              <div className="text-sm font-medium">時段衝突原因</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {slotSummary.blockedReasons.map((reason) => (
+                  <Badge key={reason} variant="outline" className="max-w-full">
+                    {reason}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
         {availabilityQuery.isError && (
           <div className="mt-4 rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">

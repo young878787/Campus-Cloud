@@ -115,6 +115,47 @@ def assess_existing_request(
     )
 
 
+def validate_request_window(
+    *,
+    session: Session,
+    current_user,
+    request_in,
+) -> None:
+    role = cast(UserRole, getattr(current_user, "role", UserRole.student))
+    start_at = _normalize_datetime(getattr(request_in, "start_at", None))
+    end_at = _normalize_datetime(getattr(request_in, "end_at", None))
+    if not start_at or not end_at:
+        raise BadRequestError("A scheduled request window is required.")
+    if end_at <= start_at:
+        raise BadRequestError("end_at must be later than start_at")
+
+    _validate_policy_window(role=role, start_at=start_at, end_at=end_at)
+
+    placement_request = PlacementRequest(
+        resource_type=cast(str, getattr(request_in, "resource_type")),
+        cpu_cores=int(getattr(request_in, "cores", 1) or 1),
+        memory_mb=int(getattr(request_in, "memory", 512) or 512),
+        disk_gb=_extract_disk_gb(
+            resource_type=cast(str, getattr(request_in, "resource_type")),
+            disk_size=getattr(request_in, "disk_size", None),
+            rootfs_size=getattr(request_in, "rootfs_size", None),
+        ),
+        instance_count=1,
+        gpu_required=0,
+    )
+    selection = vm_request_placement_service.select_reserved_target_node_for_request(
+        session=session,
+        request=placement_request,
+        start_at=start_at,
+        end_at=end_at,
+    )
+    if not selection.node or not selection.plan.feasible:
+        raise BadRequestError(
+            selection.plan.summary
+            or "No node is available for the requested time window."
+        )
+
+
 def _build_availability_response(
     *,
     session: Session,
@@ -156,6 +197,12 @@ def _build_availability_response(
     if now_local.minute or now_local.second or now_local.microsecond:
         start_anchor += timedelta(hours=1)
 
+    reserved_requests = vm_request_repo.get_approved_vm_requests_overlapping_window(
+        session=session,
+        window_start=start_anchor,
+        window_end=start_anchor + timedelta(days=days),
+    )
+
     slots: list[VMRequestAvailabilitySlot] = []
     per_day: dict[date, list[VMRequestAvailabilitySlot]] = {}
 
@@ -172,8 +219,13 @@ def _build_availability_response(
         demand_ratio = hourly_demand.get(hour, 0.0)
 
         if within_policy:
-            adjusted_nodes = _adjust_node_capacities_for_slot(
+            reserved_adjusted_nodes = vm_request_placement_service._apply_reserved_requests_to_capacities(
                 baseline_capacities=baseline_capacities,
+                reserved_requests=reserved_requests,
+                at_time=slot_start,
+            )
+            adjusted_nodes = _adjust_node_capacities_for_slot(
+                baseline_capacities=reserved_adjusted_nodes,
                 demand_ratio=demand_ratio,
                 pending_pressure=pending_pressure,
             )
@@ -251,6 +303,14 @@ def _build_availability_response(
     )
 
 
+def _normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
+
+
 def _resolve_timezone(value: str) -> ZoneInfo:
     try:
         return ZoneInfo(value or "Asia/Taipei")
@@ -259,22 +319,56 @@ def _resolve_timezone(value: str) -> ZoneInfo:
 
 
 def _to_placement_request(request_in: VMRequestAvailabilityRequest) -> PlacementRequest:
-    disk_gb = (
-        int(request_in.disk_size or 0)
-        if request_in.resource_type == "vm"
-        else int(request_in.rootfs_size or 0)
-    )
-    if disk_gb <= 0:
-        disk_gb = 20 if request_in.resource_type == "vm" else 8
-
     return PlacementRequest(
         resource_type=cast(str, request_in.resource_type),
         cpu_cores=int(request_in.cores),
         memory_mb=int(request_in.memory),
-        disk_gb=disk_gb,
+        disk_gb=_extract_disk_gb(
+            resource_type=cast(str, request_in.resource_type),
+            disk_size=request_in.disk_size,
+            rootfs_size=request_in.rootfs_size,
+        ),
         instance_count=int(request_in.instance_count),
         gpu_required=int(request_in.gpu_required),
     )
+
+
+def _extract_disk_gb(
+    *,
+    resource_type: str,
+    disk_size: int | None,
+    rootfs_size: int | None,
+) -> int:
+    disk_gb = int(disk_size or 0) if resource_type == "vm" else int(rootfs_size or 0)
+    if disk_gb <= 0:
+        return 20 if resource_type == "vm" else 8
+    return disk_gb
+
+
+def _validate_policy_window(
+    *,
+    role: UserRole,
+    start_at: datetime,
+    end_at: datetime,
+) -> None:
+    allowed_start, allowed_end = _ROLE_ALLOWED_HOURS.get(
+        role, _ROLE_ALLOWED_HOURS[UserRole.student]
+    )
+    cursor = start_at.replace(minute=0, second=0, microsecond=0)
+    while cursor < end_at:
+        if not _is_hour_within_policy(
+            hour=cursor.hour,
+            allowed_start=allowed_start,
+            allowed_end=allowed_end,
+        ):
+            raise BadRequestError(
+                _policy_block_summary(
+                    role=role,
+                    allowed_start=allowed_start,
+                    allowed_end=allowed_end,
+                )
+            )
+        cursor += timedelta(hours=1)
 
 
 def _load_hourly_demand_profile(*, session: Session, timezone: ZoneInfo) -> dict[int, float]:

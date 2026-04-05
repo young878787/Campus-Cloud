@@ -19,7 +19,11 @@ from app.schemas import (
     VMRequestsPublic,
 )
 from app.repositories import vm_request as vm_request_repo
-from app.services import audit_service
+from app.services import (
+    audit_service,
+    vm_request_availability_service,
+    vm_request_placement_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +82,11 @@ def create(
         raise BadRequestError("VM request requires template_id and username")
     if request_in.end_at <= request_in.start_at:
         raise BadRequestError("end_at must be later than start_at")
+    vm_request_availability_service.validate_request_window(
+        session=session,
+        current_user=user,
+        request_in=request_in,
+    )
 
     db_request = vm_request_repo.create_vm_request(
         session=session,
@@ -158,6 +167,7 @@ def review(
     if db_request.status != VMRequestStatus.pending:
         raise BadRequestError("This request has already been reviewed")
 
+    reservation = None
     try:
         if review_data.status == VMRequestStatus.approved:
             if not db_request.start_at or not db_request.end_at:
@@ -174,15 +184,51 @@ def review(
                 raise BadRequestError(
                     "This request window has already ended and can no longer be approved."
                 )
-
+            locked_requests = vm_request_repo.lock_overlapping_vm_requests_for_window(
+                session=session,
+                window_start=start_at,
+                window_end=end_at,
+            )
+        else:
+            locked_requests = []
         updated = vm_request_repo.update_vm_request_status(
             session=session,
             db_request=db_request,
             status=review_data.status,
             reviewer_id=reviewer.id,
             review_comment=review_data.review_comment,
+            assigned_node=None,
+            placement_strategy_used=None,
             commit=False,
         )
+
+        if review_data.status == VMRequestStatus.approved:
+            approved_requests = [
+                item
+                for item in locked_requests
+                if item.id != updated.id and item.status == VMRequestStatus.approved
+            ]
+            approved_requests.append(updated)
+
+            selections = vm_request_placement_service.rebuild_reserved_assignments(
+                session=session,
+                requests=approved_requests,
+            )
+            for request in approved_requests:
+                selection = selections.get(request.id)
+                if not selection or not selection.node:
+                    raise BadRequestError(
+                        "No node is available for the requested time window after applying reservations."
+                    )
+                vm_request_repo.update_vm_request_provisioning(
+                    session=session,
+                    db_request=request,
+                    vmid=request.vmid,
+                    assigned_node=selection.node,
+                    placement_strategy_used=selection.strategy,
+                    commit=False,
+                )
+            reservation = selections[updated.id]
 
         action = (
             "approved"
@@ -191,7 +237,10 @@ def review(
         )
         details = f"Reviewed VM request {request_id}: {action}"
         if review_data.status == VMRequestStatus.approved:
-            details += ", provisioning scheduled for the approved start time"
+            details += (
+                ", reserved node "
+                f"{reservation.node if reservation else updated.assigned_node} for the approved time window"
+            )
         if review_data.review_comment:
             details += f". Comment: {review_data.review_comment}"
 
@@ -208,6 +257,12 @@ def review(
         logger.info(
             f"Admin {reviewer.email} {action} VM request {request_id}"
         )
+    except BadRequestError:
+        session.rollback()
+        raise
+    except ValueError as exc:
+        session.rollback()
+        raise BadRequestError(str(exc)) from exc
     except Exception:
         logger.exception(
             "Failed to process review for VM request %s", request_id

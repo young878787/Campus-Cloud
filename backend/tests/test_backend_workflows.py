@@ -1,4 +1,6 @@
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -28,6 +30,7 @@ from app.services import (
     proxmox_service,
     spec_change_service,
     user_service,
+    vm_request_placement_service,
     vm_request_service,
 )
 
@@ -63,8 +66,15 @@ def _create_user(
     return user
 
 
-def test_vm_request_create_preserves_environment_type(db: Session) -> None:
+def test_vm_request_create_preserves_environment_type(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
     user = _create_user(db)
+    now = datetime.now(timezone.utc)
+    monkeypatch.setattr(
+        "app.services.vm_request_service.vm_request_availability_service.validate_request_window",
+        lambda **kwargs: None,
+    )
     request_in = VMRequestCreate(
         reason="Need a custom environment for backend testing",
         resource_type="vm",
@@ -77,6 +87,8 @@ def test_vm_request_create_preserves_environment_type(db: Session) -> None:
         template_id=9000,
         disk_size=32,
         username="student",
+        start_at=now + timedelta(hours=1),
+        end_at=now + timedelta(hours=3),
     )
 
     result = vm_request_service.create(session=db, request_in=request_in, user=user)
@@ -89,11 +101,44 @@ def test_vm_request_create_preserves_environment_type(db: Session) -> None:
     assert saved.storage == "fast-ssd"
 
 
+def test_vm_request_create_rejects_unavailable_window(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = _create_user(db)
+    now = datetime.now(timezone.utc)
+    request_in = VMRequestCreate(
+        reason="Need a custom environment for backend testing",
+        resource_type="vm",
+        hostname="env-check-blocked",
+        cores=2,
+        memory=2048,
+        password="strongpass123",
+        storage="fast-ssd",
+        environment_type="ML Lab",
+        template_id=9000,
+        disk_size=32,
+        username="student",
+        start_at=now + timedelta(hours=1),
+        end_at=now + timedelta(hours=3),
+    )
+
+    monkeypatch.setattr(
+        "app.services.vm_request_service.vm_request_availability_service.validate_request_window",
+        lambda **kwargs: (_ for _ in ()).throw(
+            BadRequestError("No node is available for the requested time window.")
+        ),
+    )
+
+    with pytest.raises(BadRequestError):
+        vm_request_service.create(session=db, request_in=request_in, user=user)
+
+
 def test_vm_request_review_rolls_back_and_cleans_up_on_failure(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     user = _create_user(db)
     reviewer = _create_user(db, is_superuser=True)
+    now = datetime.now(timezone.utc)
     request = VMRequest(
         user_id=user.id,
         reason="Need a VM for rollback coverage",
@@ -108,17 +153,23 @@ def test_vm_request_review_rolls_back_and_cleans_up_on_failure(
         disk_size=20,
         username="student",
         status=VMRequestStatus.pending,
-        created_at=datetime.now(timezone.utc),
+        start_at=now + timedelta(hours=2),
+        end_at=now + timedelta(hours=4),
+        created_at=now,
     )
     db.add(request)
     db.commit()
     db.refresh(request)
 
-    cleaned_vmids: list[int] = []
-
     monkeypatch.setattr(
-        "app.services.vm_request_service.provisioning_service.provision_from_request",
-        lambda session, db_request: 321,
+        "app.services.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
+        lambda **kwargs: {
+            request.id: SimpleNamespace(
+                node="pve-a",
+                strategy="priority_dominant_share",
+                plan=SimpleNamespace(feasible=True),
+            )
+        },
     )
 
     def _raise_audit(*args, **kwargs):
@@ -127,10 +178,6 @@ def test_vm_request_review_rolls_back_and_cleans_up_on_failure(
     monkeypatch.setattr(
         "app.services.vm_request_service.audit_service.log_action",
         _raise_audit,
-    )
-    monkeypatch.setattr(
-        "app.services.vm_request_service.provisioning_service.cleanup_provisioned_resource",
-        lambda vmid: cleaned_vmids.append(vmid),
     )
 
     with pytest.raises(ProvisioningError):
@@ -147,7 +194,267 @@ def test_vm_request_review_rolls_back_and_cleans_up_on_failure(
     assert refreshed.status == VMRequestStatus.pending
     assert refreshed.vmid is None
     assert refreshed.reviewer_id is None
-    assert cleaned_vmids == [321]
+    assert refreshed.assigned_node is None
+    assert refreshed.placement_strategy_used is None
+
+
+def test_vm_request_review_locks_overlapping_requests(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = _create_user(db)
+    reviewer = _create_user(db, is_superuser=True)
+    now = datetime.now(timezone.utc)
+    request = VMRequest(
+        user_id=user.id,
+        reason="Need a VM for scheduled class usage",
+        resource_type="vm",
+        hostname="lock-window-vm",
+        cores=2,
+        memory=2048,
+        password=encrypt_value("strongpass123"),
+        storage="local-lvm",
+        environment_type="Lock Window Test",
+        template_id=123,
+        disk_size=20,
+        username="student",
+        status=VMRequestStatus.pending,
+        start_at=now + timedelta(hours=2),
+        end_at=now + timedelta(hours=4),
+        created_at=now,
+    )
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+
+    captured: dict[str, datetime] = {}
+
+    def _lock_window(**kwargs):
+        captured["start_at"] = kwargs["window_start"]
+        captured["end_at"] = kwargs["window_end"]
+        return [request]
+
+    monkeypatch.setattr(
+        "app.services.vm_request_service.vm_request_repo.lock_overlapping_vm_requests_for_window",
+        _lock_window,
+    )
+    monkeypatch.setattr(
+        "app.services.vm_request_service.audit_service.log_action",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "app.services.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
+        lambda **kwargs: {
+            request.id: SimpleNamespace(
+                node="pve-a",
+                strategy="priority_dominant_share",
+                plan=SimpleNamespace(feasible=True),
+            )
+        },
+    )
+
+    vm_request_service.review(
+        session=db,
+        request_id=request.id,
+        review_data=VMRequestReview(status=VMRequestStatus.approved),
+        reviewer=reviewer,
+    )
+
+    assert captured["start_at"] == request.start_at.replace(tzinfo=timezone.utc)
+    assert captured["end_at"] == request.end_at.replace(tzinfo=timezone.utc)
+
+
+def test_vm_request_review_assigns_reserved_node(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = _create_user(db)
+    reviewer = _create_user(db, is_superuser=True)
+    now = datetime.now(timezone.utc)
+    request = VMRequest(
+        user_id=user.id,
+        reason="Need a VM for scheduled class usage",
+        resource_type="vm",
+        hostname="reserved-node-vm",
+        cores=2,
+        memory=2048,
+        password=encrypt_value("strongpass123"),
+        storage="local-lvm",
+        environment_type="Reserved Node Test",
+        template_id=123,
+        disk_size=20,
+        username="student",
+        status=VMRequestStatus.pending,
+        start_at=now + timedelta(hours=2),
+        end_at=now + timedelta(hours=4),
+        created_at=now,
+    )
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+
+    monkeypatch.setattr(
+        "app.services.vm_request_service.audit_service.log_action",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "app.services.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
+        lambda **kwargs: {
+            request.id: SimpleNamespace(
+                node="pve-a",
+                strategy="priority_dominant_share",
+                plan=SimpleNamespace(feasible=True),
+            )
+        },
+    )
+
+    result = vm_request_service.review(
+        session=db,
+        request_id=request.id,
+        review_data=VMRequestReview(status=VMRequestStatus.approved),
+        reviewer=reviewer,
+    )
+
+    db.expire_all()
+    refreshed = db.exec(select(VMRequest).where(VMRequest.id == request.id)).first()
+    assert refreshed is not None
+    assert result.status == VMRequestStatus.approved
+    assert result.assigned_node == "pve-a"
+    assert result.placement_strategy_used == "priority_dominant_share"
+    assert refreshed.status == VMRequestStatus.approved
+    assert refreshed.assigned_node == "pve-a"
+    assert refreshed.placement_strategy_used == "priority_dominant_share"
+
+
+def test_rebuild_reserved_assignments_uses_updated_prior_reservations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime.now(timezone.utc)
+    request_a = VMRequest(
+        id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        user_id=uuid.UUID("00000000-0000-0000-0000-000000000011"),
+        reason="A",
+        resource_type="lxc",
+        hostname="req-a",
+        cores=2,
+        memory=2048,
+        password="encrypted",
+        storage="local-lvm",
+        environment_type="Test",
+        status=VMRequestStatus.approved,
+        start_at=now + timedelta(hours=1),
+        end_at=now + timedelta(hours=2),
+        created_at=now,
+        assigned_node="old-a",
+    )
+    request_b = VMRequest(
+        id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+        user_id=uuid.UUID("00000000-0000-0000-0000-000000000012"),
+        reason="B",
+        resource_type="lxc",
+        hostname="req-b",
+        cores=2,
+        memory=2048,
+        password="encrypted",
+        storage="local-lvm",
+        environment_type="Test",
+        status=VMRequestStatus.approved,
+        start_at=now + timedelta(hours=1),
+        end_at=now + timedelta(hours=2),
+        created_at=now + timedelta(minutes=1),
+        assigned_node="old-b",
+    )
+
+    seen_reserved_nodes: list[list[str]] = []
+
+    def _fake_select_reserved_target_node(*, db_request, reserved_requests, **kwargs):
+        seen_reserved_nodes.append(
+            [str(item.assigned_node) for item in reserved_requests]
+        )
+        node = "new-a" if db_request.hostname == "req-a" else "new-b"
+        return SimpleNamespace(
+            node=node,
+            strategy="priority_dominant_share",
+            plan=SimpleNamespace(feasible=True),
+        )
+
+    monkeypatch.setattr(
+        "app.services.vm_request_placement_service.select_reserved_target_node",
+        _fake_select_reserved_target_node,
+    )
+
+    selections = vm_request_placement_service.rebuild_reserved_assignments(
+        session=None,
+        requests=[request_b, request_a],
+    )
+
+    assert seen_reserved_nodes == [[], ["new-a"]]
+    assert selections[request_a.id].node == "new-a"
+    assert selections[request_b.id].node == "new-b"
+
+
+def test_select_request_placement_falls_back_when_reserved_node_is_unavailable(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request = SimpleNamespace(
+        id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        resource_type="lxc",
+        password=encrypt_value("strongpass123"),
+        start_at=datetime.now(timezone.utc) - timedelta(minutes=5),
+        end_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        cores=2,
+        memory=2048,
+        storage="local-lvm",
+        hostname="fallback-lxc",
+        ostemplate="local:vztmpl/debian-12-standard.tar.zst",
+        rootfs_size=8,
+        environment_type="Fallback Runtime",
+        os_info=None,
+        expiry_date=None,
+        unprivileged=True,
+        assigned_node="pve-a",
+        placement_strategy_used="priority_dominant_share",
+    )
+    placement_request = SimpleNamespace()
+
+    monkeypatch.setattr(
+        "app.services.provisioning_service.advisor_service._load_cluster_state",
+        lambda: ([], []),
+    )
+    monkeypatch.setattr(
+        "app.services.provisioning_service.advisor_service._build_node_capacities",
+        lambda **kwargs: [SimpleNamespace(node="pve-a")],
+    )
+    monkeypatch.setattr(
+        "app.services.provisioning_service.advisor_service._decide_resource_type",
+        lambda request: ("lxc", "Prefer LXC for this request."),
+    )
+    monkeypatch.setattr(
+        "app.services.provisioning_service.vm_request_placement_service.build_plan",
+        lambda **kwargs: SimpleNamespace(feasible=False),
+    )
+    monkeypatch.setattr(
+        "app.services.provisioning_service.vm_request_repo.get_approved_vm_requests_overlapping_window",
+        lambda **kwargs: [],
+    )
+    monkeypatch.setattr(
+        "app.services.provisioning_service.vm_request_placement_service.select_reserved_target_node",
+        lambda **kwargs: SimpleNamespace(
+            node="pve-b",
+            strategy="priority_dominant_share",
+            plan=SimpleNamespace(feasible=True),
+        ),
+    )
+
+    placement = provisioning_service._select_request_placement(
+        session=db,
+        db_request=request,
+        placement_request=placement_request,
+        placement_strategy="priority_dominant_share",
+    )
+
+    assert placement.node == "pve-b"
+    assert placement.strategy == "priority_dominant_share"
+    assert placement.plan.feasible is True
 
 
 def test_spec_change_review_stays_pending_when_apply_fails(

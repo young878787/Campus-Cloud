@@ -101,6 +101,58 @@ def get_all_vm_requests(
     return list(session.exec(statement.offset(skip).limit(limit)).all()), count
 
 
+def get_approved_vm_requests_overlapping_window(
+    *,
+    session: Session,
+    window_start: datetime,
+    window_end: datetime,
+) -> list[VMRequest]:
+    statement = (
+        select(VMRequest)
+        .where(
+            VMRequest.status == VMRequestStatus.approved,
+            VMRequest.start_at.is_not(None),
+            VMRequest.end_at.is_not(None),
+            VMRequest.assigned_node.is_not(None),
+            VMRequest.start_at < window_end,
+            VMRequest.end_at > window_start,
+        )
+        .options(selectinload(VMRequest.user))  # type: ignore[arg-type]
+        .order_by(VMRequest.start_at.asc(), VMRequest.reviewed_at.asc())  # type: ignore[union-attr]
+    )
+    return list(session.exec(statement).all())
+
+
+def lock_overlapping_vm_requests_for_window(
+    *,
+    session: Session,
+    window_start: datetime,
+    window_end: datetime,
+    statuses: tuple[VMRequestStatus, ...] = (
+        VMRequestStatus.pending,
+        VMRequestStatus.approved,
+    ),
+) -> list[VMRequest]:
+    statement = (
+        select(VMRequest)
+        .where(
+            VMRequest.status.in_(statuses),
+            VMRequest.start_at.is_not(None),
+            VMRequest.end_at.is_not(None),
+            VMRequest.start_at < window_end,
+            VMRequest.end_at > window_start,
+        )
+        .options(selectinload(VMRequest.user))  # type: ignore[arg-type]
+        .order_by(
+            VMRequest.start_at.asc(),  # type: ignore[union-attr]
+            VMRequest.created_at.asc(),  # type: ignore[union-attr]
+            VMRequest.id.asc(),
+        )
+        .with_for_update()
+    )
+    return list(session.exec(statement).all())
+
+
 def update_vm_request_status(
     *,
     session: Session,
@@ -136,12 +188,13 @@ def update_vm_request_provisioning(
     *,
     session: Session,
     db_request: VMRequest,
-    vmid: int,
+    vmid: int | None,
     assigned_node: str | None = None,
     placement_strategy_used: str | None = None,
     commit: bool = True,
 ) -> VMRequest:
-    db_request.vmid = vmid
+    if vmid is not None:
+        db_request.vmid = vmid
     db_request.assigned_node = assigned_node
     db_request.placement_strategy_used = placement_strategy_used
     session.add(db_request)

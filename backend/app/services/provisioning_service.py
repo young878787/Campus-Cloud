@@ -16,7 +16,9 @@ from app.schemas import (
     VMCreateResponse,
     VMTemplateSchema,
 )
+from app.ai.pve_advisor import recommendation_service as advisor_service
 from app.repositories import resource as resource_repo
+from app.repositories import vm_request as vm_request_repo
 from app.services import (
     audit_service,
     firewall_service,
@@ -105,6 +107,76 @@ def cleanup_provisioned_resource(vmid: int) -> None:
     """Find and delete a resource created during a failed approval workflow."""
     resource = proxmox_service.find_resource(vmid)
     _cleanup_failed_resource(resource["node"], vmid, resource["type"])
+
+
+def _select_request_placement(
+    *,
+    session: Session,
+    db_request,
+    placement_request,
+    placement_strategy: str,
+):
+    if getattr(db_request, "assigned_node", None):
+        nodes, resources = advisor_service._load_cluster_state()
+        cpu_overcommit_ratio, disk_overcommit_ratio = (
+            vm_request_placement_service.get_overcommit_ratios(session)
+        )
+        node_capacities = advisor_service._build_node_capacities(
+            nodes=nodes,
+            resources=resources,
+            cpu_overcommit_ratio=cpu_overcommit_ratio,
+            disk_overcommit_ratio=disk_overcommit_ratio,
+        )
+        node_capacities = [
+            item for item in node_capacities if item.node == str(db_request.assigned_node)
+        ]
+        effective_resource_type, resource_type_reason = advisor_service._decide_resource_type(
+            placement_request
+        )
+        placement = vm_request_placement_service.CurrentPlacementSelection(
+            node=str(db_request.assigned_node),
+            strategy=placement_strategy,
+            plan=vm_request_placement_service.build_plan(
+                session=session,
+                request=placement_request,
+                node_capacities=node_capacities,
+                effective_resource_type=effective_resource_type,
+                resource_type_reason=resource_type_reason,
+                placement_strategy=placement_strategy,
+                node_priorities=vm_request_placement_service.get_node_priorities(session),
+            ),
+        )
+        if not placement.plan.feasible or not placement.node:
+            reserved_requests = []
+            if getattr(db_request, "start_at", None) and getattr(db_request, "end_at", None):
+                reserved_requests = [
+                    item
+                    for item in vm_request_repo.get_approved_vm_requests_overlapping_window(
+                        session=session,
+                        window_start=db_request.start_at,
+                        window_end=db_request.end_at,
+                    )
+                    if item.id != db_request.id
+                ]
+            fallback = vm_request_placement_service.select_reserved_target_node(
+                session=session,
+                db_request=db_request,
+                reserved_requests=reserved_requests,
+            )
+            if fallback.node and fallback.plan.feasible:
+                logger.warning(
+                    "Reserved node %s is no longer feasible for request %s; falling back to %s",
+                    getattr(db_request, "assigned_node", None),
+                    getattr(db_request, "id", "unknown"),
+                    fallback.node,
+                )
+                return fallback
+        return placement
+
+    return vm_request_placement_service.select_current_target_node(
+        session=session,
+        db_request=db_request,
+    )
 
 
 def _get_lxc_target_node() -> str:
@@ -282,9 +354,15 @@ def provision_from_request(*, session: Session, db_request) -> tuple[int, str | 
     new_vmid = proxmox_service.next_vmid()
     plain_password = decrypt_value(db_request.password)
     start_immediately = should_start_now(db_request)
-    placement = vm_request_placement_service.select_current_target_node(
+    placement_request = vm_request_placement_service._to_placement_request(db_request)
+    placement_strategy = str(
+        db_request.placement_strategy_used or "priority_dominant_share"
+    )
+    placement = _select_request_placement(
         session=session,
         db_request=db_request,
+        placement_request=placement_request,
+        placement_strategy=placement_strategy,
     )
     if not placement.plan.feasible or not placement.node:
         raise ProxmoxError(
