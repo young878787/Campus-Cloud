@@ -26,6 +26,7 @@ class AIAPIEnvSettings(BaseSettings):
     ai_api_rate_limit_window_seconds: int = 60
 
     # Redis 配置
+    redis_enabled: bool = False  # 是否啟用 Redis 監控（開發環境建議設為 False）
     redis_url: str = "redis://localhost:6379/0"
 
     # 公共 API 地址（用户访问，内网环境可以使用 localhost）

@@ -236,25 +236,51 @@ async def get_rate_limit_status(
     # 從 Redis 獲取當前速率限制狀態
     redis = await get_redis()
 
+    # 如果 Redis 未啟用，返回禁用狀態
+    if redis is None:
+        from datetime import timezone
+
+        return RateLimitStatusResponse(
+            limit_per_minute=limit,
+            current_usage=0,
+            remaining=limit,
+            reset_at=datetime.now(tz=timezone.utc),
+            disabled=True,  # 標記速率限制已禁用
+        )
+
     # 獲取當前窗口的請求數（不實際消耗配額）
     key = f"rate_limit:user:{user.id}"
     now_ms = int(time.time() * 1000)
     window_seconds = ai_api_settings.ai_api_rate_limit_window_seconds
     window_start_ms = now_ms - (window_seconds * 1000)
 
-    # 移除過期請求並計數
-    await redis.zremrangebyscore(key, "-inf", window_start_ms)
-    current_usage = await redis.zcard(key)
+    try:
+        # 移除過期請求並計數
+        await redis.zremrangebyscore(key, "-inf", window_start_ms)
+        current_usage = await redis.zcard(key)
 
-    from datetime import timezone
+        from datetime import timezone
 
-    reset_at = datetime.fromtimestamp(
-        (now_ms + window_seconds * 1000) / 1000, tz=timezone.utc
-    )
+        reset_at = datetime.fromtimestamp(
+            (now_ms + window_seconds * 1000) / 1000, tz=timezone.utc
+        )
 
-    return RateLimitStatusResponse(
-        limit_per_minute=limit,
-        current_usage=current_usage,
-        remaining=max(0, limit - current_usage),
-        reset_at=reset_at,
-    )
+        return RateLimitStatusResponse(
+            limit_per_minute=limit,
+            current_usage=current_usage,
+            remaining=max(0, limit - current_usage),
+            reset_at=reset_at,
+        )
+
+    except Exception as e:
+        # Redis 錯誤時返回預設值
+        logger.error("Failed to get rate limit status: %s", str(e))
+        from datetime import timezone
+
+        return RateLimitStatusResponse(
+            limit_per_minute=limit,
+            current_usage=0,
+            remaining=limit,
+            reset_at=datetime.now(tz=timezone.utc),
+            error=str(e),
+        )

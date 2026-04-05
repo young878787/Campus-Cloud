@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 async def check_rate_limit_sliding_window(
-    redis: Redis,
+    redis: Redis | None,
     user_id: str,
     limit: int = 20,
     window_seconds: int = 60,
@@ -33,7 +33,7 @@ async def check_rate_limit_sliding_window(
     4. 使用 Lua script 保證原子性
 
     Args:
-        redis: Redis 客戶端
+        redis: Redis 客戶端（可選，如果為 None 則跳過速率限制）
         user_id: 用戶 ID
         limit: 速率限制（請求數）
         window_seconds: 時間窗口（秒）
@@ -50,6 +50,22 @@ async def check_rate_limit_sliding_window(
               }
     """
     now_ms = int(time.time() * 1000)
+    reset_at = datetime.fromtimestamp(
+        (now_ms + window_seconds * 1000) / 1000, tz=timezone.utc
+    )
+
+    # 如果 Redis 未啟用或不可用，跳過速率限制（允許所有請求）
+    if redis is None:
+        logger.debug("Redis is disabled. Rate limiting skipped for user %s", user_id)
+        return True, {
+            "limit": limit,
+            "current": 0,
+            "remaining": limit,
+            "reset_at": reset_at,
+            "window_seconds": window_seconds,
+            "disabled": True,  # 標記 Redis 已禁用
+        }
+
     window_start_ms = now_ms - (window_seconds * 1000)
     key = f"rate_limit:user:{user_id}"
 
@@ -147,19 +163,23 @@ async def check_rate_limit_sliding_window(
         }
 
 
-async def clear_user_rate_limit(redis: Redis, user_id: str) -> bool:
+async def clear_user_rate_limit(redis: Redis | None, user_id: str) -> bool:
     """
     清除用戶的速率限制記錄
 
     用於測試或管理員手動重置
 
     Args:
-        redis: Redis 客戶端
+        redis: Redis 客戶端（可選）
         user_id: 用戶 ID
 
     Returns:
         bool: 是否成功刪除
     """
+    if redis is None:
+        logger.debug("Redis is disabled. Cannot clear rate limit for user %s", user_id)
+        return False
+
     key = f"rate_limit:user:{user_id}"
     try:
         deleted = await redis.delete(key)

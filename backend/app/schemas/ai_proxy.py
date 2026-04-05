@@ -22,7 +22,9 @@ class ChatCompletionRequest(BaseModel):
     model: str = Field(..., description="模型名称，如 gpt-oss-20B")
     messages: list[ChatMessage] = Field(..., description="对话历史")
     max_tokens: int | None = Field(default=2048, description="最大生成 tokens")
-    temperature: float | None = Field(default=0.8, ge=0.0, le=2.0, description="采样温度")
+    temperature: float | None = Field(
+        default=0.8, ge=0.0, le=2.0, description="采样温度"
+    )
     top_p: float | None = Field(default=0.95, ge=0.0, le=1.0, description="核采样")
     stream: bool | None = Field(default=False, description="是否流式响应")
     # 其他 OpenAI 参数
@@ -133,6 +135,8 @@ class RateLimitStatusResponse(BaseModel):
     current_usage: int
     remaining: int
     reset_at: datetime
+    disabled: bool = False  # 是否已禁用速率限制（Redis 未啟用時為 True）
+    error: str | None = None  # Redis 錯誤訊息（如有）
 
 
 __all__ = [
