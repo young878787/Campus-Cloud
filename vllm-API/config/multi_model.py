@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-
-from dotenv import dotenv_values
+from typing import Any
 
 from config.settings import PROJECT_ROOT, Settings
 
 DEFAULT_BASE_ENV = ".env"
-DEFAULT_GATEWAY_ENV = ".env.gateway"
+DEFAULT_MODELS_JSON = "models.json"
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class ModelInstanceConfig:
     """單一模型實例設定。"""
 
     alias: str
-    env_file: Path
+    model_config: dict[str, Any]
     settings: Settings
 
     @property
@@ -54,102 +54,134 @@ class GatewayRoute:
     api_key: str
 
 
-def _resolve_env_path(env_file: str | Path) -> Path:
-    path = Path(env_file)
+def _resolve_path(file_path: str | Path) -> Path:
+    """解析為絕對路徑。"""
+    path = Path(file_path)
     if not path.is_absolute():
         path = PROJECT_ROOT / path
     return path
 
 
-def _resolve_gateway_env_path(gateway_env_file: str | Path) -> Path:
-    """解析 gateway env 路徑（不啟用回退）。"""
-    return _resolve_env_path(gateway_env_file)
-
-
-def _parse_bool(value: str | None, default: bool = False) -> bool:
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _parse_int(value: str | None, default: int) -> int:
-    if value is None or value.strip() == "":
-        return default
-    return int(value)
-
-
-def _parse_model_env_files(gateway_env: dict[str, str]) -> list[Path]:
-    raw = gateway_env.get("GATEWAY_MODEL_ENV_FILES", "")
-    if not raw.strip():
-        raise ValueError("GATEWAY_MODEL_ENV_FILES 缺失，請在 .env.gateway 明確指定模型設定檔清單")
-    return [_resolve_env_path(p.strip()) for p in raw.split(",") if p.strip()]
-
-
-def load_gateway_config(gateway_env_file: str | Path = DEFAULT_GATEWAY_ENV) -> GatewayConfig:
-    """載入 Gateway 設定。"""
-    env_path = _resolve_gateway_env_path(gateway_env_file)
+def load_gateway_config(base_env_file: str | Path = DEFAULT_BASE_ENV) -> GatewayConfig:
+    """從 .env 載入 Gateway 設定。"""
+    env_path = _resolve_path(base_env_file)
     if not env_path.exists():
-        raise FileNotFoundError(f"Gateway 設定檔不存在: {env_path}")
-    gateway_env = dotenv_values(env_path)
-
-    default_model = gateway_env.get("GATEWAY_DEFAULT_MODEL", "")
+        raise FileNotFoundError(f"環境設定檔不存在: {env_path}")
+    
+    # 載入 .env 到環境變數
+    from dotenv import load_dotenv
+    load_dotenv(env_path)
+    
     return GatewayConfig(
-        host=str(gateway_env.get("GATEWAY_HOST", "0.0.0.0") or "0.0.0.0"),
-        port=_parse_int(gateway_env.get("GATEWAY_PORT"), 3000),
-        request_timeout=_parse_int(gateway_env.get("GATEWAY_REQUEST_TIMEOUT"), 300),
-        max_inflight=_parse_int(gateway_env.get("GATEWAY_MAX_INFLIGHT"), 48),
-        default_model=str(default_model or ""),
+        host=os.getenv("GATEWAY_HOST", "0.0.0.0"),
+        port=int(os.getenv("GATEWAY_PORT", "3000")),
+        request_timeout=int(os.getenv("GATEWAY_REQUEST_TIMEOUT", "300")),
+        max_inflight=int(os.getenv("GATEWAY_MAX_INFLIGHT", "48")),
+        default_model=os.getenv("GATEWAY_DEFAULT_MODEL", ""),
     )
 
 
 def load_model_instances(
-    base_env_file: str | Path = ".env",
-    gateway_env_file: str | Path = DEFAULT_GATEWAY_ENV,
+    base_env_file: str | Path = DEFAULT_BASE_ENV,
+    models_json_file: str | Path = DEFAULT_MODELS_JSON,
 ) -> list[ModelInstanceConfig]:
-    """載入多模型實例設定。"""
-    base_path = _resolve_env_path(base_env_file)
-    gateway_path = _resolve_gateway_env_path(gateway_env_file)
+    """載入多模型實例設定。
+    
+    Args:
+        base_env_file: 共用環境變數檔案路徑（預設 .env）
+        models_json_file: 模型配置 JSON 檔案路徑（預設 models.json）
+    
+    Returns:
+        模型實例配置列表
+    """
+    base_path = _resolve_path(base_env_file)
+    models_json_path = _resolve_path(models_json_file)
+    
     if not base_path.exists():
         raise FileNotFoundError(f"集群共用設定檔不存在: {base_path}")
-    if not gateway_path.exists():
-        raise FileNotFoundError(f"Gateway 設定檔不存在: {gateway_path}")
-    gateway_env = dotenv_values(gateway_path)
-    model_env_files = _parse_model_env_files(gateway_env)
-
+    if not models_json_path.exists():
+        raise FileNotFoundError(f"模型配置檔不存在: {models_json_path}")
+    
+    # 載入 models.json
+    with open(models_json_path, "r", encoding="utf-8") as f:
+        models_config = json.load(f)
+    
+    if not isinstance(models_config, list):
+        raise ValueError(f"models.json 格式錯誤：應為陣列，實際為 {type(models_config)}")
+    
+    # 載入 .env 到環境變數
+    from dotenv import load_dotenv
+    load_dotenv(base_path, override=False)
+    
     instances: list[ModelInstanceConfig] = []
     seen_alias: set[str] = set()
     seen_port: set[int] = set()
-
-    for model_env_file in model_env_files:
-        if not model_env_file.exists():
-            raise FileNotFoundError(f"模型設定檔不存在: {model_env_file}")
-
-        model_env = dotenv_values(model_env_file)
-        alias = model_env.get("MODEL_ALIAS", "").strip()
+    
+    for idx, model_config in enumerate(models_config):
+        if not isinstance(model_config, dict):
+            raise ValueError(f"模型配置 #{idx} 格式錯誤：應為物件")
+        
+        alias = model_config.get("alias", "").strip()
         if not alias:
-            raise ValueError(f"MODEL_ALIAS 缺失: {model_env_file}")
+            raise ValueError(f"模型配置 #{idx} 缺少 'alias' 欄位")
+        
         if alias in seen_alias:
             raise ValueError(f"MODEL_ALIAS 重複: {alias}")
-
-        settings = Settings(
-            _env_file=[str(base_path), str(model_env_file)],
-            _env_file_encoding="utf-8",
-        )
-
+        
+        # 建立 Settings，使用模型配置覆蓋 .env 的值
+        # 需要將 JSON 的 snake_case 轉為環境變數格式
+        model_env_overrides = {}
+        
+        # 對應關係
+        field_mapping = {
+            "model_name": "MODEL_NAME",
+            "api_port": "API_PORT",
+            "max_model_len": "MAX_MODEL_LEN",
+            "gpu_memory_utilization": "GPU_MEMORY_UTILIZATION",
+            "max_num_seqs": "MAX_NUM_SEQS",
+            "max_num_batched_tokens": "MAX_NUM_BATCHED_TOKENS",
+            "tiktoken_encodings_base": "TIKTOKEN_ENCODINGS_BASE",
+            "dtype": "DTYPE",
+            "tensor_parallel_size": "TENSOR_PARALLEL_SIZE",
+            "quantization": "QUANTIZATION",
+            "enable_auto_tool_choice": "ENABLE_AUTO_TOOL_CHOICE",
+            "tool_call_parser": "TOOL_CALL_PARSER",
+        }
+        
+        for json_key, env_key in field_mapping.items():
+            if json_key in model_config:
+                model_env_overrides[env_key] = str(model_config[json_key])
+        
+        # 臨時設定環境變數（在 Settings 初始化時會被讀取）
+        original_env = {}
+        for env_key, value in model_env_overrides.items():
+            original_env[env_key] = os.environ.get(env_key)
+            os.environ[env_key] = value
+        
+        try:
+            settings = Settings()
+        finally:
+            # 恢復原始環境變數
+            for env_key, original_value in original_env.items():
+                if original_value is None:
+                    os.environ.pop(env_key, None)
+                else:
+                    os.environ[env_key] = original_value
+        
         if settings.api_port in seen_port:
-            raise ValueError(f"API_PORT 重複: {settings.api_port} ({model_env_file})")
-
+            raise ValueError(f"API_PORT 重複: {settings.api_port} (模型: {alias})")
+        
         seen_alias.add(alias)
         seen_port.add(settings.api_port)
-
+        
         instances.append(
             ModelInstanceConfig(
                 alias=alias,
-                env_file=model_env_file,
+                model_config=model_config,
                 settings=settings,
             )
         )
-
+    
     return instances
 
 

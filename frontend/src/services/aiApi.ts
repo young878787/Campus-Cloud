@@ -10,6 +10,7 @@ export type AiApiRequestPublic = {
   user_email?: string | null
   user_full_name?: string | null
   purpose: string
+  api_key_name: string
   status: AiApiRequestStatus
   reviewer_id?: string | null
   reviewer_email?: string | null
@@ -29,6 +30,7 @@ export type AiApiCredentialPublic = {
   base_url: string
   api_key: string
   api_key_prefix: string
+  api_key_name: string
   expires_at?: string | null
   revoked_at?: string | null
   created_at: string
@@ -41,7 +43,7 @@ export type AiApiCredentialsPublic = {
 
 export const AiApiService = {
   createRequest(data: {
-    requestBody: { purpose: string }
+    requestBody: { purpose: string; api_key_name: string; duration?: string }
   }): CancelablePromise<AiApiRequestPublic> {
     return __request(OpenAPI, {
       method: "POST",
@@ -114,6 +116,20 @@ export const AiApiService = {
       method: "DELETE",
       url: "/api/v1/ai-api/credentials/{credential_id}",
       path: { credential_id: data.credentialId },
+      errors: { 422: "Validation Error" },
+    })
+  },
+
+  updateCredentialName(data: {
+    credentialId: string
+    requestBody: { api_key_name: string }
+  }): CancelablePromise<AiApiCredentialPublic> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/api/v1/ai-api/credentials/{credential_id}",
+      path: { credential_id: data.credentialId },
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: { 422: "Validation Error" },
     })
   },

@@ -360,7 +360,7 @@ def _ask_yes_no(prompt: str, default_yes: bool = True) -> bool:
 def _choose_model_alias(candidates: list[str], default_alias: str | None = None) -> str:
     """讓使用者互動選擇模型 alias。"""
     if not candidates:
-        raise ValueError("沒有可選模型，請先確認 Gateway 或 .env.gateway 設定")
+        raise ValueError("沒有可選模型，請先確認 Gateway 或 models.json 設定")
 
     print("\n可用模型:")
     for idx, alias in enumerate(candidates, start=1):
@@ -410,7 +410,7 @@ def collect_interactive_config(settings: Settings) -> InteractiveBenchmarkConfig
             print(f"[Config] 回退使用本地設定模型: {len(model_aliases)} 個")
         except Exception as fallback_exc:
             raise RuntimeError(
-                "無法取得可用模型，請確認 Gateway 已啟動或 .env.gateway 設定正確"
+                "無法取得可用模型，請確認 Gateway 已啟動或 models.json 設定正確"
             ) from fallback_exc
 
     selected_model = _choose_model_alias(

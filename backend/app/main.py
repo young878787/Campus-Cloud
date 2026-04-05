@@ -1,4 +1,6 @@
 import sentry_sdk
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
@@ -8,7 +10,18 @@ from app.api.main import api_router
 from app.api.websocket import vnc_proxy
 from app.api.websocket.terminal import terminal_proxy
 from app.core.config import settings
+from app.core.redis import close_redis, init_redis
 from app.exceptions import AppError
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """應用生命週期管理"""
+    # Startup: 初始化 Redis
+    await init_redis()
+    yield
+    # Shutdown: 關閉 Redis
+    await close_redis()
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -16,12 +29,15 @@ def custom_generate_unique_id(route: APIRoute) -> str:
 
 
 if settings.SENTRY_DSN:
-    sentry_sdk.init(dsn=str(settings.SENTRY_DSN), traces_sample_rate=1.0, send_default_pii=False)
+    sentry_sdk.init(
+        dsn=str(settings.SENTRY_DSN), traces_sample_rate=1.0, send_default_pii=False
+    )
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
+    lifespan=lifespan,
 )
 
 if settings.all_cors_origins:

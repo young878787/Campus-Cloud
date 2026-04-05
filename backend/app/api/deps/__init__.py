@@ -1,3 +1,4 @@
+from app.api.deps.ai_api_key import AIAPIUserDep, get_current_user_by_ai_api_key
 from app.api.deps.auth import (
     AdminUser,
     CurrentUser,
@@ -35,6 +36,9 @@ __all__ = [
     "get_current_instructor_or_admin",
     "InstructorUser",
     "get_ws_current_user",
+    # AI API Key Auth
+    "get_current_user_by_ai_api_key",
+    "AIAPIUserDep",
     # Proxmox (with permission checks built-in)
     "check_resource_ownership",
     "check_firewall_access",

@@ -12,6 +12,7 @@ from app.schemas import (
     AIAPIRequestReview,
     AIAPIRequestsPublic,
     AIAPICredentialPublic,
+    AIAPICredentialUpdate,
     Message,
 )
 from app.services import ai_api_service
@@ -111,4 +112,19 @@ def delete_my_ai_api_credential(
 ) -> Any:
     return ai_api_service.delete_credential(
         session=session, credential_id=credential_id, current_user=current_user
+    )
+
+
+@router.patch("/credentials/{credential_id}", response_model=AIAPICredentialPublic)
+def update_my_ai_api_credential(
+    credential_id: uuid.UUID,
+    update_data: AIAPICredentialUpdate,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> Any:
+    return ai_api_service.update_credential_name(
+        session=session,
+        credential_id=credential_id,
+        name=update_data.api_key_name,
+        current_user=current_user,
     )

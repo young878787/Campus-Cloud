@@ -13,10 +13,19 @@ API 請求/回應 schemas，按領域分檔：
 from .ai_api import (
     AIAPICredentialPublic,
     AIAPICredentialsPublic,
+    AIAPICredentialUpdate,
     AIAPIRequestCreate,
     AIAPIRequestPublic,
     AIAPIRequestReview,
     AIAPIRequestsPublic,
+)
+from .ai_proxy import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatMessage,
+    ModelsResponse,
+    RateLimitStatusResponse,
+    UsageStatsResponse,
 )
 from .audit_log import AuditLogPublic, AuditLogsPublic
 from .common import Message, NewPassword, Token, TokenPayload
@@ -100,12 +109,21 @@ __all__ = [
     "Token",
     "TokenPayload",
     "NewPassword",
+    # AI API
     "AIAPIRequestCreate",
     "AIAPIRequestReview",
     "AIAPIRequestPublic",
     "AIAPIRequestsPublic",
     "AIAPICredentialPublic",
     "AIAPICredentialsPublic",
+    "AIAPICredentialUpdate",
+    # AI Proxy
+    "ChatMessage",
+    "ChatCompletionRequest",
+    "ChatCompletionResponse",
+    "ModelsResponse",
+    "UsageStatsResponse",
+    "RateLimitStatusResponse",
     # User
     "UserCreate",
     "UserRegister",

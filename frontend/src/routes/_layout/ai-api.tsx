@@ -8,15 +8,26 @@ import {
   EyeOff,
   KeyRound,
   Link2,
+  Pencil,
   RefreshCw,
+  Save,
   Send,
   Trash2,
+  X,
   XCircle,
 } from "lucide-react"
 import { type ReactNode, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import useCustomToast from "@/hooks/useCustomToast"
@@ -39,9 +50,30 @@ export const Route = createFileRoute("/_layout/ai-api")({
   }),
 })
 
+const DURATION_OPTIONS = [
+  { value: "1h", label: "1 小時" },
+  { value: "1d", label: "1 天" },
+  { value: "7d", label: "1 週" },
+  { value: "30d", label: "1 個月" },
+  { value: "never", label: "永不過期" },
+]
+
 function formatTime(value?: string | null) {
   if (!value) return "尚未處理"
   return new Date(value).toLocaleString()
+}
+
+function formatExpiry(value?: string | null) {
+  if (!value) return "永不過期"
+  const d = new Date(value)
+  const now = new Date()
+  if (d < now) return `已過期（${d.toLocaleString()}）`
+  return d.toLocaleString()
+}
+
+function isExpired(value?: string | null) {
+  if (!value) return false
+  return new Date(value) < new Date()
 }
 
 function maskApiKey(value: string) {
@@ -119,7 +151,10 @@ function CredentialRow({
 }) {
   const queryClient = useQueryClient()
   const [showKey, setShowKey] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState(item.api_key_name)
   const isInactive = Boolean(item.revoked_at)
+  const expired = isExpired(item.expires_at)
 
   const rotateMutation = useMutation({
     mutationFn: () =>
@@ -145,6 +180,20 @@ function CredentialRow({
     onError: handleError.bind(onError),
   })
 
+  const renameMutation = useMutation({
+    mutationFn: () =>
+      AiApiService.updateCredentialName({
+        credentialId: item.id,
+        requestBody: { api_key_name: nameInput.trim() },
+      }),
+    onSuccess: () => {
+      onSuccess(`名稱已更新為「${nameInput.trim()}」`)
+      setEditingName(false)
+      queryClient.invalidateQueries({ queryKey: ["ai-api"] })
+    },
+    onError: handleError.bind(onError),
+  })
+
   const copyValue = async (label: string, value: string) => {
     try {
       await navigator.clipboard.writeText(value)
@@ -154,23 +203,83 @@ function CredentialRow({
     }
   }
 
+  const handleCancelRename = () => {
+    setNameInput(item.api_key_name)
+    setEditingName(false)
+  }
+
+  const statusBadge = (() => {
+    if (isInactive)
+      return { label: "已替換", cls: "border-muted-foreground/20 bg-muted text-muted-foreground" }
+    if (expired)
+      return { label: "已過期", cls: "border-destructive/20 bg-destructive/10 text-destructive" }
+    return { label: "使用中", cls: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700" }
+  })()
+
   return (
     <div className="border-b py-4 last:border-b-0 first:pt-0 last:pb-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-3">
+          {/* 名稱列 */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="font-medium">AI API Key</div>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  id={`rename-input-${item.id}`}
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  maxLength={20}
+                  className="h-7 w-44 text-sm font-medium"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") renameMutation.mutate()
+                    if (e.key === "Escape") handleCancelRename()
+                  }}
+                />
+                <LoadingButton
+                  loading={renameMutation.isPending}
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2"
+                  onClick={() => renameMutation.mutate()}
+                  disabled={nameInput.trim().length === 0}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                </LoadingButton>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2"
+                  onClick={handleCancelRename}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <div className="font-medium">{item.api_key_name}</div>
+                <Button
+                  id={`rename-btn-${item.id}`}
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setNameInput(item.api_key_name)
+                    setEditingName(true)
+                  }}
+                >
+                  <Pencil className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
             <span
-              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
-                isInactive
-                  ? "border-muted-foreground/20 bg-muted text-muted-foreground"
-                  : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700"
-              }`}
+              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusBadge.cls}`}
             >
-              {isInactive ? "已替換" : "使用中"}
+              {statusBadge.label}
             </span>
           </div>
 
+          {/* Base URL & API Key */}
           <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs uppercase tracking-[0.16em]">
@@ -192,15 +301,20 @@ function CredentialRow({
             </div>
           </div>
 
+          {/* Meta info */}
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
             <span>Key Prefix：{item.api_key_prefix}</span>
             <span>建立時間：{formatTime(item.created_at)}</span>
+            <span className={expired ? "text-destructive font-medium" : ""}>
+              過期時間：{formatExpiry(item.expires_at)}
+            </span>
             {item.revoked_at ? (
               <span>失效時間：{formatTime(item.revoked_at)}</span>
             ) : null}
           </div>
         </div>
 
+        {/* Action buttons */}
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
@@ -262,7 +376,7 @@ function RequestRow({ item }: { item: AiApiRequestPublic }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="font-medium">AI API 申請</div>
+            <div className="font-medium">AI API 申請 - {item.api_key_name}</div>
             <span
               className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${requestStatusStyle(
                 item.status,
@@ -295,6 +409,8 @@ function RequestRow({ item }: { item: AiApiRequestPublic }) {
 
 function AiApiPage() {
   const [purpose, setPurpose] = useState("")
+  const [apiKeyName, setApiKeyName] = useState("test")
+  const [duration, setDuration] = useState("never")
   const queryClient = useQueryClient()
   const { showSuccessToast, showErrorToast } = useCustomToast()
 
@@ -313,10 +429,14 @@ function AiApiPage() {
       AiApiService.createRequest({
         requestBody: {
           purpose: purpose.trim(),
+          api_key_name: apiKeyName.trim(),
+          duration,
         },
       }),
     onSuccess: () => {
       setPurpose("")
+      setApiKeyName("test")
+      setDuration("never")
       showSuccessToast("AI API 申請已送出")
       queryClient.invalidateQueries({ queryKey: ["ai-api"] })
     },
@@ -364,12 +484,49 @@ function AiApiPage() {
             description="簡短描述你的使用目的，管理員審核後就會核發可直接使用的連線參數。"
           >
             <div className="space-y-4">
-              <Textarea
-                value={purpose}
-                onChange={(event) => setPurpose(event.target.value)}
-                placeholder="例如：課程專題串接聊天模型、工具原型開發、知識庫問答測試或自動化腳本整合。"
-                rows={5}
-              />
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">金鑰名稱</label>
+                <Input
+                  value={apiKeyName}
+                  onChange={(event) => setApiKeyName(event.target.value)}
+                  placeholder="例如：課程專案用、測試用、我的 App"
+                  maxLength={20}
+                />
+                <p className="text-xs text-muted-foreground">
+                  為你的金鑰取一個好辨識的名字（最多 20 字）。
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">申請目的</label>
+                <Textarea
+                  value={purpose}
+                  onChange={(event) => setPurpose(event.target.value)}
+                  placeholder="例如：課程專題串接聊天模型、工具原型開發、知識庫問答測試或自動化腳本整合。"
+                  rows={5}
+                />
+              </div>
+
+              {/* 過期時間選單 */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">金鑰有效期限</label>
+                <Select value={duration} onValueChange={setDuration}>
+                  <SelectTrigger id="duration-select" className="w-48">
+                    <SelectValue placeholder="選擇有效期限" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DURATION_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  金鑰核發後將從核發當下開始計算有效期。
+                </p>
+              </div>
+
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-xs text-muted-foreground">
                   至少輸入 10 個字，方便管理員快速理解用途。
@@ -395,7 +552,7 @@ function AiApiPage() {
                 通過後會拿到固定的 Base URL 與系統產生的專屬 API Key。
               </div>
               <div className="rounded-xl bg-muted/40 p-4">
-                如果你刷新 API Key，舊金鑰會立即變成已替換狀態。
+                如果你刷新 API Key，舊金鑰會立即變成已替換狀態。刷新後過期時間同步保留。
               </div>
               <div className="rounded-xl bg-muted/40 p-4">
                 呼叫時要使用哪個 model，請在你的客戶端請求中自行帶入。
@@ -407,7 +564,7 @@ function AiApiPage() {
         <TabsContent value="keys" className="space-y-5">
           <Panel
             title="我的 API Keys"
-            description="保留你現在正在使用的金鑰，需要換新時直接刷新即可。"
+            description="保留你現在正在使用的金鑰，需要換新時直接刷新即可。點擊名稱旁的鉛筆圖示可以隨時修改名稱。"
           >
             {credentials.length ? (
               <div>

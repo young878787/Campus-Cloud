@@ -25,6 +25,11 @@ class AIAPIRequest(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id")
     purpose: str = Field(max_length=2000)
+    api_key_name: str = Field(default="test", max_length=20)
+    duration: str = Field(default="never", max_length=20)
+    rate_limit: int | None = Field(
+        default=None, description="每分鐘請求限制（1-1000），None 使用預設值 20"
+    )
     status: AIAPIRequestStatus = Field(
         default=AIAPIRequestStatus.pending,
         sa_column=Column(

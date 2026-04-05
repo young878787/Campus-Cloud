@@ -421,7 +421,7 @@ def quick_start_cluster(
     wait_ready: bool = True,
     timeout: int = 1800,
     base_env: str = ".env",
-    gateway_env: str = ".env.gateway",
+    models_json: str = "models.json",
     skip_check: bool = False,
     startup_delay: float = 5.0,
     start_gateway: bool = True,
@@ -432,8 +432,8 @@ def quick_start_cluster(
     Args:
         wait_ready: 是否等待所有模型就緒
         timeout: 單個模型等待就緒的超時秒數
-        base_env: 基礎設定檔路徑
-        gateway_env: Gateway 設定檔路徑
+        base_env: 基礎設定檔路徑（包含共用配置與 Gateway 配置）
+        models_json: 模型配置 JSON 檔案路徑
         skip_check: 跳過預啟動檢查
         startup_delay: 串行模式下每個模型完成後的額外等待秒數
         start_gateway: 是否啟動 Gateway
@@ -442,9 +442,9 @@ def quick_start_cluster(
     logger = get_logger("ClusterLauncher")
 
     try:
-        instances = load_model_instances(base_env_file=base_env, gateway_env_file=gateway_env)
+        instances = load_model_instances(base_env_file=base_env, models_json_file=models_json)
         validate_cluster_resources(instances)
-        gateway_config = load_gateway_config(gateway_env_file=gateway_env)
+        gateway_config = load_gateway_config(base_env_file=base_env)
         routes = build_gateway_routes(instances)
     except Exception as exc:
         logger.error(f"載入集群設定失敗: {exc}")
@@ -544,10 +544,10 @@ def main() -> None:
         help="集群共用設定檔路徑（預設 .env）"
     )
     parser.add_argument(
-        "--gateway-env",
+        "--models-json",
         type=str,
-        default=".env.gateway",
-        help="Gateway 設定檔路徑（預設 .env.gateway）"
+        default="models.json",
+        help="模型配置 JSON 檔案路徑（預設 models.json）"
     )
     parser.add_argument(
         "--startup-delay",
@@ -572,7 +572,7 @@ def main() -> None:
 
     logger.info("已強制啟用多模型集群共用模式，不提供單模型回退路徑")
     logger.info(f"共用設定檔: {args.base_env}")
-    logger.info(f"Gateway 設定檔: {args.gateway_env}")
+    logger.info(f"模型配置檔: {args.models_json}")
     logger.info(f"啟動 Gateway: {'否' if args.no_gateway else '是'}")
     logger.info("啟動模式: 串行模式（已移除並行模式）")
 
@@ -581,7 +581,7 @@ def main() -> None:
             wait_ready=not args.no_wait,
             timeout=args.timeout,
             base_env=args.base_env,
-            gateway_env=args.gateway_env,
+            models_json=args.models_json,
             skip_check=args.skip_check,
             startup_delay=args.startup_delay,
             start_gateway=not args.no_gateway,

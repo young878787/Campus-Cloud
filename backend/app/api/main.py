@@ -4,6 +4,7 @@ from app.ai.pve_advisor.router import router as ai_pve_advisor_router
 from app.ai.template_recommendation.router import router as ai_template_recommendation_router
 from app.api.routes import (
     ai_api,
+    ai_proxy,
     audit_logs,
     firewall,
     groups,
@@ -32,6 +33,7 @@ api_router.include_router(vm.router)
 api_router.include_router(lxc.router)
 api_router.include_router(vm_requests.router)
 api_router.include_router(ai_api.router)
+api_router.include_router(ai_proxy.router)
 api_router.include_router(ai_pve_advisor_router)
 api_router.include_router(ai_template_recommendation_router)
 api_router.include_router(spec_change_requests.router)
