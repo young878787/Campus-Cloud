@@ -6,6 +6,7 @@ from sqlmodel import Session, func, select
 
 from app.models import VMRequest, VMRequestStatus
 from app.schemas import VMRequestCreate
+from app.repositories import resource as resource_repo
 
 
 def create_vm_request(
@@ -123,6 +124,52 @@ def update_vm_request_status(
     if placement_strategy_used is not None:
         db_request.placement_strategy_used = placement_strategy_used
     session.add(db_request)
+    if commit:
+        session.commit()
+    else:
+        session.flush()
+    session.refresh(db_request)
+    return db_request
+
+
+def update_vm_request_provisioning(
+    *,
+    session: Session,
+    db_request: VMRequest,
+    vmid: int,
+    assigned_node: str | None = None,
+    placement_strategy_used: str | None = None,
+    commit: bool = True,
+) -> VMRequest:
+    db_request.vmid = vmid
+    db_request.assigned_node = assigned_node
+    db_request.placement_strategy_used = placement_strategy_used
+    session.add(db_request)
+    if commit:
+        session.commit()
+    else:
+        session.flush()
+    session.refresh(db_request)
+    return db_request
+
+
+def clear_vm_request_provisioning(
+    *,
+    session: Session,
+    db_request: VMRequest,
+    commit: bool = True,
+) -> VMRequest:
+    stale_vmid = db_request.vmid
+    db_request.vmid = None
+    db_request.assigned_node = None
+    db_request.placement_strategy_used = None
+    session.add(db_request)
+    if stale_vmid is not None:
+        resource_repo.delete_resource(
+            session=session,
+            vmid=stale_vmid,
+            commit=False,
+        )
     if commit:
         session.commit()
     else:

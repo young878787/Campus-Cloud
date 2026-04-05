@@ -19,7 +19,7 @@ from app.schemas import (
     VMRequestsPublic,
 )
 from app.repositories import vm_request as vm_request_repo
-from app.services import audit_service, provisioning_service
+from app.services import audit_service
 
 logger = logging.getLogger(__name__)
 
@@ -155,10 +155,6 @@ def review(
     if db_request.status != VMRequestStatus.pending:
         raise BadRequestError("This request has already been reviewed")
 
-    vmid = None
-    assigned_node = None
-    placement_strategy_used = None
-
     try:
         if review_data.status == VMRequestStatus.approved:
             if not db_request.start_at or not db_request.end_at:
@@ -175,9 +171,6 @@ def review(
                 raise BadRequestError(
                     "This request window has already ended and can no longer be approved."
                 )
-            vmid, assigned_node, placement_strategy_used = provisioning_service.provision_from_request(
-                session=session, db_request=db_request
-            )
 
         updated = vm_request_repo.update_vm_request_status(
             session=session,
@@ -185,9 +178,6 @@ def review(
             status=review_data.status,
             reviewer_id=reviewer.id,
             review_comment=review_data.review_comment,
-            vmid=vmid,
-            assigned_node=assigned_node,
-            placement_strategy_used=placement_strategy_used,
             commit=False,
         )
 
@@ -197,19 +187,15 @@ def review(
             else "rejected"
         )
         details = f"Reviewed VM request {request_id}: {action}"
-        if review_data.status == VMRequestStatus.approved and vmid:
-            details += f", created VMID {vmid}"
-        if assigned_node:
-            details += f", assigned node {assigned_node}"
-        if placement_strategy_used:
-            details += f", strategy {placement_strategy_used}"
+        if review_data.status == VMRequestStatus.approved:
+            details += ", provisioning scheduled for the approved start time"
         if review_data.review_comment:
             details += f". Comment: {review_data.review_comment}"
 
         audit_service.log_action(
             session=session,
             user_id=reviewer.id,
-            vmid=vmid,
+            vmid=db_request.vmid,
             action="vm_request_review",
             details=details,
             commit=False,
@@ -225,17 +211,8 @@ def review(
         )
         session.rollback()
 
-        if review_data.status == VMRequestStatus.approved and vmid is not None:
-            try:
-                provisioning_service.cleanup_provisioned_resource(vmid)
-            except Exception:
-                logger.exception(
-                    "Failed to clean up provisioned resource for request %s",
-                    request_id
-                )
-
         raise ProvisioningError(
-            "Failed to process review; automatic provisioning may have failed."
+            "Failed to process review; scheduled provisioning setup may have failed."
         )
 
     refreshed = vm_request_repo.get_vm_request_by_id(

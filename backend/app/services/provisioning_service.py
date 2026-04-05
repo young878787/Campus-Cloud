@@ -36,8 +36,13 @@ def should_start_now(db_request) -> bool:
         return True
 
     start_at = db_request.start_at
+    end_at = getattr(db_request, "end_at", None)
     if start_at.tzinfo is None:
         start_at = start_at.replace(tzinfo=UTC)
+    if end_at and end_at.tzinfo is None:
+        end_at = end_at.replace(tzinfo=UTC)
+    if end_at and end_at <= _utc_now():
+        return False
     return start_at <= _utc_now()
 
 
