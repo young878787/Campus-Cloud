@@ -45,6 +45,15 @@ _STATUS_PRIORITY: dict[str, int] = {
 }
 
 
+def _is_hour_within_policy(*, hour: int, allowed_start: int, allowed_end: int) -> bool:
+    """Support both same-day windows (08-22) and overnight windows (22-06)."""
+    if allowed_start == allowed_end:
+        return True
+    if allowed_start < allowed_end:
+        return allowed_start <= hour < allowed_end
+    return hour >= allowed_start or hour < allowed_end
+
+
 def assess_request(
     *,
     session: Session,
@@ -155,7 +164,11 @@ def _build_availability_response(
         slot_end = slot_start + timedelta(hours=1)
         slot_date = slot_start.date()
         hour = slot_start.hour
-        within_policy = allowed_start <= hour < allowed_end
+        within_policy = _is_hour_within_policy(
+            hour=hour,
+            allowed_start=allowed_start,
+            allowed_end=allowed_end,
+        )
         demand_ratio = hourly_demand.get(hour, 0.0)
 
         if within_policy:

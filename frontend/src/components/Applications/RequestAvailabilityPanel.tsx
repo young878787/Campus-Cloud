@@ -104,21 +104,32 @@ function getInitialSlot(day: VmRequestAvailabilityDay | undefined) {
   return day.slots.find(isSelectable)?.start_at ?? null
 }
 
+function getAllSlots(data: VmRequestAvailabilityResponse | undefined) {
+  if (!data) return []
+  return data.days
+    .flatMap((day) => day.slots)
+    .sort(
+      (a, b) =>
+        new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
+    )
+}
+
 function getSelectableRange(
-  day: VmRequestAvailabilityDay | undefined,
+  data: VmRequestAvailabilityResponse | undefined,
   startAt: string | null,
   endAt: string | null,
 ) {
-  if (!day || !startAt) return []
-  const startIndex = day.slots.findIndex((slot) => slot.start_at === startAt)
+  if (!data || !startAt) return []
+  const slots = getAllSlots(data)
+  const startIndex = slots.findIndex((slot) => slot.start_at === startAt)
   if (startIndex < 0) return []
 
-  if (!endAt) return isSelectable(day.slots[startIndex]) ? [day.slots[startIndex]] : []
+  if (!endAt) return isSelectable(slots[startIndex]) ? [slots[startIndex]] : []
 
-  const endIndex = day.slots.findIndex((slot) => slot.start_at === endAt)
+  const endIndex = slots.findIndex((slot) => slot.start_at === endAt)
   if (endIndex < startIndex) return []
 
-  const range = day.slots.slice(startIndex, endIndex + 1)
+  const range = slots.slice(startIndex, endIndex + 1)
   return range.every(isSelectable) ? range : []
 }
 
@@ -135,11 +146,11 @@ function getDateFromStartAt(
 }
 
 function getRangeEndSlotStartAt(
-  day: VmRequestAvailabilityDay | undefined,
+  data: VmRequestAvailabilityResponse | undefined,
   endAt: string | null,
 ) {
-  if (!day || !endAt) return null
-  return day.slots.find((slot) => slot.end_at === endAt)?.start_at ?? null
+  if (!data || !endAt) return null
+  return getAllSlots(data).find((slot) => slot.end_at === endAt)?.start_at ?? null
 }
 
 function RequestAvailabilitySkeleton({ compact }: { compact?: boolean }) {
@@ -195,8 +206,8 @@ export function RequestAvailabilityPanel(props: Props) {
   )
 
   const selectedRange = useMemo(
-    () => getSelectableRange(selectedDay, rangeStartAt, rangeEndAt),
-    [selectedDay, rangeStartAt, rangeEndAt],
+    () => getSelectableRange(data, rangeStartAt, rangeEndAt),
+    [data, rangeStartAt, rangeEndAt],
   )
 
   useEffect(() => {
@@ -208,7 +219,7 @@ export function RequestAvailabilityPanel(props: Props) {
     const nextSlot = props.value?.start_at ?? getInitialSlot(nextDay)
     setSelectedDate(nextDate)
     setRangeStartAt(nextSlot)
-    setRangeEndAt(getRangeEndSlotStartAt(nextDay, props.value?.end_at ?? null))
+    setRangeEndAt(getRangeEndSlotStartAt(data, props.value?.end_at ?? null))
   }, [data, props.value?.start_at, props.value?.end_at])
 
   useEffect(() => {
@@ -264,7 +275,7 @@ export function RequestAvailabilityPanel(props: Props) {
           可申請時段
         </CardTitle>
         <CardDescription>
-          先選日期，再選同一天內的連續時段。
+          先選起始時段，再到任意日期選結束時段，可跨天選擇連續時段。
         </CardDescription>
       </CardHeader>
 
@@ -288,8 +299,6 @@ export function RequestAvailabilityPanel(props: Props) {
                     onClick={() =>
                       startTransition(() => {
                         setSelectedDate(day.date)
-                        setRangeStartAt(getInitialSlot(day))
-                        setRangeEndAt(null)
                       })
                     }
                   >
@@ -336,16 +345,21 @@ export function RequestAvailabilityPanel(props: Props) {
 
                         const currentStart = selectedDay.slots.find(
                           (item) => item.start_at === rangeStartAt,
-                        )
+                        ) ?? getAllSlots(data).find((item) => item.start_at === rangeStartAt)
 
-                        if (!currentStart || slot.hour <= currentStart.hour) {
+                        const selectedSlotTime = new Date(slot.start_at).getTime()
+                        const currentStartTime = currentStart
+                          ? new Date(currentStart.start_at).getTime()
+                          : Number.NaN
+
+                        if (!currentStart || selectedSlotTime <= currentStartTime) {
                           setRangeStartAt(slot.start_at)
                           setRangeEndAt(null)
                           return
                         }
 
                         const nextRange = getSelectableRange(
-                          selectedDay,
+                          data,
                           rangeStartAt,
                           slot.start_at,
                         )
