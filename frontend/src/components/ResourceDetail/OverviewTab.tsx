@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next"
 
 import { ResourcesService } from "@/client"
 import { Badge } from "@/components/ui/badge"
+import { decodeName } from "@/lib/utils"
 import {
   Card,
   CardContent,
@@ -75,7 +76,7 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               {t("overview.name")}
             </div>
-            <div className="text-2xl font-bold truncate">{resource.name}</div>
+            <div className="text-2xl font-bold truncate">{decodeName(resource.name)}</div>
           </div>
           <div className="space-y-1">
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">

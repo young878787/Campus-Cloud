@@ -27,6 +27,7 @@ from app.schemas.firewall import (
 )
 from app.services import proxmox_service
 from app.services.proxmox_service import ResourceType
+from app.services.resource_service import _from_punycode_hostname
 
 logger = logging.getLogger(__name__)
 
@@ -714,7 +715,7 @@ def get_topology(user: User, session: Session) -> TopologyResponse:
         except Exception:
             continue
 
-        node_name = resource.get("name", f"VM-{vmid}")
+        node_name = _from_punycode_hostname(resource.get("name", f"VM-{vmid}"))
         status = resource.get("status", "unknown")
         ip_address = None
         firewall_enabled = False

@@ -47,7 +47,7 @@ export function AppSidebar() {
     { icon: ClipboardCheck, title: "AI API 審核", path: "/ai-api-approvals" },
     { icon: UsersRound, title: "群組管理", path: "/groups" },
     { icon: Users, title: t("sidebar.admin"), path: "/admin" },
-    { icon: Settings2, title: "PVE 設定", path: "/admin/proxmox" },
+    { icon: Settings2, title: "系統設定", path: "/admin/configuration" },
   ]
 
   const items =

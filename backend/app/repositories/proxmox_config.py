@@ -28,6 +28,10 @@ def upsert_proxmox_config(
     ca_cert: str | None = None,  # None=不更新，空字串=清除
     gateway_ip: str = "",
     local_subnet: str | None = None,
+    default_node: str | None = None,
+    placement_strategy: str = "dominant_share_min",
+    cpu_overcommit_ratio: float = 2.0,
+    disk_overcommit_ratio: float = 1.0,
 ) -> ProxmoxConfig:
     config = session.get(ProxmoxConfig, _SINGLETON_ID)
 
@@ -48,6 +52,10 @@ def upsert_proxmox_config(
             ca_cert=ca_cert if ca_cert else None,
             gateway_ip=gateway_ip or None,
             local_subnet=local_subnet or None,
+            default_node=default_node or None,
+            placement_strategy=placement_strategy,
+            cpu_overcommit_ratio=cpu_overcommit_ratio,
+            disk_overcommit_ratio=disk_overcommit_ratio,
         )
         session.add(config)
     else:
@@ -65,6 +73,10 @@ def upsert_proxmox_config(
             config.ca_cert = ca_cert if ca_cert else None
         config.gateway_ip = gateway_ip or None
         config.local_subnet = local_subnet or None
+        config.default_node = default_node or None
+        config.placement_strategy = placement_strategy
+        config.cpu_overcommit_ratio = cpu_overcommit_ratio
+        config.disk_overcommit_ratio = disk_overcommit_ratio
         config.updated_at = datetime.now(timezone.utc)
         session.add(config)
 

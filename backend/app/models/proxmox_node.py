@@ -21,6 +21,7 @@ class ProxmoxNode(SQLModel, table=True):
         default=None,
         sa_type=DateTime(timezone=True),
     )
+    priority: int = Field(default=5, ge=1, le=10)   # 1=最高優先, 10=最低；對應 simulator ServerInput.priority
 
 
 __all__ = ["ProxmoxNode"]

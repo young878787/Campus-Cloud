@@ -66,16 +66,24 @@ def get_available_nodes() -> list[dict]:
 
 
 def pick_target_node(preferred_node: str | None = None) -> str:
-    """Pick a usable target node, preferring an explicitly requested one."""
+    """Pick a usable target node, preferring an explicitly requested one.
+
+    Priority: preferred_node > settings.default_node > nodes[0]
+    """
     nodes = get_available_nodes()
     if not nodes:
         raise ProxmoxError("No Proxmox nodes are available")
 
-    if preferred_node:
+    candidate = preferred_node or get_proxmox_settings().default_node
+    if candidate:
         for node in nodes:
             node_name = node.get("node") or node.get("name")
-            if node_name == preferred_node:
+            if node_name == candidate:
                 return node_name
+        logger.warning(
+            "Preferred node '%s' not found or offline; falling back to first available node",
+            candidate,
+        )
 
     selected = nodes[0].get("node") or nodes[0].get("name")
     if not selected:

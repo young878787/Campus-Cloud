@@ -27,6 +27,10 @@ class ProxmoxConfig(SQLModel, table=True):
     ca_cert: str | None = Field(default=None, sa_type=sa.Text())
     gateway_ip: str | None = Field(default=None, max_length=255)
     local_subnet: str | None = Field(default=None, max_length=50)
+    default_node: str | None = Field(default=None, max_length=255)
+    placement_strategy: str = Field(default="dominant_share_min", max_length=64)
+    cpu_overcommit_ratio: float = Field(default=2.0)
+    disk_overcommit_ratio: float = Field(default=1.0)
     updated_at: datetime = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),

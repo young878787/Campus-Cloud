@@ -34,6 +34,7 @@ class ProxmoxSettings:
     pool_name: str
     ca_cert: str | None = None  # PEM 格式 CA 憑證原文
     local_subnet: str | None = None
+    default_node: str | None = None
 
 
 def _tcp_ping(host: str, port: int = 8006, timeout: float = _TCP_PING_TIMEOUT) -> bool:
@@ -99,6 +100,7 @@ def get_proxmox_settings() -> ProxmoxSettings:
                     pool_name=config.pool_name,
                     ca_cert=config.ca_cert,
                     local_subnet=config.local_subnet,
+                    default_node=config.default_node,
                 )
     except Exception as e:
         logger.warning(f"無法從資料庫載入 Proxmox 設定，使用環境變數：{e}")

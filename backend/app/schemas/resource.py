@@ -1,8 +1,30 @@
 """資源與 Proxmox 相關 schemas"""
 
+import unicodedata
 from datetime import date
+from typing import Annotated
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
+
+
+def _validate_unicode_hostname(v: str) -> str:
+    """驗證 hostname：允許 Unicode 字母/數字和連字符。"""
+    if not v:
+        raise ValueError("Hostname cannot be empty")
+    if v.startswith("-") or v.endswith("-"):
+        raise ValueError("Hostname cannot start or end with a hyphen")
+    for ch in v:
+        if ch == "-":
+            continue
+        cat = unicodedata.category(ch)
+        if not (cat.startswith("L") or cat.startswith("N")):
+            raise ValueError(
+                "Only Unicode letters, digits, and hyphens are allowed in hostname"
+            )
+    return v
+
+
+UnicodeHostname = Annotated[str, AfterValidator(_validate_unicode_hostname)]
 
 
 # ===== Proxmox Info Schemas =====
@@ -88,7 +110,7 @@ class NextVMIDSchema(BaseModel):
 class LXCCreateRequest(BaseModel):
     """建立 LXC 容器"""
 
-    hostname: str = Field(..., pattern=r"^[a-z0-9-]+$", max_length=63)
+    hostname: UnicodeHostname = Field(..., min_length=1, max_length=63)
     ostemplate: str
     cores: int = Field(1, ge=1, le=32)
     memory: int = Field(512, ge=128, le=65536)
@@ -105,7 +127,7 @@ class LXCCreateRequest(BaseModel):
 class VMCreateRequest(BaseModel):
     """建立 VM（cloud-init template）"""
 
-    hostname: str = Field(..., pattern=r"^[a-z0-9-]+$", max_length=63)
+    hostname: UnicodeHostname = Field(..., min_length=1, max_length=63)
     template_id: int
     username: str = Field(..., min_length=1, max_length=32)
     password: str = Field(..., min_length=6)
