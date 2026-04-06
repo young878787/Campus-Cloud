@@ -12,7 +12,7 @@
   "website": "https://github.com/Luzifer/ots",
   "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/ots.webp",
   "description": "One-Time-Secret sharing platform with a symmetric 256bit AES encryption in the browser.",
-  "description_zh": "具有瀏覽器中對稱 256 位 AES 加密的一次性密密分享平台。",
+  "description_zh": "具有瀏覽器中對稱 256 位 AES 加密的一次性秘密分享平台。",
   "description_ja": "ブラウザで対称 256 ビット AES 暗号化を備えたワンタイム シークレット共有プラットフォーム。",
   "install_methods": [
     {
