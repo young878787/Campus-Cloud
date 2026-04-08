@@ -32,16 +32,16 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
   return (
     <div
       className={`
-        absolute right-0 top-0 h-full bg-[#111] border-l border-[#2e2e2e]
+        absolute right-0 top-0 h-full bg-card border-l border-border
         transition-all duration-300 flex flex-col z-10
         ${show ? "w-80" : "w-0 overflow-hidden"}
       `}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2e2e2e]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Shield className="w-4 h-4 text-emerald-400" />
-          <span className="text-sm font-medium text-gray-100 truncate">
+          <span className="text-sm font-medium text-foreground truncate">
             {vmName}
           </span>
         </div>
@@ -50,7 +50,7 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
             setShow(false)
             onClose()
           }}
-          className="p-1 text-gray-500 hover:text-gray-100 transition-colors"
+          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
@@ -58,9 +58,9 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
 
       {/* 防火牆選項 */}
       {options && (
-        <div className="px-4 py-3 border-b border-[#2e2e2e] bg-[#161616]">
+        <div className="px-4 py-3 border-b border-border bg-muted">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500">狀態</span>
+            <span className="text-muted-foreground">狀態</span>
             <Badge
               className={
                 options.enable
@@ -72,30 +72,30 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
             </Badge>
           </div>
           <div className="flex items-center justify-between text-xs mt-1.5">
-            <span className="text-gray-500">入站預設</span>
-            <span className="text-gray-300">{options.policy_in}</span>
+            <span className="text-muted-foreground">入站預設</span>
+            <span className="text-foreground/80">{options.policy_in}</span>
           </div>
           <div className="flex items-center justify-between text-xs mt-1">
-            <span className="text-gray-500">出站預設</span>
-            <span className="text-gray-300">{options.policy_out}</span>
+            <span className="text-muted-foreground">出站預設</span>
+            <span className="text-foreground/80">{options.policy_out}</span>
           </div>
         </div>
       )}
 
       {/* 規則列表 */}
       <div className="flex-1 overflow-y-auto">
-        <div className="px-4 py-2 text-xs text-gray-500 font-medium uppercase tracking-wider">
+        <div className="px-4 py-2 text-xs text-muted-foreground font-medium uppercase tracking-wider">
           防火牆規則
         </div>
 
         {isLoading && (
-          <div className="px-4 py-8 text-center text-xs text-gray-600">
+          <div className="px-4 py-8 text-center text-xs text-muted-foreground/50">
             載入中...
           </div>
         )}
 
         {!isLoading && (!rules || rules.length === 0) && (
-          <div className="px-4 py-8 text-center text-xs text-gray-600">
+          <div className="px-4 py-8 text-center text-xs text-muted-foreground/50">
             無規則
           </div>
         )}
@@ -104,7 +104,7 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
           <div
             key={rule.pos}
             className={`
-              px-4 py-2.5 border-b border-[#1e1e1e] hover:bg-[#1a1a1a]
+              px-4 py-2.5 border-b border-border/50 hover:bg-accent
               ${rule.is_managed ? "opacity-70" : ""}
             `}
           >
@@ -134,26 +134,26 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
                 {rule.action}
               </span>
               {rule.enable === 0 && (
-                <span className="text-xs text-gray-600">(停用)</span>
+                <span className="text-xs text-muted-foreground/50">(停用)</span>
               )}
             </div>
 
             {(rule.source || rule.dest) && (
-              <div className="mt-1 text-xs text-gray-500 font-mono">
+              <div className="mt-1 text-xs text-muted-foreground font-mono">
                 {rule.source && <span>{rule.source} → </span>}
                 {rule.dest && <span>{rule.dest}</span>}
               </div>
             )}
 
             {(rule.proto || rule.dport) && (
-              <div className="mt-0.5 text-xs text-gray-500">
+              <div className="mt-0.5 text-xs text-muted-foreground">
                 {rule.proto && <span className="uppercase">{rule.proto}</span>}
                 {rule.dport && <span>:{rule.dport}</span>}
               </div>
             )}
 
             {rule.comment && (
-              <div className="mt-0.5 text-xs text-gray-600 truncate">
+              <div className="mt-0.5 text-xs text-muted-foreground/50 truncate">
                 {rule.is_managed ? "🔒 " : ""}
                 {rule.comment.replace("campus-cloud:", "")}
               </div>

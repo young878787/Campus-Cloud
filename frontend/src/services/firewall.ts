@@ -156,7 +156,9 @@ export class FirewallService {
   }
 
   /** 列出反向代理規則 */
-  public static listReverseProxyRules(): CancelablePromise<ReverseProxyRulePublic[]> {
+  public static listReverseProxyRules(): CancelablePromise<
+    ReverseProxyRulePublic[]
+  > {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/firewall/reverse-proxy-rules",
@@ -175,7 +177,9 @@ export class FirewallService {
   }
 
   /** 同步反向代理規則到 Gateway VM */
-  public static syncReverseProxyRules(): CancelablePromise<{ message: string }> {
+  public static syncReverseProxyRules(): CancelablePromise<{
+    message: string
+  }> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/firewall/reverse-proxy-rules/sync",

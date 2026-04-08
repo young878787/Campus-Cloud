@@ -72,8 +72,8 @@ type Props = {
 
 // PVE 保留 port（前端提示用）
 const RESERVED_PORTS = new Set([
-  22, 80, 443, 3128, 4007, 4008, 5900, 5901, 5902, 5903, 5904, 5905, 6789,
-  6800, 6801, 6802, 6803, 8006, 8007, 111,
+  22, 80, 443, 3128, 4007, 4008, 5900, 5901, 5902, 5903, 5904, 5905, 6789, 6800,
+  6801, 6802, 6803, 8006, 8007, 111,
 ])
 
 // 入站存取模式
@@ -105,9 +105,9 @@ export function ConnectionDialog({
   >([{ external: 8080, internal: 80, protocol: "tcp" }])
 
   // 🔓 僅開放模式 & 非入站通用
-  const [ports, setPorts] = useState<
-    { port: number; protocol: string }[]
-  >([{ port: 80, protocol: "tcp" }])
+  const [ports, setPorts] = useState<{ port: number; protocol: string }[]>([
+    { port: 80, protocol: "tcp" },
+  ])
 
   const [direction, setDirection] = useState<"one_way" | "bidirectional">(
     "one_way",
@@ -121,7 +121,8 @@ export function ConnectionDialog({
     staleTime: 30_000,
   })
   const isGatewayConfigured = gatewayConfig?.is_configured ?? false
-  const needsGateway = isInbound && (inboundMode === "domain" || inboundMode === "port")
+  const needsGateway =
+    isInbound && (inboundMode === "domain" || inboundMode === "port")
 
   // ─── 確認送出 ────────────────────────────────────────────────────────────
   const handleConfirm = () => {
@@ -168,10 +169,11 @@ export function ConnectionDialog({
           }))
           break
         }
-        case "firewall":
         default: {
           const valid = ports.filter((p) =>
-            PROTOCOLS_WITH_PORT.has(p.protocol) ? p.port >= 1 && p.port <= 65535 : true,
+            PROTOCOLS_WITH_PORT.has(p.protocol)
+              ? p.port >= 1 && p.port <= 65535
+              : true,
           )
           if (valid.length === 0) {
             toast.error("請輸入有效的設定")
@@ -187,7 +189,9 @@ export function ConnectionDialog({
     } else {
       // 非入站（VM→Gateway / VM→VM）
       const valid = ports.filter((p) =>
-        PROTOCOLS_WITH_PORT.has(p.protocol) ? p.port >= 1 && p.port <= 65535 : true,
+        PROTOCOLS_WITH_PORT.has(p.protocol)
+          ? p.port >= 1 && p.port <= 65535
+          : true,
       )
       if (valid.length === 0) {
         toast.error("請輸入有效的設定")
@@ -212,20 +216,20 @@ export function ConnectionDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="bg-[#1a1a1a] border-[#2e2e2e] text-gray-100 sm:max-w-lg">
+      <DialogContent className="bg-card border-border text-foreground sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-gray-100">設定連線規則</DialogTitle>
+          <DialogTitle className="text-foreground">設定連線規則</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {/* 連線方向說明 */}
-          <div className="text-sm text-gray-400 bg-[#111] rounded-lg p-3 border border-[#2e2e2e]">
+          <div className="text-sm text-muted-foreground bg-card rounded-lg p-3 border border-border">
             {isInbound ? (
               <>
                 <span className="text-blue-400 font-medium">Internet</span>
-                <span className="text-gray-500"> → </span>
+                <span className="text-muted-foreground"> → </span>
                 <span className="text-blue-400 font-medium">{targetName}</span>
-                <span className="text-gray-400">（入站開放）</span>
+                <span className="text-muted-foreground">（入站開放）</span>
               </>
             ) : (
               <>
@@ -233,10 +237,13 @@ export function ConnectionDialog({
                   {sourceName}
                 </span>
                 {isGateway ? (
-                  <span className="text-gray-400"> → 連到 Internet（上網）</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    → 連到 Internet（上網）
+                  </span>
                 ) : (
                   <>
-                    <span className="text-gray-500"> → </span>
+                    <span className="text-muted-foreground"> → </span>
                     <span className="text-emerald-400 font-medium">
                       {targetName}
                     </span>
@@ -250,7 +257,7 @@ export function ConnectionDialog({
           {isInbound && (
             <>
               <div className="space-y-2">
-                <Label className="text-gray-300 text-sm">
+                <Label className="text-foreground/80 text-sm">
                   你想怎麼從外面連到這台 VM？
                 </Label>
                 <div className="grid grid-cols-3 gap-2">
@@ -282,12 +289,12 @@ export function ConnectionDialog({
                       className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg text-xs transition-all ${
                         inboundMode === mode
                           ? "bg-emerald-950/60 border-2 border-emerald-600 text-emerald-300"
-                          : "bg-[#111] border border-[#2e2e2e] text-gray-400 hover:border-[#3e3e3e]"
+                          : "bg-card border border-border text-muted-foreground hover:border-ring/50"
                       }`}
                     >
                       <Icon className="w-4 h-4" />
                       <span className="font-medium">{label}</span>
-                      <span className="text-[10px] text-gray-500">
+                      <span className="text-[10px] text-muted-foreground">
                         {desc}
                       </span>
                     </button>
@@ -309,7 +316,9 @@ export function ConnectionDialog({
                 <div className="flex gap-2 items-start bg-emerald-950/40 border border-emerald-700/60 rounded-lg px-3 py-2.5 text-xs text-emerald-300">
                   <Zap className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                   <span>
-                    建立後將同時更新 <span className="font-medium">PVE 防火牆 + Gateway VM</span>（立即生效）
+                    建立後將同時更新{" "}
+                    <span className="font-medium">PVE 防火牆 + Gateway VM</span>
+                    （立即生效）
                   </span>
                 </div>
               )}
@@ -317,7 +326,8 @@ export function ConnectionDialog({
                 <div className="flex gap-2 items-start bg-blue-950/30 border border-blue-700/40 rounded-lg px-3 py-2.5 text-xs text-blue-300">
                   <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                   <span>
-                    僅在 PVE 防火牆開放此 Port，不設定外部存取路徑。適合同網段內的 VM 互連使用。
+                    僅在 PVE 防火牆開放此
+                    Port，不設定外部存取路徑。適合同網段內的 VM 互連使用。
                   </span>
                 </div>
               )}
@@ -328,17 +338,21 @@ export function ConnectionDialog({
           {isInbound && inboundMode === "domain" && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-gray-400 text-xs">網域名稱</Label>
+                <Label className="text-muted-foreground text-xs">
+                  網域名稱
+                </Label>
                 <Input
                   value={domain}
                   onChange={(e) => setDomain(e.target.value)}
                   placeholder="mysite.campus.edu"
-                  className="bg-[#111] border-[#2e2e2e] text-gray-100 h-9"
+                  className="bg-card border-border text-foreground h-9"
                 />
               </div>
               <div className="flex gap-4 items-end">
                 <div className="space-y-1.5">
-                  <Label className="text-gray-400 text-xs">VM 內部 Port</Label>
+                  <Label className="text-muted-foreground text-xs">
+                    VM 內部 Port
+                  </Label>
                   <Input
                     type="number"
                     min={1}
@@ -347,24 +361,25 @@ export function ConnectionDialog({
                     onChange={(e) =>
                       setDomainPort(parseInt(e.target.value, 10) || 80)
                     }
-                    className="bg-[#111] border-[#2e2e2e] text-gray-100 h-9 w-28"
+                    className="bg-card border-border text-foreground h-9 w-28"
                   />
                 </div>
-                <label className="flex items-center gap-2 text-xs text-gray-400 pb-2 cursor-pointer select-none">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground pb-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={enableHttps}
                     onChange={(e) => setEnableHttps(e.target.checked)}
-                    className="rounded border-[#2e2e2e] bg-[#111] text-emerald-600 focus:ring-emerald-600"
+                    className="rounded border-border bg-card text-emerald-600 focus:ring-emerald-600"
                   />
                   啟用 HTTPS（自動申請 Let's Encrypt）
                 </label>
               </div>
               {domain.trim() && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   設定後可透過{" "}
                   <span className="text-emerald-400 font-mono">
-                    {enableHttps ? "https" : "http"}://{domain.trim().toLowerCase()}
+                    {enableHttps ? "https" : "http"}://
+                    {domain.trim().toLowerCase()}
                   </span>{" "}
                   存取你的 VM port {domainPort}
                 </p>
@@ -375,9 +390,9 @@ export function ConnectionDialog({
           {/* ── 🔌 Port 轉發模式 ──────────────────────────────────── */}
           {isInbound && inboundMode === "port" && (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-gray-500 px-1">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
                 <span className="w-24">外網 Port</span>
-                <span className="text-gray-600">→</span>
+                <span className="text-muted-foreground/50">→</span>
                 <span className="w-24">內部 Port</span>
                 <span className="w-24">協定</span>
               </div>
@@ -399,9 +414,9 @@ export function ConnectionDialog({
                           }
                           setPortPairs(updated)
                         }}
-                        className={`bg-[#111] border-[#2e2e2e] text-gray-100 w-24 h-8 text-sm ${extWarning ? "border-yellow-600" : ""}`}
+                        className={`bg-card border-border text-foreground w-24 h-8 text-sm ${extWarning ? "border-yellow-600" : ""}`}
                       />
-                      <span className="text-gray-500 text-sm">→</span>
+                      <span className="text-muted-foreground text-sm">→</span>
                       <Input
                         type="number"
                         min={1}
@@ -415,7 +430,7 @@ export function ConnectionDialog({
                           }
                           setPortPairs(updated)
                         }}
-                        className="bg-[#111] border-[#2e2e2e] text-gray-100 w-24 h-8 text-sm"
+                        className="bg-card border-border text-foreground w-24 h-8 text-sm"
                       />
                       <Select
                         value={pair.protocol}
@@ -425,10 +440,10 @@ export function ConnectionDialog({
                           setPortPairs(updated)
                         }}
                       >
-                        <SelectTrigger className="bg-[#111] border-[#2e2e2e] text-gray-100 w-24 h-8 text-sm">
+                        <SelectTrigger className="bg-card border-border text-foreground w-24 h-8 text-sm">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#1a1a1a] border-[#2e2e2e] text-gray-100">
+                        <SelectContent className="bg-card border-border text-foreground">
                           <SelectItem value="tcp">TCP</SelectItem>
                           <SelectItem value="udp">UDP</SelectItem>
                         </SelectContent>
@@ -438,7 +453,7 @@ export function ConnectionDialog({
                           onClick={() =>
                             setPortPairs(portPairs.filter((_, j) => j !== i))
                           }
-                          className="p-1 hover:text-red-400 text-gray-500 transition-colors"
+                          className="p-1 hover:text-red-400 text-muted-foreground transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -471,7 +486,7 @@ export function ConnectionDialog({
           {(isInbound ? inboundMode === "firewall" : true) &&
             !(isInbound && inboundMode !== "firewall") && (
               <div className="space-y-2">
-                <Label className="text-gray-300 text-sm">允許端口</Label>
+                <Label className="text-foreground/80 text-sm">允許端口</Label>
                 {ports.map((port, index) => (
                   <div key={index} className="flex items-center gap-2">
                     {PROTOCOLS_WITH_PORT.has(port.protocol) ? (
@@ -488,11 +503,11 @@ export function ConnectionDialog({
                           }
                           setPorts(updated)
                         }}
-                        className="bg-[#111] border-[#2e2e2e] text-gray-100 w-24 h-8 text-sm"
+                        className="bg-card border-border text-foreground w-24 h-8 text-sm"
                         placeholder="80"
                       />
                     ) : (
-                      <div className="w-24 h-8 flex items-center px-2 text-xs text-gray-500 bg-[#111] border border-[#2e2e2e] rounded-md">
+                      <div className="w-24 h-8 flex items-center px-2 text-xs text-muted-foreground bg-card border border-border rounded-md">
                         無端口
                       </div>
                     )}
@@ -504,10 +519,10 @@ export function ConnectionDialog({
                         setPorts(updated)
                       }}
                     >
-                      <SelectTrigger className="bg-[#111] border-[#2e2e2e] text-gray-100 w-24 h-8 text-sm">
+                      <SelectTrigger className="bg-card border-border text-foreground w-24 h-8 text-sm">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#1a1a1a] border-[#2e2e2e] text-gray-100">
+                      <SelectContent className="bg-card border-border text-foreground">
                         {PVE_PROTOCOLS.map((p) => (
                           <SelectItem key={p.value} value={p.value}>
                             {p.label}
@@ -520,7 +535,7 @@ export function ConnectionDialog({
                         onClick={() =>
                           setPorts(ports.filter((_, i) => i !== index))
                         }
-                        className="p-1 hover:text-red-400 text-gray-500 transition-colors"
+                        className="p-1 hover:text-red-400 text-muted-foreground transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -542,7 +557,7 @@ export function ConnectionDialog({
           {/* 方向設定（VM 間連線才顯示） */}
           {!isGateway && !isInbound && (
             <div className="space-y-2">
-              <Label className="text-gray-300 text-sm">連線方向</Label>
+              <Label className="text-foreground/80 text-sm">連線方向</Label>
               <div className="flex gap-2">
                 {(["one_way", "bidirectional"] as const).map((dir) => (
                   <button
@@ -551,7 +566,7 @@ export function ConnectionDialog({
                     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                       direction === dir
                         ? "bg-emerald-900/50 border border-emerald-600 text-emerald-400"
-                        : "bg-[#111] border border-[#2e2e2e] text-gray-400 hover:border-[#3e3e3e]"
+                        : "bg-card border border-border text-muted-foreground hover:border-ring/50"
                     }`}
                   >
                     {dir === "one_way" ? "→ 單向" : "↔ 雙向"}
@@ -566,7 +581,7 @@ export function ConnectionDialog({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-100"
+            className="text-muted-foreground hover:text-foreground"
           >
             取消
           </Button>

@@ -7,6 +7,7 @@ import {
 import { createRouter, RouterProvider } from "@tanstack/react-router"
 import { StrictMode } from "react"
 import ReactDOM from "react-dom/client"
+import { toast } from "sonner"
 import { ApiError, OpenAPI } from "./client"
 import { ThemeProvider } from "./components/theme-provider"
 import { Toaster } from "./components/ui/sonner"
@@ -61,12 +62,15 @@ const handleApiError = async (error: Error) => {
     if (!refreshed) {
       localStorage.removeItem("access_token")
       localStorage.removeItem("refresh_token")
+      toast.error("登入已過期，請重新登入")
       window.location.href = "/login"
     }
   } else if (error instanceof ApiError && error.status === 403) {
-    localStorage.removeItem("access_token")
-    localStorage.removeItem("refresh_token")
-    window.location.href = "/login"
+    // 403 代表已登入但無權限存取該資源，不應強制登出
+    const detail =
+      (error.body as { detail?: string } | undefined)?.detail ??
+      "您沒有權限執行此操作"
+    toast.error(detail)
   }
 }
 const queryClient = new QueryClient({

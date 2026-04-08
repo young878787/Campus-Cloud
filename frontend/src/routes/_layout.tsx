@@ -37,10 +37,10 @@ function Layout() {
     location.pathname === "/resources-create"
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="app-background">
       <AppSidebar />
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <header className="glass-header sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1 text-muted-foreground" />
         </header>
         {isFullscreen ? (
@@ -63,7 +63,7 @@ function Layout() {
               data-app-footer={hasFixedFooter ? "fixed" : undefined}
               className={
                 hasFixedFooter
-                  ? "sticky bottom-0 z-20 mt-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+                  ? "glass-footer sticky bottom-0 z-20 mt-auto"
                   : undefined
               }
             />

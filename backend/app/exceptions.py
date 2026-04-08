@@ -15,7 +15,24 @@ class NotFoundError(AppError):
         super().__init__(message, 404)
 
 
+class AuthenticationError(AppError):
+    """Raised when the caller's credentials are missing, invalid, or expired.
+
+    Corresponds to HTTP 401. Triggers the frontend's refresh-token flow.
+    Use this for token/session problems, NOT for permission checks.
+    """
+
+    def __init__(self, message: str = "Could not validate credentials"):
+        super().__init__(message, 401)
+
+
 class PermissionDeniedError(AppError):
+    """Raised when the caller is authenticated but lacks permission.
+
+    Corresponds to HTTP 403. Does NOT trigger refresh/logout on the frontend.
+    Use this only for role/ownership checks on an already-authenticated user.
+    """
+
     def __init__(self, message: str = "Permission denied"):
         super().__init__(message, 403)
 

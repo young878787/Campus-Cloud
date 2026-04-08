@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router"
 import { FileSearch } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { type VMRequestPublic } from "@/client"
+import type { VMRequestPublic } from "@/client"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
@@ -31,7 +31,9 @@ export const ReviewActions = ({ request }: ReviewActionsProps) => {
           {s?.label || request.status}
         </Badge>
         {request.vmid && (
-          <span className="text-xs text-muted-foreground">VMID: {request.vmid}</span>
+          <span className="text-xs text-muted-foreground">
+            VMID: {request.vmid}
+          </span>
         )}
         {request.assigned_node && (
           <span className="text-xs text-muted-foreground">

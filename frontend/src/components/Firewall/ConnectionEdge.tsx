@@ -170,10 +170,10 @@ export function ConnectionEdge({
           <div
             className={`flex items-center gap-1.5 rounded-md px-2 py-0.5 ${
               isInbound
-                ? "bg-[#1e2533] border border-[#2e4e7e]"
+                ? "bg-blue-500/10 border border-blue-500/20"
                 : isVMtoVM
-                  ? "bg-[#2a1f0e] border border-[#5e3a0e]"
-                  : "bg-[#1e2e1e] border border-[#2e4e2e]"
+                  ? "bg-amber-500/10 border border-amber-500/20"
+                  : "bg-emerald-500/10 border border-emerald-500/20"
             }`}
           >
             <span
@@ -185,11 +185,11 @@ export function ConnectionEdge({
                     : "bg-emerald-400"
               }`}
             />
-            <span className="text-xs text-gray-300 whitespace-nowrap">
+            <span className="text-xs text-foreground/80 whitespace-nowrap">
               {isInbound ? `入站 ${portLabel}` : isGateway ? "上網" : portLabel}
             </span>
             {isBidirectional && (
-              <span className="text-xs text-gray-500">↔</span>
+              <span className="text-xs text-muted-foreground">↔</span>
             )}
 
             {/* 刪除按鈕（hover 時顯示） */}
@@ -198,7 +198,7 @@ export function ConnectionEdge({
                 onClick={() =>
                   data?.onDelete?.(data.sourceVmid, data.targetVmid)
                 }
-                className="ml-0.5 p-0.5 rounded hover:bg-red-900/50 text-gray-500 hover:text-red-400 transition-colors"
+                className="ml-0.5 p-0.5 rounded hover:bg-red-900/50 text-muted-foreground hover:text-red-400 transition-colors"
                 title="刪除連線"
               >
                 <X className="w-2.5 h-2.5" />

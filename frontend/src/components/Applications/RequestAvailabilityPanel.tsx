@@ -21,8 +21,8 @@ import {
   type VmRequestAvailabilityDay,
   type VmRequestAvailabilityRequest,
   type VmRequestAvailabilityResponse,
-  type VmRequestAvailabilitySlot,
   VmRequestAvailabilityService,
+  type VmRequestAvailabilitySlot,
 } from "@/services/vmRequestAvailability"
 
 type DraftModeProps = {
@@ -109,8 +109,7 @@ function getAllSlots(data: VmRequestAvailabilityResponse | undefined) {
   return data.days
     .flatMap((day) => day.slots)
     .sort(
-      (a, b) =>
-        new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
+      (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
     )
 }
 
@@ -139,9 +138,8 @@ function getDateFromStartAt(
 ) {
   if (!data || !startAt) return null
   return (
-    data.days.find((day) =>
-      day.slots.some((slot) => slot.start_at === startAt),
-    )?.date ?? null
+    data.days.find((day) => day.slots.some((slot) => slot.start_at === startAt))
+      ?.date ?? null
   )
 }
 
@@ -150,7 +148,9 @@ function getRangeEndSlotStartAt(
   endAt: string | null,
 ) {
   if (!data || !endAt) return null
-  return getAllSlots(data).find((slot) => slot.end_at === endAt)?.start_at ?? null
+  return (
+    getAllSlots(data).find((slot) => slot.end_at === endAt)?.start_at ?? null
+  )
 }
 
 function RequestAvailabilitySkeleton({ compact }: { compact?: boolean }) {
@@ -174,7 +174,9 @@ export function RequestAvailabilityPanel(props: Props) {
     props.mode === "draft" ? props.draft : null,
   )
   const draftReady =
-    props.mode === "draft" ? isDraftReady(props.draft) : Boolean(props.requestId)
+    props.mode === "draft"
+      ? isDraftReady(props.draft)
+      : Boolean(props.requestId)
 
   const query = useQuery<VmRequestAvailabilityResponse>({
     queryKey:
@@ -214,7 +216,8 @@ export function RequestAvailabilityPanel(props: Props) {
     if (!data) return
 
     const nextDate =
-      getDateFromStartAt(data, props.value?.start_at ?? null) ?? getInitialDay(data)
+      getDateFromStartAt(data, props.value?.start_at ?? null) ??
+      getInitialDay(data)
     const nextDay = data.days.find((day) => day.date === nextDate)
     const nextSlot = props.value?.start_at ?? getInitialSlot(nextDay)
     setSelectedDate(nextDate)
@@ -331,8 +334,10 @@ export function RequestAvailabilityPanel(props: Props) {
                         slotTone[slot.status].button,
                         selectable && "hover:-translate-y-0.5",
                         inSelectedRange && "ring-2 ring-primary ring-offset-2",
-                        isRangeStart && "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.4)]",
-                        isRangeEnd && "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.4)]",
+                        isRangeStart &&
+                          "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.4)]",
+                        isRangeEnd &&
+                          "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.4)]",
                       )}
                       onClick={() => {
                         if (!selectable) return
@@ -343,16 +348,25 @@ export function RequestAvailabilityPanel(props: Props) {
                           return
                         }
 
-                        const currentStart = selectedDay.slots.find(
-                          (item) => item.start_at === rangeStartAt,
-                        ) ?? getAllSlots(data).find((item) => item.start_at === rangeStartAt)
+                        const currentStart =
+                          selectedDay.slots.find(
+                            (item) => item.start_at === rangeStartAt,
+                          ) ??
+                          getAllSlots(data).find(
+                            (item) => item.start_at === rangeStartAt,
+                          )
 
-                        const selectedSlotTime = new Date(slot.start_at).getTime()
+                        const selectedSlotTime = new Date(
+                          slot.start_at,
+                        ).getTime()
                         const currentStartTime = currentStart
                           ? new Date(currentStart.start_at).getTime()
                           : Number.NaN
 
-                        if (!currentStart || selectedSlotTime <= currentStartTime) {
+                        if (
+                          !currentStart ||
+                          selectedSlotTime <= currentStartTime
+                        ) {
                           setRangeStartAt(slot.start_at)
                           setRangeEndAt(null)
                           return
@@ -374,11 +388,7 @@ export function RequestAvailabilityPanel(props: Props) {
                     >
                       <div>{formatHour(slot.hour)}</div>
                       <div className="mt-0.5 text-[11px] opacity-80">
-                        {isRangeStart
-                          ? "起點"
-                          : isRangeEnd
-                            ? "終點"
-                            : "\u00A0"}
+                        {isRangeStart ? "起點" : isRangeEnd ? "終點" : "\u00A0"}
                       </div>
                     </button>
                   )

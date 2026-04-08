@@ -822,9 +822,7 @@ function ClusterOverviewTab() {
                   title={`${n.name}: ${n.status}`}
                   className={cn(
                     "h-1.5 flex-1 rounded-full",
-                    n.status === "online"
-                      ? "bg-green-500"
-                      : "bg-destructive",
+                    n.status === "online" ? "bg-green-500" : "bg-destructive",
                   )}
                 />
               ))}
@@ -980,14 +978,16 @@ function ClusterOverviewTab() {
                 />
                 <Tooltip
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={((value: number | undefined, name: string) => [
-                    `${value ?? 0}%`,
-                    name === "CPU"
-                      ? "CPU"
-                      : name === "RAM"
-                        ? "記憶體"
-                        : "磁碟",
-                  ]) as any}
+                  formatter={
+                    ((value: number | undefined, name: string) => [
+                      `${value ?? 0}%`,
+                      name === "CPU"
+                        ? "CPU"
+                        : name === "RAM"
+                          ? "記憶體"
+                          : "磁碟",
+                    ]) as any
+                  }
                   contentStyle={{
                     borderRadius: "8px",
                     border: "1px solid hsl(var(--border))",
@@ -1101,11 +1101,7 @@ function ClusterOverviewTab() {
                     >
                       {label}
                       <span className="text-[10px] w-3 inline-block">
-                        {sortKey === key
-                          ? sortDir === "asc"
-                            ? "↑"
-                            : "↓"
-                          : ""}
+                        {sortKey === key ? (sortDir === "asc" ? "↑" : "↓") : ""}
                       </span>
                     </button>
                   </TableHead>
@@ -1314,8 +1310,7 @@ function AdminConfigPage() {
           config.rebalance_resource_weight_memory ?? 1.0,
         rebalance_resource_weight_disk:
           config.rebalance_resource_weight_disk ?? 1.0,
-        migration_lxc_live_enabled:
-          config.migration_lxc_live_enabled ?? false,
+        migration_lxc_live_enabled: config.migration_lxc_live_enabled ?? false,
       })
     }
   }, [config, form])
@@ -1486,7 +1481,11 @@ function AdminConfigPage() {
 
   const openEditNode = (node: ProxmoxNodePublic) => {
     setEditingNode(node)
-    nodeForm.reset({ host: node.host, port: node.port, priority: node.priority })
+    nodeForm.reset({
+      host: node.host,
+      port: node.port,
+      priority: node.priority,
+    })
   }
 
   const isSaving = saveMutation.isPending
@@ -1498,7 +1497,11 @@ function AdminConfigPage() {
 
   const SaveButton = () => (
     <div className="flex justify-end pt-2">
-      <LoadingButton type="submit" loading={isSubmitting} disabled={isSubmitting}>
+      <LoadingButton
+        type="submit"
+        loading={isSubmitting}
+        disabled={isSubmitting}
+      >
         <Save className="mr-2 h-4 w-4" />
         {isPreviewing ? "偵測節點中..." : isSaving ? "儲存中..." : "儲存設定"}
       </LoadingButton>
@@ -1515,8 +1518,8 @@ function AdminConfigPage() {
             管理 Proxmox VE 連線、節點、Storage 與資源排程設定。
           </p>
         </div>
-        {!configLoading && (
-          config?.is_configured ? (
+        {!configLoading &&
+          (config?.is_configured ? (
             <Badge className="bg-green-500 hover:bg-green-600 gap-1.5 shrink-0 mt-1">
               <CheckCircle className="h-3.5 w-3.5" />
               {config.host}
@@ -1526,8 +1529,7 @@ function AdminConfigPage() {
               <XCircle className="h-3.5 w-3.5" />
               未設定
             </Badge>
-          )
-        )}
+          ))}
       </div>
 
       <Form {...form}>
@@ -1822,8 +1824,8 @@ function AdminConfigPage() {
                               </p>
                               {config.ca_fingerprint && (
                                 <p className="font-mono text-[11px] text-muted-foreground">
-                                  SHA-256:{" "}
-                                  {config.ca_fingerprint.slice(0, 29)}...
+                                  SHA-256: {config.ca_fingerprint.slice(0, 29)}
+                                  ...
                                 </p>
                               )}
                             </div>
@@ -1887,8 +1889,7 @@ function AdminConfigPage() {
                                     <span className="font-medium">
                                       有效期：
                                     </span>
-                                    {certInfo.not_before} ~{" "}
-                                    {certInfo.not_after}
+                                    {certInfo.not_before} ~ {certInfo.not_after}
                                   </p>
                                 </>
                               ) : (
@@ -2105,66 +2106,66 @@ function AdminConfigPage() {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="hidden">
-                    {/* Strategy radio cards */}
-                    <FormField
-                      control={form.control}
-                      name="placement_strategy"
-                      render={() => (
-                        <FormItem>
-                          <FormLabel>放置策略</FormLabel>
-                          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            {[
-                              {
-                                value: "dominant_share_min",
-                                title: "Dominant Share Min",
-                                desc: "每次選擇主要資源份額最低的節點，讓 CPU / RAM / Disk 負載平均分散於整個叢集。",
-                              },
-                              {
-                                value: "priority_dominant_share",
-                                title: "Priority Dominant Share",
-                                desc: "先按節點優先級篩選候選節點，相同優先級內再以 Dominant Share 排序，適合多區域場景。",
-                              },
-                            ].map((opt) => (
-                              <button
-                                key={opt.value}
-                                type="button"
-                                onClick={() =>
-                                  form.setValue(
-                                    "placement_strategy",
-                                    opt.value,
-                                  )
-                                }
-                                className={cn(
-                                  "rounded-lg border-2 p-4 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                                  strategyVal === opt.value
-                                    ? "border-primary bg-primary/5"
-                                    : "border-border hover:border-muted-foreground/50",
-                                )}
-                              >
-                                <div className="flex items-center gap-2 mb-1.5">
-                                  <div
-                                    className={cn(
-                                      "h-3.5 w-3.5 rounded-full border-2",
-                                      strategyVal === opt.value
-                                        ? "border-primary bg-primary"
-                                        : "border-muted-foreground",
-                                    )}
-                                  />
-                                  <p className="font-medium text-sm">
-                                    {opt.title}
+                      {/* Strategy radio cards */}
+                      <FormField
+                        control={form.control}
+                        name="placement_strategy"
+                        render={() => (
+                          <FormItem>
+                            <FormLabel>放置策略</FormLabel>
+                            <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              {[
+                                {
+                                  value: "dominant_share_min",
+                                  title: "Dominant Share Min",
+                                  desc: "每次選擇主要資源份額最低的節點，讓 CPU / RAM / Disk 負載平均分散於整個叢集。",
+                                },
+                                {
+                                  value: "priority_dominant_share",
+                                  title: "Priority Dominant Share",
+                                  desc: "先按節點優先級篩選候選節點，相同優先級內再以 Dominant Share 排序，適合多區域場景。",
+                                },
+                              ].map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  onClick={() =>
+                                    form.setValue(
+                                      "placement_strategy",
+                                      opt.value,
+                                    )
+                                  }
+                                  className={cn(
+                                    "rounded-lg border-2 p-4 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                    strategyVal === opt.value
+                                      ? "border-primary bg-primary/5"
+                                      : "border-border hover:border-muted-foreground/50",
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <div
+                                      className={cn(
+                                        "h-3.5 w-3.5 rounded-full border-2",
+                                        strategyVal === opt.value
+                                          ? "border-primary bg-primary"
+                                          : "border-muted-foreground",
+                                      )}
+                                    />
+                                    <p className="font-medium text-sm">
+                                      {opt.title}
+                                    </p>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground leading-relaxed">
+                                    {opt.desc}
                                   </p>
-                                </div>
-                                <p className="text-xs text-muted-foreground leading-relaxed">
-                                  {opt.desc}
-                                </p>
-                              </button>
-                            ))}
-                          </div>
-                        </FormItem>
-                      )}
-                    />
+                                </button>
+                              ))}
+                            </div>
+                          </FormItem>
+                        )}
+                      />
 
-                    <Separator />
+                      <Separator />
                     </div>
 
                     <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
@@ -2172,7 +2173,8 @@ function AdminConfigPage() {
                         <div>
                           <p className="text-sm font-medium">Priority 排程</p>
                           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                            系統固定先依節點 Priority 排序；若 Priority 相同，會自動平均分配到同級節點。
+                            系統固定先依節點 Priority 排序；若 Priority
+                            相同，會自動平均分配到同級節點。
                           </p>
                         </div>
                         <Badge variant="secondary" className="shrink-0">
@@ -2263,7 +2265,8 @@ function AdminConfigPage() {
                             <div className="space-y-1">
                               <FormLabel>自動搬移</FormLabel>
                               <FormDescription>
-                                僅在時段開始重排時，自動搬移已存在 VM/LXC 以追求更平衡的分配。
+                                僅在時段開始重排時，自動搬移已存在 VM/LXC
+                                以追求更平衡的分配。
                               </FormDescription>
                             </div>
                             <FormControl>
@@ -2334,7 +2337,8 @@ function AdminConfigPage() {
                     <div className="space-y-1">
                       <h4 className="text-sm font-medium">Peak Share 門檻</h4>
                       <p className="text-xs text-muted-foreground">
-                        控制尖峰負載懲罰的觸發門檻。超過 Warn 開始加罰，達到 High 時罰到最大值。
+                        控制尖峰負載懲罰的觸發門檻。超過 Warn 開始加罰，達到
+                        High 時罰到最大值。
                       </p>
                     </div>
                     <div className="grid gap-4 lg:grid-cols-4">
@@ -2446,9 +2450,12 @@ function AdminConfigPage() {
                     <Separator />
 
                     <div className="space-y-1">
-                      <h4 className="text-sm font-medium">資源權重 (Resource Weights)</h4>
+                      <h4 className="text-sm font-medium">
+                        資源權重 (Resource Weights)
+                      </h4>
                       <p className="text-xs text-muted-foreground">
-                        調整 CPU、RAM、Disk 在平衡評分中的相對權重。數值越高該資源影響越大。
+                        調整 CPU、RAM、Disk
+                        在平衡評分中的相對權重。數值越高該資源影響越大。
                       </p>
                     </div>
                     <div className="grid gap-4 lg:grid-cols-3">
@@ -2539,10 +2546,17 @@ function AdminConfigPage() {
                       onClick={() => setShowAdvanced(!showAdvanced)}
                       className="flex w-full items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/50"
                     >
-                      <ChevronRight className={cn("h-4 w-4 transition-transform", showAdvanced && "rotate-90")} />
+                      <ChevronRight
+                        className={cn(
+                          "h-4 w-4 transition-transform",
+                          showAdvanced && "rotate-90",
+                        )}
+                      />
                       <Settings2 className="h-4 w-4" />
                       <span>進階內部參數</span>
-                      <span className="ml-auto text-xs opacity-60">不建議輕易修改</span>
+                      <span className="ml-auto text-xs opacity-60">
+                        不建議輕易修改
+                      </span>
                     </button>
 
                     {showAdvanced && (
@@ -2561,7 +2575,9 @@ function AdminConfigPage() {
                               <div className="space-y-1">
                                 <FormLabel>LXC Live Migration</FormLabel>
                                 <FormDescription>
-                                  允許對正在運行的 LXC 容器執行 live migration。關閉時會等待容器停止或以 relocate 方式搬移。
+                                  允許對正在運行的 LXC 容器執行 live
+                                  migration。關閉時會等待容器停止或以 relocate
+                                  方式搬移。
                                 </FormDescription>
                               </div>
                               <FormControl>
@@ -2622,7 +2638,8 @@ function AdminConfigPage() {
                                   />
                                 </FormControl>
                                 <FormDescription>
-                                  數值越高，演算法越傾向維持既有 VM 位置，降低重排搬移次數。
+                                  數值越高，演算法越傾向維持既有 VM
+                                  位置，降低重排搬移次數。
                                 </FormDescription>
                                 <FormMessage />
                               </FormItem>
@@ -2989,7 +3006,10 @@ function AdminConfigPage() {
             </Button>
             <LoadingButton
               loading={isSaving}
-              onClick={() => pendingFormData && saveMutation.mutate({ data: pendingFormData })}
+              onClick={() =>
+                pendingFormData &&
+                saveMutation.mutate({ data: pendingFormData })
+              }
             >
               確認儲存
             </LoadingButton>
@@ -3006,7 +3026,8 @@ function AdminConfigPage() {
           <SheetHeader>
             <SheetTitle>編輯節點：{editingNode?.name}</SheetTitle>
             <SheetDescription>
-              修改節點的連線資訊與優先級設定。節點名稱由 Proxmox 決定，無法修改。
+              修改節點的連線資訊與優先級設定。節點名稱由 Proxmox
+              決定，無法修改。
             </SheetDescription>
           </SheetHeader>
           <Form {...nodeForm}>
@@ -3015,7 +3036,11 @@ function AdminConfigPage() {
                 if (!editingNode?.id) return
                 updateNodeMutation.mutate({
                   id: editingNode.id,
-                  body: { host: data.host, port: data.port, priority: data.priority },
+                  body: {
+                    host: data.host,
+                    port: data.port,
+                    priority: data.priority,
+                  },
                 })
               })}
               className="flex flex-col gap-4 mt-6"

@@ -23,7 +23,7 @@ export function DeleteGatewayWarning({
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="bg-[#1a1a1a] border-[#2e2e2e] text-gray-100 sm:max-w-sm">
+      <DialogContent className="bg-card border-border text-foreground sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-amber-400">
             <AlertTriangle className="w-5 h-5" />
@@ -31,10 +31,10 @@ export function DeleteGatewayWarning({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="py-2 text-sm text-gray-400 space-y-2">
+        <div className="py-2 text-sm text-muted-foreground space-y-2">
           <p>
             你正在刪除{" "}
-            <span className="text-gray-100 font-medium">{vmName}</span>{" "}
+            <span className="text-foreground font-medium">{vmName}</span>{" "}
             的上網連線（往 Internet 的預設出站規則）。
           </p>
           <p className="text-amber-400/80">
@@ -46,7 +46,7 @@ export function DeleteGatewayWarning({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-100"
+            className="text-muted-foreground hover:text-foreground"
           >
             取消
           </Button>

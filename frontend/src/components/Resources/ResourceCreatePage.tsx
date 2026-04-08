@@ -36,13 +36,15 @@ import useCustomToast from "@/hooks/useCustomToast"
 import { handleError } from "@/utils"
 
 function normalizeHostname(value: string) {
-  return String(value || "")
-    .toLowerCase()
-    // 保留 Unicode 字母、數字和連字符，其他替換為連字符
-    .replace(/[^\p{L}\p{N}-]/gu, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 63)
+  return (
+    String(value || "")
+      .toLowerCase()
+      // 保留 Unicode 字母、數字和連字符，其他替換為連字符
+      .replace(/[^\p{L}\p{N}-]/gu, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 63)
+  )
 }
 
 export function ResourceCreatePage() {

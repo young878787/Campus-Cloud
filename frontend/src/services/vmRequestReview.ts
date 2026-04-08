@@ -28,7 +28,13 @@ export type VmRequestReviewOverlapItem = {
   actual_node?: string | null
   projected_node?: string | null
   projected_strategy?: string | null
-  migration_status: "idle" | "pending" | "running" | "completed" | "failed" | "blocked"
+  migration_status:
+    | "idle"
+    | "pending"
+    | "running"
+    | "completed"
+    | "failed"
+    | "blocked"
   is_current_request: boolean
   is_running_now: boolean
   is_provisioned: boolean
@@ -83,7 +89,9 @@ export type VmRequestReviewContext = {
 }
 
 export const VmRequestReviewService = {
-  getContext(data: { requestId: string }): CancelablePromise<VmRequestReviewContext> {
+  getContext(data: {
+    requestId: string
+  }): CancelablePromise<VmRequestReviewContext> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/vm-requests/{request_id}/review-context",

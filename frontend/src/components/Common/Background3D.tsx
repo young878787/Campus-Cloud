@@ -8,9 +8,9 @@ interface Background3DProps {
 // Colour palettes for each theme
 const DARK = {
   fog: 0x0a1020,
-  ridge1: 0x172260,  // far  – deep navy
-  ridge2: 0x271c55,  // mid  – indigo
-  ridge3: 0x2d1438,  // near – dark plum
+  ridge1: 0x172260, // far  – deep navy
+  ridge2: 0x271c55, // mid  – indigo
+  ridge3: 0x2d1438, // near – dark plum
   ground: 0x0c1230,
   star: 0xddeeff,
   starOpacity: 0.85,
@@ -23,13 +23,13 @@ const DARK = {
 
 const LIGHT = {
   fog: 0xc8dff5,
-  ridge1: 0x7aaac8,  // far  – soft sky-blue
-  ridge2: 0x8faab8,  // mid  – muted slate
-  ridge3: 0x6e8fa4,  // near – deeper muted blue-slate
+  ridge1: 0x7aaac8, // far  – soft sky-blue
+  ridge2: 0x8faab8, // mid  – muted slate
+  ridge3: 0x6e8fa4, // near – deeper muted blue-slate
   ground: 0x9abdd4,
   star: 0xffffff,
-  starOpacity: 0,    // no stars during daytime
-  fly: 0xfff0c0,     // warm white dust motes
+  starOpacity: 0, // no stars during daytime
+  fly: 0xfff0c0, // warm white dust motes
   ambient: { color: 0x99b8d8, intensity: 4.0 },
   sun: { color: 0xffe090, intensity: 3.5, pos: new THREE.Vector3(2, 12, -5) },
   fill: { color: 0xc8e0f8, intensity: 1.2 },
@@ -96,8 +96,8 @@ export function Background3D({ isDark }: Background3DProps) {
     }
 
     const ridge1 = buildRidge(50, 40, 18, 1.9, P.ridge1, -10, -1.0)
-    const ridge2 = buildRidge(50, 32, 14, 1.6, P.ridge2, -3,  -1.2)
-    const ridge3 = buildRidge(40, 26, 10, 1.3, P.ridge3,  3,  -1.5)
+    const ridge2 = buildRidge(50, 32, 14, 1.6, P.ridge2, -3, -1.2)
+    const ridge3 = buildRidge(40, 26, 10, 1.3, P.ridge3, 3, -1.5)
     scene.add(ridge1, ridge2, ridge3)
 
     // Ground / lake
@@ -161,7 +161,9 @@ export function Background3D({ isDark }: Background3DProps) {
     fill.position.set(0, 6, 12)
     scene.add(fill)
 
-    scene.add(new THREE.HemisphereLight(P.hemi.sky, P.hemi.ground, P.hemi.intensity))
+    scene.add(
+      new THREE.HemisphereLight(P.hemi.sky, P.hemi.ground, P.hemi.intensity),
+    )
 
     // ─── Mouse tracking ───────────────────────────────────────────────────────
     const mouse = { x: 0, y: 0 }
@@ -222,7 +224,8 @@ export function Background3D({ isDark }: Background3DProps) {
       window.removeEventListener("mousemove", onMouseMove)
       window.removeEventListener("resize", onResize)
       renderer.dispose()
-      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
+      if (mount.contains(renderer.domElement))
+        mount.removeChild(renderer.domElement)
     }
   }, [isDark])
 

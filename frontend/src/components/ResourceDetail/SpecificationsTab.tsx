@@ -57,9 +57,7 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
   })
 
   const requestMutation = useMutation({
-    mutationFn: (
-      data: SpecChangeRequestCreate,
-    ) =>
+    mutationFn: (data: SpecChangeRequestCreate) =>
       SpecChangeRequestsService.createSpecChangeRequest({ requestBody: data }),
     onSuccess: () => {
       toast.success(t("specifications.requestSubmitted"))

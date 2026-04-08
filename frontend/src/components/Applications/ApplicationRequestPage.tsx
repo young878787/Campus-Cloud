@@ -14,7 +14,12 @@ import { useForm, useWatch } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 
-import { type ApiError, LxcService, VmRequestsService, VmService } from "@/client"
+import {
+  type ApiError,
+  LxcService,
+  VmRequestsService,
+  VmService,
+} from "@/client"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -37,8 +42,8 @@ import {
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import useCustomToast from "@/hooks/useCustomToast"
 import useAuth from "@/hooks/useAuth"
+import useCustomToast from "@/hooks/useCustomToast"
 import { cn } from "@/lib/utils"
 import { handleError } from "@/utils"
 import { AiChatPanel, type AiPlanResult } from "./AiChatPanel"
@@ -46,13 +51,15 @@ import { type FastTemplate, FastTemplatesTab } from "./FastTemplatesTab"
 import { RequestAvailabilityPanel } from "./RequestAvailabilityPanel"
 
 function normalizeHostname(value: string) {
-  return String(value || "")
-    .toLowerCase()
-    // 保留 Unicode 字母、數字和連字符，其他替換為連字符
-    .replace(/[^\p{L}\p{N}-]/gu, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 63)
+  return (
+    String(value || "")
+      .toLowerCase()
+      // 保留 Unicode 字母、數字和連字符，其他替換為連字符
+      .replace(/[^\p{L}\p{N}-]/gu, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 63)
+  )
 }
 
 function formatScheduleSummary(startAt?: string, endAt?: string) {
@@ -69,19 +76,15 @@ function formatScheduleSummary(startAt?: string, endAt?: string) {
   return `${formatter.format(new Date(startAt))} - ${formatter.format(new Date(endAt))}`
 }
 
-function SummaryRow({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
+function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3 border-b border-border/70 py-2.5 last:border-b-0">
       <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </span>
-      <span className="max-w-[72%] text-right text-sm leading-snug">{value}</span>
+      <span className="max-w-[72%] text-right text-sm leading-snug">
+        {value}
+      </span>
     </div>
   )
 }
@@ -237,8 +240,8 @@ export function ApplicationRequestPage() {
 
     if (!watchedTemplateId) return "尚未選擇"
     return (
-      vmTemplates?.find((template) => template.vmid === watchedTemplateId)?.name ||
-      `Template #${watchedTemplateId}`
+      vmTemplates?.find((template) => template.vmid === watchedTemplateId)
+        ?.name || `Template #${watchedTemplateId}`
     )
   }
 
@@ -311,14 +314,7 @@ export function ApplicationRequestPage() {
 
   const selectedTemplateLabel = useMemo(
     () => getSelectedTemplateLabel(),
-    [
-      lxcTemplates,
-      resourceType,
-      serviceTemplateName,
-      vmTemplates,
-      watchedOsTemplate,
-      watchedTemplateId,
-    ],
+    [getSelectedTemplateLabel],
   )
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -456,8 +452,10 @@ export function ApplicationRequestPage() {
       const method = template.install_methods?.[0]
       if (method?.resources) {
         if (method.resources.cpu) updateFormValue("cores", method.resources.cpu)
-        if (method.resources.ram) updateFormValue("memory", method.resources.ram)
-        if (method.resources.hdd) updateFormValue("rootfs_size", Math.max(method.resources.hdd, 8))
+        if (method.resources.ram)
+          updateFormValue("memory", method.resources.ram)
+        if (method.resources.hdd)
+          updateFormValue("rootfs_size", Math.max(method.resources.hdd, 8))
       }
       setShowTemplateSelector(false)
     },
@@ -571,7 +569,9 @@ export function ApplicationRequestPage() {
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-6"
               >
-                {(user?.is_superuser || user?.role === "admin" || user?.role === "teacher") && (
+                {(user?.is_superuser ||
+                  user?.role === "admin" ||
+                  user?.role === "teacher") && (
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -580,7 +580,7 @@ export function ApplicationRequestPage() {
                         "rounded-lg border px-4 py-2 text-sm transition-colors",
                         watchedMode === "scheduled"
                           ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:bg-muted/50"
+                          : "border-border text-muted-foreground hover:bg-muted/50",
                       )}
                     >
                       預約模式
@@ -592,7 +592,7 @@ export function ApplicationRequestPage() {
                         "rounded-lg border px-4 py-2 text-sm transition-colors",
                         watchedMode === "immediate"
                           ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:bg-muted/50"
+                          : "border-border text-muted-foreground hover:bg-muted/50",
                       )}
                     >
                       立即模式
@@ -778,7 +778,6 @@ export function ApplicationRequestPage() {
                           </FormItem>
                         )}
                       />
-
                     </div>
 
                     <div className="rounded-2xl border bg-muted/20 p-5">
@@ -1038,7 +1037,6 @@ export function ApplicationRequestPage() {
                           </FormItem>
                         )}
                       />
-
                     </div>
 
                     <div className="rounded-2xl border bg-muted/20 p-5">
@@ -1289,10 +1287,7 @@ export function ApplicationRequestPage() {
                         value={selectedTemplateLabel}
                       />
                       <SummaryRow label="規格" value={requestSpecSummary} />
-                      <SummaryRow
-                        label="時段"
-                        value={requestWindowSummary}
-                      />
+                      <SummaryRow label="時段" value={requestWindowSummary} />
                     </div>
 
                     <div className="rounded-xl border border-border/70 bg-background/40 px-4 py-3">
@@ -1310,14 +1305,17 @@ export function ApplicationRequestPage() {
                   {showAiAssistant ? (
                     <>
                       <p className="text-sm text-muted-foreground">
-                        使用 AI 協助整理需求後，再確認規格、可申請時段與申請原因。
+                        使用 AI
+                        協助整理需求後，再確認規格、可申請時段與申請原因。
                       </p>
                       <p className="hidden text-sm text-muted-foreground">
-                        使用 AI 協助整理需求後，再確認規格、可申請時段與申請原因。
+                        使用 AI
+                        協助整理需求後，再確認規格、可申請時段與申請原因。
                       </p>
                       <p className="hidden text-sm text-muted-foreground">
-                      使用 AI 協助整理需求後，再確認規格、可申請時段與申請原因。
-                    </p>
+                        使用 AI
+                        協助整理需求後，再確認規格、可申請時段與申請原因。
+                      </p>
                     </>
                   ) : (
                     <div />
@@ -1356,7 +1354,7 @@ export function ApplicationRequestPage() {
             style={aiColumnStyle}
           >
             <div
-              className="h-full overflow-hidden rounded-2xl border bg-card/95 p-3"
+              className="h-full overflow-hidden glass-panel rounded-2xl p-3"
               style={desktopPanelStyle}
             >
               <AiChatPanel
@@ -1367,7 +1365,6 @@ export function ApplicationRequestPage() {
           </aside>
         )}
       </div>
-
     </div>
   )
 }

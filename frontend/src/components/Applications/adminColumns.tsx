@@ -76,7 +76,9 @@ function PlacementStatusCell({ request }: { request: VMRequestPublic }) {
           已通過
         </Badge>
         <span className="text-xs text-muted-foreground">
-          {request.assigned_node ? `節點 ${request.assigned_node}` : "待同步節點"}
+          {request.assigned_node
+            ? `節點 ${request.assigned_node}`
+            : "待同步節點"}
         </span>
       </div>
     )
@@ -123,7 +125,9 @@ function PlacementStatusCell({ request }: { request: VMRequestPublic }) {
         <Badge variant="outline" className="w-fit">
           模擬中
         </Badge>
-        <span className="text-xs text-muted-foreground">正在檢查容量與節點</span>
+        <span className="text-xs text-muted-foreground">
+          正在檢查容量與節點
+        </span>
       </div>
     )
   }

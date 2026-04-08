@@ -56,7 +56,9 @@ export class GatewayApiService {
   }
 
   /** 更新連線設定 */
-  static updateConfig(data: GatewayConfigUpdate): CancelablePromise<GatewayConfigPublic> {
+  static updateConfig(
+    data: GatewayConfigUpdate,
+  ): CancelablePromise<GatewayConfigPublic> {
     return __request(OpenAPI, {
       method: "PUT",
       url: "/api/v1/gateway/config",
@@ -82,7 +84,9 @@ export class GatewayApiService {
   }
 
   /** 讀取服務設定檔 */
-  static readServiceConfig(service: GatewayService): CancelablePromise<ServiceConfigRead> {
+  static readServiceConfig(
+    service: GatewayService,
+  ): CancelablePromise<ServiceConfigRead> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/gateway/services/{service}/config",
@@ -105,7 +109,9 @@ export class GatewayApiService {
   }
 
   /** 取得服務狀態 */
-  static getServiceStatus(service: GatewayService): CancelablePromise<ServiceStatusResult> {
+  static getServiceStatus(
+    service: GatewayService,
+  ): CancelablePromise<ServiceStatusResult> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/gateway/services/{service}/status",

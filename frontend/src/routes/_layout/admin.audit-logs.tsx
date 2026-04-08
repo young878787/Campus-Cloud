@@ -37,11 +37,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import {
-  AuditLogsAPI,
-  downloadBlob,
   type AuditActionMeta,
   type AuditLogQuery,
+  AuditLogsAPI,
   type AuditUserOption,
+  downloadBlob,
 } from "@/services/auditLogs"
 
 export const Route = createFileRoute("/_layout/admin/audit-logs")({
@@ -84,7 +84,8 @@ function getActionBadgeColor(action: string, category?: string) {
   if (category) return CATEGORY_BADGE[category] ?? "bg-gray-500"
   if (action.includes("create")) return "bg-green-500"
   if (action.includes("delete")) return "bg-red-500"
-  if (action.includes("update") || action.includes("change")) return "bg-blue-500"
+  if (action.includes("update") || action.includes("change"))
+    return "bg-blue-500"
   if (action.includes("login")) return "bg-yellow-500"
   return "bg-gray-500"
 }
@@ -115,7 +116,16 @@ function AdminAuditLogsPage() {
       start_time: startDate ? new Date(startDate).toISOString() : null,
       end_time: endDate ? new Date(`${endDate}T23:59:59`).toISOString() : null,
     }),
-    [page, vmidFilter, userFilter, actionFilter, ipFilter, searchFilter, startDate, endDate],
+    [
+      page,
+      vmidFilter,
+      userFilter,
+      actionFilter,
+      ipFilter,
+      searchFilter,
+      startDate,
+      endDate,
+    ],
   )
 
   // Data queries
@@ -129,7 +139,9 @@ function AdminAuditLogsPage() {
     queryFn: () =>
       AuditLogsAPI.getStats({
         start_time: startDate ? new Date(startDate).toISOString() : null,
-        end_time: endDate ? new Date(`${endDate}T23:59:59`).toISOString() : null,
+        end_time: endDate
+          ? new Date(`${endDate}T23:59:59`).toISOString()
+          : null,
       }),
   })
 
@@ -213,26 +225,40 @@ function AdminAuditLogsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>{t("admin.auditLogs.statsTotal")}</CardDescription>
+              <CardDescription>
+                {t("admin.auditLogs.statsTotal")}
+              </CardDescription>
               <CardTitle className="text-3xl">{stats.total}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>{t("admin.auditLogs.statsDanger")}</CardDescription>
-              <CardTitle className="text-3xl text-red-500">{stats.danger}</CardTitle>
+              <CardDescription>
+                {t("admin.auditLogs.statsDanger")}
+              </CardDescription>
+              <CardTitle className="text-3xl text-red-500">
+                {stats.danger}
+              </CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>{t("admin.auditLogs.statsLoginFailed")}</CardDescription>
-              <CardTitle className="text-3xl text-yellow-500">{stats.login_failed}</CardTitle>
+              <CardDescription>
+                {t("admin.auditLogs.statsLoginFailed")}
+              </CardDescription>
+              <CardTitle className="text-3xl text-yellow-500">
+                {stats.login_failed}
+              </CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>{t("admin.auditLogs.statsActiveUsers")}</CardDescription>
-              <CardTitle className="text-3xl text-green-500">{stats.active_users}</CardTitle>
+              <CardDescription>
+                {t("admin.auditLogs.statsActiveUsers")}
+              </CardDescription>
+              <CardTitle className="text-3xl text-green-500">
+                {stats.active_users}
+              </CardTitle>
             </CardHeader>
           </Card>
         </div>
@@ -246,31 +272,45 @@ function AdminAuditLogsPage() {
             <Input
               placeholder={t("admin.auditLogs.searchPlaceholder")}
               value={searchFilter}
-              onChange={(e) => { setSearchFilter(e.target.value); setPage(0) }}
+              onChange={(e) => {
+                setSearchFilter(e.target.value)
+                setPage(0)
+              }}
             />
             {/* VMID */}
             <Input
               placeholder={t("admin.auditLogs.filterByVMID")}
               value={vmidFilter}
-              onChange={(e) => { setVmidFilter(e.target.value); setPage(0) }}
+              onChange={(e) => {
+                setVmidFilter(e.target.value)
+                setPage(0)
+              }}
               type="number"
             />
             {/* IP */}
             <Input
               placeholder={t("admin.auditLogs.filterByIP")}
               value={ipFilter}
-              onChange={(e) => { setIpFilter(e.target.value); setPage(0) }}
+              onChange={(e) => {
+                setIpFilter(e.target.value)
+                setPage(0)
+              }}
             />
             {/* User select */}
             <Select
               value={userFilter}
-              onValueChange={(v) => { setUserFilter(v === "__all__" ? "" : v); setPage(0) }}
+              onValueChange={(v) => {
+                setUserFilter(v === "__all__" ? "" : v)
+                setPage(0)
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder={t("admin.auditLogs.allUsers")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">{t("admin.auditLogs.allUsers")}</SelectItem>
+                <SelectItem value="__all__">
+                  {t("admin.auditLogs.allUsers")}
+                </SelectItem>
                 {userOptions?.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {formatUserLabel(u)}
@@ -281,13 +321,18 @@ function AdminAuditLogsPage() {
             {/* Action select grouped by category */}
             <Select
               value={actionFilter}
-              onValueChange={(v) => { setActionFilter(v === "__all__" ? "" : v); setPage(0) }}
+              onValueChange={(v) => {
+                setActionFilter(v === "__all__" ? "" : v)
+                setPage(0)
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder={t("admin.auditLogs.allActions")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">{t("admin.auditLogs.allActions")}</SelectItem>
+                <SelectItem value="__all__">
+                  {t("admin.auditLogs.allActions")}
+                </SelectItem>
                 {Object.entries(actionsByCategory).map(([cat, actions]) => (
                   <SelectGroup key={cat}>
                     <SelectLabel>
@@ -306,20 +351,34 @@ function AdminAuditLogsPage() {
             <Input
               type="date"
               value={startDate}
-              onChange={(e) => { setStartDate(e.target.value); setPage(0) }}
+              onChange={(e) => {
+                setStartDate(e.target.value)
+                setPage(0)
+              }}
               placeholder={t("admin.auditLogs.startDate")}
             />
             <Input
               type="date"
               value={endDate}
-              onChange={(e) => { setEndDate(e.target.value); setPage(0) }}
+              onChange={(e) => {
+                setEndDate(e.target.value)
+                setPage(0)
+              }}
               placeholder={t("admin.auditLogs.endDate")}
             />
             <div className="flex gap-2">
-              <Button variant="outline" onClick={resetFilters} className="flex-1">
+              <Button
+                variant="outline"
+                onClick={resetFilters}
+                className="flex-1"
+              >
                 {t("common.buttons.reset", "Reset")}
               </Button>
-              <Button variant="outline" onClick={() => refetch()} className="flex-1">
+              <Button
+                variant="outline"
+                onClick={() => refetch()}
+                className="flex-1"
+              >
                 {t("common.buttons.refresh", "Refresh")}
               </Button>
             </div>
@@ -332,7 +391,8 @@ function AdminAuditLogsPage() {
         <CardHeader>
           <CardTitle>{t("admin.auditLogs.allRecords")}</CardTitle>
           <CardDescription>
-            {t("admin.auditLogs.showing")} {auditLogs?.count ?? 0} {t("admin.auditLogs.records")}
+            {t("admin.auditLogs.showing")} {auditLogs?.count ?? 0}{" "}
+            {t("admin.auditLogs.records")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -346,13 +406,21 @@ function AdminAuditLogsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[160px]">{tR("auditLogs.time")}</TableHead>
-                      <TableHead className="w-[70px]">{t("admin.auditLogs.vmid")}</TableHead>
+                      <TableHead className="w-[160px]">
+                        {tR("auditLogs.time")}
+                      </TableHead>
+                      <TableHead className="w-[70px]">
+                        {t("admin.auditLogs.vmid")}
+                      </TableHead>
                       <TableHead>{tR("auditLogs.operator")}</TableHead>
                       <TableHead>{tR("auditLogs.action")}</TableHead>
-                      <TableHead className="max-w-[300px]">{tR("auditLogs.details")}</TableHead>
+                      <TableHead className="max-w-[300px]">
+                        {tR("auditLogs.details")}
+                      </TableHead>
                       <TableHead>{t("admin.auditLogs.ipAddress")}</TableHead>
-                      <TableHead className="w-[60px]">{t("admin.auditLogs.userAgent")}</TableHead>
+                      <TableHead className="w-[60px]">
+                        {t("admin.auditLogs.userAgent")}
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -379,8 +447,13 @@ function AdminAuditLogsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge className={getActionBadgeColor(log.action, cat)}>
-                              {tR(`auditLogs.actions.${log.action}`, log.action)}
+                            <Badge
+                              className={getActionBadgeColor(log.action, cat)}
+                            >
+                              {tR(
+                                `auditLogs.actions.${log.action}`,
+                                log.action,
+                              )}
                             </Badge>
                           </TableCell>
                           <TableCell className="max-w-[300px] truncate text-xs">
@@ -399,12 +472,16 @@ function AdminAuditLogsPage() {
                                     </span>
                                   </TooltipTrigger>
                                   <TooltipContent className="max-w-sm">
-                                    <p className="break-all text-xs">{log.user_agent}</p>
+                                    <p className="break-all text-xs">
+                                      {log.user_agent}
+                                    </p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
+                              <span className="text-xs text-muted-foreground">
+                                -
+                              </span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -432,7 +509,9 @@ function AdminAuditLogsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                      onClick={() =>
+                        setPage(Math.min(totalPages - 1, page + 1))
+                      }
                       disabled={page >= totalPages - 1}
                     >
                       {t("common.buttons.next", "Next")}

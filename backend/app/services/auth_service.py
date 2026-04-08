@@ -5,10 +5,10 @@ from sqlmodel import Session
 
 from app.core import security
 from app.core.config import settings
-from app.exceptions import BadRequestError, NotFoundError
+from app.exceptions import AuthenticationError, BadRequestError, NotFoundError
 from app.models import AuditAction
-from app.schemas import Token, UserUpdate
 from app.repositories import user as user_repo
+from app.schemas import Token, UserUpdate
 from app.services import audit_service
 from app.utils import (
     generate_password_reset_token,
@@ -121,27 +121,30 @@ def refresh_access_token(*, session: Session, refresh_token: str) -> Token:
     import jwt
     from jwt.exceptions import InvalidTokenError
     from pydantic import ValidationError
+
     from app.models import User
     from app.schemas import TokenPayload
 
+    # Refresh token failures must return 401 (not 400) so clients can treat
+    # them uniformly as "session expired, please log in again".
     try:
         payload = jwt.decode(
             refresh_token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
         token_data = TokenPayload(**payload)
     except (InvalidTokenError, ValidationError):
-        raise BadRequestError("Invalid refresh token")
+        raise AuthenticationError("Invalid refresh token")
 
     if token_data.type != "refresh":
-        raise BadRequestError("Invalid token type")
+        raise AuthenticationError("Invalid token type")
 
     user = session.get(User, token_data.sub)
     if not user:
-        raise BadRequestError("Invalid refresh token")
+        raise AuthenticationError("Invalid refresh token")
     if not user.is_active:
-        raise BadRequestError("Inactive user")
+        raise AuthenticationError("Inactive user")
     if user.token_version != token_data.ver:
-        raise BadRequestError("Token has been revoked")
+        raise AuthenticationError("Token has been revoked")
 
     return _create_token_pair(user)
 

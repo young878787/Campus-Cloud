@@ -41,15 +41,9 @@ export function AppSidebar() {
     { icon: Shield, title: "防火牆", path: "/firewall" },
   ]
 
-  const aiItems: Item[] = [
-    { icon: Bot, title: "AI API", path: "/ai-api" },
-  ]
+  const aiItems: Item[] = [{ icon: Bot, title: "AI API", path: "/ai-api" }]
 
-  const commonItems: Item[] = [
-    ...overviewItems,
-    ...resourceItems,
-    ...aiItems,
-  ]
+  const commonItems: Item[] = [...overviewItems, ...resourceItems, ...aiItems]
 
   const studentItems: Item[] = [
     ...overviewItems,
@@ -68,7 +62,11 @@ export function AppSidebar() {
     { icon: UsersRound, title: "群組管理", path: "/groups" },
     { icon: Users, title: t("sidebar.admin"), path: "/admin" },
     { icon: Settings2, title: "系統設定", path: "/admin/configuration" },
-    { icon: ArrowRightLeft, title: "Migration Jobs", path: "/admin/migration-jobs" },
+    {
+      icon: ArrowRightLeft,
+      title: "Migration Jobs",
+      path: "/admin/migration-jobs",
+    },
     { icon: Network, title: "Gateway VM", path: "/admin/gateway" },
     { icon: ScrollText, title: "稽核日誌", path: "/admin/audit-logs" },
   ]
@@ -77,8 +75,8 @@ export function AppSidebar() {
     currentUser?.role === "student"
       ? studentItems
       : currentUser?.role === "admin" || currentUser?.is_superuser
-      ? adminItems
-      : commonItems
+        ? adminItems
+        : commonItems
 
   return (
     <Sidebar collapsible="icon">

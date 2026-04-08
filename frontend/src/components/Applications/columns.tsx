@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge"
 function formatTemplateLabel(request: VMRequestPublic) {
   if (request.resource_type === "lxc") {
     if (!request.ostemplate) return "未設定"
-    return request.ostemplate
-      .split("/")
-      .pop()
-      ?.replace(/\.tar\..+$/i, "")
-      .replace(/\.img$/i, "") || request.ostemplate
+    return (
+      request.ostemplate
+        .split("/")
+        .pop()
+        ?.replace(/\.tar\..+$/i, "")
+        .replace(/\.img$/i, "") || request.ostemplate
+    )
   }
 
   if (request.template_id) return `Template #${request.template_id}`

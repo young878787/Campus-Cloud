@@ -126,7 +126,7 @@ function GroupCard({ group }: { group: GroupPublic }) {
   })
 
   return (
-    <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors">
+    <div className="glass-panel flex items-center justify-between rounded-lg p-4 transition-all hover:brightness-105 dark:hover:brightness-110">
       <Link
         to="/groups/$groupId"
         params={{ groupId: group.id }}
