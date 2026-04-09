@@ -21,12 +21,12 @@ function Dashboard() {
   return (
     <div>
       <div>
-        <h1 className="text-2xl truncate max-w-sm">
+        <h1 className="text-4xl font-bold tracking-tight truncate max-w-lg" style={{ color: "#5471BF" }}>
           {t("dashboard.welcome", {
             name: currentUser?.full_name || currentUser?.email,
           })}
         </h1>
-        <p className="text-muted-foreground">{t("dashboard.description")}</p>
+        <p className="mt-2 text-base" style={{ color: "#5471BF" }}>{t("dashboard.description")}</p>
       </div>
     </div>
   )

@@ -37,13 +37,13 @@ export const SidebarAppearance = () => {
             tooltip={t("appearance.title")}
             data-testid="theme-button"
           >
-            <Icon className="size-4 text-muted-foreground" />
+            <Icon className="size-4" />
             <span>{t("appearance.title")}</span>
             <span className="sr-only">{t("appearance.toggleTheme")}</span>
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          side={isMobile ? "top" : "right"}
+          side="top"
           align="end"
           className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
         >

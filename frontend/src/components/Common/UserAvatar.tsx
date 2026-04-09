@@ -29,7 +29,8 @@ export function UserAvatar({
         />
       ) : null}
       <AvatarFallback
-        className={cn("bg-zinc-600 text-white", fallbackClassName)}
+        className={cn("text-white", fallbackClassName)}
+        style={{ backgroundColor: "#1C41A0" }}
       >
         {getInitials(nameForFallback)}
       </AvatarFallback>

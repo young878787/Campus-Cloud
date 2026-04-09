@@ -143,7 +143,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       defaultLanguage="zh-TW"
       storageKey="campus-cloud-language"
     >
-      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
         <QueryClientProvider client={queryClient}>
           <RouterProvider router={router} />
           <Toaster richColors closeButton />

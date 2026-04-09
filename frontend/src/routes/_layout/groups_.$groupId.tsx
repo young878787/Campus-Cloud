@@ -1,16 +1,28 @@
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query"
 
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
-import { ArrowLeft, Plus, Upload, UserMinus } from "lucide-react"
-import { Suspense, useRef, useState } from "react"
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Circle,
+  Loader2,
+  Plus,
+  ServerCog,
+  Upload,
+  UserMinus,
+  XCircle,
+} from "lucide-react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 
-import { GroupsService, OpenAPI, UsersService } from "@/client"
+import { GroupsService, LxcService, OpenAPI, UsersService, VmService } from "@/client"
 import { request as __request } from "@/client/core/request"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -21,8 +33,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LoadingButton } from "@/components/ui/loading-button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
 import {
   Table,
   TableBody,
@@ -31,8 +52,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import useCustomToast from "@/hooks/useCustomToast"
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type CsvImportResult = {
   created: string[]
@@ -40,6 +63,37 @@ type CsvImportResult = {
   added_to_group: number
   errors: string[]
 }
+
+type TaskStatus = "pending" | "running" | "completed" | "failed"
+
+type BatchTask = {
+  id: string
+  user_id: string
+  user_email: string | null
+  user_name: string | null
+  member_index: number
+  vmid: number | null
+  status: TaskStatus
+  error: string | null
+  started_at: string | null
+  finished_at: string | null
+}
+
+type BatchJob = {
+  id: string
+  group_id: string
+  resource_type: string
+  hostname_prefix: string
+  status: "pending" | "running" | "completed" | "failed"
+  total: number
+  done: number
+  failed_count: number
+  created_at: string
+  finished_at: string | null
+  tasks: BatchTask[]
+}
+
+// ─── Route ────────────────────────────────────────────────────────────────────
 
 export const Route = createFileRoute("/_layout/groups_/$groupId")({
   component: GroupDetailPage,
@@ -53,6 +107,31 @@ export const Route = createFileRoute("/_layout/groups_/$groupId")({
     meta: [{ title: "群組詳情 - Campus Cloud" }],
   }),
 })
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function TaskStatusIcon({ status }: { status: TaskStatus }) {
+  if (status === "completed")
+    return <CheckCircle2 className="h-4 w-4 text-green-500" />
+  if (status === "failed") return <XCircle className="h-4 w-4 text-destructive" />
+  if (status === "running")
+    return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+  return <Circle className="h-4 w-4 text-muted-foreground" />
+}
+
+function ProgressBar({ done, total }: { done: number; total: number }) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0
+  return (
+    <div className="w-full rounded-full bg-muted h-2 overflow-hidden">
+      <div
+        className="h-full bg-primary transition-all duration-300"
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  )
+}
+
+// ─── Import CSV Dialog ────────────────────────────────────────────────────────
 
 function ImportCsvDialog({ groupId }: { groupId: string }) {
   const [open, setOpen] = useState(false)
@@ -161,6 +240,8 @@ function ImportCsvDialog({ groupId }: { groupId: string }) {
   )
 }
 
+// ─── Add Members Dialog ───────────────────────────────────────────────────────
+
 function AddMembersDialog({ groupId }: { groupId: string }) {
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
@@ -207,10 +288,11 @@ function AddMembersDialog({ groupId }: { groupId: string }) {
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label>Email 列表（每行一個或逗號分隔）</Label>
-              <Textarea
+              <textarea
                 {...register("emailsText", { required: true })}
                 placeholder={"student1@example.com\nstudent2@example.com"}
                 rows={6}
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
           </div>
@@ -229,6 +311,511 @@ function AddMembersDialog({ groupId }: { groupId: string }) {
     </Dialog>
   )
 }
+
+// ─── Batch Provision Dialog ───────────────────────────────────────────────────
+
+function BatchProvisionDialog({
+  groupId,
+  memberCount,
+}: {
+  groupId: string
+  memberCount: number
+}) {
+  const [open, setOpen] = useState(false)
+  const [resourceType, setResourceType] = useState<"lxc" | "qemu">("lxc")
+  const [jobId, setJobId] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const { showErrorToast } = useCustomToast()
+
+  // form state
+  const [hostnamePrefix, setHostnamePrefix] = useState("")
+  const [password, setPassword] = useState("")
+  const [cores, setCores] = useState(2)
+  const [memory, setMemory] = useState(2048)
+  const [rootfsSize, setRootfsSize] = useState(8)
+  const [diskSize, setDiskSize] = useState(20)
+  const [ostemplate, setOstemplate] = useState("")
+  const [templateId, setTemplateId] = useState<number | null>(null)
+  const [username, setUsername] = useState("")
+  const [expiryDate, setExpiryDate] = useState("")
+
+  const { data: lxcTemplates } = useQuery({
+    queryKey: ["lxc-templates"],
+    queryFn: () => LxcService.getTemplates(),
+    enabled: open && resourceType === "lxc",
+  })
+
+  const { data: vmTemplates } = useQuery({
+    queryKey: ["vm-templates"],
+    queryFn: () => VmService.getVmTemplates(),
+    enabled: open && resourceType === "qemu",
+  })
+
+  // 輪詢進度
+  const {
+    data: jobStatus,
+    isLoading: jobLoading,
+  } = useQuery<BatchJob>({
+    queryKey: ["batch-job", jobId],
+    queryFn: () =>
+      __request<BatchJob>(OpenAPI, {
+        method: "GET",
+        url: `/api/v1/batch-provision/${jobId}/status`,
+      }),
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      if (status === "completed" || status === "failed") return false
+      return 2000
+    },
+  })
+
+  const isRunning =
+    jobStatus?.status === "pending" || jobStatus?.status === "running"
+
+  const handleSubmit = async () => {
+    if (!hostnamePrefix.trim() || !password) return
+    if (resourceType === "lxc" && !ostemplate) return
+    if (resourceType === "qemu" && (!templateId || !username.trim())) return
+
+    setSubmitting(true)
+    try {
+      const body: Record<string, any> = {
+        resource_type: resourceType,
+        hostname_prefix: hostnamePrefix.trim(),
+        password,
+        cores,
+        memory,
+        environment_type: "批量建立",
+      }
+      if (expiryDate) body.expiry_date = expiryDate
+      if (resourceType === "lxc") {
+        body.ostemplate = ostemplate
+        body.rootfs_size = rootfsSize
+      } else {
+        body.template_id = templateId
+        body.username = username.trim()
+        body.disk_size = diskSize
+      }
+
+      const job = await __request<BatchJob>(OpenAPI, {
+        method: "POST",
+        url: `/api/v1/batch-provision/${groupId}`,
+        body,
+      })
+      setJobId(job.id)
+    } catch (err: any) {
+      showErrorToast(err?.body?.detail ?? "批量建立失敗")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleOpenChange = (v: boolean) => {
+    if (isRunning) return // 執行中不允許關閉
+    setOpen(v)
+    if (!v) {
+      setJobId(null)
+      setHostnamePrefix("")
+      setPassword("")
+      setCores(2)
+      setMemory(2048)
+      setOstemplate("")
+      setTemplateId(null)
+      setUsername("")
+      setExpiryDate("")
+    }
+  }
+
+  const pct =
+    jobStatus && jobStatus.total > 0
+      ? Math.round((jobStatus.done / jobStatus.total) * 100)
+      : 0
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button size="sm">
+          <ServerCog className="mr-1 h-4 w-4" />
+          批量建立資源
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>批量建立資源</DialogTitle>
+        </DialogHeader>
+
+        {!jobId ? (
+          /* ── 表單 ── */
+          <div className="space-y-5 py-2">
+            <p className="text-sm text-muted-foreground">
+              將為群組 <strong>{memberCount}</strong>{" "}
+              位成員各自建立一台資源，並自動分配給對應帳號。
+              Hostname 會自動加上流水號（例如 <code>webdev-1</code>、
+              <code>webdev-2</code>…）。
+            </p>
+
+            <Tabs
+              value={resourceType}
+              onValueChange={(v) => setResourceType(v as "lxc" | "qemu")}
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="lxc">LXC 容器</TabsTrigger>
+                <TabsTrigger value="qemu">VM 虛擬機</TabsTrigger>
+              </TabsList>
+
+              {/* ── LXC ── */}
+              <TabsContent value="lxc" className="mt-4 space-y-4">
+                <div className="grid gap-2">
+                  <Label>
+                    Hostname 前綴 <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    placeholder="webdev"
+                    value={hostnamePrefix}
+                    onChange={(e) => setHostnamePrefix(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    實際 hostname：{hostnamePrefix || "prefix"}-1、
+                    {hostnamePrefix || "prefix"}-2…
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>
+                    OS Template <span className="text-destructive">*</span>
+                  </Label>
+                  <Select value={ostemplate} onValueChange={setOstemplate}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="選擇 OS 模板" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lxcTemplates?.map((t) => (
+                        <SelectItem key={t.volid} value={t.volid}>
+                          {t.volid.split("/").pop()?.replace(".tar.zst", "")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>
+                    Root 密碼 <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="password"
+                    placeholder="統一密碼"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>到期日</Label>
+                  <Input
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
+                  <p className="text-sm font-medium">硬體規格</p>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>CPU</span>
+                      <span className="font-semibold text-primary">
+                        {cores} Cores
+                      </span>
+                    </div>
+                    <Slider
+                      min={1} max={8} step={1}
+                      value={[cores]}
+                      onValueChange={([v]) => setCores(v)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>記憶體</span>
+                      <span className="font-semibold text-primary">
+                        {(memory / 1024).toFixed(1)} GB
+                      </span>
+                    </div>
+                    <Slider
+                      min={512} max={32768} step={512}
+                      value={[memory]}
+                      onValueChange={([v]) => setMemory(v)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>磁碟</span>
+                      <span className="font-semibold text-primary">
+                        {rootfsSize} GB
+                      </span>
+                    </div>
+                    <Slider
+                      min={8} max={500} step={1}
+                      value={[rootfsSize]}
+                      onValueChange={([v]) => setRootfsSize(v)}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* ── VM ── */}
+              <TabsContent value="qemu" className="mt-4 space-y-4">
+                <div className="grid gap-2">
+                  <Label>
+                    Hostname 前綴 <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    placeholder="lab-vm"
+                    value={hostnamePrefix}
+                    onChange={(e) => setHostnamePrefix(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    實際 hostname：{hostnamePrefix || "prefix"}-1、
+                    {hostnamePrefix || "prefix"}-2…
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>
+                    OS Template <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={templateId?.toString() ?? ""}
+                    onValueChange={(v) => setTemplateId(Number(v))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="選擇 VM 模板" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vmTemplates?.map((t) => (
+                        <SelectItem key={t.vmid} value={t.vmid.toString()}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label>
+                      用戶名 <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      placeholder="student"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>
+                      密碼 <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      type="password"
+                      placeholder="統一密碼"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>到期日</Label>
+                  <Input
+                    type="date"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="rounded-xl border bg-muted/20 p-4 space-y-4">
+                  <p className="text-sm font-medium">硬體規格</p>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>CPU</span>
+                      <span className="font-semibold text-primary">
+                        {cores} Cores
+                      </span>
+                    </div>
+                    <Slider
+                      min={1} max={8} step={1}
+                      value={[cores]}
+                      onValueChange={([v]) => setCores(v)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>記憶體</span>
+                      <span className="font-semibold text-primary">
+                        {(memory / 1024).toFixed(1)} GB
+                      </span>
+                    </div>
+                    <Slider
+                      min={512} max={32768} step={512}
+                      value={[memory]}
+                      onValueChange={([v]) => setMemory(v)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>磁碟</span>
+                      <span className="font-semibold text-primary">
+                        {diskSize} GB
+                      </span>
+                    </div>
+                    <Slider
+                      min={20} max={500} step={1}
+                      value={[diskSize]}
+                      onValueChange={([v]) => setDiskSize(v)}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <DialogFooter className="pt-2">
+              <DialogClose asChild>
+                <Button variant="outline" disabled={submitting}>
+                  取消
+                </Button>
+              </DialogClose>
+              <LoadingButton
+                loading={submitting}
+                onClick={handleSubmit}
+                disabled={
+                  !hostnamePrefix.trim() ||
+                  !password ||
+                  (resourceType === "lxc" && !ostemplate) ||
+                  (resourceType === "qemu" && (!templateId || !username.trim()))
+                }
+              >
+                開始批量建立（{memberCount} 台）
+              </LoadingButton>
+            </DialogFooter>
+          </div>
+        ) : (
+          /* ── 進度追蹤 ── */
+          <div className="space-y-4 py-2">
+            {/* 總覽 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {jobStatus?.done ?? 0} / {jobStatus?.total ?? memberCount} 台完成
+                </span>
+                <div className="flex items-center gap-2">
+                  {jobStatus?.failed_count ? (
+                    <Badge variant="destructive">
+                      {jobStatus.failed_count} 台失敗
+                    </Badge>
+                  ) : null}
+                  <Badge
+                    variant={
+                      jobStatus?.status === "completed"
+                        ? "default"
+                        : jobStatus?.status === "failed"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                  >
+                    {jobStatus?.status === "pending" && "等待中"}
+                    {jobStatus?.status === "running" && "執行中"}
+                    {jobStatus?.status === "completed" && "已完成"}
+                    {jobStatus?.status === "failed" && "失敗"}
+                  </Badge>
+                </div>
+              </div>
+              <ProgressBar done={jobStatus?.done ?? 0} total={jobStatus?.total ?? memberCount} />
+            </div>
+
+            {/* 每台進度列表 */}
+            <div className="max-h-72 overflow-y-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8">#</TableHead>
+                    <TableHead>成員</TableHead>
+                    <TableHead>Hostname</TableHead>
+                    <TableHead className="w-16">VMID</TableHead>
+                    <TableHead className="w-8" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(jobStatus?.tasks ?? []).map((task) => (
+                    <TableRow key={task.id}>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {task.member_index}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        <div>{task.user_name ?? "-"}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {task.user_email}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">
+                        {jobStatus
+                          ? `${jobStatus.hostname_prefix}-${task.member_index}`
+                          : "-"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {task.vmid ?? "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div title={task.error ?? undefined}>
+                          <TaskStatusIcon status={task.status} />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* 失敗訊息 */}
+            {(jobStatus?.tasks ?? []).some((t) => t.status === "failed") && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs space-y-1">
+                <p className="font-medium text-destructive">失敗項目：</p>
+                {jobStatus!.tasks
+                  .filter((t) => t.status === "failed")
+                  .map((t) => (
+                    <p key={t.id} className="text-muted-foreground">
+                      #{t.member_index} {t.user_email}：{t.error}
+                    </p>
+                  ))}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant={isRunning ? "outline" : "default"}
+                disabled={isRunning}
+                onClick={() => handleOpenChange(false)}
+              >
+                {isRunning ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    建立中，請稍候…
+                  </>
+                ) : (
+                  "關閉"
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Group Detail Content ─────────────────────────────────────────────────────
 
 function GroupDetailContent({ groupId }: { groupId: string }) {
   const queryClient = useQueryClient()
@@ -270,6 +857,12 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
         <div className="flex items-center gap-2">
           <ImportCsvDialog groupId={groupId} />
           <AddMembersDialog groupId={groupId} />
+          {members.length > 0 && (
+            <BatchProvisionDialog
+              groupId={groupId}
+              memberCount={members.length}
+            />
+          )}
         </div>
       </div>
 
@@ -321,6 +914,8 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
     </div>
   )
 }
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 function GroupDetailPage() {
   const { groupId } = Route.useParams()

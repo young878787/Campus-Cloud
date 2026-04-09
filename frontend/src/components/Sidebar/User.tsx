@@ -37,8 +37,8 @@ function UserInfo({ avatarUrl, fullName, email }: UserInfoProps) {
         fullName={fullName}
       />
       <div className="flex flex-col items-start min-w-0">
-        <p className="text-sm font-medium truncate w-full">{displayName}</p>
-        <p className="text-xs text-muted-foreground truncate w-full">{email}</p>
+        <p className="text-sm font-medium truncate w-full sidebar-user-text">{displayName}</p>
+        <p className="text-xs truncate w-full sidebar-user-text">{email}</p>
       </div>
     </div>
   )
@@ -62,7 +62,7 @@ export function User({ user }: { user: UserPublic | null | undefined }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
@@ -74,12 +74,12 @@ export function User({ user }: { user: UserPublic | null | undefined }) {
                 fullName={user?.full_name}
                 email={user?.email}
               />
-              <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
+              <ChevronsUpDown className="ml-auto size-4 sidebar-user-text" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            side={isMobile ? "bottom" : "right"}
+            side="top"
             align="end"
             sideOffset={4}
           >

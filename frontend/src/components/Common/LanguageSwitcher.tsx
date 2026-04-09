@@ -24,26 +24,19 @@ export function SidebarLanguageSwitcher() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
-              size="lg"
+              tooltip="語言 / Language"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <Languages className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">語言 / Language</span>
-                <span className="truncate text-xs">
-                  {languageOptions.find((opt) => opt.value === language)?.label}
-                </span>
-              </div>
+              <Languages className="size-4" />
+              <span>語言 / Language</span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-            side="bottom"
+            side="top"
             align="end"
             sideOffset={4}
           >

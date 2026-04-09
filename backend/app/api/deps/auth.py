@@ -29,8 +29,9 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
     # All failures here are authentication problems (bad/expired/revoked token,
     # missing or inactive user), so they must return 401 to trigger the
     # frontend refresh-token flow. Never raise 403 from this function — that
-    # would incorrectly signal "authenticated but forbidden" and cause the
-    # frontend to log the user out instead of refreshing the token.
+    # would incorrectly signal "authenticated but forbidden". The frontend
+    # treats 403 as forbidden without logging the user out; 401 is what drives
+    # token refresh and eventual logout if refresh fails.
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]

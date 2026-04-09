@@ -66,13 +66,13 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.5982 0.10687 182.4689);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar: oklch(1 0 0 / 20%);
+  --sidebar-foreground: #5471BF;
+  --sidebar-primary: #5471BF;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #5471BF;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: oklch(1 0 0 / 85%);
   --sidebar-ring: oklch(0.708 0 0);
 }
 
@@ -116,6 +116,11 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  [data-slot="sidebar-menu"],
+  [data-slot="sidebar-menu-item"] {
+    list-style: none;
+    padding-left: 0;
   }
   button,
   [role="button"] {
@@ -191,6 +196,72 @@
     box-shadow:
       0 8px 32px rgba(0, 0, 0, 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  /* App shell — full-page gradient (light mode only) */
+  .app-layout {
+    background:
+      radial-gradient(ellipse 55% 45% at 88% 8%, rgba(170, 205, 235, 0.65) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 40% at 12% 88%, rgba(240, 225, 185, 0.50) 0%, transparent 55%),
+      linear-gradient(155deg, #ebf3fb 0%, #f9f9fb 45%, #f7edd5 100%);
+  }
+
+  .dark .app-layout {
+    background: var(--background);
+  }
+
+  /* Sidebar footer buttons — language & appearance */
+  [data-slot="sidebar-footer"] [data-slot="sidebar-menu-button"] {
+    color: #5D7FD8;
+  }
+
+  [data-slot="sidebar-footer"] [data-slot="sidebar-menu-button"]:hover {
+    background-color: #5D7FD8 !important;
+    color: #ffffff !important;
+  }
+
+  .sidebar-user-text {
+    color: #1C41A0;
+  }
+
+  [data-slot="sidebar-footer"] [data-slot="sidebar-menu-button"]:hover * {
+    color: #ffffff !important;
+  }
+
+  [data-slot="sidebar-footer"] [data-slot="sidebar-menu-button"]:hover .sidebar-user-text {
+    color: #ffffff !important;
+  }
+
+  /* Hide text when sidebar collapsed, center icon */
+  [data-collapsible="icon"] [data-slot="sidebar-menu-button"] > span:not(.sr-only) {
+    display: none;
+  }
+
+  [data-collapsible="icon"] [data-slot="sidebar-menu-button"] {
+    justify-content: center !important;
+  }
+
+  /* Sidebar glass card — light mode */
+  [data-slot="sidebar-container"] {
+    overflow: hidden;
+  }
+
+  [data-slot="sidebar-inner"] {
+    border-radius: 12px !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    box-shadow:
+      0 8px 32px rgba(100, 140, 200, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  }
+
+  .dark [data-slot="sidebar-inner"] {
+    border-radius: 0 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    border: unset !important;
   }
 
   /* Dark mode glass card — light text on frosted dark */
