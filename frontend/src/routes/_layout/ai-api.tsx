@@ -109,7 +109,7 @@ function RequestStatusIcon({ status }: { status: AiApiRequestStatus }) {
 
 function StatPill({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-full border bg-background px-4 py-2">
+    <div className="glass-panel rounded-full px-4 py-2">
       <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </div>
@@ -128,7 +128,7 @@ function Panel({
   children: ReactNode
 }) {
   return (
-    <div className="rounded-2xl border bg-background/80 p-5 shadow-sm">
+    <div className="glass-panel rounded-2xl p-5">
       <div className="mb-4 space-y-1">
         <div className="text-base font-semibold">{title}</div>
         {description ? (
@@ -210,10 +210,19 @@ function CredentialRow({
 
   const statusBadge = (() => {
     if (isInactive)
-      return { label: "已替換", cls: "border-muted-foreground/20 bg-muted text-muted-foreground" }
+      return {
+        label: "已替換",
+        cls: "border-muted-foreground/20 bg-muted text-muted-foreground",
+      }
     if (expired)
-      return { label: "已過期", cls: "border-destructive/20 bg-destructive/10 text-destructive" }
-    return { label: "使用中", cls: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700" }
+      return {
+        label: "已過期",
+        cls: "border-destructive/20 bg-destructive/10 text-destructive",
+      }
+    return {
+      label: "使用中",
+      cls: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700",
+    }
   })()
 
   return (
@@ -552,7 +561,8 @@ function AiApiPage() {
                 通過後會拿到固定的 Base URL 與系統產生的專屬 API Key。
               </div>
               <div className="rounded-xl bg-muted/40 p-4">
-                如果你刷新 API Key，舊金鑰會立即變成已替換狀態。刷新後過期時間同步保留。
+                如果你刷新 API
+                Key，舊金鑰會立即變成已替換狀態。刷新後過期時間同步保留。
               </div>
               <div className="rounded-xl bg-muted/40 p-4">
                 呼叫時要使用哪個 model，請在你的客戶端請求中自行帶入。

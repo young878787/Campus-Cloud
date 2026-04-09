@@ -31,6 +31,12 @@ from .firewall_layout import FirewallLayout
 from .nat_rule import NatRule
 from .gateway_config import GatewayConfig
 from .reverse_proxy_rule import ReverseProxyRule
+from .batch_provision import (
+    BatchProvisionJob,
+    BatchProvisionJobStatus,
+    BatchProvisionTask,
+    BatchProvisionTaskStatus,
+)
 
 __all__ = [
     # Base
@@ -78,4 +84,9 @@ __all__ = [
     "GatewayConfig",
     # Reverse Proxy Rules
     "ReverseProxyRule",
+    # Batch Provision
+    "BatchProvisionJob",
+    "BatchProvisionJobStatus",
+    "BatchProvisionTask",
+    "BatchProvisionTaskStatus",
 ]

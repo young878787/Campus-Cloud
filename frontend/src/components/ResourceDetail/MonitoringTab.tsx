@@ -58,8 +58,8 @@ function pctDomainMax(max: number): number {
   const ceiling = max * 1.3
   // 依量級決定上限精度
   if (ceiling >= 10) return Math.ceil(ceiling)
-  if (ceiling >= 1) return Math.ceil(ceiling * 10) / 10      // 一位小數
-  return Math.ceil(ceiling * 100) / 100                       // 兩位小數
+  if (ceiling >= 1) return Math.ceil(ceiling * 10) / 10 // 一位小數
+  return Math.ceil(ceiling * 100) / 100 // 兩位小數
 }
 
 /** 根據 domain 上限決定適當的百分比顯示格式 */
@@ -106,9 +106,7 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
     })
   }
 
-  const cpuPct = currentStats.cpu
-    ? (currentStats.cpu * 100).toFixed(2)
-    : "0.00"
+  const cpuPct = currentStats.cpu ? (currentStats.cpu * 100).toFixed(2) : "0.00"
   const memPct =
     currentStats.mem && currentStats.maxmem
       ? ((currentStats.mem / currentStats.maxmem) * 100).toFixed(2)
@@ -147,9 +145,7 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
 
   // 決定網路圖表的顯示單位（KB 或 MB）
   const maxNetKB = Math.max(
-    ...chartData.map((d) =>
-      Math.max(d.netinKB ?? 0, d.netoutKB ?? 0),
-    ),
+    ...chartData.map((d) => Math.max(d.netinKB ?? 0, d.netoutKB ?? 0)),
     0,
   )
   const useNetMB = maxNetKB >= 500
@@ -157,14 +153,14 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
   const netUnit = useNetMB ? "MB" : "KB"
   const netChartData = chartData.map((d) => ({
     ...d,
-    netin: d.netinKB != null ? Number((d.netinKB / netDivisor).toFixed(2)) : null,
-    netout: d.netoutKB != null ? Number((d.netoutKB / netDivisor).toFixed(2)) : null,
+    netin:
+      d.netinKB != null ? Number((d.netinKB / netDivisor).toFixed(2)) : null,
+    netout:
+      d.netoutKB != null ? Number((d.netoutKB / netDivisor).toFixed(2)) : null,
   }))
 
   // 計算各圖表的 Y 軸上限（自適應精度）
-  const cpuMax = pctDomainMax(
-    Math.max(...chartData.map((d) => d.cpu ?? 0), 0),
-  )
+  const cpuMax = pctDomainMax(Math.max(...chartData.map((d) => d.cpu ?? 0), 0))
   const memMax = pctDomainMax(
     Math.max(...chartData.map((d) => d.memory ?? 0), 0),
   )
@@ -200,7 +196,9 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
                 </p>
                 <p className="text-3xl font-bold mt-1 leading-none">
                   {cpuPct}
-                  <span className="text-lg text-muted-foreground font-normal">%</span>
+                  <span className="text-lg text-muted-foreground font-normal">
+                    %
+                  </span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {currentStats.maxcpu} {t("overview.cores")}
@@ -236,10 +234,13 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
                 </p>
                 <p className="text-3xl font-bold mt-1 leading-none">
                   {memPct}
-                  <span className="text-lg text-muted-foreground font-normal">%</span>
+                  <span className="text-lg text-muted-foreground font-normal">
+                    %
+                  </span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {formatBytes(currentStats.mem)} / {formatBytes(currentStats.maxmem)}
+                  {formatBytes(currentStats.mem)} /{" "}
+                  {formatBytes(currentStats.maxmem)}
                 </p>
               </div>
               <div className="rounded-full p-2 bg-emerald-100 dark:bg-emerald-900/30">
@@ -272,10 +273,13 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
                 </p>
                 <p className="text-3xl font-bold mt-1 leading-none">
                   {diskPct}
-                  <span className="text-lg text-muted-foreground font-normal">%</span>
+                  <span className="text-lg text-muted-foreground font-normal">
+                    %
+                  </span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {formatBytes(currentStats.disk)} / {formatBytes(currentStats.maxdisk)}
+                  {formatBytes(currentStats.disk)} /{" "}
+                  {formatBytes(currentStats.maxdisk)}
                 </p>
               </div>
               <div className="rounded-full p-2 bg-amber-100 dark:bg-amber-900/30">
@@ -328,7 +332,9 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
       {/* Historical Charts */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("monitoring.historicalData")}</CardTitle>
+          <CardTitle className="text-base">
+            {t("monitoring.historicalData")}
+          </CardTitle>
           <CardDescription>
             {t("monitoring.showing")} {rrdData?.data.length || 0}{" "}
             {t("monitoring.dataPoints")}
@@ -339,7 +345,9 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
             <TabsList>
               <TabsTrigger value="cpu">CPU</TabsTrigger>
               <TabsTrigger value="memory">{t("overview.memory")}</TabsTrigger>
-              <TabsTrigger value="network">{t("monitoring.network")}</TabsTrigger>
+              <TabsTrigger value="network">
+                {t("monitoring.network")}
+              </TabsTrigger>
             </TabsList>
 
             {/* CPU Chart */}
@@ -385,7 +393,10 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v) => [`${Number(v).toFixed(2)}%`, "CPU"]}
-                    cursor={{ stroke: "hsl(var(--border))", strokeDasharray: "4 4" }}
+                    cursor={{
+                      stroke: "hsl(var(--border))",
+                      strokeDasharray: "4 4",
+                    }}
                   />
                   <Area
                     type="monotone"
@@ -444,7 +455,10 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v) => [`${Number(v).toFixed(2)}%`, "記憶體"]}
-                    cursor={{ stroke: "hsl(var(--border))", strokeDasharray: "4 4" }}
+                    cursor={{
+                      stroke: "hsl(var(--border))",
+                      strokeDasharray: "4 4",
+                    }}
                   />
                   <Area
                     type="monotone"
@@ -489,7 +503,10 @@ export default function MonitoringTab({ vmid }: MonitoringTabProps) {
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v, name) => [`${v} ${netUnit}`, name]}
-                    cursor={{ stroke: "hsl(var(--border))", strokeDasharray: "4 4" }}
+                    cursor={{
+                      stroke: "hsl(var(--border))",
+                      strokeDasharray: "4 4",
+                    }}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Line

@@ -12,7 +12,7 @@ from app.api.deps.database import SessionDep, get_db
 from app.core import security
 from app.core.config import settings
 from app.core.db import engine
-from app.exceptions import PermissionDeniedError
+from app.exceptions import AuthenticationError, PermissionDeniedError
 from app.models import User
 from app.schemas import TokenPayload
 
@@ -26,22 +26,28 @@ TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
 
 def get_current_user(session: SessionDep, token: TokenDep) -> User:
+    # All failures here are authentication problems (bad/expired/revoked token,
+    # missing or inactive user), so they must return 401 to trigger the
+    # frontend refresh-token flow. Never raise 403 from this function — that
+    # would incorrectly signal "authenticated but forbidden". The frontend
+    # treats 403 as forbidden without logging the user out; 401 is what drives
+    # token refresh and eventual logout if refresh fails.
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
         token_data = TokenPayload(**payload)
     except (InvalidTokenError, ValidationError):
-        raise PermissionDeniedError("Could not validate credentials")
+        raise AuthenticationError("Could not validate credentials")
     if token_data.type == "refresh":
-        raise PermissionDeniedError("Refresh tokens cannot be used for API access")
+        raise AuthenticationError("Refresh tokens cannot be used for API access")
     user = session.get(User, token_data.sub)
     if not user:
-        raise PermissionDeniedError("User not found")
+        raise AuthenticationError("User not found")
     if not user.is_active:
-        raise PermissionDeniedError("Inactive user")
+        raise AuthenticationError("Inactive user")
     if user.token_version != token_data.ver:
-        raise PermissionDeniedError("Token has been revoked")
+        raise AuthenticationError("Token has been revoked")
     return user
 
 

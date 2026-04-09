@@ -2,8 +2,8 @@ import { createFileRoute, redirect } from "@tanstack/react-router"
 import { Suspense } from "react"
 
 import { UsersService } from "@/client"
-import PendingItems from "@/components/Pending/PendingItems"
 import VMRequestReviewPage from "@/components/Applications/VMRequestReviewPage"
+import PendingItems from "@/components/Pending/PendingItems"
 
 export const Route = createFileRoute("/_layout/approvals_/$requestId")({
   component: ApprovalReviewRoute,

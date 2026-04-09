@@ -5,7 +5,9 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import (
+    AdminUser,
     CurrentUser,
+    ResourceInfoDep,
     SessionDep,
     check_firewall_access,
 )
@@ -31,7 +33,6 @@ from app.services import (
     audit_service,
     firewall_service,
     nat_service,
-    proxmox_service,
     reverse_proxy_service,
 )
 from app.services.firewall_service import _BLOCK_LOCAL_COMMENT
@@ -220,15 +221,12 @@ def delete_connection(
 @router.get("/{vmid}/rules", response_model=list[FirewallRulePublic])
 def list_rules(
     vmid: int,
-    session: SessionDep,
-    current_user: CurrentUser,
+    resource_info: ResourceInfoDep,
 ):
     """列出 VM 防火牆規則（包含 campus-cloud 管理的規則）"""
-    check_firewall_access(vmid=vmid, current_user=current_user, session=session)
     try:
-        resource = proxmox_service.find_resource(vmid)
         rules = firewall_service.get_vm_firewall_rules(
-            resource["node"], vmid, resource["type"]
+            resource_info["node"], vmid, resource_info["type"]
         )
         return [
             FirewallRulePublic(
@@ -251,8 +249,6 @@ def list_rules(
             for i, r in enumerate(rules)
             if r.get("comment") != _BLOCK_LOCAL_COMMENT
         ]
-    except NotFoundError:
-        raise HTTPException(status_code=404, detail=f"VM {vmid} 不存在")
     except ProxmoxError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -263,13 +259,12 @@ def create_rule(
     rule: FirewallRuleCreate,
     session: SessionDep,
     current_user: CurrentUser,
+    resource_info: ResourceInfoDep,
 ):
     """在 VM 上建立防火牆規則"""
-    check_firewall_access(vmid=vmid, current_user=current_user, session=session)
     try:
-        resource = proxmox_service.find_resource(vmid)
         rule_dict = {k: v for k, v in rule.model_dump().items() if v is not None}
-        firewall_service.create_rule(resource["node"], vmid, resource["type"], rule_dict)
+        firewall_service.create_rule(resource_info["node"], vmid, resource_info["type"], rule_dict)
         audit_service.log_action(
             session=session,
             user_id=current_user.id,
@@ -278,8 +273,6 @@ def create_rule(
             details=f"Created firewall rule on VM {vmid}: {rule_dict}",
         )
         return Message(message="規則已建立")
-    except NotFoundError:
-        raise HTTPException(status_code=404, detail=f"VM {vmid} 不存在")
     except ProxmoxError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -291,13 +284,12 @@ def update_rule(
     rule: FirewallRuleUpdate,
     session: SessionDep,
     current_user: CurrentUser,
+    resource_info: ResourceInfoDep,
 ):
     """更新 VM 防火牆規則（不可修改 campus-cloud 管理的規則）"""
-    check_firewall_access(vmid=vmid, current_user=current_user, session=session)
     try:
-        resource = proxmox_service.find_resource(vmid)
         rules = firewall_service.get_vm_firewall_rules(
-            resource["node"], vmid, resource["type"]
+            resource_info["node"], vmid, resource_info["type"]
         )
         target_rule = next((r for r in rules if r.get("pos") == pos), None)
         if target_rule and str(target_rule.get("comment", "")).startswith("campus-cloud:"):
@@ -307,7 +299,7 @@ def update_rule(
             )
         rule_dict = {k: v for k, v in rule.model_dump().items() if v is not None}
         firewall_service.update_rule(
-            resource["node"], vmid, resource["type"], pos, rule_dict
+            resource_info["node"], vmid, resource_info["type"], pos, rule_dict
         )
         audit_service.log_action(
             session=session,
@@ -317,8 +309,6 @@ def update_rule(
             details=f"Updated firewall rule pos={pos} on VM {vmid}: {rule_dict}",
         )
         return Message(message="規則已更新")
-    except NotFoundError:
-        raise HTTPException(status_code=404, detail=f"VM {vmid} 不存在")
     except ProxmoxError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -329,14 +319,13 @@ def delete_rule(
     pos: int,
     session: SessionDep,
     current_user: CurrentUser,
+    resource_info: ResourceInfoDep,
 ):
     """刪除 VM 防火牆規則（不可刪除 campus-cloud 管理的規則，請使用連線刪除 API）"""
-    check_firewall_access(vmid=vmid, current_user=current_user, session=session)
     try:
-        resource = proxmox_service.find_resource(vmid)
         # 先取得規則確認不是 campus-cloud 管理的規則
         rules = firewall_service.get_vm_firewall_rules(
-            resource["node"], vmid, resource["type"]
+            resource_info["node"], vmid, resource_info["type"]
         )
         target_rule = next((r for r in rules if r.get("pos") == pos), None)
         if target_rule and str(target_rule.get("comment", "")).startswith("campus-cloud:"):
@@ -344,7 +333,7 @@ def delete_rule(
                 status_code=400,
                 detail="此規則由 Campus Cloud 管理，請使用連線管理介面進行操作",
             )
-        firewall_service.delete_rule_by_pos(resource["node"], vmid, resource["type"], pos)
+        firewall_service.delete_rule_by_pos(resource_info["node"], vmid, resource_info["type"], pos)
         audit_service.log_action(
             session=session,
             user_id=current_user.id,
@@ -355,8 +344,6 @@ def delete_rule(
         return Message(message="規則已刪除")
     except HTTPException:
         raise
-    except NotFoundError:
-        raise HTTPException(status_code=404, detail=f"VM {vmid} 不存在")
     except ProxmoxError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -415,11 +402,7 @@ def delete_nat_rule(
     if rule is None:
         raise HTTPException(status_code=404, detail="NAT 規則不存在")
 
-    # 權限檢查：非 superuser 只能刪除自己 VM 的規則
-    if not current_user.is_superuser:
-        check_firewall_access(
-            vmid=rule.vmid, current_user=current_user, session=session
-        )
+    check_firewall_access(vmid=rule.vmid, current_user=current_user, session=session)
 
     try:
         nat_service.remove_nat_rule_by_id(session=session, rule_id=rule_id)
@@ -445,11 +428,9 @@ def delete_nat_rule(
 @router.post("/nat-rules/sync", response_model=Message)
 def sync_nat_rules(
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: AdminUser,
 ):
     """手動將 DB 中的 NAT 規則同步到 Gateway VM haproxy"""
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="僅限管理員操作")
     try:
         nat_service.sync_to_gateway(session=session)
         audit_service.log_action(
@@ -521,10 +502,7 @@ def delete_reverse_proxy_rule(
     if rule is None:
         raise HTTPException(status_code=404, detail="反向代理規則不存在")
 
-    if not current_user.is_superuser:
-        check_firewall_access(
-            vmid=rule.vmid, current_user=current_user, session=session
-        )
+    check_firewall_access(vmid=rule.vmid, current_user=current_user, session=session)
 
     try:
         reverse_proxy_service.remove_reverse_proxy_rule_by_id(session=session, rule_id=rule_id)
@@ -550,11 +528,9 @@ def delete_reverse_proxy_rule(
 @router.post("/reverse-proxy-rules/sync", response_model=Message)
 def sync_reverse_proxy_rules(
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: AdminUser,
 ):
     """手動將反向代理規則同步到 Gateway VM Traefik"""
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="僅限管理員操作")
     try:
         reverse_proxy_service.sync_to_gateway(session=session)
         audit_service.log_action(
@@ -575,22 +551,17 @@ def sync_reverse_proxy_rules(
 @router.get("/{vmid}/options", response_model=FirewallOptionsPublic)
 def get_options(
     vmid: int,
-    session: SessionDep,
-    current_user: CurrentUser,
+    resource_info: ResourceInfoDep,
 ):
     """取得 VM 防火牆選項（是否啟用、預設策略）"""
-    check_firewall_access(vmid=vmid, current_user=current_user, session=session)
     try:
-        resource = proxmox_service.find_resource(vmid)
         opts = firewall_service.get_firewall_options(
-            resource["node"], vmid, resource["type"]
+            resource_info["node"], vmid, resource_info["type"]
         )
         return FirewallOptionsPublic(
             enable=bool(opts.get("enable", False)),
             policy_in=opts.get("policy_in", "DROP"),
             policy_out=opts.get("policy_out", "ACCEPT"),
         )
-    except NotFoundError:
-        raise HTTPException(status_code=404, detail=f"VM {vmid} 不存在")
     except ProxmoxError as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -61,18 +61,16 @@ type DeployStatus = {
 // ---------------------------------------------------------------------------
 
 function stripAnsi(text: string): string {
-  return (
-    text
-      .replace(/\x1B\[[0-9;]*[A-Za-z]/g, "")
-      .replace(/\x1B\][^\x07]*\x07/g, "")
-      .replace(/\x1B[^[\]()][^\x1B]*/g, "")
-      .replace(/\x1B/g, "")
-      .replace(/\[([0-9;]*)[A-Za-z]/g, "")
-      .replace(/\[\?[0-9;]*[A-Za-z]/g, "")
-      .replace(/\r/g, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim()
-  )
+  return text
+    .replace(/\x1B\[[0-9;]*[A-Za-z]/g, "")
+    .replace(/\x1B\][^\x07]*\x07/g, "")
+    .replace(/\x1B[^[\]()][^\x1B]*/g, "")
+    .replace(/\x1B/g, "")
+    .replace(/\[([0-9;]*)[A-Za-z]/g, "")
+    .replace(/\[\?[0-9;]*[A-Za-z]/g, "")
+    .replace(/\r/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
 }
 
 // ---------------------------------------------------------------------------
@@ -126,7 +124,7 @@ export function ScriptDeployPage({
   // Auto-scroll log to bottom
   useLayoutEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [cleanedOutput])
+  }, [])
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -197,7 +195,7 @@ export function ScriptDeployPage({
       deployMutation.mutate()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [deployMutation.mutate])
 
   const isDone = status?.status === "completed" || status?.status === "failed"
 
@@ -241,9 +239,7 @@ export function ScriptDeployPage({
         </div>
         <div className="rounded-lg border bg-card p-3">
           <div className="text-xs text-muted-foreground">CPU</div>
-          <div className="mt-0.5 text-sm font-medium">
-            {formData.cpu} Cores
-          </div>
+          <div className="mt-0.5 text-sm font-medium">{formData.cpu} Cores</div>
         </div>
         <div className="rounded-lg border bg-card p-3">
           <div className="text-xs text-muted-foreground">RAM</div>
@@ -338,8 +334,7 @@ export function ScriptDeployPage({
         <div className="rounded-lg border bg-green-500/5 p-3">
           <div className="flex items-center gap-1.5 text-sm">
             <Server className="h-4 w-4" />
-            VMID:{" "}
-            <span className="font-mono font-bold">{status.vmid}</span>
+            VMID: <span className="font-mono font-bold">{status.vmid}</span>
           </div>
         </div>
       )}

@@ -18,8 +18,8 @@ import { Eye, EyeOff, LayoutGrid, RefreshCw, Shield } from "lucide-react"
 import type React from "react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
 import type { ApiError } from "@/client"
+import { Button } from "@/components/ui/button"
 import { FirewallService } from "@/services/firewall"
 import { ConnectionDialog } from "./ConnectionDialog"
 import type { ConnectionEdgeData } from "./ConnectionEdge"
@@ -212,7 +212,8 @@ function FirewallTopologyInner() {
       if (context?.previous) {
         queryClient.setQueryData(["firewall-topology"], context.previous)
       }
-      const detail = ((e as ApiError)?.body as { detail?: string })?.detail ?? e.message
+      const detail =
+        ((e as ApiError)?.body as { detail?: string })?.detail ?? e.message
       toast.error(`刪除連線失敗: ${detail}`)
     },
   })
@@ -427,7 +428,8 @@ function FirewallTopologyInner() {
       queryClient.invalidateQueries({ queryKey: ["firewall-topology"] })
     },
     onError: (e: Error) => {
-      const detail = ((e as ApiError)?.body as { detail?: string })?.detail ?? e.message
+      const detail =
+        ((e as ApiError)?.body as { detail?: string })?.detail ?? e.message
       toast.error(`建立連線失敗: ${detail}`)
     },
   })
@@ -475,8 +477,8 @@ function FirewallTopologyInner() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full bg-[#0f0f0f]">
-        <div className="text-gray-500 text-sm flex items-center gap-2">
+      <div className="flex items-center justify-center h-full">
+        <div className="text-muted-foreground text-sm flex items-center gap-2">
           <RefreshCw className="w-4 h-4 animate-spin" />
           載入拓撲資料...
         </div>
@@ -485,7 +487,7 @@ function FirewallTopologyInner() {
   }
 
   return (
-    <div className="relative w-full h-full bg-[#0f0f0f]">
+    <div className="relative w-full h-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -500,7 +502,7 @@ function FirewallTopologyInner() {
         fitView
         fitViewOptions={{ padding: 0.2 }}
         colorMode="dark"
-        className="bg-[#0f0f0f]"
+        style={{ backgroundColor: "transparent" }}
         deleteKeyCode={null} // 停用 Delete 鍵刪除（需透過 UI 確認）
       >
         {/* 點狀網格背景 */}
@@ -508,24 +510,25 @@ function FirewallTopologyInner() {
           variant={BackgroundVariant.Dots}
           gap={20}
           size={1}
-          color="#1e1e1e"
+          color="hsl(var(--muted))"
+          style={{ backgroundColor: "transparent" }}
         />
 
         {/* 縮略圖 */}
         <MiniMap
-          className="!bg-[#111] !border-[#2e2e2e]"
-          nodeColor="#2e2e2e"
+          className="!bg-card !border-border"
+          nodeColor="hsl(var(--accent))"
           maskColor="rgba(0,0,0,0.6)"
         />
 
         {/* 控制工具列 */}
-        <Controls className="!bg-[#1a1a1a] !border-[#2e2e2e]" />
+        <Controls className="!bg-card !border-border" />
 
         {/* 頂部工具列 */}
         <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
-          <div className="flex items-center gap-2 bg-[#1a1a1a] border border-[#2e2e2e] rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2">
             <Shield className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm font-medium text-gray-200">
+            <span className="text-sm font-medium text-foreground/90">
               防火牆管理
             </span>
           </div>
@@ -533,7 +536,7 @@ function FirewallTopologyInner() {
             size="sm"
             variant="ghost"
             onClick={() => refetch()}
-            className="bg-[#1a1a1a] border border-[#2e2e2e] text-gray-400 hover:text-gray-100 h-8"
+            className="bg-card border border-border text-muted-foreground hover:text-foreground h-8"
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
             重新整理
@@ -542,7 +545,7 @@ function FirewallTopologyInner() {
             size="sm"
             variant="ghost"
             onClick={autoArrange}
-            className="bg-[#1a1a1a] border border-[#2e2e2e] text-gray-400 hover:text-gray-100 h-8"
+            className="bg-card border border-border text-muted-foreground hover:text-foreground h-8"
           >
             <LayoutGrid className="w-3.5 h-3.5 mr-1.5" />
             自動排列
@@ -554,7 +557,7 @@ function FirewallTopologyInner() {
             className={`border h-8 ${
               showLabels
                 ? "bg-emerald-900/30 border-emerald-700 text-emerald-400 hover:text-emerald-300"
-                : "bg-[#1a1a1a] border-[#2e2e2e] text-gray-400 hover:text-gray-100"
+                : "bg-card border-border text-muted-foreground hover:text-foreground"
             }`}
           >
             {showLabels ? (
@@ -567,7 +570,7 @@ function FirewallTopologyInner() {
         </div>
 
         {/* 使用說明 */}
-        <div className="absolute bottom-4 left-4 z-10 text-xs text-gray-600 bg-[#111]/80 rounded-md px-3 py-2 border border-[#1e1e1e]">
+        <div className="absolute bottom-4 left-4 z-10 text-xs text-muted-foreground/50 bg-card/80 rounded-md px-3 py-2 border border-border/50">
           拖拉節點移動位置 · 從節點右側拖拉到另一個節點建立連線 · 點擊節點聚焦 ·
           再次點擊或點空白處取消
         </div>

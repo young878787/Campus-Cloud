@@ -19,18 +19,18 @@ export function VMNode({ data, selected }: NodeProps<VMNodeType>) {
     <div
       className={`
         relative flex items-center gap-3 px-4 py-3
-        bg-[#1a1a1a] border rounded-xl cursor-pointer
+        bg-card border rounded-xl cursor-pointer
         transition-all duration-200 min-w-[180px]
         ${
           selected
             ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.4)]"
-            : "border-[#2e2e2e] hover:border-[#3e3e3e]"
+            : "border-border hover:border-ring/50"
         }
       `}
     >
       {/* 左側 icon */}
-      <div className="flex-shrink-0 w-8 h-8 bg-[#2a2a2a] rounded-lg flex items-center justify-center">
-        <Server className="w-4 h-4 text-gray-400" />
+      <div className="flex-shrink-0 w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
+        <Server className="w-4 h-4 text-muted-foreground" />
       </div>
 
       {/* 主要資訊 */}
@@ -42,11 +42,11 @@ export function VMNode({ data, selected }: NodeProps<VMNodeType>) {
               isRunning ? "bg-emerald-400" : "bg-red-400"
             }`}
           />
-          <span className="text-sm font-medium text-gray-100 truncate">
+          <span className="text-sm font-medium text-foreground truncate">
             {data.name}
           </span>
         </div>
-        <div className="text-xs text-gray-500 mt-0.5 truncate">
+        <div className="text-xs text-muted-foreground mt-0.5 truncate">
           {hasIp ? data.ip_address : `VMID: ${data.vmid}`}
         </div>
       </div>
@@ -68,28 +68,28 @@ export function VMNode({ data, selected }: NodeProps<VMNodeType>) {
         id="out-internet"
         type="source"
         position={Position.Right}
-        className="!w-2.5 !h-2.5 !bg-emerald-400 !border-2 !border-[#1a1a1a]"
+        className="!w-2.5 !h-2.5 !bg-emerald-400 !border-2 !border-card"
       />
       {/* Internet→VM 入站 handle（左側，藍色）*/}
       <Handle
         id="in-internet"
         type="target"
         position={Position.Left}
-        className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-[#1a1a1a]"
+        className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-card"
       />
       {/* VM→VM 出站 handle（底部，橘色）*/}
       <Handle
         id="out-vm"
         type="source"
         position={Position.Bottom}
-        className="!w-2.5 !h-2.5 !bg-orange-400 !border-2 !border-[#1a1a1a]"
+        className="!w-2.5 !h-2.5 !bg-orange-400 !border-2 !border-card"
       />
       {/* VM→VM 入站 handle（頂部，橘色）*/}
       <Handle
         id="in-vm"
         type="target"
         position={Position.Top}
-        className="!w-2.5 !h-2.5 !bg-orange-400 !border-2 !border-[#1a1a1a]"
+        className="!w-2.5 !h-2.5 !bg-orange-400 !border-2 !border-card"
       />
     </div>
   )

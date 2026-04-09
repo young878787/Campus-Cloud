@@ -25,12 +25,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { FirewallService } from "@/services/firewall"
 import {
-  type GatewayService,
   GatewayApiService,
+  type GatewayService,
   type ServiceAction,
 } from "@/services/gateway"
-import { FirewallService } from "@/services/firewall"
 
 export const Route = createFileRoute("/_layout/admin/gateway")({
   component: GatewayPage,
@@ -49,14 +49,14 @@ function InstallCommand({ publicKey }: { publicKey: string }) {
 
   return (
     <div className="flex gap-2 items-start">
-      <code className="flex-1 text-xs bg-[#0a0a0a] border border-[#2e2e2e] rounded px-3 py-2 text-emerald-400 break-all font-mono leading-relaxed">
+      <code className="flex-1 text-xs bg-muted/80 border border-border rounded px-3 py-2 text-emerald-400 break-all font-mono leading-relaxed">
         {command}
       </code>
       <Button
         size="sm"
         variant="outline"
         onClick={copy}
-        className="shrink-0 border-[#2e2e2e] bg-[#1a1a1a] hover:bg-[#2e2e2e] h-auto py-2"
+        className="shrink-0 border-border bg-card hover:bg-accent h-auto py-2"
       >
         <ClipboardCopy className="w-3 h-3" />
       </Button>
@@ -100,7 +100,8 @@ function ServicePanel({ service }: { service: GatewayService }) {
     mutationFn: () =>
       GatewayApiService.writeServiceConfig(service, editorContent),
     onSuccess: () => toast.success(`${service} 設定已儲存`),
-    onError: (e: any) => toast.error(`儲存失敗：${e.body?.detail ?? e.message}`),
+    onError: (e: any) =>
+      toast.error(`儲存失敗：${e.body?.detail ?? e.message}`),
   })
 
   const actionMutation = useMutation({
@@ -134,18 +135,18 @@ function ServicePanel({ service }: { service: GatewayService }) {
   return (
     <div className="space-y-4">
       {/* 狀態列 */}
-      <div className="flex items-center justify-between bg-[#111] border border-[#2e2e2e] rounded-lg px-4 py-2">
+      <div className="flex items-center justify-between bg-card border border-border rounded-lg px-4 py-2">
         <div className="flex items-center gap-2">
           {isActive ? (
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           ) : (
-            <Circle className="w-4 h-4 text-gray-500" />
+            <Circle className="w-4 h-4 text-muted-foreground" />
           )}
-          <span className="text-sm text-gray-300">
+          <span className="text-sm text-foreground/80">
             {isActive ? "運行中" : "已停止"}
           </span>
           {statusData?.status_text && (
-            <span className="text-xs text-gray-600 ml-2 font-mono">
+            <span className="text-xs text-muted-foreground/50 ml-2 font-mono">
               {statusData.status_text.split("\n")[0]}
             </span>
           )}
@@ -159,7 +160,7 @@ function ServicePanel({ service }: { service: GatewayService }) {
                 variant="outline"
                 disabled={actionMutation.isPending}
                 onClick={() => handleAction(action)}
-                className={`h-7 text-xs border-[#2e2e2e] bg-[#1a1a1a] hover:bg-[#2e2e2e] ${
+                className={`h-7 text-xs border-border bg-card hover:bg-accent ${
                   action === "stop"
                     ? "hover:text-red-400"
                     : action === "restart"
@@ -209,10 +210,10 @@ function ServicePanel({ service }: { service: GatewayService }) {
       )}
 
       {/* 編輯器 */}
-      <div className="border border-[#2e2e2e] rounded-lg overflow-hidden">
+      <div className="border border-border rounded-lg overflow-hidden">
         {configLoading ? (
-          <div className="h-96 flex items-center justify-center bg-[#1e1e1e]">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
+          <div className="h-96 flex items-center justify-center bg-card">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <Editor
@@ -264,8 +265,10 @@ function ConnectionPanel() {
       await FirewallService.syncNATRules()
       await FirewallService.syncReverseProxyRules()
     },
-    onSuccess: () => toast.success("Port Forwarding + 反向代理規則已同步到 Gateway VM"),
-    onError: (e: any) => toast.error(`同步失敗：${e.body?.detail ?? e.message}`),
+    onSuccess: () =>
+      toast.success("Port Forwarding + 反向代理規則已同步到 Gateway VM"),
+    onError: (e: any) =>
+      toast.error(`同步失敗：${e.body?.detail ?? e.message}`),
   })
 
   const { data: config, isLoading } = useQuery({
@@ -283,12 +286,17 @@ function ConnectionPanel() {
 
   const saveMutation = useMutation({
     mutationFn: () =>
-      GatewayApiService.updateConfig({ host, ssh_port: sshPort, ssh_user: sshUser }),
+      GatewayApiService.updateConfig({
+        host,
+        ssh_port: sshPort,
+        ssh_user: sshUser,
+      }),
     onSuccess: () => {
       toast.success("連線設定已儲存")
       queryClient.invalidateQueries({ queryKey: ["gateway-config-conn"] })
     },
-    onError: (e: any) => toast.error(`儲存失敗：${e.body?.detail ?? e.message}`),
+    onError: (e: any) =>
+      toast.error(`儲存失敗：${e.body?.detail ?? e.message}`),
   })
 
   const keypairMutation = useMutation({
@@ -297,7 +305,8 @@ function ConnectionPanel() {
       toast.success("SSH Keypair 已生成")
       queryClient.invalidateQueries({ queryKey: ["gateway-config-conn"] })
     },
-    onError: (e: any) => toast.error(`生成失敗：${e.body?.detail ?? e.message}`),
+    onError: (e: any) =>
+      toast.error(`生成失敗：${e.body?.detail ?? e.message}`),
   })
 
   const testMutation = useMutation({
@@ -321,7 +330,7 @@ function ConnectionPanel() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -329,9 +338,9 @@ function ConnectionPanel() {
   return (
     <div className="space-y-6">
       {/* SSH 連線設定 */}
-      <Card className="bg-[#111] border-[#2e2e2e]">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base text-gray-200 flex items-center gap-2">
+          <CardTitle className="text-base text-foreground/90 flex items-center gap-2">
             <Server className="w-4 h-4" />
             SSH 連線設定
           </CardTitle>
@@ -339,31 +348,33 @@ function ConnectionPanel() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2 space-y-1.5">
-              <Label className="text-gray-400 text-xs">Gateway VM IP</Label>
+              <Label className="text-muted-foreground text-xs">
+                Gateway VM IP
+              </Label>
               <Input
                 value={host}
                 onChange={(e) => setHost(e.target.value)}
                 placeholder="192.168.1.100"
-                className="bg-[#1a1a1a] border-[#2e2e2e] text-gray-100 h-9"
+                className="bg-card border-border text-foreground h-9"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-gray-400 text-xs">SSH Port</Label>
+              <Label className="text-muted-foreground text-xs">SSH Port</Label>
               <Input
                 type="number"
                 value={sshPort}
                 onChange={(e) => setSshPort(Number(e.target.value))}
-                className="bg-[#1a1a1a] border-[#2e2e2e] text-gray-100 h-9"
+                className="bg-card border-border text-foreground h-9"
               />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-gray-400 text-xs">SSH 使用者</Label>
+            <Label className="text-muted-foreground text-xs">SSH 使用者</Label>
             <Input
               value={sshUser}
               onChange={(e) => setSshUser(e.target.value)}
               placeholder="root"
-              className="bg-[#1a1a1a] border-[#2e2e2e] text-gray-100 h-9 w-48"
+              className="bg-card border-border text-foreground h-9 w-48"
             />
           </div>
           <div className="flex gap-2">
@@ -384,7 +395,7 @@ function ConnectionPanel() {
               disabled={testMutation.isPending || !config?.is_configured}
               size="sm"
               variant="outline"
-              className="border-[#2e2e2e] bg-[#1a1a1a] hover:bg-[#2e2e2e]"
+              className="border-border bg-card hover:bg-accent"
             >
               {testMutation.isPending ? (
                 <Loader2 className="w-3 h-3 animate-spin mr-1" />
@@ -402,7 +413,7 @@ function ConnectionPanel() {
               disabled={syncMutation.isPending || !config?.is_configured}
               size="sm"
               variant="outline"
-              className="border-[#2e2e2e] bg-[#1a1a1a] hover:bg-[#2e2e2e]"
+              className="border-border bg-card hover:bg-accent"
               title="將資料庫中的 Port Forwarding + 反向代理規則重新同步到 Gateway VM"
             >
               {syncMutation.isPending ? (
@@ -417,9 +428,9 @@ function ConnectionPanel() {
       </Card>
 
       {/* SSH Keypair */}
-      <Card className="bg-[#111] border-[#2e2e2e]">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base text-gray-200 flex items-center gap-2">
+          <CardTitle className="text-base text-foreground/90 flex items-center gap-2">
             <ShieldAlert className="w-4 h-4" />
             SSH 金鑰管理
           </CardTitle>
@@ -427,30 +438,34 @@ function ConnectionPanel() {
         <CardContent className="space-y-4">
           {config?.public_key ? (
             <div className="space-y-2">
-              <Label className="text-gray-400 text-xs">公鑰（貼到 Gateway VM 的 authorized_keys）</Label>
+              <Label className="text-muted-foreground text-xs">
+                公鑰（貼到 Gateway VM 的 authorized_keys）
+              </Label>
               <div className="flex gap-2">
-                <code className="flex-1 text-xs bg-[#0a0a0a] border border-[#2e2e2e] rounded px-3 py-2 text-emerald-400 break-all font-mono leading-relaxed">
+                <code className="flex-1 text-xs bg-muted/80 border border-border rounded px-3 py-2 text-emerald-400 break-all font-mono leading-relaxed">
                   {config.public_key}
                 </code>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={copyPublicKey}
-                  className="shrink-0 border-[#2e2e2e] bg-[#1a1a1a] hover:bg-[#2e2e2e] h-auto"
+                  className="shrink-0 border-border bg-card hover:bg-accent h-auto"
                 >
                   <ClipboardCopy className="w-3 h-3" />
                 </Button>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-500">尚未生成 SSH 金鑰，請點擊下方按鈕生成。</p>
+            <p className="text-sm text-muted-foreground">
+              尚未生成 SSH 金鑰，請點擊下方按鈕生成。
+            </p>
           )}
           <Button
             onClick={() => keypairMutation.mutate()}
             disabled={keypairMutation.isPending}
             size="sm"
             variant="outline"
-            className="border-[#2e2e2e] bg-[#1a1a1a] hover:bg-[#2e2e2e]"
+            className="border-border bg-card hover:bg-accent"
           >
             {keypairMutation.isPending && (
               <Loader2 className="w-3 h-3 animate-spin mr-1" />
@@ -467,36 +482,41 @@ function ConnectionPanel() {
       </Card>
 
       {/* 安裝教學 */}
-      <Card className="bg-[#111] border-[#2e2e2e]">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base text-gray-200 flex items-center gap-2">
+          <CardTitle className="text-base text-foreground/90 flex items-center gap-2">
             <Download className="w-4 h-4" />
             Gateway VM 安裝指引
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm text-gray-400">
+        <CardContent className="space-y-4 text-sm text-muted-foreground">
           <ol className="space-y-4 list-none">
             {/* 步驟 1 */}
             <li className="flex gap-3">
-              <span className="w-6 h-6 rounded-full bg-[#2e2e2e] text-gray-300 text-xs flex items-center justify-center shrink-0 mt-0.5">
+              <span className="w-6 h-6 rounded-full bg-accent text-foreground/80 text-xs flex items-center justify-center shrink-0 mt-0.5">
                 1
               </span>
               <div>
-                <p className="text-gray-300 font-medium">準備一台 Debian 12 VM</p>
-                <p className="text-gray-500 mt-0.5">
-                  建議規格：1 vCPU、512MB RAM、8GB Disk。確保 VM 有外網 IP（FortiGate 指向此 IP）。
+                <p className="text-foreground/80 font-medium">
+                  準備一台 Debian 12 VM
+                </p>
+                <p className="text-muted-foreground mt-0.5">
+                  建議規格：1 vCPU、512MB RAM、8GB Disk。確保 VM 有外網
+                  IP（FortiGate 指向此 IP）。
                 </p>
               </div>
             </li>
 
             {/* 步驟 2 */}
             <li className="flex gap-3">
-              <span className="w-6 h-6 rounded-full bg-[#2e2e2e] text-gray-300 text-xs flex items-center justify-center shrink-0 mt-0.5">
+              <span className="w-6 h-6 rounded-full bg-accent text-foreground/80 text-xs flex items-center justify-center shrink-0 mt-0.5">
                 2
               </span>
               <div>
-                <p className="text-gray-300 font-medium">生成 SSH Keypair</p>
-                <p className="text-gray-500 mt-0.5">
+                <p className="text-foreground/80 font-medium">
+                  生成 SSH Keypair
+                </p>
+                <p className="text-muted-foreground mt-0.5">
                   點擊上方「生成 SSH Keypair」按鈕。
                 </p>
               </div>
@@ -504,18 +524,22 @@ function ConnectionPanel() {
 
             {/* 步驟 3：一行安裝指令 */}
             <li className="flex gap-3">
-              <span className="w-6 h-6 rounded-full bg-[#2e2e2e] text-gray-300 text-xs flex items-center justify-center shrink-0 mt-0.5">
+              <span className="w-6 h-6 rounded-full bg-accent text-foreground/80 text-xs flex items-center justify-center shrink-0 mt-0.5">
                 3
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-gray-300 font-medium">在 Gateway VM 上執行安裝指令</p>
-                <p className="text-gray-500 mt-0.5 mb-2">
-                  以 root 身份登入 Gateway VM，複製下方指令貼上執行。指令會自動安裝所有服務並設定 SSH 金鑰。
+                <p className="text-foreground/80 font-medium">
+                  在 Gateway VM 上執行安裝指令
+                </p>
+                <p className="text-muted-foreground mt-0.5 mb-2">
+                  以 root 身份登入 Gateway
+                  VM，複製下方指令貼上執行。指令會自動安裝所有服務並設定 SSH
+                  金鑰。
                 </p>
                 {config?.public_key ? (
                   <InstallCommand publicKey={config.public_key} />
                 ) : (
-                  <div className="bg-[#0a0a0a] border border-[#2e2e2e] rounded p-3 text-yellow-600 text-xs">
+                  <div className="bg-muted/80 border border-border rounded p-3 text-yellow-600 text-xs">
                     ⚠ 請先生成 SSH Keypair 才能取得安裝指令
                   </div>
                 )}
@@ -524,12 +548,14 @@ function ConnectionPanel() {
 
             {/* 步驟 4 */}
             <li className="flex gap-3">
-              <span className="w-6 h-6 rounded-full bg-[#2e2e2e] text-gray-300 text-xs flex items-center justify-center shrink-0 mt-0.5">
+              <span className="w-6 h-6 rounded-full bg-accent text-foreground/80 text-xs flex items-center justify-center shrink-0 mt-0.5">
                 4
               </span>
               <div>
-                <p className="text-gray-300 font-medium">填入 IP 並測試連線</p>
-                <p className="text-gray-500 mt-0.5">
+                <p className="text-foreground/80 font-medium">
+                  填入 IP 並測試連線
+                </p>
+                <p className="text-muted-foreground mt-0.5">
                   在上方連線設定填入 Gateway VM IP，點擊「測試連線」確認成功。
                 </p>
               </div>
@@ -555,8 +581,10 @@ function GatewayPage() {
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-100">Gateway VM 管理</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 className="text-xl font-semibold text-foreground">
+            Gateway VM 管理
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             管理 haproxy、Traefik、frp 服務設定與狀態
           </p>
         </div>
@@ -568,15 +596,15 @@ function GatewayPage() {
             </>
           ) : (
             <>
-              <XCircle className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500">尚未設定</span>
+              <XCircle className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">尚未設定</span>
             </>
           )}
         </div>
       </div>
 
       <Tabs defaultValue="connection" className="space-y-4">
-        <TabsList className="bg-[#1a1a1a] border border-[#2e2e2e]">
+        <TabsList>
           {[
             { value: "connection", label: "連線設定" },
             { value: "haproxy", label: "haproxy" },
@@ -584,11 +612,7 @@ function GatewayPage() {
             { value: "frps", label: "frps" },
             { value: "frpc", label: "frpc" },
           ].map(({ value, label }) => (
-            <TabsTrigger
-              key={value}
-              value={value}
-              className="text-gray-400 data-[state=active]:text-gray-100 data-[state=active]:bg-[#2e2e2e]"
-            >
+            <TabsTrigger key={value} value={value}>
               {label}
             </TabsTrigger>
           ))}
@@ -604,7 +628,7 @@ function GatewayPage() {
               {isConfigured ? (
                 <ServicePanel service={svc} />
               ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-500 space-y-2">
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground space-y-2">
                   <Server className="w-10 h-10" />
                   <p>請先完成連線設定</p>
                 </div>

@@ -12,24 +12,24 @@ export function GatewayNode({ selected }: NodeProps<GatewayNodeType>) {
     <div
       className={`
         relative flex items-center gap-3 px-4 py-3
-        bg-[#1a1a1a] border border-dashed rounded-xl cursor-default
+        bg-card border border-dashed rounded-xl cursor-default
         transition-all duration-200 min-w-[160px]
         ${
           selected
             ? "border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.3)]"
-            : "border-[#3e3e3e]"
+            : "border-border"
         }
       `}
     >
       {/* Globe icon */}
-      <div className="flex-shrink-0 w-8 h-8 bg-[#1f2f1f] rounded-lg flex items-center justify-center">
+      <div className="flex-shrink-0 w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
         <Globe className="w-4 h-4 text-emerald-400" />
       </div>
 
       {/* 文字 */}
       <div className="flex-1">
-        <div className="text-sm font-medium text-gray-100">Internet</div>
-        <div className="text-xs text-gray-500 mt-0.5">網關 / 上網</div>
+        <div className="text-sm font-medium text-foreground">Internet</div>
+        <div className="text-xs text-muted-foreground mt-0.5">網關 / 上網</div>
       </div>
 
       {/* Internet→VM 出站 handle（右側，藍色）*/}
@@ -37,14 +37,14 @@ export function GatewayNode({ selected }: NodeProps<GatewayNodeType>) {
         id="out"
         type="source"
         position={Position.Right}
-        className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-[#1a1a1a]"
+        className="!w-2.5 !h-2.5 !bg-blue-400 !border-2 !border-card"
       />
       {/* VM→Internet 入站 handle（左側，綠色）*/}
       <Handle
         id="in"
         type="target"
         position={Position.Left}
-        className="!w-2.5 !h-2.5 !bg-emerald-400 !border-2 !border-[#1a1a1a]"
+        className="!w-2.5 !h-2.5 !bg-emerald-400 !border-2 !border-card"
       />
     </div>
   )
