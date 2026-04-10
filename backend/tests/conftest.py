@@ -1,3 +1,4 @@
+import os
 from collections.abc import Generator
 
 import pytest
@@ -10,7 +11,6 @@ from app.main import app
 from app.models import (
     AIAPICredential,
     AIAPIRequest,
-    AuditLog,
     FirewallLayout,
     Group,
     GroupMember,
@@ -23,6 +23,50 @@ from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import get_superuser_token_headers
 
 
+def _is_truthy_env(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _assert_safe_pytest_database_target() -> None:
+    """
+    Guard rail: refuse running DB-backed tests against non-test-like databases.
+
+    Override only when you explicitly know what you are doing:
+    PYTEST_ALLOW_NON_TEST_DB=1
+    """
+    if _is_truthy_env(os.getenv("PYTEST_ALLOW_NON_TEST_DB")):
+        return
+
+    host = settings.POSTGRES_SERVER.strip().lower()
+    db_name = settings.POSTGRES_DB.strip().lower()
+
+    # docker compose test stack host (isolated service network)
+    if host == "db":
+        return
+
+    # local hosts are only allowed when DB name clearly indicates test usage
+    if host in {"localhost", "127.0.0.1", "::1"} and any(
+        token in db_name for token in ("test", "pytest", "ci")
+    ):
+        return
+
+    raise RuntimeError(
+        "Refusing to run pytest DB fixture on a non-test database target. "
+        "Set PYTEST_ALLOW_NON_TEST_DB=1 to override explicitly."
+    )
+
+
+def _is_test_user_email(email: str) -> bool:
+    lowered = email.strip().lower()
+    if lowered == str(settings.EMAIL_TEST_USER).strip().lower():
+        return True
+
+    # Reserved test domains and common prefixes used across this test suite.
+    if lowered.endswith(("@example.com", "@example.org", "@example.net")):
+        return True
+    return lowered.startswith(("test-", "pytest-", "ai-api-", "user-", "admin-"))
+
+
 @pytest.fixture(scope="session")
 def db() -> Generator[Session, None, None]:
     """
@@ -33,15 +77,19 @@ def db() -> Generator[Session, None, None]:
     parameter. This prevents the teardown logic from running automatically
     and wiping the remote database on every pytest invocation.
 
-    Teardown strategy: instead of DELETE-all on every table, we only
-    delete test-created users (non-superusers whose email matches the
-    test-user pattern) and their cascading dependent rows. The
-    FIRST_SUPERUSER account is always preserved.
+    Safety strategy:
+    - Hard guard to prevent DB-backed tests from accidentally running
+      against non-test-like DB targets.
+    - Cleanup is opt-in via PYTEST_ENABLE_DB_CLEANUP=1.
+    - FIRST_SUPERUSER account is always preserved.
     """
     with Session(engine) as session:
+        _assert_safe_pytest_database_target()
         init_db(session)
         yield session
-        _cleanup_test_data(session)
+        session.rollback()
+        if _is_truthy_env(os.getenv("PYTEST_ENABLE_DB_CLEANUP")):
+            _cleanup_test_data(session)
 
 
 def _cleanup_test_data(session: Session) -> None:
@@ -59,10 +107,15 @@ def _cleanup_test_data(session: Session) -> None:
     """
     from sqlmodel import col
 
-    # Collect test-created user IDs (everything except the superuser seed account)
-    test_users = session.exec(
+    # Collect identifiable test-created users while preserving all superusers.
+    candidate_users = session.exec(
         select(User).where(User.email != settings.FIRST_SUPERUSER)
     ).all()
+    test_users = [
+        user
+        for user in candidate_users
+        if (not user.is_superuser) and _is_test_user_email(str(user.email))
+    ]
     test_user_ids = list({u.id for u in test_users})
 
     if not test_user_ids:
@@ -87,9 +140,16 @@ def _cleanup_test_data(session: Session) -> None:
             session.delete(row)
     session.flush()
 
-    # Groups have no user_id; wipe all test-created groups
-    groups = session.exec(select(Group)).all()
+    # Groups are deleted only when owned by test users.
+    groups = session.exec(
+        select(Group).where(col(Group.owner_id).in_(test_user_ids))
+    ).all()
     for group in groups:
+        memberships = session.exec(
+            select(GroupMember).where(GroupMember.group_id == group.id)
+        ).all()
+        for membership in memberships:
+            session.delete(membership)
         session.delete(group)
     session.flush()
 

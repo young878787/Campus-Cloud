@@ -6,9 +6,11 @@ import time
 from datetime import datetime
 
 import pytest
-from redis.asyncio import Redis
 
-from app.services.redis_rate_limiter import (
+redis_asyncio = pytest.importorskip("redis.asyncio")
+Redis = redis_asyncio.Redis
+
+from app.infrastructure.redis.rate_limiter import (
     check_rate_limit_sliding_window,
     clear_user_rate_limit,
 )
@@ -17,7 +19,7 @@ from app.services.redis_rate_limiter import (
 @pytest.fixture
 async def redis_client():
     """創建 Redis 測試客戶端"""
-    from app.ai_api.config import settings
+    from app.features.ai.config import settings
 
     redis = Redis.from_url(settings.redis_url, decode_responses=True)
 

@@ -5,9 +5,13 @@ from fastapi import Depends
 
 from app.api.deps.auth import CurrentUser
 from app.api.deps.database import SessionDep
+from app.core.authorizers import (
+    can_bypass_resource_ownership,
+    require_resource_access,
+)
 from app.exceptions import PermissionDeniedError
 from app.repositories import resource as resource_repo
-from app.services import proxmox_service
+from app.services.proxmox import proxmox_service
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +25,7 @@ def check_resource_ownership(
     Check if the current user owns the resource or is a superuser.
     Raises PermissionDeniedError if the user doesn't have permission.
     """
-    # Superusers can access all resources
-    if current_user.is_superuser:
+    if can_bypass_resource_ownership(current_user):
         return
 
     # Check if the resource exists in the database
@@ -37,15 +40,14 @@ def check_resource_ownership(
             "You don't have permission to access this resource"
         )
 
-    # Check if the user owns this resource
-    if db_resource.user_id != current_user.id:
+    try:
+        require_resource_access(current_user, db_resource.user_id)
+    except PermissionDeniedError:
         logger.warning(
             f"User {current_user.email} attempted to access resource {vmid} "
             f"owned by user {db_resource.user_id}"
         )
-        raise PermissionDeniedError(
-            "You don't have permission to access this resource"
-        )
+        raise
 
 
 def get_vm_info(

@@ -13,7 +13,7 @@ from app.schemas import (
     AuditLogsPublic,
     AuditUserOption,
 )
-from app.services import audit_service
+from app.services.user import audit_service
 
 router = APIRouter(prefix="/audit-logs", tags=["audit-logs"])
 

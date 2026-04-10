@@ -13,7 +13,7 @@ from app.schemas import (
     VMRequestsPublic,
 )
 from app.models import VMRequestStatus
-from app.services import vm_request_availability_service, vm_request_service
+from app.services.vm import vm_request_availability_service, vm_request_service
 
 router = APIRouter(prefix="/vm-requests", tags=["vm-requests"])
 

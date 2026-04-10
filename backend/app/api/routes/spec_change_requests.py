@@ -10,7 +10,7 @@ from app.schemas import (
     SpecChangeRequestsPublic,
 )
 from app.models import SpecChangeRequestStatus
-from app.services import spec_change_service
+from app.services.vm import spec_change_service
 
 router = APIRouter(prefix="/spec-change-requests", tags=["spec-change-requests"])
 

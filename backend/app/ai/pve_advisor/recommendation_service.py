@@ -11,7 +11,7 @@ from typing import Any, cast
 
 from sqlmodel import Session, func, select
 
-from app.ai.pve_advisor.client import client
+from app.infrastructure.ai.pve_advisor import client
 from app.ai.pve_advisor.config import settings
 from app.ai.pve_advisor.prompt import (
     build_advisor_system_prompt,
@@ -32,7 +32,7 @@ from app.ai.pve_advisor.schemas import (
 )
 from app.models import AuditAction, AuditLog, VMRequest, VMRequestStatus
 from app.repositories import proxmox_config as proxmox_config_repo
-from app.services import proxmox_service
+from app.services.proxmox import proxmox_service
 
 GIB = 1024**3
 MIB = 1024**2

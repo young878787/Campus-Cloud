@@ -18,7 +18,8 @@ from app.schemas.gateway import (
     ServiceStatusResult,
 )
 from app.schemas.common import Message
-from app.services import audit_service, gateway_service
+from app.services.network import gateway_service
+from app.services.user import audit_service
 
 logger = logging.getLogger(__name__)
 

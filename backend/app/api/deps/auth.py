@@ -9,10 +9,14 @@ from pydantic import ValidationError
 from sqlmodel import Session
 
 from app.api.deps.database import SessionDep, get_db
+from app.core.authorizers import (
+    require_admin_access,
+    require_instructor_or_admin_access,
+)
 from app.core import security
 from app.core.config import settings
 from app.core.db import engine
-from app.exceptions import AuthenticationError, PermissionDeniedError
+from app.exceptions import AuthenticationError
 from app.models import User
 from app.schemas import TokenPayload
 
@@ -55,8 +59,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 def get_current_active_superuser(current_user: CurrentUser) -> User:
-    if not current_user.is_superuser:
-        raise PermissionDeniedError("The user doesn't have enough privileges")
+    require_admin_access(current_user)
     return current_user
 
 
@@ -64,6 +67,7 @@ AdminUser = Annotated[User, Depends(get_current_active_superuser)]
 
 
 def get_current_instructor_or_admin(current_user: CurrentUser) -> User:
+    require_instructor_or_admin_access(current_user)
     return current_user
 
 

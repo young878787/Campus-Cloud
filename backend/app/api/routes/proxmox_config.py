@@ -10,12 +10,20 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from fastapi import APIRouter, Body, HTTPException
 
 from app.api.deps import AdminUser, SessionDep
+from app.domain.placement.constants import DEFAULT_PLACEMENT_STRATEGY
 from app.exceptions import BadRequestError
+from app.infrastructure.proxmox import (
+    DEFAULT_PROXMOX_POOL_NAME,
+    _tcp_ping,
+    _verify_server_with_ca,
+    fetch_cluster_nodes,
+    invalidate_proxmox_client,
+)
 from app.models import AuditAction
 from app.repositories import proxmox_config as proxmox_config_repo
 from app.repositories import proxmox_node as proxmox_node_repo
 from app.repositories import proxmox_storage as proxmox_storage_repo
-from app.services import audit_service
+from app.services.user import audit_service
 from app.schemas.proxmox_config import (
     CertParseResult,
     ClusterPreviewResult,
@@ -65,7 +73,7 @@ def _to_public(config, *, is_configured: bool) -> ProxmoxConfigPublic:
         gateway_ip=config.gateway_ip,
         local_subnet=config.local_subnet,
         default_node=config.default_node,
-        placement_strategy="priority_dominant_share",
+        placement_strategy=DEFAULT_PLACEMENT_STRATEGY,
         cpu_overcommit_ratio=config.cpu_overcommit_ratio,
         disk_overcommit_ratio=config.disk_overcommit_ratio,
         migration_enabled=config.migration_enabled,
@@ -197,11 +205,11 @@ def get_proxmox_config(session: SessionDep, current_user: AdminUser) -> Any:
             data_storage="local-lvm",
             api_timeout=30,
             task_check_interval=2,
-            pool_name="CampusCloud",
+            pool_name=DEFAULT_PROXMOX_POOL_NAME,
             gateway_ip=None,
             local_subnet=None,
             default_node=None,
-            placement_strategy="priority_dominant_share",
+            placement_strategy=DEFAULT_PLACEMENT_STRATEGY,
             cpu_overcommit_ratio=2.0,
             disk_overcommit_ratio=1.0,
             migration_enabled=True,
@@ -270,7 +278,7 @@ def update_proxmox_config(
         gateway_ip=config_in.gateway_ip,
         local_subnet=config_in.local_subnet,
         default_node=config_in.default_node,
-        placement_strategy="priority_dominant_share",
+        placement_strategy=DEFAULT_PLACEMENT_STRATEGY,
         cpu_overcommit_ratio=config_in.cpu_overcommit_ratio,
         disk_overcommit_ratio=config_in.disk_overcommit_ratio,
         migration_enabled=config_in.migration_enabled,
@@ -301,7 +309,6 @@ def update_proxmox_config(
         rebalance_resource_weight_disk=config_in.rebalance_resource_weight_disk,
     )
 
-    from app.core.proxmox import invalidate_proxmox_client
     invalidate_proxmox_client()
 
     audit_service.log_action(
@@ -326,8 +333,6 @@ def preview_cluster(
     """
     try:
         password, ssl_param = _resolve_credentials(session, config_in)
-
-        from app.core.proxmox import _verify_server_with_ca, fetch_cluster_nodes
 
         # 若有 CA cert，先驗證再連線
         if isinstance(ssl_param, str):  # ca_cert PEM
@@ -390,7 +395,6 @@ def sync_nodes(
     ]
     saved = proxmox_node_repo.upsert_nodes(session, node_dicts)
 
-    from app.core.proxmox import invalidate_proxmox_client
     invalidate_proxmox_client()
 
     audit_service.log_action(
@@ -419,8 +423,6 @@ def check_nodes(session: SessionDep, current_user: AdminUser) -> list[ProxmoxNod
     對所有已儲存的節點做 TCP ping 健康檢查，更新 is_online 狀態後回傳最新清單。
     前端開啟 Proxmox 設定頁面時呼叫。
     """
-    from app.core.proxmox import _tcp_ping
-
     nodes = proxmox_node_repo.get_all_nodes(session)
     for node in nodes:
         is_online = _tcp_ping(node.host, node.port)
@@ -514,8 +516,6 @@ def sync_now(
         return SyncNowResult(success=False, nodes=[], storage_count=0, error="尚未設定 Proxmox 連線資訊")
 
     try:
-        from app.core.proxmox import _verify_server_with_ca, fetch_cluster_nodes
-
         password = proxmox_config_repo.get_decrypted_password(config)
 
         if config.ca_cert:
@@ -586,7 +586,6 @@ def sync_now(
 
         saved_storages = proxmox_storage_repo.upsert_storages(session, storage_dicts)
 
-        from app.core.proxmox import invalidate_proxmox_client
         invalidate_proxmox_client()
 
         audit_service.log_action(
@@ -614,7 +613,7 @@ def sync_now(
 def get_cluster_stats(current_user: AdminUser) -> Any:
     """取得各節點即時資源使用狀態與叢集加總"""
     try:
-        from app.services import proxmox_service
+        from app.services.proxmox import proxmox_service
         raw_nodes = proxmox_service.list_nodes()
         raw_resources = proxmox_service.list_all_resources()
     except Exception as e:
@@ -699,8 +698,6 @@ def test_proxmox_connection(
 
     try:
         from proxmoxer import ProxmoxAPI
-
-        from app.core.proxmox import _verify_server_with_ca
 
         password = proxmox_config_repo.get_decrypted_password(config)
 

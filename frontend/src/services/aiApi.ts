@@ -41,6 +41,31 @@ export type AiApiCredentialsPublic = {
   count: number
 }
 
+export type AiApiCredentialAdminStatus = "active" | "inactive"
+export type AiApiCredentialInactiveReason = "revoked" | "expired"
+
+export type AiApiCredentialAdminPublic = {
+  id: string
+  user_id: string
+  user_email?: string | null
+  user_full_name?: string | null
+  request_id: string
+  base_url: string
+  api_key_prefix: string
+  api_key_name: string
+  rate_limit?: number | null
+  status: AiApiCredentialAdminStatus
+  inactive_reason?: AiApiCredentialInactiveReason | null
+  expires_at?: string | null
+  revoked_at?: string | null
+  created_at: string
+}
+
+export type AiApiCredentialsAdminPublic = {
+  data: AiApiCredentialAdminPublic[]
+  count: number
+}
+
 export const AiApiService = {
   createRequest(data: {
     requestBody: { purpose: string; api_key_name: string; duration?: string }
@@ -94,6 +119,25 @@ export const AiApiService = {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/ai-api/credentials/my",
+      errors: { 422: "Validation Error" },
+    })
+  },
+
+  listAllCredentials(data?: {
+    status?: AiApiCredentialAdminStatus | null
+    userEmail?: string | null
+    skip?: number
+    limit?: number
+  }): CancelablePromise<AiApiCredentialsAdminPublic> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/ai-api/credentials",
+      query: {
+        status: data?.status ?? undefined,
+        user_email: data?.userEmail ?? undefined,
+        skip: data?.skip,
+        limit: data?.limit,
+      },
       errors: { 422: "Validation Error" },
     })
   },

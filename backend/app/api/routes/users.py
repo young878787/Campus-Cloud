@@ -18,7 +18,7 @@ from app.schemas import (
     UserUpdate,
     UserUpdateMe,
 )
-from app.services import user_service
+from app.services.user import user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 

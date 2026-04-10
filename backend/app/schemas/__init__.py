@@ -11,7 +11,9 @@ API 請求/回應 schemas，按領域分檔：
 """
 
 from .ai_api import (
+    AIAPICredentialAdminPublic,
     AIAPICredentialPublic,
+    AIAPICredentialsAdminPublic,
     AIAPICredentialsPublic,
     AIAPICredentialUpdate,
     AIAPIRequestCreate,
@@ -134,7 +136,9 @@ __all__ = [
     "AIAPIRequestReview",
     "AIAPIRequestPublic",
     "AIAPIRequestsPublic",
+    "AIAPICredentialAdminPublic",
     "AIAPICredentialPublic",
+    "AIAPICredentialsAdminPublic",
     "AIAPICredentialsPublic",
     "AIAPICredentialUpdate",
     # AI Proxy

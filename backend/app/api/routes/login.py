@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.schemas import Message, NewPassword, Token, UserPublic
-from app.services import auth_service
+from app.services.user import auth_service
 
 router = APIRouter(tags=["login"])
 
@@ -26,8 +26,8 @@ class GoogleLoginRequest(BaseModel):
 
 
 @router.post("/login/google")
-def login_google(session: SessionDep, body: GoogleLoginRequest) -> Token:
-    return auth_service.google_login(session=session, id_token=body.id_token)
+async def login_google(session: SessionDep, body: GoogleLoginRequest) -> Token:
+    return await auth_service.google_login(session=session, id_token=body.id_token)
 
 
 class RefreshTokenRequest(BaseModel):

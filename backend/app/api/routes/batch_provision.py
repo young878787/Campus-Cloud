@@ -11,7 +11,7 @@ from app.api.deps import AdminUser, SessionDep
 from app.exceptions import BadRequestError, NotFoundError
 from app.repositories import batch_provision as bp_repo
 from app.repositories import group as group_repo
-from app.services import batch_provision_service
+from app.services.vm import batch_provision_service
 from app.models import User
 from sqlmodel import select
 

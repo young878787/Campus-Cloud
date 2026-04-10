@@ -16,7 +16,8 @@ from app.schemas.script_deploy import (
     ScriptDeployResponse,
     ScriptDeployStatus,
 )
-from app.services import audit_service, script_deploy_service
+from app.services.network import script_deploy_service
+from app.services.user import audit_service
 
 logger = logging.getLogger(__name__)
 

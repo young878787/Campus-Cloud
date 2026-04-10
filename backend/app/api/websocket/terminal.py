@@ -7,9 +7,13 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from app.api.deps.auth import get_ws_current_user
 from app.api.deps.proxmox import check_resource_ownership
-from app.core.proxmox import build_ws_ssl_context, get_active_host, get_proxmox_settings
+from app.infrastructure.proxmox import (
+    build_ws_ssl_context,
+    get_active_host,
+    get_proxmox_settings,
+)
 from app.exceptions import NotFoundError, ProxmoxError
-from app.services import proxmox_service
+from app.services.proxmox import proxmox_service
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +47,7 @@ async def terminal_proxy(websocket: WebSocket, vmid: int, token: str):
 
         # Find LXC container in cluster resources
         try:
-            container_info = proxmox_service.find_lxc(vmid)
+            container_info = await asyncio.to_thread(proxmox_service.find_lxc, vmid)
         except NotFoundError:
             logger.error(f"LXC container {vmid} not found in cluster")
             await websocket.close(code=1008, reason="LXC container not found")
@@ -55,7 +59,11 @@ async def terminal_proxy(websocket: WebSocket, vmid: int, token: str):
         )
 
         # Get terminal proxy ticket
-        console_data = proxmox_service.get_terminal_ticket(node, vmid)
+        console_data = await asyncio.to_thread(
+            proxmox_service.get_terminal_ticket,
+            node,
+            vmid,
+        )
         terminal_port = console_data["port"]
         terminal_ticket = console_data["ticket"]
 

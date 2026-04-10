@@ -10,9 +10,9 @@ import httpx
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from app.ai_api.config import settings as ai_api_settings
+from app.features.ai.config import settings as ai_api_settings
 from app.api.deps import AIAPIUserDep, SessionDep
-from app.core.redis import get_redis
+from app.infrastructure.redis import check_rate_limit_sliding_window, get_redis
 from app.schemas.ai_proxy import (
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -21,8 +21,7 @@ from app.schemas.ai_proxy import (
     RateLimitStatusResponse,
     UsageStatsResponse,
 )
-from app.services import ai_api_service
-from app.services.redis_rate_limiter import check_rate_limit_sliding_window
+from app.services.llm_gateway import ai_gateway_service
 
 logger = logging.getLogger(__name__)
 
@@ -84,14 +83,14 @@ async def chat_completions(
     try:
         if request.stream:
             return StreamingResponse(
-                ai_api_service.proxy_to_vllm_chat_completion_stream(
+                ai_gateway_service.proxy_to_vllm_chat_completion_stream(
                     user=user,
                     request_data=request_data,
                 ),
                 media_type="text/event-stream",
             )
         else:
-            result = await ai_api_service.proxy_to_vllm_chat_completion(
+            result = await ai_gateway_service.proxy_to_vllm_chat_completion(
                 user=user,
                 request_data=request_data,
             )
@@ -142,8 +141,6 @@ async def list_models(
     从 VLLM Gateway 获取可用模型列表
     """
     user, credential = user_and_credential
-
-    from app.ai_api.config import settings as ai_api_settings
 
     try:
         # 从 VLLM Gateway 获取模型列表
@@ -201,7 +198,7 @@ async def get_my_usage_stats(
     if not start_date:
         start_date = end_date - timedelta(days=30)
 
-    stats = ai_api_service.get_user_usage_stats(
+    stats = ai_gateway_service.get_user_usage_stats(
         session=session, user_id=user.id, start_date=start_date, end_date=end_date
     )
 

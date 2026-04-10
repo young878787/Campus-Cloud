@@ -11,6 +11,7 @@ from app.api.deps import (
     SessionDep,
     check_firewall_access,
 )
+from app.core.authorizers import can_bypass_resource_ownership
 from app.exceptions import BadRequestError, NotFoundError, ProxmoxError
 from app.repositories import firewall_layout as layout_repo
 from app.schemas import Message
@@ -29,13 +30,9 @@ from app.schemas.firewall import (
     TopologyResponse,
 )
 from app.models import AuditAction
-from app.services import (
-    audit_service,
-    firewall_service,
-    nat_service,
-    reverse_proxy_service,
-)
-from app.services.firewall_service import _BLOCK_LOCAL_COMMENT
+from app.services.network import firewall_service, nat_service, reverse_proxy_service
+from app.services.user import audit_service
+from app.services.network.firewall_service import _BLOCK_LOCAL_COMMENT
 
 logger = logging.getLogger(__name__)
 
@@ -360,7 +357,7 @@ def list_nat_rules(
     from app.repositories import resource as resource_repo  # noqa: PLC0415
 
     rules = nat_repo.list_rules(session)
-    if current_user.is_superuser:
+    if can_bypass_resource_ownership(current_user):
         visible_rules = rules
     else:
         own_resources = resource_repo.get_resources_by_user(
@@ -460,7 +457,7 @@ def list_reverse_proxy_rules(
     from app.repositories import resource as resource_repo  # noqa: PLC0415
 
     rules = rp_repo.list_rules(session)
-    if current_user.is_superuser:
+    if can_bypass_resource_ownership(current_user):
         visible_rules = rules
     else:
         own_resources = resource_repo.get_resources_by_user(

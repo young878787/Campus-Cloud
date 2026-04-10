@@ -11,7 +11,7 @@ from app.ai.template_recommendation.catalog_service import (
     build_catalog_prompt_bundle,
     catalog_lookup,
 )
-from app.ai.template_recommendation.client import client
+from app.infrastructure.ai.template_recommendation import client
 from app.ai.template_recommendation.config import settings
 from app.ai.template_recommendation.node_service import summarize_device_nodes
 from app.ai.template_recommendation.prompt import (

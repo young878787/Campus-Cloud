@@ -1,0 +1,157 @@
+from __future__ import annotations
+
+import logging
+import threading
+import time
+import asyncio
+
+from proxmoxer import ProxmoxAPI
+
+from app.exceptions import ProxmoxError
+from app.infrastructure.proxmox.router import (
+    get_nodes_for_ha,
+    try_connect,
+    update_node_online,
+)
+from app.infrastructure.proxmox.settings import get_proxmox_settings
+from app.infrastructure.proxmox.tls import _tcp_ping
+
+logger = logging.getLogger(__name__)
+
+PROXMOX_TICKET_TTL = 7000
+
+_proxmox_client: ProxmoxAPI | None = None
+_proxmox_created_at = 0.0
+_proxmox_active_host: str | None = None
+_proxmox_lock = threading.Lock()
+
+
+def invalidate_proxmox_client() -> None:
+    global _proxmox_client, _proxmox_created_at, _proxmox_active_host
+    with _proxmox_lock:
+        _proxmox_client = None
+        _proxmox_created_at = 0.0
+        _proxmox_active_host = None
+
+
+def get_proxmox_api() -> ProxmoxAPI:
+    global _proxmox_client, _proxmox_created_at, _proxmox_active_host
+
+    now = time.monotonic()
+    if _proxmox_client is not None and (now - _proxmox_created_at) < PROXMOX_TICKET_TTL:
+        return _proxmox_client
+
+    with _proxmox_lock:
+        if _proxmox_client is not None and (now - _proxmox_created_at) < PROXMOX_TICKET_TTL:
+            return _proxmox_client
+
+        cfg = get_proxmox_settings()
+        nodes = get_nodes_for_ha()
+
+        if nodes:
+            last_error: Exception | None = None
+            for node in nodes:
+                if not _tcp_ping(node.host, node.port):
+                    logger.info(
+                        "Skipping unreachable Proxmox node %s (%s)",
+                        node.name,
+                        node.host,
+                    )
+                    update_node_online(node.id, False)
+                    continue
+
+                try:
+                    client = try_connect(node.host, cfg)
+                    update_node_online(node.id, True)
+                    _proxmox_client = client
+                    _proxmox_created_at = time.monotonic()
+                    _proxmox_active_host = node.host
+                    logger.info(
+                        "Connected to Proxmox node %s (%s)",
+                        node.name,
+                        node.host,
+                    )
+                    return _proxmox_client
+                except Exception as exc:
+                    last_error = exc
+                    logger.warning(
+                        "Failed to connect Proxmox node %s (%s): %s",
+                        node.name,
+                        node.host,
+                        exc,
+                    )
+                    update_node_online(node.id, False)
+
+            raise ProxmoxError(
+                f"All Proxmox nodes are unavailable. Last error: {last_error}"
+            )
+
+        logger.info("Using configured single Proxmox host %s", cfg.host)
+        _proxmox_client = try_connect(cfg.host, cfg)
+        _proxmox_created_at = time.monotonic()
+        _proxmox_active_host = cfg.host
+        return _proxmox_client
+
+
+def get_active_host() -> str:
+    if _proxmox_active_host:
+        return _proxmox_active_host
+    return get_proxmox_settings().host
+
+
+def basic_blocking_task_status(
+    node_name: str,
+    task_id: str,
+    check_interval: int | None = None,
+) -> dict:
+    if check_interval is None:
+        check_interval = get_proxmox_settings().task_check_interval
+
+    proxmox = get_proxmox_api()
+    logger.info("Waiting for task %s on node %s", task_id, node_name)
+
+    while True:
+        data = proxmox.nodes(node_name).tasks(task_id).status.get()
+
+        status = data.get("status", "")
+        exitstatus = data.get("exitstatus")
+
+        logger.debug(
+            "Task %s status=%s exitstatus=%s",
+            task_id,
+            status,
+            exitstatus,
+        )
+
+        if status == "stopped":
+            if exitstatus == "OK" or (
+                isinstance(exitstatus, str) and exitstatus.startswith("WARNINGS")
+            ):
+                if exitstatus != "OK":
+                    logger.warning(
+                        "Task %s completed with warnings: %s",
+                        task_id,
+                        exitstatus,
+                    )
+                else:
+                    logger.info("Task %s completed successfully", task_id)
+                return data
+
+            error_msg = f"Task {task_id} failed with exitstatus: {exitstatus}"
+            logger.error(error_msg)
+            raise ProxmoxError(error_msg)
+
+        time.sleep(check_interval)
+
+
+async def wait_for_task_status(
+    node_name: str,
+    task_id: str,
+    check_interval: int | None = None,
+) -> dict:
+    return await asyncio.to_thread(
+        basic_blocking_task_status,
+        node_name,
+        task_id,
+        check_interval,
+    )

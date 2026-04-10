@@ -4,6 +4,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.domain.placement.constants import DEFAULT_PLACEMENT_STRATEGY
+from app.infrastructure.proxmox import DEFAULT_PROXMOX_POOL_NAME
+
 
 class ProxmoxConfigPublic(BaseModel):
     """回傳給前端的 Proxmox 設定（不含密碼與憑證原文）"""
@@ -19,7 +22,7 @@ class ProxmoxConfigPublic(BaseModel):
     gateway_ip: str | None = None  # 可能尚未設定（舊資料相容）
     local_subnet: str | None = None
     default_node: str | None = None
-    placement_strategy: str = "priority_dominant_share"
+    placement_strategy: str = DEFAULT_PLACEMENT_STRATEGY
     cpu_overcommit_ratio: float = 2.0
     disk_overcommit_ratio: float = 1.0
     migration_enabled: bool = True
@@ -65,12 +68,12 @@ class ProxmoxConfigUpdate(BaseModel):
     data_storage: str = "local-lvm"
     api_timeout: int = Field(default=30, ge=1, le=300)
     task_check_interval: int = Field(default=2, ge=1, le=60)
-    pool_name: str = "CampusCloud"
+    pool_name: str = DEFAULT_PROXMOX_POOL_NAME
     ca_cert: str | None = None  # None 表示不更新；空字串表示清除
     gateway_ip: str | None = None
     local_subnet: str | None = None
     default_node: str | None = None
-    placement_strategy: str = "priority_dominant_share"
+    placement_strategy: str = DEFAULT_PLACEMENT_STRATEGY
     cpu_overcommit_ratio: float = Field(default=2.0, ge=1.0, le=8.0)
     disk_overcommit_ratio: float = Field(default=1.0, ge=1.0, le=5.0)
     migration_enabled: bool = True

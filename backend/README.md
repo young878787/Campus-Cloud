@@ -176,6 +176,14 @@ bash ./scripts/test.sh
 docker compose exec backend bash scripts/tests-start.sh -x
 ```
 
+`tests/conftest.py` 的 `db` fixture 具備安全防護：
+
+- 預設拒絕在「非測試型資料庫目標」上執行 DB-backed pytest（避免誤連正式/開發 DB）。
+- 若你確定要覆蓋此保護，可顯式設定：`PYTEST_ALLOW_NON_TEST_DB=1`。
+- 測試結束後的資料清理預設為關閉；如需啟用再設定：`PYTEST_ENABLE_DB_CLEANUP=1`。
+
+> 建議維持透過 compose 測試流程執行，以確保資料庫環境隔離。
+
 測試報告：`backend/htmlcov/index.html`
 
 主要測試檔（`tests/api/routes/`）：

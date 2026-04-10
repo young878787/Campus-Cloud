@@ -5,7 +5,7 @@ from pytest import MonkeyPatch
 
 from app.ai.pve_advisor.schemas import NodeCapacity, PlacementDecision, PlacementPlan
 from app.core.config import settings
-from app.services import vm_request_availability_service
+from app.services.vm import vm_request_availability_service
 
 
 def _fake_capacities() -> list[NodeCapacity]:

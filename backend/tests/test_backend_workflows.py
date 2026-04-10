@@ -32,15 +32,11 @@ from app.schemas import (
     VMRequestCreate,
     VMRequestReview,
 )
-from app.services import (
-    provisioning_service,
-    proxmox_service,
-    spec_change_service,
-    user_service,
-    vm_request_placement_service,
-    vm_request_schedule_service,
-    vm_request_service,
-)
+from app.infrastructure.proxmox import operations as proxmox_service
+from app.services.proxmox import provisioning_service
+from app.services.scheduling import vm_request_schedule_service
+from app.services.user import user_service
+from app.services.vm import spec_change_service, vm_request_placement_service, vm_request_service
 
 
 @pytest.fixture()
@@ -113,7 +109,7 @@ def test_vm_request_create_preserves_environment_type(
     user = _create_user(db)
     now = datetime.now(timezone.utc)
     monkeypatch.setattr(
-        "app.services.vm_request_service.vm_request_availability_service.validate_request_window",
+        "app.services.vm.vm_request_service.vm_request_availability_service.validate_request_window",
         lambda **kwargs: None,
     )
     request_in = VMRequestCreate(
@@ -164,7 +160,7 @@ def test_vm_request_create_rejects_unavailable_window(
     )
 
     monkeypatch.setattr(
-        "app.services.vm_request_service.vm_request_availability_service.validate_request_window",
+        "app.services.vm.vm_request_service.vm_request_availability_service.validate_request_window",
         lambda **kwargs: (_ for _ in ()).throw(
             BadRequestError("No node is available for the requested time window.")
         ),
@@ -203,7 +199,7 @@ def test_vm_request_review_rolls_back_and_cleans_up_on_failure(
     db.refresh(request)
 
     monkeypatch.setattr(
-        "app.services.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
+        "app.services.vm.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
         lambda **kwargs: {
             request.id: SimpleNamespace(
                 node="pve-a",
@@ -217,7 +213,7 @@ def test_vm_request_review_rolls_back_and_cleans_up_on_failure(
         raise RuntimeError("audit failure")
 
     monkeypatch.setattr(
-        "app.services.vm_request_service.audit_service.log_action",
+        "app.services.vm.vm_request_service.audit_service.log_action",
         _raise_audit,
     )
 
@@ -275,15 +271,15 @@ def test_vm_request_review_locks_overlapping_requests(
         return [request]
 
     monkeypatch.setattr(
-        "app.services.vm_request_service.vm_request_repo.lock_overlapping_vm_requests_for_window",
+        "app.services.vm.vm_request_service.vm_request_repo.lock_overlapping_vm_requests_for_window",
         _lock_window,
     )
     monkeypatch.setattr(
-        "app.services.vm_request_service.audit_service.log_action",
+        "app.services.vm.vm_request_service.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "app.services.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
+        "app.services.vm.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
         lambda **kwargs: {
             request.id: SimpleNamespace(
                 node="pve-a",
@@ -333,11 +329,11 @@ def test_vm_request_review_assigns_reserved_node(
     db.refresh(request)
 
     monkeypatch.setattr(
-        "app.services.vm_request_service.audit_service.log_action",
+        "app.services.vm.vm_request_service.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "app.services.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
+        "app.services.vm.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
         lambda **kwargs: {
             request.id: SimpleNamespace(
                 node="pve-a",
@@ -418,7 +414,7 @@ def test_vm_request_review_context_includes_runtime_and_projection(
     db.refresh(pending)
 
     monkeypatch.setattr(
-        "app.services.vm_request_service.proxmox_service.list_nodes",
+        "app.services.vm.vm_request_service.proxmox_service.list_nodes",
         lambda: [
             {"node": "pve-a"},
             {"node": "pve-b"},
@@ -427,7 +423,7 @@ def test_vm_request_review_context_includes_runtime_and_projection(
         ],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_service.proxmox_service.list_all_resources",
+        "app.services.vm.vm_request_service.proxmox_service.list_all_resources",
         lambda: [
             {
                 "vmid": 801,
@@ -440,11 +436,11 @@ def test_vm_request_review_context_includes_runtime_and_projection(
         ],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_service.vm_request_repo.list_active_approved_vm_requests",
+        "app.services.vm.vm_request_service.vm_request_repo.list_active_approved_vm_requests",
         lambda **kwargs: [],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
+        "app.services.vm.vm_request_service.vm_request_placement_service.rebuild_reserved_assignments",
         lambda **kwargs: {
             approved.id: SimpleNamespace(
                 node="pve-a",
@@ -538,7 +534,7 @@ def test_rebuild_reserved_assignments_uses_updated_prior_reservations(
         )
 
     monkeypatch.setattr(
-        "app.services.vm_request_placement_service.select_reserved_target_node",
+        "app.services.vm.placement_service.select_reserved_target_node",
         _fake_select_reserved_target_node,
     )
 
@@ -578,27 +574,27 @@ def test_select_request_placement_falls_back_when_reserved_node_is_unavailable(
     placement_request = SimpleNamespace()
 
     monkeypatch.setattr(
-        "app.services.provisioning_service.advisor_service._load_cluster_state",
+        "app.services.proxmox.provisioning_service.advisor_service._load_cluster_state",
         lambda: ([], []),
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.advisor_service._build_node_capacities",
+        "app.services.proxmox.provisioning_service.advisor_service._build_node_capacities",
         lambda **kwargs: [SimpleNamespace(node="pve-a")],
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.advisor_service._decide_resource_type",
+        "app.services.proxmox.provisioning_service.advisor_service._decide_resource_type",
         lambda request: ("lxc", "Prefer LXC for this request."),
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.vm_request_placement_service.build_plan",
+        "app.services.proxmox.provisioning_service.vm_request_placement_service.build_plan",
         lambda **kwargs: SimpleNamespace(feasible=False),
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.vm_request_repo.get_approved_vm_requests_overlapping_window",
+        "app.services.proxmox.provisioning_service.vm_request_repo.get_approved_vm_requests_overlapping_window",
         lambda **kwargs: [],
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.vm_request_placement_service.select_reserved_target_node",
+        "app.services.proxmox.provisioning_service.vm_request_placement_service.select_reserved_target_node",
         lambda **kwargs: SimpleNamespace(
             node="pve-b",
             strategy="priority_dominant_share",
@@ -694,11 +690,11 @@ def test_reserved_target_node_prefers_admin_storage_profile(
     )
 
     monkeypatch.setattr(
-        "app.services.vm_request_placement_service.advisor_service._load_cluster_state",
+        "app.services.vm.placement_service.advisor_service._load_cluster_state",
         lambda: ([], []),
     )
     monkeypatch.setattr(
-        "app.services.vm_request_placement_service.advisor_service._build_node_capacities",
+        "app.services.vm.placement_service.advisor_service._build_node_capacities",
         lambda **kwargs: [
             NodeCapacity(
                 node="pve-a",
@@ -756,15 +752,15 @@ def test_create_vm_prefers_admin_selected_storage(
     captured: dict[str, object] = {}
 
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.next_vmid",
+        "app.services.proxmox.provisioning_service.proxmox_service.next_vmid",
         lambda: 902,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.find_vm_template",
+        "app.services.proxmox.provisioning_service.proxmox_service.find_vm_template",
         lambda template_id: {"vmid": template_id, "node": "node-d"},
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.vm_request_placement_service.select_best_storage_name",
+        "app.services.proxmox.provisioning_service.vm_request_placement_service.select_best_storage_name",
         lambda **kwargs: "data-nvme",
     )
 
@@ -773,34 +769,34 @@ def test_create_vm_prefers_admin_selected_storage(
         return requested_storage
 
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.resolve_target_storage",
+        "app.services.proxmox.provisioning_service.proxmox_service.resolve_target_storage",
         _resolve_target_storage,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.clone_vm",
+        "app.services.proxmox.provisioning_service.proxmox_service.clone_vm",
         lambda node, template_id, **clone_config: (
             captured.setdefault("clone", (node, template_id, clone_config)),
             "UPID:clone",
         )[1],
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.update_config",
+        "app.services.proxmox.provisioning_service.proxmox_service.update_config",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.resize_disk",
+        "app.services.proxmox.provisioning_service.proxmox_service.resize_disk",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.control",
+        "app.services.proxmox.provisioning_service.proxmox_service.control",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.firewall_service.setup_default_rules",
+        "app.services.proxmox.provisioning_service.firewall_service.setup_default_rules",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.audit_service.log_action",
+        "app.services.proxmox.provisioning_service.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
 
@@ -903,15 +899,15 @@ def test_process_due_request_starts_rebalances_active_window_and_migrates(
     migrations: list[tuple[str, str, int, str, bool]] = []
 
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.engine",
+        "app.services.scheduling.coordinator.engine",
         db.get_bind(),
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service._utc_now",
+        "app.services.scheduling.coordinator._utc_now",
         lambda: now,
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.vm_request_placement_service.rebalance_active_assignments",
+        "app.services.scheduling.coordinator.vm_request_placement_service.rebalance_active_assignments",
         lambda **kwargs: {
             existing.id: SimpleNamespace(
                 node="pve-c",
@@ -926,21 +922,21 @@ def test_process_due_request_starts_rebalances_active_window_and_migrates(
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.find_resource",
+        "app.services.scheduling.coordinator.proxmox_service.find_resource",
         lambda vmid: resources[vmid],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_status",
+        "app.services.scheduling.coordinator.proxmox_service.get_status",
         lambda node, vmid, resource_type: {"status": "running"},
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_config",
+        "app.services.scheduling.coordinator.proxmox_service.get_config",
         lambda node, vmid, resource_type: {
             "scsi0": f"local-lvm:vm-{vmid}-disk-0,size=20G",
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.list_node_storages",
+        "app.services.scheduling.coordinator.proxmox_service.list_node_storages",
         lambda node: [{"storage": "local-lvm"}],
     )
 
@@ -950,11 +946,11 @@ def test_process_due_request_starts_rebalances_active_window_and_migrates(
         return "UPID:migrate"
 
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.migrate_resource",
+        "app.services.scheduling.coordinator.proxmox_service.migrate_resource",
         _migrate,
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.audit_service.log_action",
+        "app.services.scheduling.coordinator.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
 
@@ -1009,15 +1005,15 @@ def test_process_due_request_starts_provisions_new_active_request_on_rebalanced_
     db.refresh(request)
 
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.engine",
+        "app.services.scheduling.coordinator.engine",
         db.get_bind(),
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service._utc_now",
+        "app.services.scheduling.coordinator._utc_now",
         lambda: now,
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.vm_request_placement_service.rebalance_active_assignments",
+        "app.services.scheduling.coordinator.vm_request_placement_service.rebalance_active_assignments",
         lambda **kwargs: {
             request.id: SimpleNamespace(
                 node="pve-b",
@@ -1040,21 +1036,21 @@ def test_process_due_request_starts_provisions_new_active_request_on_rebalanced_
         return 990, "pve-b", "priority_dominant_share", True
 
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service._adopt_or_provision_due_request",
+        "app.services.scheduling.coordinator._adopt_or_provision_due_request",
         _fake_adopt_or_provision_due_request,
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_config",
+        "app.services.scheduling.coordinator.proxmox_service.get_config",
         lambda node, vmid, resource_type: {
             "rootfs": f"local-lvm:subvol-{vmid}-disk-0,size=8G",
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.list_node_storages",
+        "app.services.scheduling.coordinator.proxmox_service.list_node_storages",
         lambda node: [{"storage": "local-lvm"}],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.audit_service.log_action",
+        "app.services.scheduling.coordinator.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
 
@@ -1123,10 +1119,10 @@ def test_process_due_request_starts_defers_when_migration_budget_is_exhausted(
     db.commit()
     db.refresh(request)
 
-    monkeypatch.setattr("app.services.vm_request_schedule_service.engine", db.get_bind())
-    monkeypatch.setattr("app.services.vm_request_schedule_service._utc_now", lambda: now)
+    monkeypatch.setattr("app.services.scheduling.coordinator.engine", db.get_bind())
+    monkeypatch.setattr("app.services.scheduling.coordinator._utc_now", lambda: now)
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.vm_request_placement_service.rebalance_active_assignments",
+        "app.services.scheduling.coordinator.vm_request_placement_service.rebalance_active_assignments",
         lambda **kwargs: {
             request.id: SimpleNamespace(
                 node="pve-a",
@@ -1136,31 +1132,31 @@ def test_process_due_request_starts_defers_when_migration_budget_is_exhausted(
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.find_resource",
+        "app.services.scheduling.coordinator.proxmox_service.find_resource",
         lambda vmid: {"vmid": vmid, "node": "pve-b", "name": "budget-vm", "type": "qemu"},
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_status",
+        "app.services.scheduling.coordinator.proxmox_service.get_status",
         lambda node, vmid, resource_type: {"status": "running"},
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_config",
+        "app.services.scheduling.coordinator.proxmox_service.get_config",
         lambda node, vmid, resource_type: {
             "scsi0": "local-lvm:vm-1401-disk-0,size=20G",
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.list_node_storages",
+        "app.services.scheduling.coordinator.proxmox_service.list_node_storages",
         lambda node: [{"storage": "local-lvm"}],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.migrate_resource",
+        "app.services.scheduling.coordinator.proxmox_service.migrate_resource",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             AssertionError("migrate_resource should not be called when migration budget is 0")
         ),
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.audit_service.log_action",
+        "app.services.scheduling.coordinator.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
 
@@ -1226,10 +1222,10 @@ def test_process_due_request_starts_defers_when_recently_migrated(
     db.commit()
     db.refresh(request)
 
-    monkeypatch.setattr("app.services.vm_request_schedule_service.engine", db.get_bind())
-    monkeypatch.setattr("app.services.vm_request_schedule_service._utc_now", lambda: now)
+    monkeypatch.setattr("app.services.scheduling.coordinator.engine", db.get_bind())
+    monkeypatch.setattr("app.services.scheduling.coordinator._utc_now", lambda: now)
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.vm_request_placement_service.rebalance_active_assignments",
+        "app.services.scheduling.coordinator.vm_request_placement_service.rebalance_active_assignments",
         lambda **kwargs: {
             request.id: SimpleNamespace(
                 node="pve-a",
@@ -1239,31 +1235,31 @@ def test_process_due_request_starts_defers_when_recently_migrated(
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.find_resource",
+        "app.services.scheduling.coordinator.proxmox_service.find_resource",
         lambda vmid: {"vmid": vmid, "node": "pve-b", "name": "recent-vm", "type": "qemu"},
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_status",
+        "app.services.scheduling.coordinator.proxmox_service.get_status",
         lambda node, vmid, resource_type: {"status": "running"},
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_config",
+        "app.services.scheduling.coordinator.proxmox_service.get_config",
         lambda node, vmid, resource_type: {
             "scsi0": "local-lvm:vm-1402-disk-0,size=20G",
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.list_node_storages",
+        "app.services.scheduling.coordinator.proxmox_service.list_node_storages",
         lambda node: [{"storage": "local-lvm"}],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.migrate_resource",
+        "app.services.scheduling.coordinator.proxmox_service.migrate_resource",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             AssertionError("migrate_resource should not be called when min interval has not elapsed")
         ),
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.audit_service.log_action",
+        "app.services.scheduling.coordinator.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
 
@@ -1311,11 +1307,11 @@ def test_rebalance_active_window_enqueues_pending_migration_job(
     db.refresh(request)
 
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.engine",
+        "app.services.scheduling.coordinator.engine",
         db.get_bind(),
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.vm_request_placement_service.rebalance_active_assignments",
+        "app.services.scheduling.coordinator.vm_request_placement_service.rebalance_active_assignments",
         lambda **kwargs: {
             request.id: SimpleNamespace(
                 node="pve-b",
@@ -1402,10 +1398,10 @@ def test_process_due_request_starts_retries_pending_migration_job_until_limit(
     db.add(job)
     db.commit()
 
-    monkeypatch.setattr("app.services.vm_request_schedule_service.engine", db.get_bind())
-    monkeypatch.setattr("app.services.vm_request_schedule_service._utc_now", lambda: now)
+    monkeypatch.setattr("app.services.scheduling.coordinator.engine", db.get_bind())
+    monkeypatch.setattr("app.services.scheduling.coordinator._utc_now", lambda: now)
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.vm_request_placement_service.rebalance_active_assignments",
+        "app.services.scheduling.coordinator.vm_request_placement_service.rebalance_active_assignments",
         lambda **kwargs: {
             request.id: SimpleNamespace(
                 node="pve-a",
@@ -1415,29 +1411,29 @@ def test_process_due_request_starts_retries_pending_migration_job_until_limit(
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.find_resource",
+        "app.services.scheduling.coordinator.proxmox_service.find_resource",
         lambda vmid: {"vmid": vmid, "node": "pve-b", "name": "retry-vm", "type": "qemu"},
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_status",
+        "app.services.scheduling.coordinator.proxmox_service.get_status",
         lambda node, vmid, resource_type: {"status": "running"},
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_config",
+        "app.services.scheduling.coordinator.proxmox_service.get_config",
         lambda node, vmid, resource_type: {
             "scsi0": "local-lvm:vm-1511-disk-0,size=20G",
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.list_node_storages",
+        "app.services.scheduling.coordinator.proxmox_service.list_node_storages",
         lambda node: [{"storage": "local-lvm"}],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.migrate_resource",
+        "app.services.scheduling.coordinator.proxmox_service.migrate_resource",
         lambda *args, **kwargs: (_ for _ in ()).throw(ProxmoxError("link down")),
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.audit_service.log_action",
+        "app.services.scheduling.coordinator.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
 
@@ -1457,7 +1453,7 @@ def test_process_due_request_starts_retries_pending_migration_job_until_limit(
     assert job.attempt_count == 1
 
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service._utc_now",
+        "app.services.scheduling.coordinator._utc_now",
         lambda: now + timedelta(seconds=121),
     )
     vm_request_schedule_service.process_due_request_starts()
@@ -1776,22 +1772,22 @@ def test_migrate_request_to_desired_node_blocks_vm_with_passthrough(
     db.refresh(request)
 
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_status",
+        "app.services.scheduling.coordinator.proxmox_service.get_status",
         lambda node, vmid, resource_type: {"status": "running"},
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_config",
+        "app.services.scheduling.coordinator.proxmox_service.get_config",
         lambda node, vmid, resource_type: {
             "hostpci0": "0000:65:00",
             "scsi0": "local-lvm:vm-1201-disk-0,size=20G",
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.list_node_storages",
+        "app.services.scheduling.coordinator.proxmox_service.list_node_storages",
         lambda node: [{"storage": "local-lvm"}],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.migrate_resource",
+        "app.services.scheduling.coordinator.proxmox_service.migrate_resource",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             AssertionError("migrate_resource should not be called for passthrough VM")
         ),
@@ -1849,22 +1845,22 @@ def test_migrate_request_to_desired_node_blocks_lxc_bind_mount(
     db.refresh(request)
 
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_status",
+        "app.services.scheduling.coordinator.proxmox_service.get_status",
         lambda node, vmid, resource_type: {"status": "running"},
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_config",
+        "app.services.scheduling.coordinator.proxmox_service.get_config",
         lambda node, vmid, resource_type: {
             "rootfs": "local-lvm:subvol-1301-disk-0,size=8G",
             "mp0": "/srv/shared,mp=/data",
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.list_node_storages",
+        "app.services.scheduling.coordinator.proxmox_service.list_node_storages",
         lambda node: [{"storage": "local-lvm"}],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.migrate_resource",
+        "app.services.scheduling.coordinator.proxmox_service.migrate_resource",
         lambda *args, **kwargs: (_ for _ in ()).throw(
             AssertionError("migrate_resource should not be called for bind-mount LXC")
         ),
@@ -1913,11 +1909,11 @@ def test_spec_change_review_stays_pending_when_apply_fails(
     db.refresh(request)
 
     monkeypatch.setattr(
-        "app.services.spec_change_service.proxmox_service.find_resource",
+        "app.services.vm.spec_change_service.proxmox_service.find_resource",
         lambda vmid: {"node": "node-a", "type": "qemu"},
     )
     monkeypatch.setattr(
-        "app.services.spec_change_service.proxmox_service.update_config",
+        "app.services.vm.spec_change_service.proxmox_service.update_config",
         lambda *args, **kwargs: (_ for _ in ()).throw(ProxmoxError("apply failed")),
     )
 
@@ -1948,15 +1944,15 @@ def test_create_vm_uses_template_node_and_normalizes_disk_size(
     captured: dict[str, object] = {}
 
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.next_vmid",
+        "app.services.proxmox.provisioning_service.proxmox_service.next_vmid",
         lambda: 900,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.find_vm_template",
+        "app.services.proxmox.provisioning_service.proxmox_service.find_vm_template",
         lambda template_id: {"vmid": template_id, "node": "node-b"},
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.resolve_target_storage",
+        "app.services.proxmox.provisioning_service.proxmox_service.resolve_target_storage",
         lambda node, requested_storage, required_content: requested_storage,
     )
 
@@ -1965,35 +1961,35 @@ def test_create_vm_uses_template_node_and_normalizes_disk_size(
         return "UPID:clone"
 
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.clone_vm",
+        "app.services.proxmox.provisioning_service.proxmox_service.clone_vm",
         _clone_vm,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.update_config",
+        "app.services.proxmox.provisioning_service.proxmox_service.update_config",
         lambda node, vmid, resource_type, **config: captured.setdefault(
             "update", (node, vmid, resource_type, config)
         ),
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.resize_disk",
+        "app.services.proxmox.provisioning_service.proxmox_service.resize_disk",
         lambda node, vmid, resource_type, disk, size: captured.setdefault(
             "resize", (node, vmid, resource_type, disk, size)
         ),
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.control",
+        "app.services.proxmox.provisioning_service.proxmox_service.control",
         lambda node, vmid, resource_type, action: captured.setdefault(
             "control", (node, vmid, resource_type, action)
         ),
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.firewall_service.setup_default_rules",
+        "app.services.proxmox.provisioning_service.firewall_service.setup_default_rules",
         lambda node, vmid, resource_type: captured.setdefault(
             "firewall", (node, vmid, resource_type)
         ),
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.audit_service.log_action",
+        "app.services.proxmox.provisioning_service.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
 
@@ -2041,42 +2037,42 @@ def test_create_vm_falls_back_when_requested_storage_is_unavailable(
     captured: dict[str, object] = {}
 
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.next_vmid",
+        "app.services.proxmox.provisioning_service.proxmox_service.next_vmid",
         lambda: 901,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.find_vm_template",
+        "app.services.proxmox.provisioning_service.proxmox_service.find_vm_template",
         lambda template_id: {"vmid": template_id, "node": "node-c"},
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.resolve_target_storage",
+        "app.services.proxmox.provisioning_service.proxmox_service.resolve_target_storage",
         lambda node, requested_storage, required_content: "fast-ssd",
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.clone_vm",
+        "app.services.proxmox.provisioning_service.proxmox_service.clone_vm",
         lambda node, template_id, **clone_config: (
             captured.setdefault("clone", (node, template_id, clone_config)),
             "UPID:clone",
         )[1],
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.update_config",
+        "app.services.proxmox.provisioning_service.proxmox_service.update_config",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.resize_disk",
+        "app.services.proxmox.provisioning_service.proxmox_service.resize_disk",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.proxmox_service.control",
+        "app.services.proxmox.provisioning_service.proxmox_service.control",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.firewall_service.setup_default_rules",
+        "app.services.proxmox.provisioning_service.firewall_service.setup_default_rules",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "app.services.provisioning_service.audit_service.log_action",
+        "app.services.proxmox.provisioning_service.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
 
@@ -2139,11 +2135,11 @@ def test_delete_user_rejects_owned_resources(db: Session) -> None:
 
 def test_vm_templates_are_filtered_by_pool(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "app.services.proxmox_service.get_proxmox_settings",
+        "app.infrastructure.proxmox.operations.get_proxmox_settings",
         lambda: type("Cfg", (), {"pool_name": "CampusCloud"})(),
     )
     monkeypatch.setattr(
-        "app.services.proxmox_service._raw_vms",
+        "app.infrastructure.proxmox.operations._raw_vms",
         lambda: [
             {"vmid": 100, "name": "allowed", "node": "node-a", "template": 1, "pool": "CampusCloud"},
             {"vmid": 101, "name": "blocked", "node": "node-b", "template": 1, "pool": "OtherPool"},
@@ -2281,11 +2277,11 @@ def test_reserved_target_node_preview_matches_active_rebalance_objective(
     db.commit()
 
     monkeypatch.setattr(
-        "app.services.vm_request_placement_service.advisor_service._load_cluster_state",
+        "app.services.vm.placement_service.advisor_service._load_cluster_state",
         lambda: ([], []),
     )
     monkeypatch.setattr(
-        "app.services.vm_request_placement_service.advisor_service._build_node_capacities",
+        "app.services.vm.placement_service.advisor_service._build_node_capacities",
         lambda **kwargs: [
             NodeCapacity(
                 node="pve-a",
@@ -2511,33 +2507,33 @@ def test_process_pending_migration_jobs_reclaims_expired_running_claim(
     resources = {992: {"vmid": 992, "node": "pve-b", "name": "claim-recover-vm", "type": "qemu"}}
 
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service._refresh_actual_node",
+        "app.services.scheduling.coordinator._refresh_actual_node",
         lambda **kwargs: ("pve-b", {"node": "pve-b"}),
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_status",
+        "app.services.scheduling.coordinator.proxmox_service.get_status",
         lambda node, vmid, resource_type: {"status": "running"},
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.get_config",
+        "app.services.scheduling.coordinator.proxmox_service.get_config",
         lambda node, vmid, resource_type: {
             "scsi0": "local-lvm:vm-992-disk-0,size=20G",
         },
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.list_node_storages",
+        "app.services.scheduling.coordinator.proxmox_service.list_node_storages",
         lambda node: [{"storage": "local-lvm"}],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.migrate_resource",
+        "app.services.scheduling.coordinator.proxmox_service.migrate_resource",
         lambda *args, **kwargs: resources[992].update({"node": "pve-a"}) or "UPID:migrate",
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.proxmox_service.find_resource",
+        "app.services.scheduling.coordinator.proxmox_service.find_resource",
         lambda vmid: resources[vmid],
     )
     monkeypatch.setattr(
-        "app.services.vm_request_schedule_service.audit_service.log_action",
+        "app.services.scheduling.coordinator.audit_service.log_action",
         lambda *args, **kwargs: None,
     )
 
