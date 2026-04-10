@@ -17,7 +17,7 @@ from app.ai.pve_advisor.schemas import (
 )
 from app.core.config import settings
 
-advisor_router_module = importlib.import_module("app.ai.pve_advisor.router")
+advisor_router_module = importlib.import_module("app.api.routes.ai_pve_advisor")
 
 
 def test_placement_request_accepts_minimal_fields() -> None:

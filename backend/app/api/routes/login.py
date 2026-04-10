@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.schemas import Message, NewPassword, Token, UserPublic
-from app.services import auth_service
+from app.services.user import auth_service
 
 router = APIRouter(tags=["login"])
 

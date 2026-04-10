@@ -4,6 +4,8 @@ from app.ai.system_config import system_ai_config, system_ai_env
 
 
 class PVEAdvisorSettings:
+    enabled: bool = True
+
     @property
     def section(self):
         return system_ai_config.pve_advisor

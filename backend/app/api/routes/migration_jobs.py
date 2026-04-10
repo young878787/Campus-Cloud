@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from app.api.deps import AdminUser, SessionDep
 from app.models import AuditAction, VMMigrationJob, VMMigrationJobStatus
 from app.repositories import vm_migration_job as vm_migration_job_repo
-from app.services import audit_service
+from app.services.user import audit_service
 
 router = APIRouter(prefix="/migration-jobs", tags=["migration-jobs"])
 

@@ -10,7 +10,8 @@ from app.api.deps import (
 )
 from app.exceptions import ProxmoxError
 from app.schemas import Message, NodeSchema, ResourcePublic, VMSchema
-from app.services import proxmox_service, resource_service
+from app.services.proxmox import proxmox_service
+from app.services.resource import resource_service
 
 logger = logging.getLogger(__name__)
 

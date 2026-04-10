@@ -4,7 +4,7 @@ from typing import Any
 
 from app.ai.template_recommendation.config import settings
 from app.ai.template_recommendation.schemas import DeviceNode
-from app.services import provisioning_service, proxmox_service
+from app.services.proxmox import provisioning_service, proxmox_service
 
 
 def load_live_device_nodes() -> list[DeviceNode]:

@@ -12,10 +12,10 @@ from app.api.main import api_router
 from app.api.websocket import vnc_proxy
 from app.api.websocket.terminal import terminal_proxy
 from app.core.config import settings
-from app.core.redis import close_redis, init_redis
 from app.core.request_context import RequestContextMiddleware
 from app.exceptions import AppError
-from app.services import vm_request_schedule_service
+from app.infrastructure.redis import close_redis, init_redis
+from app.services.scheduling import vm_request_schedule_service
 
 
 _SECURITY_HEADERS: list[tuple[str, str]] = [

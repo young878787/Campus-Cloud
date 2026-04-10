@@ -1,0 +1,25 @@
+from __future__ import annotations
+
+from importlib import import_module
+
+__all__ = [
+    "batch_provision_service",
+    "spec_change_service",
+    "vm_request_availability_service",
+    "vm_request_placement_service",
+    "vm_request_service",
+]
+
+_MODULES = {
+    "batch_provision_service": "app.services.vm.batch_provision_service",
+    "spec_change_service": "app.services.vm.spec_change_service",
+    "vm_request_availability_service": "app.services.vm.vm_request_availability_service",
+    "vm_request_placement_service": "app.services.vm.placement_service",
+    "vm_request_service": "app.services.vm.vm_request_service",
+}
+
+
+def __getattr__(name: str):
+    if name in _MODULES:
+        return import_module(_MODULES[name])
+    raise AttributeError(name)

@@ -16,7 +16,7 @@ from app.schemas import (
     AIAPICredentialUpdate,
     Message,
 )
-from app.services import ai_api_service
+from app.services.ai import ai_api_service
 
 router = APIRouter(prefix="/ai-api", tags=["ai-api"])
 

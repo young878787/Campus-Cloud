@@ -10,7 +10,7 @@ from app.schemas import (
     TemplateSchema,
     TerminalInfoSchema,
 )
-from app.services import provisioning_service, proxmox_service
+from app.services.proxmox import provisioning_service, proxmox_service
 
 logger = logging.getLogger(__name__)
 

@@ -30,13 +30,9 @@ from app.schemas.firewall import (
     TopologyResponse,
 )
 from app.models import AuditAction
-from app.services import (
-    audit_service,
-    firewall_service,
-    nat_service,
-    reverse_proxy_service,
-)
-from app.services.firewall_service import _BLOCK_LOCAL_COMMENT
+from app.services.infra import firewall_service, nat_service, reverse_proxy_service
+from app.services.user import audit_service
+from app.services.infra.firewall_service import _BLOCK_LOCAL_COMMENT
 
 logger = logging.getLogger(__name__)
 

@@ -7,9 +7,13 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from app.api.deps.auth import get_ws_current_user
 from app.api.deps.proxmox import check_resource_ownership
-from app.core.proxmox import build_ws_ssl_context, get_active_host, get_proxmox_settings
+from app.infrastructure.proxmox import (
+    build_ws_ssl_context,
+    get_active_host,
+    get_proxmox_settings,
+)
 from app.exceptions import NotFoundError, ProxmoxError
-from app.services import proxmox_service
+from app.services.proxmox import proxmox_service
 
 logger = logging.getLogger(__name__)
 

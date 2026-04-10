@@ -10,9 +10,9 @@ import httpx
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from app.ai_api.config import settings as ai_api_settings
+from app.features.ai.config import settings as ai_api_settings
 from app.api.deps import AIAPIUserDep, SessionDep
-from app.core.redis import get_redis
+from app.infrastructure.redis import check_rate_limit_sliding_window, get_redis
 from app.schemas.ai_proxy import (
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -21,8 +21,7 @@ from app.schemas.ai_proxy import (
     RateLimitStatusResponse,
     UsageStatsResponse,
 )
-from app.services import ai_api_service
-from app.services.redis_rate_limiter import check_rate_limit_sliding_window
+from app.services.ai import ai_api_service
 
 logger = logging.getLogger(__name__)
 
@@ -142,8 +141,6 @@ async def list_models(
     从 VLLM Gateway 获取可用模型列表
     """
     user, credential = user_and_credential
-
-    from app.ai_api.config import settings as ai_api_settings
 
     try:
         # 从 VLLM Gateway 获取模型列表

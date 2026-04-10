@@ -1,3 +1,1 @@
-from .router import router
-
-__all__ = ["router"]
+"""Template recommendation feature package."""

@@ -31,7 +31,7 @@ from app.schemas.group import (
     GroupsPublic,
 )
 from app.schemas.user import UserCreate
-from app.services import audit_service
+from app.services.user import audit_service
 from app.utils import generate_new_account_email, send_email
 
 router = APIRouter(prefix="/groups", tags=["groups"])

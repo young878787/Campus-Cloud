@@ -12,7 +12,7 @@ from app.core.permissions import (
 )
 from app.exceptions import PermissionDeniedError
 from app.repositories import resource as resource_repo
-from app.services import proxmox_service
+from app.services.proxmox import proxmox_service
 
 logger = logging.getLogger(__name__)
 
