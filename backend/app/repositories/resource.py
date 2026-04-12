@@ -70,7 +70,7 @@ def update_ip_address(*, session: Session, vmid: int, ip_address: str) -> None:
         resource.ip_address = ip_address
         resource.ip_address_cached_at = datetime.now(timezone.utc)
         session.add(resource)
-        session.commit()
+        session.flush()
 
 
 def is_ip_address_fresh(*, session: Session, vmid: int, ttl_seconds: int = 3600) -> bool:

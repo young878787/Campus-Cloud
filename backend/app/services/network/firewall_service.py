@@ -943,6 +943,7 @@ def get_topology(user: User, session: Session) -> TopologyResponse:
                 vmid=vmid,
                 name=node_name,
                 node_type="vm",
+                vm_type=resource.get("type", "qemu"),
                 status=status,
                 ip_address=ip_address,
                 firewall_enabled=firewall_enabled,

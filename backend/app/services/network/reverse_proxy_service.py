@@ -80,6 +80,11 @@ def _sync_traefik(session: object) -> None:
     new_cfg = _build_traefik_dynamic_config(rules)
     tmp_path = TRAEFIK_DYNAMIC_PATH + ".tmp"
 
+    logger.info(
+        f"[ReverseProxy] 準備同步 {len(rules)} 條規則到 {config.host}:{config.ssh_port}"
+    )
+    logger.debug(f"[ReverseProxy] 生成的 Traefik config:\n{new_cfg}")
+
     client = create_key_client(
         config.host,
         config.ssh_port,
@@ -88,13 +93,18 @@ def _sync_traefik(session: object) -> None:
     )
     try:
         # 確保目錄存在
-        exec_command(client, f"mkdir -p $(dirname {TRAEFIK_DYNAMIC_PATH})")
+        code, out, err = exec_command(
+            client, f"mkdir -p $(dirname {TRAEFIK_DYNAMIC_PATH})"
+        )
+        if code != 0:
+            raise ProxmoxError(f"建立目錄失敗：{out}{err}")
 
         # 原子性寫入
+        content_bytes = new_cfg.encode("utf-8")
         sftp = client.open_sftp()
         try:
-            with sftp.open(tmp_path, "w") as f:
-                f.write(new_cfg.encode())
+            with sftp.open(tmp_path, "wb") as f:
+                f.write(content_bytes)
         finally:
             sftp.close()
 
@@ -102,7 +112,22 @@ def _sync_traefik(session: object) -> None:
         if code != 0:
             raise ProxmoxError(f"Traefik 設定寫入失敗：{out}{err}")
 
-        logger.info(f"[ReverseProxy] Traefik 已同步 {len(rules)} 條 domain 規則")
+        # 驗證寫入結果
+        code, verify_out, _ = exec_command(
+            client, f"wc -c < {TRAEFIK_DYNAMIC_PATH}"
+        )
+        written_size = verify_out.strip() if code == 0 else "unknown"
+        logger.info(
+            f"[ReverseProxy] Traefik 已同步 {len(rules)} 條 domain 規則 "
+            f"(檔案大小: {written_size} bytes, 預期: {len(content_bytes)} bytes)"
+        )
+
+        # 檢查 Traefik 服務狀態
+        code, _, _ = exec_command(client, "systemctl is-active traefik")
+        if code != 0:
+            logger.warning(
+                "[ReverseProxy] Traefik 服務未在運行，設定已寫入但可能不會立即生效"
+            )
     except ProxmoxError:
         raise
     except Exception as e:

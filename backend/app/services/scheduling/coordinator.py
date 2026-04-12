@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
+import uuid
 from datetime import datetime, timedelta
 
 from sqlmodel import Session, select
@@ -74,110 +76,41 @@ def _find_existing_resource_for_request(
     )
 
 
-def _adopt_or_provision_due_request(
+def _adopt_existing_resource(
     *,
     session: Session,
     request: VMRequest,
-) -> tuple[int, str, str | None, bool]:
+) -> tuple[int, str, str | None, bool] | None:
+    """Try to adopt an already-existing Proxmox resource for this request.
+
+    Returns (vmid, actual_node, placement_strategy, started) or None.
+    """
     resource_type = _resource_type_for_request(request)
     existing_resource = _find_existing_resource_for_request(
         session=session,
         request=request,
     )
+    if existing_resource is None:
+        return None
+
     desired_node = str(request.desired_node or request.assigned_node or "")
     placement_strategy_used = (
         request.placement_strategy_used
         or vm_request_placement_service.DEFAULT_PLACEMENT_STRATEGY
     )
-
-    if existing_resource is not None:
-        vmid = int(existing_resource["vmid"])
-        actual_node = str(existing_resource["node"])
-        if not resource_repo.get_resource_by_vmid(
+    vmid = int(existing_resource["vmid"])
+    actual_node = str(existing_resource["node"])
+    if not resource_repo.get_resource_by_vmid(session=session, vmid=vmid):
+        resource_repo.create_resource(
             session=session,
             vmid=vmid,
-        ):
-            resource_repo.create_resource(
-                session=session,
-                vmid=vmid,
-                user_id=request.user_id,
-                environment_type=request.environment_type,
-                os_info=request.os_info,
-                expiry_date=request.expiry_date,
-                template_id=request.template_id,
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=request,
-            vmid=vmid,
-            assigned_node=desired_node or actual_node,
-            desired_node=desired_node or actual_node,
-            actual_node=actual_node,
-            placement_strategy_used=placement_strategy_used,
-            migration_status=(
-                VMMigrationStatus.pending
-                if desired_node and desired_node != actual_node
-                else VMMigrationStatus.idle
-            ),
-            migration_error=None,
+            user_id=request.user_id,
+            environment_type=request.environment_type,
+            os_info=request.os_info,
+            expiry_date=request.expiry_date,
+            template_id=request.template_id,
             commit=False,
         )
-        status = proxmox_service.get_status(
-            actual_node,
-            vmid,
-            resource_type,
-        )
-        started = False
-        if str(status.get("status") or "").lower() != "running":
-            proxmox_service.control(
-                actual_node,
-                vmid,
-                resource_type,
-                "start",
-            )
-            started = True
-        audit_service.log_action(
-            session=session,
-            user_id=None,
-            vmid=vmid,
-            action="resource_start",
-            details=(
-                "Scheduled provisioning adopted an existing resource for approved "
-                f"{request.resource_type} request {request.id}"
-            ),
-            commit=False,
-        )
-        logger.warning(
-            "Adopted existing %s resource VMID %s for approved request %s",
-            resource_type,
-            vmid,
-            request.id,
-        )
-        # Detect if resource should be pinned
-        try:
-            pinned = _detect_migration_pinned(
-                node=actual_node,
-                vmid=vmid,
-                resource_type=resource_type,
-            )
-            if pinned and not request.migration_pinned:
-                request.migration_pinned = True
-                session.add(request)
-                logger.info(
-                    "Auto-pinned request %s VMID %s on %s (passthrough/local mount detected)",
-                    request.id, vmid, actual_node,
-                )
-        except Exception:
-            logger.debug("Failed to detect migration pinning for VMID %s", vmid, exc_info=True)
-        return vmid, actual_node, placement_strategy_used, started
-
-    vmid, actual_node, placement_strategy_used = (
-        provisioning_service.provision_from_request(
-            session=session,
-            db_request=request,
-        )
-    )
     vm_request_repo.update_vm_request_provisioning(
         session=session,
         db_request=request,
@@ -189,54 +122,172 @@ def _adopt_or_provision_due_request(
         migration_status=(
             VMMigrationStatus.pending
             if desired_node and desired_node != actual_node
-            else VMMigrationStatus.completed
+            else VMMigrationStatus.idle
         ),
         migration_error=None,
         commit=False,
     )
+    request.status = VMRequestStatus.running
+    session.add(request)
+
+    status = proxmox_service.get_status(actual_node, vmid, resource_type)
+    started = False
+    if str(status.get("status") or "").lower() != "running":
+        proxmox_service.control(actual_node, vmid, resource_type, "start")
+        started = True
     audit_service.log_action(
         session=session,
         user_id=None,
         vmid=vmid,
-        action=(
-            "lxc_create"
-            if request.resource_type == "lxc"
-            else "vm_create"
-        ),
+        action="resource_start",
         details=(
-            "Scheduled provisioning completed for approved "
-            f"{request.resource_type} request {request.id}"
-            + (
-                f" on node {actual_node}"
-                if actual_node
-                else ""
-            )
+            f"Adopted existing {request.resource_type} resource for request {request.id}"
         ),
         commit=False,
     )
-    logger.info(
-        "Auto-provisioned approved request %s with VMID %s on node %s",
-        request.id,
-        vmid,
-        actual_node,
+    logger.warning(
+        "Adopted existing %s resource VMID %s for request %s",
+        resource_type, vmid, request.id,
     )
     # Detect if resource should be pinned
     try:
-        pinned = _detect_migration_pinned(
-            node=actual_node,
-            vmid=vmid,
-            resource_type=resource_type,
-        )
+        pinned = _detect_migration_pinned(node=actual_node, vmid=vmid, resource_type=resource_type)
         if pinned and not request.migration_pinned:
             request.migration_pinned = True
             session.add(request)
-            logger.info(
-                "Auto-pinned request %s VMID %s on %s (passthrough/local mount detected)",
-                request.id, vmid, actual_node,
-            )
     except Exception:
         logger.debug("Failed to detect migration pinning for VMID %s", vmid, exc_info=True)
-    return vmid, actual_node, placement_strategy_used, True
+    return vmid, actual_node, placement_strategy_used, started
+
+
+def _provision_new_resource(
+    *,
+    session: Session,
+    request: VMRequest,
+) -> tuple[int, str, str | None]:
+    """Lock → mark provisioning → clone outside txn → mark running.
+
+    This is the core anti-duplication pattern:
+    1. SELECT FOR UPDATE SKIP LOCKED — if locked, bail
+    2. status = provisioning, commit  (visible to other sessions)
+    3. plan_provision (resolve storage etc.)  — still in a short txn
+    4. commit / close session
+    5. execute_provision (clone VM) — NO open transaction
+    6. Open new session → record vmid + status=running, commit
+    """
+    resource_type = _resource_type_for_request(request)
+    desired_node = str(request.desired_node or request.assigned_node or "")
+
+    # --- Phase 1: mark as provisioning + plan (short txn) -----------------
+    request.status = VMRequestStatus.provisioning
+    session.add(request)
+    session.commit()
+    logger.info("Marked request %s as provisioning", request.id)
+
+    try:
+        plan = provisioning_service.plan_provision(
+            session=session,
+            db_request=request,
+        )
+    except Exception:
+        # Plan failed — revert to approved so scheduler can retry.
+        request.status = VMRequestStatus.approved
+        session.add(request)
+        session.commit()
+        raise
+
+    request_id = request.id
+    request_user_id = request.user_id
+    request_env_type = request.environment_type
+    request_os_info = request.os_info
+    request_expiry_date = request.expiry_date
+    request_template_id = request.template_id
+    request_resource_type = request.resource_type
+    request_migration_pinned = request.migration_pinned
+
+    # Close session so clone runs outside any transaction.
+    session.commit()
+
+    # --- Phase 2: execute clone (NO open transaction) ---------------------
+    try:
+        new_vmid, actual_node = provisioning_service.execute_provision(plan)
+    except Exception:
+        # Clone failed — revert to approved.
+        with Session(engine) as rollback_session:
+            req = vm_request_repo.get_vm_request_by_id(
+                session=rollback_session, request_id=request_id, for_update=True,
+            )
+            if req and req.status == VMRequestStatus.provisioning:
+                req.status = VMRequestStatus.approved
+                rollback_session.add(req)
+                rollback_session.commit()
+                logger.warning("Reverted request %s to approved after provision failure", request_id)
+        raise
+
+    # --- Phase 3: record result (new short txn) ---------------------------
+    with Session(engine) as finish_session:
+        req = vm_request_repo.get_vm_request_by_id(
+            session=finish_session, request_id=request_id, for_update=True,
+        )
+        if req is None:
+            logger.error("Request %s vanished after provisioning VMID %s", request_id, new_vmid)
+            raise NotFoundError(f"Request {request_id} no longer exists")
+
+        resource_repo.create_resource(
+            session=finish_session,
+            vmid=new_vmid,
+            user_id=request_user_id,
+            environment_type=request_env_type,
+            os_info=request_os_info,
+            expiry_date=request_expiry_date,
+            template_id=request_template_id,
+            commit=False,
+        )
+        vm_request_repo.update_vm_request_provisioning(
+            session=finish_session,
+            db_request=req,
+            vmid=new_vmid,
+            assigned_node=desired_node or actual_node,
+            desired_node=desired_node or actual_node,
+            actual_node=actual_node,
+            placement_strategy_used=plan["placement_strategy"],
+            migration_status=(
+                VMMigrationStatus.pending
+                if desired_node and desired_node != actual_node
+                else VMMigrationStatus.completed
+            ),
+            migration_error=None,
+            commit=False,
+        )
+        req.status = VMRequestStatus.running
+        finish_session.add(req)
+
+        audit_service.log_action(
+            session=finish_session,
+            user_id=None,
+            vmid=new_vmid,
+            action="lxc_create" if request_resource_type == "lxc" else "vm_create",
+            details=f"Provisioned {request_resource_type} for request {request_id} on {actual_node}",
+            commit=False,
+        )
+        # Detect if resource should be pinned
+        try:
+            pinned = _detect_migration_pinned(
+                node=actual_node, vmid=new_vmid,
+                resource_type="lxc" if request_resource_type == "lxc" else "qemu",
+            )
+            if pinned and not request_migration_pinned:
+                req.migration_pinned = True
+                finish_session.add(req)
+        except Exception:
+            logger.debug("Failed to detect migration pinning for VMID %s", new_vmid, exc_info=True)
+        finish_session.commit()
+
+    logger.info(
+        "Provisioned request %s → VMID %s on node %s",
+        request_id, new_vmid, actual_node,
+    )
+    return new_vmid, actual_node, plan["placement_strategy"]
 
 
 def _mark_request_runtime_error(
@@ -265,9 +316,14 @@ def _refresh_actual_node(
     if request.vmid is None:
         raise NotFoundError(f"Request {request.id} has no provisioned VMID")
     resource = proxmox_service.find_resource(request.vmid)
-    if str(resource.get("name") or "") != str(request.hostname or ""):
+    resource_name = str(resource.get("name") or "")
+    # hostname is stored as punycode in DB since creation, so a direct
+    # comparison is sufficient.
+    expected_hostname = str(request.hostname or "")
+    if resource_name != expected_hostname:
         raise NotFoundError(
-            f"Provisioned resource {request.vmid} no longer matches request hostname"
+            f"Provisioned resource {request.vmid} name '{resource_name}' "
+            f"does not match request hostname '{expected_hostname}'"
         )
     actual_node = str(resource["node"])
     vm_request_repo.update_vm_request_provisioning(
@@ -885,116 +941,73 @@ def _ensure_request_running(
     policy: _MigrationPolicy,
     migrations_used: int,
 ) -> tuple[bool, int]:
+    """Make sure an approved/running request has a live VM.
+
+    For requests without a vmid: lock → mark provisioning → clone → mark running.
+    For requests with a vmid: ensure the VM is started.
+    """
     resource_type = _resource_type_for_request(request)
 
+    # ---- No VMID yet → need to provision ---------------------------------
     if request.vmid is None:
-        _, actual_node, placement_strategy_used, started = _adopt_or_provision_due_request(
-            session=session,
-            request=request,
-        )
-        db_request = vm_request_repo.get_vm_request_by_id(
+        # SELECT FOR UPDATE SKIP LOCKED — skip if another session holds it.
+        locked = vm_request_repo.get_vm_request_by_id(
             session=session,
             request_id=request.id,
             for_update=True,
+            skip_locked=True,
         )
-        if db_request is None:
+        if locked is None:
+            return False, migrations_used
+        # Re-check: another process may have set vmid or changed status.
+        if locked.vmid is not None or locked.status == VMRequestStatus.provisioning:
+            return False, migrations_used
+
+        # Try adopting an existing Proxmox resource first.
+        adopted = _adopt_existing_resource(session=session, request=locked)
+        if adopted is not None:
+            vmid, actual_node, strategy, started = adopted
+            session.commit()
             return started, migrations_used
-        _sync_request_migration_job(
+
+        # Full provision: mark provisioning → clone outside txn → mark running.
+        # _provision_new_resource manages its own sessions/commits.
+        _provision_new_resource(session=session, request=locked)
+        refreshed = vm_request_repo.get_vm_request_by_id(
             session=session,
-            request=db_request,
-            source_node=actual_node,
-            now=now,
+            request_id=locked.id,
         )
-        db_request = vm_request_repo.get_vm_request_by_id(
-            session=session,
-            request_id=request.id,
-            for_update=True,
-        )
-        if db_request is None:
-            return started, migrations_used
-        effective_migration_status, effective_migration_error = (
-            _effective_request_migration_state(
-                session=session,
-                request=db_request,
+        started = bool(
+            refreshed is not None
+            and refreshed.vmid is not None
+            and refreshed.status in (
+                VMRequestStatus.provisioning,
+                VMRequestStatus.running,
             )
-        )
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=db_request,
-            vmid=db_request.vmid,
-            assigned_node=db_request.desired_node or actual_node,
-            desired_node=db_request.desired_node or actual_node,
-            actual_node=actual_node,
-            placement_strategy_used=placement_strategy_used,
-            migration_status=(
-                VMMigrationStatus.completed
-                if db_request.desired_node and db_request.desired_node == actual_node
-                else effective_migration_status
-            ),
-            migration_error=(
-                None
-                if db_request.desired_node and db_request.desired_node == actual_node
-                else effective_migration_error
-            ),
-            rebalance_epoch=db_request.rebalance_epoch,
-            last_rebalanced_at=db_request.last_rebalanced_at,
-            last_migrated_at=db_request.last_migrated_at,
-            commit=False,
         )
         return started, migrations_used
 
-    actual_node, _ = _refresh_actual_node(
-        session=session,
-        request=request,
-    )
+    # ---- Already provisioned → ensure VM is started ----------------------
+    actual_node, _ = _refresh_actual_node(session=session, request=request)
     _sync_request_migration_job(
-        session=session,
-        request=request,
-        source_node=actual_node,
-        now=now,
+        session=session, request=request, source_node=actual_node, now=now,
     )
     request = vm_request_repo.get_vm_request_by_id(
-        session=session,
-        request_id=request.id,
-        for_update=True,
+        session=session, request_id=request.id, for_update=True,
     ) or request
     effective_migration_status, effective_migration_error = _effective_request_migration_state(
-        session=session,
-        request=request,
+        session=session, request=request,
     )
 
-    status = proxmox_service.get_status(
-        actual_node,
-        request.vmid,
-        resource_type,
-    )
-    if str(status.get("status") or "").lower() == "running":
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=request.desired_node or actual_node,
-            desired_node=request.desired_node or actual_node,
-            actual_node=actual_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=(
-                VMMigrationStatus.completed
-                if request.desired_node and request.desired_node == actual_node
-                else effective_migration_status
-            ),
-            migration_error=(
-                None
-                if request.desired_node and request.desired_node == actual_node
-                else effective_migration_error
-            ),
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
-        )
-        return False, migrations_used
+    pve_status = proxmox_service.get_status(actual_node, request.vmid, resource_type)
+    is_running = str(pve_status.get("status") or "").lower() == "running"
+    if not is_running:
+        proxmox_service.control(actual_node, request.vmid, resource_type, "start")
 
-    proxmox_service.control(actual_node, request.vmid, resource_type, "start")
+    # Ensure status is 'running' in DB.
+    if request.status != VMRequestStatus.running:
+        request.status = VMRequestStatus.running
+        session.add(request)
     vm_request_repo.update_vm_request_provisioning(
         session=session,
         db_request=request,
@@ -1018,24 +1031,20 @@ def _ensure_request_running(
         last_migrated_at=request.last_migrated_at,
         commit=False,
     )
-    audit_service.log_action(
-        session=session,
-        user_id=None,
-        vmid=request.vmid,
-        action="resource_start",
-        details=(
-            "Scheduled auto-start for approved "
-            f"{request.resource_type} request {request.id}"
-        ),
-        commit=False,
-    )
-    logger.info(
-        "Auto-started approved request %s on node %s with VMID %s",
-        request.id,
-        actual_node,
-        request.vmid,
-    )
-    return True, migrations_used
+    if not is_running:
+        audit_service.log_action(
+            session=session,
+            user_id=None,
+            vmid=request.vmid,
+            action="resource_start",
+            details=f"Auto-started {request.resource_type} request {request.id}",
+            commit=False,
+        )
+        logger.info(
+            "Auto-started request %s on node %s with VMID %s",
+            request.id, actual_node, request.vmid,
+        )
+    return not is_running, migrations_used
 
 
 def _rebalance_active_window(now: datetime) -> int:
@@ -1108,9 +1117,15 @@ def process_single_request_start(request_id: uuid.UUID) -> bool:
     with Session(engine) as session:
         policy = _get_migration_policy(session=session)
         request = vm_request_repo.get_vm_request_by_id(
-            session=session, request_id=request_id
+            session=session,
+            request_id=request_id,
+            for_update=True,
+            skip_locked=True,
         )
-        if not request or request.status != VMRequestStatus.approved:
+        if not request or request.status not in (
+            VMRequestStatus.approved,
+            VMRequestStatus.running,
+        ):
             return False
         try:
             started, _ = _ensure_request_running(
@@ -1168,6 +1183,27 @@ def process_due_request_starts() -> int:
                 session.commit()
             except NotFoundError:
                 stale_vmid = request.vmid
+                session.rollback()
+                # Retry find_resource up to 3 times with a short delay
+                # to tolerate transient Proxmox API hiccups.
+                if stale_vmid is not None:
+                    confirmed_gone = True
+                    for attempt in range(3):
+                        try:
+                            proxmox_service.find_resource(stale_vmid)
+                            confirmed_gone = False
+                            break
+                        except NotFoundError:
+                            if attempt < 2:
+                                time.sleep(2)
+                    if not confirmed_gone:
+                        logger.info(
+                            "VMID %s still exists on Proxmox; "
+                            "skipping recovery for request %s",
+                            stale_vmid, request.id,
+                        )
+                        continue
+                # VMID confirmed absent — clear and re-provision.
                 try:
                     if stale_vmid is not None:
                         vm_request_repo.clear_vm_request_provisioning(
@@ -1175,6 +1211,9 @@ def process_due_request_starts() -> int:
                             db_request=request,
                             commit=False,
                         )
+                        request.status = VMRequestStatus.approved
+                        session.add(request)
+                        session.commit()
                     started, migrations_used = _ensure_request_running(
                         session=session,
                         request=request,
@@ -1186,9 +1225,8 @@ def process_due_request_starts() -> int:
                         started_count += 1
                     session.commit()
                     logger.warning(
-                        "Recovered approved request %s from stale VMID %s",
-                        request.id,
-                        stale_vmid,
+                        "Recovered request %s from stale VMID %s",
+                        request.id, stale_vmid,
                     )
                 except Exception as exc:
                     session.rollback()
@@ -1198,9 +1236,8 @@ def process_due_request_starts() -> int:
                         message=str(exc),
                     )
                     logger.exception(
-                        "Failed to recover approved request %s from stale VMID %s",
-                        request.id,
-                        stale_vmid,
+                        "Failed to recover request %s from stale VMID %s",
+                        request.id, stale_vmid,
                     )
             except Exception as exc:
                 session.rollback()
@@ -1223,10 +1260,15 @@ def process_due_request_stops() -> int:
     now = _utc_now()
 
     with Session(engine) as session:
+        _stop_statuses = (
+            VMRequestStatus.approved,
+            VMRequestStatus.provisioning,
+            VMRequestStatus.running,
+        )
         due_requests = list(
             session.exec(
                 select(VMRequest).where(
-                    VMRequest.status == VMRequestStatus.approved,
+                    VMRequest.status.in_(_stop_statuses),
                     VMRequest.vmid.is_not(None),
                     VMRequest.end_at.is_not(None),
                     VMRequest.end_at <= now,

@@ -12,7 +12,7 @@
   "website": "https://healthchecks.io/",
   "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/webp/healthchecks.webp",
   "description": "Healthchecks is a cron job monitoring service. It listens for HTTP requests and email messages (\"pings\") from your cron jobs and scheduled tasks (\"checks\"). When a ping does not arrive on time, Healthchecks sends out alerts. Healthchecks comes with a web dashboard, API, 25+ integrations for delivering notifications, monthly email reports, WebAuthn 2FA support, team management features: projects, team members, read-only access.",
-  "description_zh": "Healthchecks 是一個 cron 工作監控服務。它監聽來自您的 cron 工作和定時任務（"檢查"）的 HTTP 請求和電子郵件消息（"ping"）。當 ping 沒有按時到達時，Healthchecks 會發送警報。Healthchecks 配備了網頁儀表板、API、25+ 通知集成、月度電子郵件報告、WebAuthn 2FA 支持、團隊管理功能：項目、團隊成員、只讀訪問。",
+  "description_zh": "Healthchecks 是一個 cron 工作監控服務。它監聽來自您的 cron 工作和定時任務（「檢查」）的 HTTP 請求和電子郵件消息（「ping」）。當 ping 沒有按時到達時，Healthchecks 會發送警報。Healthchecks 配備了網頁儀表板、API、25+ 通知集成、月度電子郵件報告、WebAuthn 2FA 支持、團隊管理功能：項目、團隊成員、只讀訪問。",
   "description_ja": "Healthchecks は cron ジョブ監視サービスです。cron ジョブとスケジュール済みタスク（「チェック」）からの HTTP リクエストと電子メール メッセージ（「ping」）をリッスンします。ping が時間に到着しない場合、Healthchecks はアラートを送信します。Healthchecks には Web ダッシュボード、API、25+ の通知統合、月次メールレポート、WebAuthn 2FA サポート、チーム管理機能：プロジェクト、チームメンバー、読み取り専用アクセスが付属しています。",
   "install_methods": [
     {

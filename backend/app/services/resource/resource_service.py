@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from sqlmodel import Session
 
 from app.exceptions import BadRequestError, ProxmoxError
+from app.models.vm_request import VMRequestStatus
 from app.repositories import vm_request as vm_request_repo
 from app.schemas import ResourcePublic
 from app.repositories import resource as resource_repo
@@ -71,6 +72,7 @@ def _build_resource_public(
                     session=session, vmid=vmid, ip_address=ip_address
                 )
             except Exception:
+                session.rollback()
                 logger.warning(
                     "Failed to update cached IP address for vmid=%s ip_address=%s",
                     vmid,
@@ -259,6 +261,15 @@ def delete(
         # Remove from database (resource record + all associated audit logs)
         resource_repo.delete_resource(session=session, vmid=vmid)
         audit_log_repo.delete_audit_logs_by_vmid(session=session, vmid=vmid)
+
+        # Cancel the associated VM request so the scheduler won't re-provision
+        linked_request = vm_request_repo.get_latest_approved_vm_request_by_vmid(
+            session=session, vmid=vmid,
+        )
+        if linked_request is not None:
+            linked_request.status = VMRequestStatus.rejected
+            linked_request.review_comment = "Resource deleted by user"
+            session.add(linked_request)
 
         audit_service.log_action(
             session=session,

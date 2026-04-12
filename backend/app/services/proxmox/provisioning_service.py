@@ -46,7 +46,7 @@ def should_start_now(db_request) -> bool:
     return start_at <= _utc_now()
 
 
-def _to_punycode_hostname(hostname: str) -> str:
+def to_punycode_hostname(hostname: str) -> str:
     """將 Unicode hostname 轉換為 Punycode（ACE 格式）傳給 PVE。"""
     if not isinstance(hostname, str):
         logger.error(
@@ -242,7 +242,7 @@ def create_lxc(
     try:
         config = {
             "vmid": vmid,
-            "hostname": _to_punycode_hostname(lxc_data.hostname),
+            "hostname": to_punycode_hostname(lxc_data.hostname),
             "ostemplate": lxc_data.ostemplate,
             "cores": lxc_data.cores,
             "memory": lxc_data.memory,
@@ -316,7 +316,7 @@ def create_vm(
     try:
         clone_config = {
             "newid": new_vmid,
-            "name": _to_punycode_hostname(vm_data.hostname),
+            "name": to_punycode_hostname(vm_data.hostname),
             "full": 1,
             "storage": target_storage,
             "pool": get_proxmox_settings().pool_name,
@@ -384,11 +384,13 @@ def create_vm(
         raise ProxmoxError(f"Failed to create VM: {e}")
 
 
-def provision_from_request(*, session: Session, db_request) -> tuple[int, str | None, str | None]:
-    """Provision a VM or LXC based on an approved request."""
+def plan_provision(*, session: Session, db_request) -> dict:
+    """Plan a provisioning: resolve placement + storage. Returns a plan dict.
+
+    This reads the DB but does NOT create resources or call Proxmox mutating APIs.
+    The caller should commit/close the session before executing the plan.
+    """
     new_vmid = proxmox_service.next_vmid()
-    plain_password = decrypt_value(db_request.password)
-    start_immediately = should_start_now(db_request)
     placement_request = vm_request_placement_service._to_placement_request(db_request)
     placement_strategy = str(
         db_request.placement_strategy_used
@@ -404,147 +406,190 @@ def provision_from_request(*, session: Session, db_request) -> tuple[int, str | 
         raise ProxmoxError(
             f"No feasible placement is available for request {getattr(db_request, 'id', 'unknown')}"
         )
-    placement_node = placement.node
-    placement_strategy = placement.strategy
-    target_node = placement_node
+    target_node = placement.node
     resource_type = "lxc" if db_request.resource_type == "lxc" else "qemu"
-    created = False
-    actual_node = target_node
 
-    try:
-        if db_request.resource_type == "lxc":
-            target_storage = _resolve_managed_storage(
-                session=session,
-                node=target_node,
-                resource_type="lxc",
-                requested_storage=db_request.storage,
-                disk_gb=int(db_request.rootfs_size or 8),
-                required_content="rootdir",
-            )
-            config = {
-                "vmid": new_vmid,
-                "hostname": _to_punycode_hostname(db_request.hostname),
-                "ostemplate": db_request.ostemplate,
-                "cores": db_request.cores,
-                "memory": db_request.memory,
-                "swap": 512,
-                "rootfs": f"{target_storage}:{db_request.rootfs_size or 8}",
-                "password": plain_password,
-                "net0": "name=eth0,bridge=vmbr0,ip=dhcp,firewall=1",
-                "unprivileged": int(db_request.unprivileged),
-                "start": int(start_immediately),
-                "pool": get_proxmox_settings().pool_name,
-                "features": "nesting=1",
-            }
-            proxmox_service.create_lxc(target_node, **config)
-            created = True
+    plan: dict = {
+        "vmid": new_vmid,
+        "target_node": target_node,
+        "placement_strategy": placement.strategy,
+        "resource_type": resource_type,
+        "hostname": db_request.hostname,
+        "cores": db_request.cores,
+        "memory": db_request.memory,
+        "password": decrypt_value(db_request.password),
+        "start_immediately": should_start_now(db_request),
+        "user_id": db_request.user_id,
+        "environment_type": db_request.environment_type,
+        "os_info": db_request.os_info,
+        "expiry_date": db_request.expiry_date,
+        "storage": db_request.storage,
+    }
 
-            firewall_service.setup_default_rules(target_node, new_vmid, "lxc")
-
-            resource_repo.create_resource(
+    if db_request.resource_type == "lxc":
+        plan["target_storage"] = _resolve_managed_storage(
+            session=session,
+            node=target_node,
+            resource_type="lxc",
+            requested_storage=db_request.storage,
+            disk_gb=int(db_request.rootfs_size or 8),
+            required_content="rootdir",
+        )
+        plan["ostemplate"] = db_request.ostemplate
+        plan["rootfs_size"] = db_request.rootfs_size or 8
+        plan["unprivileged"] = db_request.unprivileged
+    else:
+        template = proxmox_service.find_vm_template(db_request.template_id)
+        plan["template_id"] = db_request.template_id
+        plan["template_node"] = template["node"]
+        plan["disk_size"] = db_request.disk_size
+        plan["username"] = db_request.username
+        plan["target_storage"] = _resolve_managed_storage(
+            session=session,
+            node=target_node,
+            resource_type="vm",
+            requested_storage=db_request.storage,
+            disk_gb=int(db_request.disk_size or 20),
+            required_content="images",
+        )
+        # Pre-resolve fallback storage for cross-node clone failure.
+        if target_node != template["node"]:
+            plan["fallback_storage"] = _resolve_managed_storage(
                 session=session,
-                vmid=new_vmid,
-                user_id=db_request.user_id,
-                environment_type=db_request.environment_type,
-                os_info=db_request.os_info,
-                expiry_date=db_request.expiry_date,
-                commit=False,
-            )
-        else:
-            template = proxmox_service.find_vm_template(db_request.template_id)
-            template_node = template["node"]
-            clone_target_node = target_node
-            target_storage = _resolve_managed_storage(
-                session=session,
-                node=clone_target_node,
+                node=template["node"],
                 resource_type="vm",
                 requested_storage=db_request.storage,
                 disk_gb=int(db_request.disk_size or 20),
                 required_content="images",
             )
+
+    return plan
+
+
+def execute_provision(plan: dict) -> tuple[int, str]:
+    """Execute a provisioning plan — Proxmox-only, NO database session needed.
+
+    Returns (vmid, actual_node).  The caller is responsible for recording the
+    result in the database afterwards.
+    """
+    new_vmid = plan["vmid"]
+    target_node = plan["target_node"]
+    resource_type = plan["resource_type"]
+    hostname = plan["hostname"]
+    pool_name = get_proxmox_settings().pool_name
+    created = False
+    actual_node = target_node
+
+    try:
+        if resource_type == "lxc":
+            config = {
+                "vmid": new_vmid,
+                "hostname": plan["hostname"],
+                "ostemplate": plan["ostemplate"],
+                "cores": plan["cores"],
+                "memory": plan["memory"],
+                "swap": 512,
+                "rootfs": f"{plan['target_storage']}:{plan['rootfs_size']}",
+                "password": plan["password"],
+                "net0": "name=eth0,bridge=vmbr0,ip=dhcp,firewall=1",
+                "unprivileged": int(plan["unprivileged"]),
+                "start": int(plan["start_immediately"]),
+                "pool": pool_name,
+                "features": "nesting=1",
+            }
+            proxmox_service.create_lxc(target_node, **config)
+            created = True
+            firewall_service.setup_default_rules(target_node, new_vmid, "lxc")
+        else:
+            template_node = plan["template_node"]
             clone_config = {
                 "newid": new_vmid,
-                "name": _to_punycode_hostname(db_request.hostname),
+                "name": hostname,
                 "full": 1,
-                "storage": target_storage,
-                "pool": get_proxmox_settings().pool_name,
+                "storage": plan["target_storage"],
+                "pool": pool_name,
             }
-            if clone_target_node != template_node:
-                clone_config["target"] = clone_target_node
+            if target_node != template_node:
+                clone_config["target"] = target_node
             try:
                 proxmox_service.clone_vm(
                     template_node,
-                    db_request.template_id,
+                    plan["template_id"],
                     **clone_config,
                 )
-                actual_node = clone_target_node
+                actual_node = target_node
             except Exception:
-                if clone_target_node == template_node:
+                if target_node == template_node:
                     raise
                 logger.warning(
-                    "Cross-node clone failed for request %s; falling back to template node %s",
-                    getattr(db_request, "id", "unknown"),
+                    "Cross-node clone failed for VMID %s; falling back to template node %s",
+                    new_vmid,
                     template_node,
                 )
                 actual_node = template_node
-                fallback_storage = _resolve_managed_storage(
-                    session=session,
-                    node=actual_node,
-                    resource_type="vm",
-                    requested_storage=db_request.storage,
-                    disk_gb=int(db_request.disk_size or 20),
-                    required_content="images",
-                )
+                fallback_storage = plan.get("fallback_storage", plan["target_storage"])
                 proxmox_service.clone_vm(
                     template_node,
-                    db_request.template_id,
+                    plan["template_id"],
                     newid=new_vmid,
-                    name=_to_punycode_hostname(db_request.hostname),
+                    name=hostname,
                     full=1,
                     storage=fallback_storage,
-                    pool=get_proxmox_settings().pool_name,
+                    pool=pool_name,
                 )
             created = True
 
             config_updates = {
-                "cores": db_request.cores,
-                "memory": db_request.memory,
-                "ciuser": db_request.username,
-                "cipassword": plain_password,
+                "cores": plan["cores"],
+                "memory": plan["memory"],
+                "ciuser": plan.get("username"),
+                "cipassword": plan["password"],
                 "sshkeys": "",
                 "ciupgrade": 0,
             }
-            proxmox_service.update_config(
-                actual_node, new_vmid, "qemu", **config_updates
-            )
+            proxmox_service.update_config(actual_node, new_vmid, "qemu", **config_updates)
 
-            if db_request.disk_size:
+            if plan.get("disk_size"):
                 proxmox_service.resize_disk(
-                    actual_node, new_vmid, "qemu", "scsi0", f"{db_request.disk_size}G"
+                    actual_node, new_vmid, "qemu", "scsi0", f"{plan['disk_size']}G"
                 )
 
             firewall_service.setup_default_rules(actual_node, new_vmid, "qemu")
-            if start_immediately:
+            if plan["start_immediately"]:
                 proxmox_service.control(actual_node, new_vmid, "qemu", "start")
-
-            resource_repo.create_resource(
-                session=session,
-                vmid=new_vmid,
-                user_id=db_request.user_id,
-                environment_type=db_request.environment_type,
-                os_info=db_request.os_info,
-                expiry_date=db_request.expiry_date,
-                template_id=db_request.template_id,
-                commit=False,
-            )
     except Exception:
-        session.rollback()
         if created:
             _cleanup_failed_resource(actual_node, new_vmid, resource_type)
         raise
 
-    logger.info(f"Provisioned {db_request.resource_type} with VMID {new_vmid}")
-    return new_vmid, actual_node, placement_strategy
+    logger.info("Provisioned %s VMID %s on node %s", resource_type, new_vmid, actual_node)
+    return new_vmid, actual_node
+
+
+def provision_from_request(*, session: Session, db_request) -> tuple[int, str | None, str | None]:
+    """Legacy wrapper: plan + execute in one call (session kept open).
+
+    Prefer plan_provision() + execute_provision() for new code.
+    """
+    plan = plan_provision(session=session, db_request=db_request)
+    try:
+        new_vmid, actual_node = execute_provision(plan)
+    except Exception:
+        session.rollback()
+        raise
+
+    # Record resource in DB.
+    resource_repo.create_resource(
+        session=session,
+        vmid=new_vmid,
+        user_id=db_request.user_id,
+        environment_type=db_request.environment_type,
+        os_info=db_request.os_info,
+        expiry_date=db_request.expiry_date,
+        template_id=getattr(db_request, "template_id", None),
+        commit=False,
+    )
+    return new_vmid, actual_node, plan["placement_strategy"]
 
 
 def get_lxc_templates() -> list[TemplateSchema]:

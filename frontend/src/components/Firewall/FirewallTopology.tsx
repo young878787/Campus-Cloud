@@ -19,7 +19,10 @@ import type React from "react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import type { ApiError } from "@/client"
+import { ResourcesService } from "@/client"
 import { Button } from "@/components/ui/button"
+import { TerminalConsoleDialog } from "@/components/Terminal"
+import { VNCConsoleDialog } from "@/components/VNC"
 import { FirewallService } from "@/services/firewall"
 import { ConnectionDialog } from "./ConnectionDialog"
 import type { ConnectionEdgeData } from "./ConnectionEdge"
@@ -61,6 +64,15 @@ function FirewallTopologyInner() {
   } | null>(null)
   const [selectedVmid, setSelectedVmid] = useState<number | null>(null)
   const [selectedVmName, setSelectedVmName] = useState("")
+
+  // ─── Console 狀態 ──────────────────────────────────────────────────────────
+  const [consoleVM, setConsoleVM] = useState<{
+    vmid: number
+    name: string
+    type: string
+  } | null>(null)
+  const [vncConsoleOpen, setVncConsoleOpen] = useState(false)
+  const [terminalConsoleOpen, setTerminalConsoleOpen] = useState(false)
 
   // ─── 標籤開關 & 節點聚焦 ──────────────────────────────────────────────────
   const [showLabels, setShowLabels] = useState(false)
@@ -252,8 +264,13 @@ function FirewallTopologyInner() {
               vmid: n.vmid!,
               name: n.name,
               status: n.status ?? "unknown",
+              vm_type: n.vm_type ?? null,
               ip_address: n.ip_address ?? null,
               firewall_enabled: n.firewall_enabled,
+              onPowerAction: (...args: Parameters<typeof handlePowerAction>) =>
+                handlePowerActionRef.current(...args),
+              onOpenConsole: (...args: Parameters<typeof handleOpenConsole>) =>
+                handleOpenConsoleRef.current(...args),
             } satisfies VMNodeData),
     }))
 
@@ -357,6 +374,68 @@ function FirewallTopologyInner() {
       return arranged
     })
   }, [setNodes, saveLayoutMutation, fitView])
+
+  // ─── 電源控制 ─────────────────────────────────────────────────────────────
+
+  const powerActionMutation = useMutation({
+    mutationFn: ({ vmid, action }: { vmid: number; action: string }) => {
+      switch (action) {
+        case "start":
+          return ResourcesService.startResource({ vmid })
+        case "shutdown":
+          return ResourcesService.shutdownResource({ vmid })
+        case "reboot":
+          return ResourcesService.rebootResource({ vmid })
+        case "stop":
+          return ResourcesService.stopResource({ vmid })
+        case "reset":
+          return ResourcesService.resetResource({ vmid })
+        default:
+          return Promise.reject(new Error(`未知操作: ${action}`))
+      }
+    },
+    onSuccess: (_data, { vmid, action }) => {
+      const actionLabels: Record<string, string> = {
+        start: "啟動中",
+        shutdown: "關機中",
+        reboot: "重新啟動中",
+        stop: "強制停止中",
+        reset: "強制重置中",
+      }
+      toast.success(`VM ${vmid} ${actionLabels[action] ?? action}`)
+      queryClient.invalidateQueries({ queryKey: ["firewall-topology"] })
+    },
+    onError: (e: Error, { vmid }) => {
+      const detail =
+        ((e as ApiError)?.body as { detail?: string })?.detail ?? e.message
+      toast.error(`VM ${vmid} 操作失敗: ${detail}`)
+    },
+  })
+
+  const handlePowerAction = useCallback(
+    (vmid: number, action: string) => {
+      powerActionMutation.mutate({ vmid, action })
+    },
+    [powerActionMutation],
+  )
+
+  const handleOpenConsole = useCallback(
+    (vmid: number, name: string, type: string) => {
+      setConsoleVM({ vmid, name, type })
+      if (type === "lxc") {
+        setTerminalConsoleOpen(true)
+      } else {
+        setVncConsoleOpen(true)
+      }
+    },
+    [],
+  )
+
+  // 穩定 ref 避免 useEffect 重建節點
+  const handlePowerActionRef = useRef(handlePowerAction)
+  handlePowerActionRef.current = handlePowerAction
+  const handleOpenConsoleRef = useRef(handleOpenConsole)
+  handleOpenConsoleRef.current = handleOpenConsole
 
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, _node: Node, currentNodes: Node[]) => {
@@ -613,6 +692,22 @@ function FirewallTopologyInner() {
           setGatewayWarning(null)
         }}
         onClose={() => setGatewayWarning(null)}
+      />
+
+      {/* VNC Console */}
+      <VNCConsoleDialog
+        vmid={consoleVM?.type !== "lxc" ? (consoleVM?.vmid ?? null) : null}
+        vmName={consoleVM?.name}
+        open={vncConsoleOpen}
+        onOpenChange={setVncConsoleOpen}
+      />
+
+      {/* Terminal Console */}
+      <TerminalConsoleDialog
+        vmid={consoleVM?.type === "lxc" ? (consoleVM?.vmid ?? null) : null}
+        vmName={consoleVM?.name}
+        open={terminalConsoleOpen}
+        onOpenChange={setTerminalConsoleOpen}
       />
     </div>
   )

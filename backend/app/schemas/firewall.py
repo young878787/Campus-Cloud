@@ -151,6 +151,7 @@ class TopologyNode(BaseModel):
     vmid: int | None = None
     name: str
     node_type: Literal["vm", "gateway"]
+    vm_type: Literal["qemu", "lxc"] | None = None
     status: str | None = None
     ip_address: str | None = None
     firewall_enabled: bool = False

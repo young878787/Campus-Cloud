@@ -32,21 +32,29 @@ def find_existing_resource_for_request(
 ) -> dict | None:
     expected_type = scheduling_policy.resource_type_for_request(request)
     pool_name = get_proxmox_settings().pool_name
+    _active_statuses = (
+        VMRequestStatus.approved,
+        VMRequestStatus.provisioning,
+        VMRequestStatus.running,
+    )
     claimed_vmids = {
         int(item.vmid)
         for item in session.exec(
             select(VMRequest).where(
-                VMRequest.status == VMRequestStatus.approved,
+                VMRequest.status.in_(_active_statuses),
                 VMRequest.vmid.is_not(None),
                 VMRequest.id != request.id,
             )
         ).all()
         if item.vmid is not None
     }
+    # hostname is stored as punycode in DB since creation.
+    expected_hostname = str(request.hostname or "")
     for resource in proxmox_service.list_all_resources():
         if str(resource.get("type") or "") != expected_type:
             continue
-        if str(resource.get("name") or "") != str(request.hostname or ""):
+        resource_name = str(resource.get("name") or "")
+        if resource_name != expected_hostname:
             continue
         vmid = int(resource.get("vmid"))
         if vmid in claimed_vmids:

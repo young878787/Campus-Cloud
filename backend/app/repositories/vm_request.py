@@ -8,6 +8,7 @@ from sqlmodel import Session, func, select
 from app.models import VMMigrationStatus, VMRequest, VMRequestStatus
 from app.schemas import VMRequestCreate
 from app.repositories import resource as resource_repo
+from app.services.proxmox.provisioning_service import to_punycode_hostname
 
 
 def create_vm_request(
@@ -18,12 +19,16 @@ def create_vm_request(
     encrypted_password: str,
     commit: bool = True,
 ) -> VMRequest:
-    """Create VM request. Password should be pre-encrypted by the service layer."""
+    """Create VM request. Password should be pre-encrypted by the service layer.
+
+    Hostname is normalised to Punycode on creation so all downstream
+    comparisons use a single canonical form.
+    """
     db_request = VMRequest(
         user_id=user_id,
         reason=vm_request_in.reason,
         resource_type=vm_request_in.resource_type,
-        hostname=vm_request_in.hostname,
+        hostname=to_punycode_hostname(vm_request_in.hostname),
         cores=vm_request_in.cores,
         memory=vm_request_in.memory,
         password=encrypted_password,
@@ -52,7 +57,11 @@ def create_vm_request(
 
 
 def get_vm_request_by_id(
-    *, session: Session, request_id: uuid.UUID, for_update: bool = False
+    *,
+    session: Session,
+    request_id: uuid.UUID,
+    for_update: bool = False,
+    skip_locked: bool = False,
 ) -> VMRequest | None:
     statement = (
         select(VMRequest)
@@ -60,7 +69,7 @@ def get_vm_request_by_id(
         .options(selectinload(VMRequest.user))  # type: ignore[arg-type]
     )
     if for_update:
-        statement = statement.with_for_update()
+        statement = statement.with_for_update(skip_locked=skip_locked)
     return session.exec(statement).first()
 
 
@@ -103,6 +112,13 @@ def get_all_vm_requests(
     return list(session.exec(statement.offset(skip).limit(limit)).all()), count
 
 
+_ACTIVE_STATUSES = (
+    VMRequestStatus.approved,
+    VMRequestStatus.provisioning,
+    VMRequestStatus.running,
+)
+
+
 def get_approved_vm_requests_overlapping_window(
     *,
     session: Session,
@@ -112,7 +128,7 @@ def get_approved_vm_requests_overlapping_window(
     statement = (
         select(VMRequest)
         .where(
-            VMRequest.status == VMRequestStatus.approved,
+            VMRequest.status.in_(_ACTIVE_STATUSES),
             VMRequest.start_at.is_not(None),
             VMRequest.desired_node.is_not(None),
             VMRequest.start_at < window_end,
@@ -132,6 +148,8 @@ def lock_overlapping_vm_requests_for_window(
     statuses: tuple[VMRequestStatus, ...] = (
         VMRequestStatus.pending,
         VMRequestStatus.approved,
+        VMRequestStatus.provisioning,
+        VMRequestStatus.running,
     ),
 ) -> list[VMRequest]:
     statement = (
@@ -259,6 +277,9 @@ def clear_vm_request_provisioning(
     db_request.placement_strategy_used = None
     db_request.migration_status = VMMigrationStatus.idle
     db_request.migration_error = None
+    # Reset to approved so the scheduler can re-provision.
+    if db_request.status in (VMRequestStatus.provisioning, VMRequestStatus.running):
+        db_request.status = VMRequestStatus.approved
     session.add(db_request)
     if stale_vmid is not None:
         resource_repo.delete_resource(
@@ -281,7 +302,7 @@ def get_latest_approved_vm_request_by_vmid(
         select(VMRequest)
         .where(
             VMRequest.vmid == vmid,
-            VMRequest.status == VMRequestStatus.approved,
+            VMRequest.status.in_(_ACTIVE_STATUSES),
         )
         .options(selectinload(VMRequest.user))  # type: ignore[arg-type]
         .order_by(VMRequest.reviewed_at.desc(), VMRequest.created_at.desc())  # type: ignore[union-attr]
@@ -297,7 +318,7 @@ def list_active_approved_vm_requests(
     statement = (
         select(VMRequest)
         .where(
-            VMRequest.status == VMRequestStatus.approved,
+            VMRequest.status.in_(_ACTIVE_STATUSES),
             VMRequest.start_at.is_not(None),
             VMRequest.start_at <= at_time,
             sa.or_(VMRequest.end_at.is_(None), VMRequest.end_at > at_time),
@@ -320,7 +341,7 @@ def list_due_for_rebalance_vm_requests(
     statement = (
         select(VMRequest)
         .where(
-            VMRequest.status == VMRequestStatus.approved,
+            VMRequest.status.in_(_ACTIVE_STATUSES),
             VMRequest.start_at.is_not(None),
             VMRequest.start_at <= at_time,
             sa.or_(VMRequest.end_at.is_(None), VMRequest.end_at > at_time),

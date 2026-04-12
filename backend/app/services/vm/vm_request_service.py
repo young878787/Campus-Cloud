@@ -140,10 +140,15 @@ def _approve_and_place(
         commit=False,
     )
 
+    _active_statuses = (
+        VMRequestStatus.approved,
+        VMRequestStatus.provisioning,
+        VMRequestStatus.running,
+    )
     approved_requests = [
         item
         for item in locked_requests
-        if item.id != db_request.id and item.status == VMRequestStatus.approved
+        if item.id != db_request.id and item.status in _active_statuses
     ]
     approved_requests.append(db_request)
 

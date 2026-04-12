@@ -45,6 +45,7 @@ export type TopologyNode = {
   vmid: number | null
   name: string
   node_type: "vm" | "gateway"
+  vm_type: "qemu" | "lxc" | null
   status: string | null
   ip_address: string | null
   firewall_enabled: boolean
