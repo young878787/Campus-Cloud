@@ -9,6 +9,8 @@ type AuthTokens = {
 const ACCESS_TOKEN_KEY = "access_token"
 const REFRESH_TOKEN_KEY = "refresh_token"
 
+let _refreshPromise: Promise<boolean> | null = null
+
 export const AuthSessionService = {
   getAccessToken() {
     return typeof window === "undefined"
@@ -46,20 +48,28 @@ export const AuthSessionService = {
   },
 
   async refreshAccessToken(): Promise<boolean> {
-    const refreshToken = this.getRefreshToken()
-    if (!refreshToken) return false
+    if (_refreshPromise) return _refreshPromise
 
-    try {
-      const tokens = await __request<AuthTokens>(OpenAPI, {
-        method: "POST",
-        url: "/api/v1/login/refresh-token",
-        body: { refresh_token: refreshToken },
-        mediaType: "application/json",
-      })
-      this.setTokens(tokens)
-      return true
-    } catch {
-      return false
-    }
+    _refreshPromise = (async () => {
+      const refreshToken = this.getRefreshToken()
+      if (!refreshToken) return false
+
+      try {
+        const tokens = await __request<AuthTokens>(OpenAPI, {
+          method: "POST",
+          url: "/api/v1/login/refresh-token",
+          body: { refresh_token: refreshToken },
+          mediaType: "application/json",
+        })
+        this.setTokens(tokens)
+        return true
+      } catch {
+        return false
+      }
+    })().finally(() => {
+      _refreshPromise = null
+    })
+
+    return _refreshPromise
   },
 }

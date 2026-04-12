@@ -24,6 +24,20 @@ def _validate_unicode_hostname(v: str) -> str:
             raise ValueError(
                 "Only Unicode letters, digits, and hyphens are allowed in hostname"
             )
+    # 檢查 Punycode 編碼後的長度是否仍在 DNS label 限制內（≤ 63 字元）
+    try:
+        encoded = v.encode("punycode").decode("ascii")
+        if not v.isascii():
+            ace_label = f"xn--{encoded}"
+        else:
+            ace_label = v
+        if len(ace_label) > 63:
+            raise ValueError(
+                f"Hostname exceeds 63 characters after Punycode encoding "
+                f"(encoded length: {len(ace_label)})"
+            )
+    except UnicodeError as e:
+        raise ValueError(f"Hostname cannot be encoded as valid Punycode: {e}") from e
     return v
 
 

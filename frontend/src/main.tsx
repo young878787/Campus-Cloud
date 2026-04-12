@@ -30,22 +30,6 @@ function getTokenExp(token: string): number {
 
 const REFRESH_THRESHOLD_SEC = 30
 
-let refreshPromise: Promise<boolean> | null = null
-
-async function tryRefreshToken(): Promise<boolean> {
-  if (refreshPromise) return refreshPromise
-
-  refreshPromise = (async () => {
-    try {
-      return await AuthSessionService.refreshAccessToken()
-    } finally {
-      refreshPromise = null
-    }
-  })()
-
-  return refreshPromise
-}
-
 OpenAPI.TOKEN = async () => {
   const token = AuthSessionService.getAccessToken()
   if (!token) return ""
@@ -54,7 +38,7 @@ OpenAPI.TOKEN = async () => {
   const nowSec = Math.floor(Date.now() / 1000)
 
   if (exp > 0 && exp - nowSec <= REFRESH_THRESHOLD_SEC) {
-    const ok = await tryRefreshToken()
+    const ok = await AuthSessionService.refreshAccessToken()
     if (ok) return AuthSessionService.getAccessToken() || ""
   }
 
