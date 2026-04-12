@@ -393,11 +393,31 @@
         signal: controller.signal,
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      const rawText = await res.text();
+      const text = rawText.trim();
+      let data = {};
+
+      if (text) {
+        if (contentType.includes('application/json')) {
+          try {
+            data = JSON.parse(text);
+          } catch (parseErr) {
+            throw new Error(`HTTP ${res.status}：JSON 解析失敗，回應內容：${text.slice(0, 200)}`);
+          }
+        } else if (!res.ok) {
+          typing.remove();
+          addMsg('error', `HTTP ${res.status}：${text.slice(0, 200)}`);
+          return;
+        } else {
+          throw new Error(`HTTP ${res.status}：預期為 JSON，但收到 ${contentType || '未知 Content-Type'}，回應內容：${text.slice(0, 200)}`);
+        }
+      }
+
       typing.remove();
 
       if (!res.ok) {
-        addMsg('error', `HTTP ${res.status}：${data.detail || JSON.stringify(data)}`);
+        addMsg('error', `HTTP ${res.status}：${data.detail || JSON.stringify(data) || '空回應'}`);
         return;
       }
 
