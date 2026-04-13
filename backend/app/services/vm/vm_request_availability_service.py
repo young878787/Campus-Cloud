@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -192,6 +192,7 @@ def _build_availability_response(
     start_anchor = now_local.replace(minute=0, second=0, microsecond=0)
     if now_local.minute or now_local.second or now_local.microsecond:
         start_anchor += timedelta(hours=1)
+    day_anchor = datetime.combine(now_local.date(), time.min, tzinfo=tz)
 
     reserved_requests = vm_request_repo.get_approved_vm_requests_overlapping_window(
         session=session,
@@ -202,77 +203,100 @@ def _build_availability_response(
     slots: list[VMRequestAvailabilitySlot] = []
     per_day: dict[date, list[VMRequestAvailabilitySlot]] = {}
 
-    for offset in range(days * 24):
-        slot_start = start_anchor + timedelta(hours=offset)
-        slot_end = slot_start + timedelta(hours=1)
-        slot_date = slot_start.date()
-        hour = slot_start.hour
-        within_policy = _is_hour_within_policy(
-            hour=hour,
-            allowed_start=allowed_start,
-            allowed_end=allowed_end,
-        )
-        demand_ratio = hourly_demand.get(hour, 0.0)
-
-        if within_policy:
-            reserved_adjusted_nodes = vm_request_placement_service._apply_reserved_requests_to_capacities(
-                baseline_capacities=baseline_capacities,
-                reserved_requests=reserved_requests,
-                at_time=slot_start,
-            )
-            adjusted_nodes = _adjust_node_capacities_for_slot(
-                baseline_capacities=reserved_adjusted_nodes,
-                demand_ratio=demand_ratio,
-                pending_pressure=pending_pressure,
-            )
-            plan = vm_request_placement_service.build_plan(
-                session=session,
-                request=placement_request,
-                node_capacities=adjusted_nodes,
-                effective_resource_type=effective_resource_type,
-                resource_type_reason=resource_type_reason,
-                placement_strategy=placement_strategy,
-                node_priorities=node_priorities,
-            )
-            slot = _slot_from_plan(
-                plan=plan,
-                slot_start=slot_start,
-                slot_end=slot_end,
-                within_policy=True,
-                role=role,
-                demand_ratio=demand_ratio,
-                pending_pressure=pending_pressure,
-                adjusted_nodes=adjusted_nodes,
-                node_priorities=node_priorities,
-                resource_stack_by_node=resource_stack_by_node,
-                stack_label=stack_label,
-                placement_strategy=placement_strategy,
-            )
-        else:
-            slot = VMRequestAvailabilitySlot(
-                start_at=slot_start,
-                end_at=slot_end,
-                date=slot_date,
+    for day_offset in range(days):
+        day_start = day_anchor + timedelta(days=day_offset)
+        for hour in range(24):
+            slot_start = day_start + timedelta(hours=hour)
+            slot_end = slot_start + timedelta(hours=1)
+            slot_date = slot_start.date()
+            within_policy = _is_hour_within_policy(
                 hour=hour,
-                within_policy=False,
-                feasible=False,
-                status="policy_blocked",
-                label="不可申請",
-                summary=_policy_block_summary(role=role, allowed_start=allowed_start, allowed_end=allowed_end),
-                reasons=[_policy_block_summary(role=role, allowed_start=allowed_start, allowed_end=allowed_end)],
-                recommended_nodes=[],
-                placement_strategy=placement_strategy,
-                node_snapshots=_build_slot_node_snapshots(
-                    adjusted_nodes=baseline_capacities,
-                    plan=None,
+                allowed_start=allowed_start,
+                allowed_end=allowed_end,
+            )
+            demand_ratio = hourly_demand.get(hour, 0.0)
+
+            if slot_start < start_anchor:
+                slot = VMRequestAvailabilitySlot(
+                    start_at=slot_start,
+                    end_at=slot_end,
+                    date=slot_date,
+                    hour=hour,
+                    within_policy=within_policy,
+                    feasible=False,
+                    status="unavailable",
+                    label="已結束",
+                    summary="此時段已過，請選擇目前時間之後的時段。",
+                    reasons=["此時段已過，請選擇目前時間之後的時段。"],
+                    recommended_nodes=[],
+                    placement_strategy=placement_strategy,
+                    node_snapshots=_build_slot_node_snapshots(
+                        adjusted_nodes=baseline_capacities,
+                        plan=None,
+                        node_priorities=node_priorities,
+                        resource_stack_by_node=resource_stack_by_node,
+                        stack_label=stack_label,
+                    ),
+                )
+            elif within_policy:
+                reserved_adjusted_nodes = vm_request_placement_service._apply_reserved_requests_to_capacities(
+                    baseline_capacities=baseline_capacities,
+                    reserved_requests=reserved_requests,
+                    at_time=slot_start,
+                )
+                adjusted_nodes = _adjust_node_capacities_for_slot(
+                    baseline_capacities=reserved_adjusted_nodes,
+                    demand_ratio=demand_ratio,
+                    pending_pressure=pending_pressure,
+                )
+                plan = vm_request_placement_service.build_plan(
+                    session=session,
+                    request=placement_request,
+                    node_capacities=adjusted_nodes,
+                    effective_resource_type=effective_resource_type,
+                    resource_type_reason=resource_type_reason,
+                    placement_strategy=placement_strategy,
+                    node_priorities=node_priorities,
+                )
+                slot = _slot_from_plan(
+                    plan=plan,
+                    slot_start=slot_start,
+                    slot_end=slot_end,
+                    within_policy=True,
+                    role=role,
+                    demand_ratio=demand_ratio,
+                    pending_pressure=pending_pressure,
+                    adjusted_nodes=adjusted_nodes,
                     node_priorities=node_priorities,
                     resource_stack_by_node=resource_stack_by_node,
                     stack_label=stack_label,
-                ),
-            )
+                    placement_strategy=placement_strategy,
+                )
+            else:
+                slot = VMRequestAvailabilitySlot(
+                    start_at=slot_start,
+                    end_at=slot_end,
+                    date=slot_date,
+                    hour=hour,
+                    within_policy=False,
+                    feasible=False,
+                    status="policy_blocked",
+                    label="不可申請",
+                    summary=_policy_block_summary(role=role, allowed_start=allowed_start, allowed_end=allowed_end),
+                    reasons=[_policy_block_summary(role=role, allowed_start=allowed_start, allowed_end=allowed_end)],
+                    recommended_nodes=[],
+                    placement_strategy=placement_strategy,
+                    node_snapshots=_build_slot_node_snapshots(
+                        adjusted_nodes=baseline_capacities,
+                        plan=None,
+                        node_priorities=node_priorities,
+                        resource_stack_by_node=resource_stack_by_node,
+                        stack_label=stack_label,
+                    ),
+                )
 
-        slots.append(slot)
-        per_day.setdefault(slot_date, []).append(slot)
+            slots.append(slot)
+            per_day.setdefault(slot_date, []).append(slot)
 
     days_summary = [_summarize_day(day, day_slots) for day, day_slots in per_day.items()]
     recommended_slots = _pick_recommended_slots(slots)

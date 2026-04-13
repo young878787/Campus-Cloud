@@ -56,8 +56,17 @@
   "status": {
     "pending": "審査待ち",
     "approved": "承認済み",
+    "provisioning": "デプロイ中",
+    "running": "稼働中",
     "rejected": "拒否",
+    "cancelled": "取り消し済み",
     "vmid": "VMID: {{id}}"
+  },
+  "actions": {
+    "cancelRequest": "申請を取り消す",
+    "cancelling": "取り消し中...",
+    "cancelConfirm": "「{{hostname}}」の申請を取り消しますか？",
+    "cancelSuccess": "申請を取り消しました"
   },
   "specs": {
     "cpu": "{{count}}コア",

@@ -7,11 +7,9 @@ from sqlmodel import Session
 from app.core.authorizers import (
     can_auto_approve_vm_request,
     require_immediate_vm_request_access,
+    require_vm_request_cancel,
     require_vm_request_access,
     require_vm_request_review,
-)
-from app.core.permissions import (
-    is_admin,
 )
 from app.core.security import encrypt_value
 from app.exceptions import (
@@ -545,7 +543,7 @@ def review(
 
     reservation = None
     try:
-        if review_data.status == VMRequestStatus.approved:
+        if review_data.status == "approved":
             if not db_request.start_at:
                 raise BadRequestError(
                     "A scheduled request window is required before approval."
@@ -573,7 +571,7 @@ def review(
             vm_request_repo.update_vm_request_status(
                 session=session,
                 db_request=db_request,
-                status=review_data.status,
+                status=VMRequestStatus.rejected,
                 reviewer_id=reviewer.id,
                 review_comment=review_data.review_comment,
                 assigned_node=None,
@@ -587,11 +585,11 @@ def review(
 
         action = (
             "approved"
-            if review_data.status == VMRequestStatus.approved
+            if review_data.status == "approved"
             else "rejected"
         )
         details = f"Reviewed VM request {request_id}: {action}"
-        if review_data.status == VMRequestStatus.approved:
+        if review_data.status == "approved":
             details += (
                 ", reserved node "
                 f"{reservation.node if reservation else db_request.assigned_node} for the approved time window"
@@ -630,5 +628,59 @@ def review(
 
     refreshed = vm_request_repo.get_vm_request_by_id(
         session=session, request_id=db_request.id
+    )
+    return _to_public(refreshed)
+
+
+def cancel(
+    *,
+    session: Session,
+    request_id: uuid.UUID,
+    current_user,
+) -> VMRequestPublic:
+    db_request = vm_request_repo.get_vm_request_by_id(
+        session=session,
+        request_id=request_id,
+        for_update=True,
+    )
+    if not db_request:
+        raise NotFoundError("Request not found")
+
+    require_vm_request_cancel(current_user, db_request.user_id)
+
+    if db_request.status != VMRequestStatus.pending:
+        raise BadRequestError("Only pending requests can be cancelled")
+
+    vm_request_repo.update_vm_request_status(
+        session=session,
+        db_request=db_request,
+        status=VMRequestStatus.cancelled,
+        reviewer_id=current_user.id,
+        review_comment=(
+            "Cancelled by requester"
+            if db_request.user_id == current_user.id
+            else "Cancelled by admin"
+        ),
+        assigned_node=None,
+        desired_node=None,
+        actual_node=None,
+        placement_strategy_used=None,
+        migration_status=VMMigrationStatus.idle,
+        migration_error=None,
+        commit=False,
+    )
+
+    audit_service.log_action(
+        session=session,
+        user_id=current_user.id,
+        action="vm_request_review",
+        details=f"Cancelled VM request {request_id}",
+        commit=False,
+    )
+    session.commit()
+
+    refreshed = vm_request_repo.get_vm_request_by_id(
+        session=session,
+        request_id=request_id,
     )
     return _to_public(refreshed)

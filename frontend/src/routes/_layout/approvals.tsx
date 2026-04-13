@@ -91,7 +91,7 @@ function Approvals() {
   )
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-6 overflow-hidden">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
@@ -109,7 +109,8 @@ function Approvals() {
           setStatusFilter(v === "all" ? null : (v as VMRequestStatus))
         }
       >
-        <TabsList>
+        <div className="w-full overflow-x-auto">
+          <TabsList className="min-w-max">
           <TabsTrigger value="pending">
             {t("approvals:filters.pending")}
             <PendingCountBadge />
@@ -121,7 +122,8 @@ function Approvals() {
             {t("approvals:filters.rejected")}
           </TabsTrigger>
           <TabsTrigger value="all">{t("approvals:filters.all")}</TabsTrigger>
-        </TabsList>
+          </TabsList>
+        </div>
       </Tabs>
 
       <AdminRequestsTable status={statusFilter} />

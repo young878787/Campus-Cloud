@@ -1262,14 +1262,6 @@ export function ApplicationRequestPage() {
                         使用 AI
                         協助整理需求後，再確認規格、可申請時段與申請原因。
                       </p>
-                      <p className="hidden text-sm text-muted-foreground">
-                        使用 AI
-                        協助整理需求後，再確認規格、可申請時段與申請原因。
-                      </p>
-                      <p className="hidden text-sm text-muted-foreground">
-                        使用 AI
-                        協助整理需求後，再確認規格、可申請時段與申請原因。
-                      </p>
                     </>
                   ) : (
                     <div />

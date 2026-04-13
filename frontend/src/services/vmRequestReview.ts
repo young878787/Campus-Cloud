@@ -22,7 +22,13 @@ export type VmRequestReviewOverlapItem = {
   start_at?: string | null
   end_at?: string | null
   vmid?: number | null
-  status: "pending" | "approved" | "rejected"
+  status:
+    | "pending"
+    | "approved"
+    | "provisioning"
+    | "running"
+    | "rejected"
+    | "cancelled"
   assigned_node?: string | null
   desired_node?: string | null
   actual_node?: string | null

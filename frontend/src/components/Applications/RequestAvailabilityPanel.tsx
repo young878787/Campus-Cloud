@@ -319,6 +319,21 @@ export function RequestAvailabilityPanel(props: Props) {
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
                 {selectedDay.slots.map((slot) => {
                   const selectable = isSelectable(slot)
+                  const canCompleteRange =
+                    rangeStartAt && !rangeEndAt
+                      ? (() => {
+                          if (!selectable) return false
+                          if (slot.start_at === rangeStartAt) return true
+                          const startTime = new Date(rangeStartAt).getTime()
+                          const endTime = new Date(slot.start_at).getTime()
+                          if (endTime <= startTime) return true
+                          return (
+                            getSelectableRange(data, rangeStartAt, slot.start_at)
+                              .length > 0
+                          )
+                        })()
+                      : selectable
+                  const clickable = Boolean(canCompleteRange)
                   const inSelectedRange = selectedRange.some(
                     (item) => item.start_at === slot.start_at,
                   )
@@ -329,11 +344,11 @@ export function RequestAvailabilityPanel(props: Props) {
                     <button
                       key={slot.start_at}
                       type="button"
-                      disabled={!selectable}
+                      disabled={!clickable}
                       className={cn(
                         "rounded-lg border px-2 py-2 text-center text-sm font-medium transition",
                         slotTone[slot.status].button,
-                        selectable && "hover:-translate-y-0.5",
+                        clickable && "hover:-translate-y-0.5",
                         inSelectedRange && "ring-2 ring-primary ring-offset-2",
                         isRangeStart &&
                           "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.4)]",
@@ -341,7 +356,7 @@ export function RequestAvailabilityPanel(props: Props) {
                           "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.4)]",
                       )}
                       onClick={() => {
-                        if (!selectable) return
+                        if (!clickable) return
 
                         if (!rangeStartAt || rangeEndAt) {
                           setRangeStartAt(slot.start_at)

@@ -10,6 +10,7 @@
     "pending": "待審核",
     "approved": "已通過",
     "rejected": "已拒絕",
+    "cancelled": "已撤銷",
     "all": "全部"
   },
   "review": {

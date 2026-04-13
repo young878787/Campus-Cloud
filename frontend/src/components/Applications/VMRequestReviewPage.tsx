@@ -44,6 +44,9 @@ function statusMeta(status: string) {
   if (status === "approved") {
     return { label: "已通過", variant: "default" as const }
   }
+  if (status === "cancelled") {
+    return { label: "已撤銷", variant: "secondary" as const }
+  }
   if (status === "rejected") {
     return { label: "已拒絕", variant: "destructive" as const }
   }

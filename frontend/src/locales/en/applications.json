@@ -56,8 +56,17 @@
   "status": {
     "pending": "Pending Review",
     "approved": "Approved",
+    "provisioning": "Provisioning",
+    "running": "Running",
     "rejected": "Rejected",
+    "cancelled": "Cancelled",
     "vmid": "VMID: {{id}}"
+  },
+  "actions": {
+    "cancelRequest": "Cancel Request",
+    "cancelling": "Cancelling...",
+    "cancelConfirm": "Cancel request \"{{hostname}}\"?",
+    "cancelSuccess": "Request cancelled"
   },
   "specs": {
     "cpu": "{{count}} Core",

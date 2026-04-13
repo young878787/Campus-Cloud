@@ -74,6 +74,19 @@ def get_vm_request(
     )
 
 
+@router.post("/{request_id}/cancel", response_model=VMRequestPublic)
+def cancel_vm_request(
+    request_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
+    return vm_request_service.cancel(
+        session=session,
+        request_id=request_id,
+        current_user=current_user,
+    )
+
+
 @router.get("/{request_id}/review-context", response_model=VMRequestReviewContext)
 def get_vm_request_review_context(
     request_id: uuid.UUID,

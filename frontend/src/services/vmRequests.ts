@@ -15,4 +15,13 @@ export const VmRequestsApi = {
       errors: { 422: "Validation Error" },
     })
   },
+
+  cancel(data: { requestId: string }): CancelablePromise<VMRequestPublic> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/vm-requests/{request_id}/cancel",
+      path: { request_id: data.requestId },
+      errors: { 422: "Validation Error" },
+    })
+  },
 }

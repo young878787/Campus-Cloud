@@ -19,20 +19,20 @@ export function AppLayout() {
     <div className="app-layout min-h-svh w-full">
       <SidebarProvider defaultOpen={false}>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="min-w-0 overflow-x-hidden">
           {isFullscreen ? (
-            <main className="flex-1 overflow-hidden">
+            <main className="flex-1 min-w-0 overflow-hidden">
               <Outlet />
             </main>
           ) : (
             <>
               <main
                 className={cn(
-                  "flex-1 py-7.5 px-20",
+                  "flex-1 min-w-0 overflow-x-hidden py-7.5 px-20",
                   hasFixedFooter && "pb-28 md:pb-32",
                 )}
               >
-                <div className="w-full">
+                <div className="w-full min-w-0 max-w-full">
                   <Outlet />
                 </div>
               </main>

@@ -19,6 +19,10 @@ export const ReviewActions = ({ request }: ReviewActionsProps) => {
       { label: string; variant: "default" | "destructive" | "outline" }
     > = {
       approved: { label: t("approvals:filters.approved"), variant: "default" },
+      cancelled: {
+        label: t("approvals:filters.cancelled"),
+        variant: "outline",
+      },
       rejected: {
         label: t("approvals:filters.rejected"),
         variant: "destructive",

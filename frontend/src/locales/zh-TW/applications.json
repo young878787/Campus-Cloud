@@ -60,8 +60,17 @@
   "status": {
     "pending": "待審核",
     "approved": "已核准",
+    "provisioning": "部署中",
+    "running": "執行中",
     "rejected": "已拒絕",
+    "cancelled": "已撤銷",
     "vmid": "VMID: {{id}}"
+  },
+  "actions": {
+    "cancelRequest": "撤銷申請",
+    "cancelling": "撤銷中...",
+    "cancelConfirm": "確定要撤銷「{{hostname}}」這筆申請嗎？",
+    "cancelSuccess": "已撤銷申請"
   },
   "specs": {
     "cpu": "{{count}} 核心",

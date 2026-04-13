@@ -54,7 +54,7 @@ class VMRequestCreate(BaseModel):
 
 
 class VMRequestReview(BaseModel):
-    status: VMRequestStatus
+    status: Literal["approved", "rejected"]
     review_comment: str | None = None
 
 

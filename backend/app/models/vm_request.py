@@ -17,6 +17,7 @@ class VMRequestStatus(str, enum.Enum):
     provisioning = "provisioning"
     running = "running"
     rejected = "rejected"
+    cancelled = "cancelled"
 
 
 class VMMigrationStatus(str, enum.Enum):

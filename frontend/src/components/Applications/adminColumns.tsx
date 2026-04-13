@@ -92,6 +92,14 @@ function PlacementStatusCell({ request }: { request: VMRequestPublic }) {
     )
   }
 
+  if (request.status === "cancelled") {
+    return (
+      <Badge variant="secondary" className="w-fit">
+        已撤銷
+      </Badge>
+    )
+  }
+
   if (!request.start_at || !request.end_at) {
     return (
       <div className="flex flex-col gap-1">
@@ -215,9 +223,9 @@ export const createAdminRequestColumns = (
     id: "template",
     header: "作業系統 / 模板",
     cell: ({ row }) => (
-      <div className="min-w-[180px] whitespace-normal">
-        <div className="font-medium">{formatTemplateLabel(row.original)}</div>
-        <div className="mt-1 text-xs text-muted-foreground">
+      <div className="min-w-[180px] max-w-[220px] overflow-hidden">
+        <div className="font-medium truncate">{formatTemplateLabel(row.original)}</div>
+        <div className="mt-1 text-xs text-muted-foreground truncate">
           {row.original.os_info?.trim() || "未填寫作業系統資訊"}
         </div>
       </div>
@@ -227,14 +235,14 @@ export const createAdminRequestColumns = (
     id: "formDetails",
     header: "表單資訊",
     cell: ({ row }) => (
-      <div className="min-w-[190px] whitespace-normal text-sm">
-        <div>{row.original.environment_type || "未設定環境類型"}</div>
+      <div className="min-w-[190px] max-w-[220px] overflow-hidden text-sm">
+        <div className="truncate">{row.original.environment_type || "未設定環境類型"}</div>
         {row.original.resource_type === "vm" ? (
-          <div className="mt-1 text-xs text-muted-foreground">
+          <div className="mt-1 text-xs text-muted-foreground truncate">
             使用者名稱：{row.original.username || "未填寫"}
           </div>
         ) : null}
-        <div className="mt-1 text-xs text-muted-foreground">
+        <div className="mt-1 text-xs text-muted-foreground truncate">
           儲存：{row.original.storage || "未設定"}
         </div>
       </div>
@@ -244,7 +252,7 @@ export const createAdminRequestColumns = (
     accessorKey: "reason",
     header: t("approvals:review.reason"),
     cell: ({ row }) => (
-      <span className="block max-w-[250px] whitespace-normal text-muted-foreground">
+      <span className="block min-w-[220px] max-w-[260px] truncate text-muted-foreground">
         {row.original.reason}
       </span>
     ),
@@ -253,7 +261,7 @@ export const createAdminRequestColumns = (
     id: "specs",
     header: t("approvals:review.specs"),
     cell: ({ row }) => (
-      <span className="block min-w-[210px] whitespace-normal text-sm text-muted-foreground">
+      <span className="block min-w-[210px] max-w-[240px] truncate text-sm text-muted-foreground">
         {formatSpecLabel(row.original)}
       </span>
     ),
@@ -262,7 +270,7 @@ export const createAdminRequestColumns = (
     id: "schedule",
     header: "申請時段",
     cell: ({ row }) => (
-      <span className="block min-w-[210px] whitespace-normal text-sm text-muted-foreground">
+      <span className="block min-w-[210px] max-w-[240px] truncate text-sm text-muted-foreground">
         {formatScheduledRange(row.original.start_at, row.original.end_at)}
       </span>
     ),

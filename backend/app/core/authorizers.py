@@ -3,8 +3,10 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from app.exceptions import PermissionDeniedError
 from app.core.permissions import (
     Permission,
+    can_access_owner_resource,
     has_permission,
     is_admin,
     is_teacher,
@@ -87,6 +89,28 @@ def require_vm_request_access(
         bypass_permission=Permission.VM_REQUEST_READ_ALL,
         detail=detail,
     )
+
+
+def can_cancel_vm_request(
+    user: Any,
+    owner_id: uuid.UUID | None,
+) -> bool:
+    # Owner can cancel own request; admins/reviewers can cancel any request.
+    return can_access_owner_resource(
+        user,
+        owner_id,
+        bypass_permission=Permission.VM_REQUEST_REVIEW,
+    )
+
+
+def require_vm_request_cancel(
+    user: Any,
+    owner_id: uuid.UUID | None,
+    *,
+    detail: str = "Not enough privileges",
+) -> None:
+    if not can_cancel_vm_request(user, owner_id):
+        raise PermissionDeniedError(detail)
 
 
 def require_vm_request_review(

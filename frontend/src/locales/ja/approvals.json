@@ -10,6 +10,7 @@
     "pending": "審査待ち",
     "approved": "承認済み",
     "rejected": "拒否",
+    "cancelled": "取り消し",
     "all": "全て"
   },
   "review": {

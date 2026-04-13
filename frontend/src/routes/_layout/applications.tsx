@@ -1,15 +1,20 @@
-import { useSuspenseQuery } from "@tanstack/react-query"
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { FileText } from "lucide-react"
 import { Suspense, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 
+import { type ApiError, type VMRequestPublic } from "@/client"
 import CreateVMRequest from "@/components/Applications/CreateVMRequest"
 import { createMyRequestColumns } from "@/components/Applications/columns"
 import { DataTable } from "@/components/Common/DataTable"
 import PendingItems from "@/components/Pending/PendingItems"
 import { myVmRequestsQueryOptions } from "@/features/applications/queryOptions"
 import { requireStudentUser } from "@/features/auth/guards"
+import useCustomToast from "@/hooks/useCustomToast"
+import { queryKeys } from "@/lib/queryKeys"
+import { VmRequestsApi } from "@/services/vmRequests"
+import { handleError } from "@/utils"
 
 export const Route = createFileRoute("/_layout/applications")({
   component: Applications,
@@ -25,9 +30,36 @@ export const Route = createFileRoute("/_layout/applications")({
 
 function RequestsTableContent() {
   const { t } = useTranslation(["applications"])
+  const queryClient = useQueryClient()
+  const { showSuccessToast, showErrorToast } = useCustomToast()
   const { data } = useSuspenseQuery(myVmRequestsQueryOptions())
+  const cancelMutation = useMutation({
+    mutationFn: (requestId: string) => VmRequestsApi.cancel({ requestId }),
+    onSuccess: () => {
+      showSuccessToast(t("applications:actions.cancelSuccess"))
+      queryClient.invalidateQueries({ queryKey: queryKeys.vmRequests.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.vmRequests.pendingCount })
+      queryClient.invalidateQueries({ queryKey: queryKeys.vmRequests.admin })
+    },
+    onError: (err) => handleError.call(showErrorToast, err as ApiError),
+  })
 
-  const columns = useMemo(() => createMyRequestColumns(t), [t])
+  const columns = useMemo(
+    () =>
+      createMyRequestColumns(t, {
+        cancellingRequestId: cancelMutation.variables ?? null,
+        onCancelRequest: (request: VMRequestPublic) => {
+          const shouldCancel = window.confirm(
+            t("applications:actions.cancelConfirm", {
+              hostname: request.hostname,
+            }),
+          )
+          if (!shouldCancel) return
+          cancelMutation.mutate(request.id)
+        },
+      }),
+    [cancelMutation, t],
+  )
 
   if (data.data.length === 0) {
     return (
@@ -60,7 +92,7 @@ function Applications() {
   const { t } = useTranslation(["applications"])
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-6 overflow-hidden">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
