@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campus Cloud Connect</title>
+<style>
+  :root { --bg: #0f172a; --surface: #1e293b; --border: #334155; --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6; --accent-hover: #2563eb; --green: #22c55e; --red: #ef4444; --yellow: #eab308; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .container { max-width: 800px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 1.5rem; margin-bottom: 8px; }
+  .subtitle { color: var(--muted); margin-bottom: 24px; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .card-title { font-size: 1.1rem; font-weight: 600; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-success { background: var(--green); color: white; }
+  .btn-success:hover { background: #16a34a; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { background: var(--surface); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Status badge */
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 9999px; font-size: 0.8rem; font-weight: 500; }
+  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-yellow { background: rgba(234,179,8,0.15); color: var(--yellow); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-green { background: var(--green); }
+  .dot-red { background: var(--red); }
+  .dot-yellow { background: var(--yellow); }
+
+  /* Login screen */
+  .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; text-align: center; }
+  .login-screen h1 { font-size: 2rem; margin-bottom: 12px; }
+  .login-screen .subtitle { margin-bottom: 32px; }
+
+  /* Tunnel table */
+  .tunnel-table { width: 100%; border-collapse: collapse; }
+  .tunnel-table th { text-align: left; color: var(--muted); font-size: 0.8rem; font-weight: 500; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .tunnel-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .tunnel-table tr:last-child td { border-bottom: none; }
+  .mono { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.85rem; color: var(--accent); }
+
+  /* Resource grid */
+  .resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .resource-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .resource-name { font-weight: 600; margin-bottom: 4px; }
+  .resource-info { color: var(--muted); font-size: 0.85rem; }
+
+  /* Toolbar */
+  .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 24px; }
+  .spacer { flex: 1; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 10px; font-size: 0.9rem; z-index: 100; animation: slideIn 0.3s ease; }
+  .toast-success { background: var(--green); color: white; }
+  .toast-error { background: var(--red); color: white; }
+  @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .hidden { display: none; }
+  .section { margin-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Login Screen -->
+  <div id="loginScreen" class="login-screen">
+    <h1>Campus Cloud Connect</h1>
+    <p class="subtitle">使用 Google 帳號登入以連線你的虛擬機器</p>
+    <button class="btn btn-primary" onclick="doLogin()" id="loginBtn">
+      登入 Campus Cloud
+    </button>
+    <p style="color: var(--muted); font-size: 0.85rem; margin-top: 12px;">將會開啟瀏覽器進行登入</p>
+  </div>
+
+  <!-- Main App -->
+  <div id="mainApp" class="hidden">
+    <div class="toolbar">
+      <h1>Campus Cloud Connect</h1>
+      <div class="spacer"></div>
+      <button class="btn btn-outline" onclick="doLogout()">登出</button>
+    </div>
+
+    <!-- Tunnel Control -->
+    <div class="section">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">frp 隧道</span>
+          <div id="tunnelBadge">
+            <span class="badge badge-red"><span class="dot dot-red"></span>未連線</span>
+          </div>
+        </div>
+        <div id="tunnelActions">
+          <button class="btn btn-success" onclick="startTunnel()" id="startTunnelBtn">啟動隧道</button>
+        </div>
+        <div id="tunnelRunning" class="hidden">
+          <button class="btn btn-danger" onclick="stopTunnel()" style="margin-bottom: 16px;">停止隧道</button>
+          <table class="tunnel-table">
+            <thead>
+              <tr><th>虛擬機</th><th>服務</th><th>本機位址</th></tr>
+            </thead>
+            <tbody id="tunnelTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resources -->
+    <div class="section">
+      <div class="card-header" style="margin-bottom: 12px;">
+        <span class="card-title">我的資源</span>
+      </div>
+      <div id="resourceGrid" class="resource-grid"></div>
+      <p id="noResources" class="hidden" style="color: var(--muted); text-align: center; padding: 24px;">沒有資源</p>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+let pollTimer = null;
+
+async function fetchJSON(url, opts) {
+  const resp = await fetch(url, opts);
+  return resp.json();
+}
+
+function showToast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast toast-' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+async function checkState() {
+  try {
+    const state = await fetchJSON('/api/state');
+    if (state.logged_in) {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('mainApp').classList.remove('hidden');
+      loadResources();
+      updateTunnelUI(state.tunnel);
+    } else {
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('mainApp').classList.add('hidden');
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function doLogin() {
+  document.getElementById('loginBtn').disabled = true;
+  document.getElementById('loginBtn').textContent = '正在開啟登入視窗...';
+  try {
+    await fetchJSON('/api/login', { method: 'POST' });
+    // Poll for login completion
+    let attempts = 0;
+    const check = setInterval(async () => {
+      attempts++;
+      const state = await fetchJSON('/api/state');
+      if (state.logged_in) {
+        clearInterval(check);
+        showToast('登入成功！', 'success');
+        checkState();
+      } else if (attempts > 150) { // 5 min timeout
+        clearInterval(check);
+        showToast('登入逾時', 'error');
+        resetLoginBtn();
+      }
+    }, 2000);
+  } catch (e) {
+    showToast('登入失敗: ' + e.message, 'error');
+    resetLoginBtn();
+  }
+}
+
+function resetLoginBtn() {
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = false;
+  btn.textContent = '登入 Campus Cloud';
+}
+
+async function doLogout() {
+  await fetchJSON('/api/logout', { method: 'POST' });
+  showToast('已登出', 'success');
+  checkState();
+}
+
+async function loadResources() {
+  try {
+    const resources = await fetchJSON('/api/resources');
+    const grid = document.getElementById('resourceGrid');
+    const noRes = document.getElementById('noResources');
+    if (!resources || resources.length === 0) {
+      grid.innerHTML = '';
+      noRes.classList.remove('hidden');
+      return;
+    }
+    noRes.classList.add('hidden');
+    grid.innerHTML = resources.map(r => `
+      <div class="resource-card">
+        <div class="resource-name">${r.environment_type || r.name || 'VM-' + r.vmid}</div>
+        <div class="resource-info">
+          VMID: ${r.vmid}<br>
+          類型: ${r.type === 'qemu' ? 'VM' : 'LXC'}<br>
+          狀態: <span style="color: ${r.status === 'running' ? 'var(--green)' : 'var(--muted)'}">${r.status}</span><br>
+          ${r.ip_address ? 'IP: ' + r.ip_address : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    showToast('載入資源失敗', 'error');
+  }
+}
+
+async function startTunnel() {
+  const btn = document.getElementById('startTunnelBtn');
+  btn.disabled = true;
+  btn.textContent = '正在啟動...';
+  try {
+    const result = await fetchJSON('/api/tunnel/start', { method: 'POST' });
+    if (result.error) {
+      showToast(result.error, 'error');
+      btn.disabled = false;
+      btn.textContent = '啟動隧道';
+      return;
+    }
+    showToast('隧道已啟動！', 'success');
+    updateTunnelUI(result);
+  } catch (e) {
+    showToast('啟動失敗: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '啟動隧道';
+  }
+}
+
+async function stopTunnel() {
+  await fetchJSON('/api/tunnel/stop', { method: 'POST' });
+  showToast('隧道已停止', 'success');
+  updateTunnelUI({ running: false, tunnels: [] });
+}
+
+function updateTunnelUI(status) {
+  const badge = document.getElementById('tunnelBadge');
+  const actions = document.getElementById('tunnelActions');
+  const running = document.getElementById('tunnelRunning');
+  const tbody = document.getElementById('tunnelTableBody');
+
+  if (status && status.running) {
+    badge.innerHTML = '<span class="badge badge-green"><span class="dot dot-green"></span>已連線</span>';
+    actions.classList.add('hidden');
+    running.classList.remove('hidden');
+
+    tbody.innerHTML = (status.tunnels || []).map(t => `
+      <tr>
+        <td>${t.vm_name || 'VM-' + t.vmid} <span style="color:var(--muted)">(${t.vmid})</span></td>
+        <td>${t.service.toUpperCase()}</td>
+        <td class="mono">127.0.0.1:${t.local_port}</td>
+      </tr>
+    `).join('');
+  } else {
+    badge.innerHTML = '<span class="badge badge-red"><span class="dot dot-red"></span>未連線</span>';
+    actions.classList.remove('hidden');
+    running.classList.add('hidden');
+    const btn = document.getElementById('startTunnelBtn');
+    btn.disabled = false;
+    btn.textContent = '啟動隧道';
+  }
+}
+
+// Poll tunnel status every 5 seconds when running
+setInterval(async () => {
+  try {
+    const status = await fetchJSON('/api/tunnel/status');
+    updateTunnelUI(status);
+  } catch (e) { /* ignore */ }
+}, 5000);
+
+// Initial state check
+checkState();
+// Re-check login state periodically (for when OAuth callback completes)
+setInterval(checkState, 3000);
+</script>
+</body>
+</html>

@@ -37,6 +37,7 @@ from .batch_provision import (
     BatchProvisionTask,
     BatchProvisionTaskStatus,
 )
+from .tunnel_proxy import TunnelProxy
 
 __all__ = [
     # Base
@@ -89,4 +90,6 @@ __all__ = [
     "BatchProvisionJobStatus",
     "BatchProvisionTask",
     "BatchProvisionTaskStatus",
+    # Tunnel Proxies
+    "TunnelProxy",
 ]

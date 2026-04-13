@@ -20,6 +20,7 @@ from app.ai.pve_advisor import recommendation_service as advisor_service
 from app.repositories import resource as resource_repo
 from app.repositories import vm_request as vm_request_repo
 from app.services.network import firewall_service
+from app.services.network import tunnel_proxy_service
 from app.services.proxmox import proxmox_service
 from app.services.user import audit_service
 from app.services.vm import vm_request_placement_service
@@ -285,6 +286,17 @@ def create_lxc(
         )
         session.commit()
 
+        # Register tunnel proxies (best-effort — don't fail provisioning)
+        try:
+            tunnel_proxy_service.register_vm(
+                session=session,
+                vmid=vmid,
+                user_id=user_id,
+                vm_type="lxc",
+            )
+        except Exception:
+            logger.warning("Failed to register tunnel proxies for LXC %d", vmid, exc_info=True)
+
         logger.info(f"Created LXC container {vmid}: {lxc_data.hostname}")
         return LXCCreateResponse(
             vmid=vmid,
@@ -369,6 +381,17 @@ def create_vm(
             commit=False,
         )
         session.commit()
+
+        # Register tunnel proxies (best-effort — don't fail provisioning)
+        try:
+            tunnel_proxy_service.register_vm(
+                session=session,
+                vmid=new_vmid,
+                user_id=user_id,
+                vm_type="qemu",
+            )
+        except Exception:
+            logger.warning("Failed to register tunnel proxies for VM %d", new_vmid, exc_info=True)
 
         logger.info(f"Created VM {new_vmid} from template {vm_data.template_id}")
         return VMCreateResponse(

@@ -95,6 +95,12 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_PASSWORD: str
 
     GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+
+    # frp tunnel settings
+    FRP_SERVER_ADDR: str = ""   # public IP/domain that desktop clients connect to
+    FRP_SERVER_PORT: int = 7000
+    FRP_TOKEN: str = ""
 
     PROXMOX_HOST: str = "localhost"
     PROXMOX_USER: str = ""

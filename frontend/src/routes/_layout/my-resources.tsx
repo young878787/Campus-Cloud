@@ -1,10 +1,10 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { Monitor, RefreshCw } from "lucide-react"
+import { Download, Monitor, RefreshCw } from "lucide-react"
 import { Suspense, useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { ResourcesService } from "@/client"
+import { OpenAPI, ResourcesService } from "@/client"
 import { DataTable } from "@/components/Common/DataTable"
 import PendingItems from "@/components/Pending/PendingItems"
 import { createColumns } from "@/components/Resources/columns"
@@ -105,6 +105,34 @@ function RefreshButton() {
   )
 }
 
+function DownloadDesktopClientButton() {
+  const handleDownload = async () => {
+    const token =
+      typeof OpenAPI.TOKEN === "function"
+        ? await (OpenAPI.TOKEN as (options: object) => Promise<string>)({})
+        : (OpenAPI.TOKEN as string)
+    const resp = await fetch(
+      `${OpenAPI.BASE}/api/v1/desktop-client/download`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    )
+    if (!resp.ok) return
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "campus-cloud-connect.zip"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <Button variant="outline" onClick={handleDownload}>
+      <Download className="mr-2 h-4 w-4" />
+      下載連線工具
+    </Button>
+  )
+}
+
 function MyResources() {
   const { t } = useTranslation(["resources"])
   const [vncConsoleOpen, setVncConsoleOpen] = useState(false)
@@ -133,7 +161,10 @@ function MyResources() {
             {t("resources:page.myResourcesDescription")}
           </p>
         </div>
-        <RefreshButton />
+        <div className="flex gap-2">
+          <DownloadDesktopClientButton />
+          <RefreshButton />
+        </div>
       </div>
       <MyResourcesTable onOpenConsole={handleOpenConsole} />
       <VNCConsoleDialog

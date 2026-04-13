@@ -17,7 +17,10 @@ const isLoggedIn = () => {
   return localStorage.getItem("access_token") !== null
 }
 
-const useAuth = () => {
+const useAuth = (options?: {
+  /** Return true to prevent automatic navigation to "/" after login */
+  onLoginSuccess?: () => Promise<boolean | void> | boolean | void
+}) => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { showErrorToast } = useCustomToast()
@@ -46,26 +49,27 @@ const useAuth = () => {
     AuthSessionService.setTokens(response)
   }
 
+  const afterLogin = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.auth.currentUser,
+    })
+    if (options?.onLoginSuccess) {
+      const preventNavigate = await options.onLoginSuccess()
+      if (preventNavigate === true) return
+    }
+    navigate({ to: "/" })
+  }
+
   const loginMutation = useMutation({
     mutationFn: login,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.auth.currentUser,
-      })
-      navigate({ to: "/" })
-    },
+    onSuccess: afterLogin,
     onError: handleError.bind(showErrorToast),
   })
 
   const googleLoginMutation = useMutation({
     mutationFn: (idToken: string) =>
       AuthSessionService.loginWithGoogle(idToken),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.auth.currentUser,
-      })
-      navigate({ to: "/" })
-    },
+    onSuccess: afterLogin,
     onError: handleError.bind(showErrorToast),
   })
 
