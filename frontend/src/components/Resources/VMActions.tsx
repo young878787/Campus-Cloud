@@ -129,6 +129,7 @@ export function VMActions({
     onSuccess: () => {
       showSuccessToast(t("messages:vm.deleted", { name }))
       queryClient.invalidateQueries({ queryKey: queryKeys.resources.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.resources.my })
       setDeleteDialogOpen(false)
     },
     onError: (error: Error) => {
@@ -180,7 +181,7 @@ export function VMActions({
             <span className="sr-only">{t("resources:actions.openMenu")}</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
           <DropdownMenuLabel>
             {t("resources:actions.powerControl")}
           </DropdownMenuLabel>
@@ -247,7 +248,7 @@ export function VMActions({
       </DropdownMenu>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
           <AlertDialogHeader>
             <AlertDialogTitle>
               {t("resources:actions.deleteConfirm.title")}
