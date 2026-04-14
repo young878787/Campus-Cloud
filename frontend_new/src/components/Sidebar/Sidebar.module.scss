@@ -1,0 +1,200 @@
+/* ===== Sidebar ===== */
+.sidebar {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  height: calc(100vh - 24px);
+  height: calc(100dvh - 24px);
+  width: $sidebar-width;
+  background: var(--color-sidebar-glass);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  color: var(--color-text);
+  @include flex-column;
+  z-index: 100;
+  transform: translateX(calc(-100% - 12px));
+  transition: transform 0.3s ease, width 0.25s ease, background-color 0.3s ease;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: $radius-base;
+  border: 1px solid var(--color-sidebar-glass-border);
+  box-shadow: var(--shadow-md);
+
+  &.mobileOpen {
+    transform: translateX(0);
+  }
+
+  @include respond-to(md) {
+    position: sticky;
+    top: 12px;
+    height: calc(100vh - 24px);
+    height: calc(100dvh - 24px);
+    transform: none;
+    z-index: auto;
+    align-self: flex-start;
+
+    &.collapsed {
+      width: $sidebar-width-collapsed;
+    }
+  }
+
+  /* ----- Scrollbar (細 + 跟著主題色) ----- */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: $radius-pill;
+  }
+}
+
+/* ===== Brand ===== */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-md $spacing-lg;
+  cursor: pointer;
+  user-select: none;
+
+  .collapsed & {
+    justify-content: center;
+    padding: $spacing-md $spacing-xs;
+  }
+}
+
+.brandIcon {
+  @include flex-center;
+  width: 28px;
+  height: 28px;
+  border-radius: $radius-sm;
+  background: var(--color-accent-yellow);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.brandText {
+  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+  color: var(--color-text);
+  white-space: nowrap;
+  flex: 1;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  flex-shrink: 0;
+}
+
+/* ===== Nav ===== */
+.nav {
+  @include flex-column;
+  gap: 4px;
+  padding: $spacing-sm $spacing-md;
+  flex: 1;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm + 4px;
+  padding: 10px $spacing-md;
+  border-radius: $radius-base;
+  color: var(--color-text-secondary);
+  font-size: $font-size-sm;
+  text-align: left;
+  white-space: nowrap;
+  width: 100%;
+  transition: background $transition-base, color $transition-base;
+
+  &:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+
+  &.active {
+    background: var(--color-primary);
+    color: var(--color-text-on-primary);
+    font-weight: $font-weight-medium;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .collapsed & {
+    justify-content: center;
+    padding: 10px;
+    gap: 0;
+  }
+}
+
+.navLabel {
+  flex: 1;
+  @include text-truncate;
+}
+
+/* ===== Bottom ===== */
+.bottom {
+  @include flex-column;
+  gap: 4px;
+  padding: $spacing-sm $spacing-md;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 0 0 $radius-base $radius-base;
+}
+
+/* ===== User ===== */
+.user {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm + 2px;
+  padding: $spacing-sm $spacing-md;
+  margin-top: $spacing-xs;
+  border-radius: $radius-base;
+
+  .collapsed & {
+    justify-content: center;
+    padding: $spacing-sm $spacing-xs;
+  }
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  @include flex-center;
+  flex-shrink: 0;
+}
+
+.userInfo {
+  @include flex-column;
+  min-width: 0;
+  flex: 1;
+}
+
+.userName {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: var(--color-text);
+  @include text-truncate;
+}
+
+.userEmail {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  @include text-truncate;
+}
+
+/* ===== Footer ===== */
+.footer {
+  padding: $spacing-sm $spacing-md $spacing-md;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+  white-space: nowrap;
+}

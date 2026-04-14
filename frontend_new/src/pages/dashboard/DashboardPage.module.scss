@@ -1,0 +1,49 @@
+/* ===== 主畫面 ===== */
+.page {
+  flex: 1;
+  @include flex-column;
+  position: relative;
+  padding: $spacing-lg $spacing-md;
+  padding-top: 60px; // 手機版留漢堡按鈕空間
+
+  @include respond-to(sm) {
+    padding: $spacing-xl $spacing-lg;
+    padding-top: 60px;
+  }
+
+  @include respond-to(md) {
+    padding: $content-padding;
+  }
+}
+
+/* 內容 z-index 提高以蓋過 ::before 的漸層 */
+.header {
+  position: relative;
+  z-index: 1;
+  max-width: 600px;
+}
+
+.greeting {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: var(--color-text);
+  margin-bottom: $spacing-xs;
+
+  @include respond-to(sm) {
+    font-size: $font-size-2xl;
+  }
+}
+
+.emoji {
+  font-style: normal;
+  margin-left: $spacing-xs;
+}
+
+.subtitle {
+  font-size: $font-size-sm;
+  color: var(--color-text-secondary);
+
+  @include respond-to(sm) {
+    font-size: $font-size-base;
+  }
+}

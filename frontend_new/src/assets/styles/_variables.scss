@@ -1,0 +1,49 @@
+/* ============================================
+   Structural SCSS Variables
+   （僅保留「非主題相關」的尺寸 / 間距 / 字體 — 顏色統一放 _themes.scss）
+   ============================================ */
+
+/* ----- Typography ----- */
+$font-family-base: "Noto Sans TC", "Helvetica Neue", Arial, sans-serif;
+$font-size-base: 16px;
+$font-size-sm: 14px;
+$font-size-xs: 12px;
+$font-size-lg: 18px;
+$font-size-xl: 24px;
+$font-size-2xl: 32px;
+
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-bold: 700;
+
+$line-height-base: 1.6;
+
+/* ----- Spacing ----- */
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-2xl: 48px;
+
+/* ----- Breakpoints ----- */
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+
+/* ----- Layout Sizes ----- */
+$header-height: 60px;
+$sidebar-width: 260px;
+$sidebar-width-collapsed: 72px;
+$content-padding: 40px;
+$container-max-width: 1200px;
+
+/* ----- Shape ----- */
+$radius-base: 16px;       // 全域圓角
+$radius-sm: 8px;
+$radius-pill: 999px;
+
+/* ----- Motion ----- */
+$transition-base: 0.2s ease;
+$transition-slow: 0.3s ease;

@@ -1,0 +1,52 @@
+.layout {
+  display: flex;
+  flex: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Mobile overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  z-index: 99;
+
+  @include respond-to(md) {
+    display: none;
+  }
+}
+
+/* Main content area */
+.main {
+  flex: 1;
+  min-width: 0;
+  @include flex-column;
+  position: relative;
+
+  @include respond-to(md) {
+    margin-left: calc(#{$sidebar-width} + 12px);
+    transition: margin-left 0.25s ease;
+
+    .collapsed & {
+      margin-left: calc(#{$sidebar-width-collapsed} + 12px);
+    }
+  }
+}
+
+/* Mobile hamburger */
+.mobileMenuBtn {
+  position: fixed;
+  top: $spacing-md;
+  left: $spacing-md;
+  z-index: 50;
+  padding: $spacing-sm;
+  background: var(--color-surface);
+  border-radius: $radius-sm;
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text);
+
+  @include respond-to(md) {
+    display: none;
+  }
+}
