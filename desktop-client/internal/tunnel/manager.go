@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -134,29 +133,15 @@ func (m *Manager) startAsync(config *api.TunnelConfig) {
 		return
 	}
 
-	// Ensure frpc binary exists
+	// Ensure frpc binary exists. On Windows the binary is embedded in this
+	// executable (see frpc_embed_windows.go), so this is just a local file
+	// write — no network download, no SmartScreen, no Defender URL block.
+	// On non-Windows it still falls back to a runtime download.
 	frpcPath := filepath.Join(m.dataDir, frpcBinaryName())
 	if _, err := os.Stat(frpcPath); os.IsNotExist(err) {
-		// Try to add Windows Defender exclusion first (Windows-only; no-op elsewhere).
-		// This may pop a UAC prompt — surface that phase so the UI can say so.
-		m.setPhase(PhaseExcluding, "請在 UAC 視窗按「是」以加入 Defender 排除…")
-		if err := ensureDefenderExclusion(m.dataDir); err != nil {
-			log.Printf("Defender 排除加入失敗（將嘗試直接下載）: %v", err)
-		}
-
-		m.setPhase(PhaseDownloading, "正在下載 frpc...")
-		if err := m.downloadFrpcWithProgress(frpcPath); err != nil {
-			errMsg := err.Error()
-			if strings.Contains(strings.ToLower(errMsg), "virus") ||
-				strings.Contains(strings.ToLower(errMsg), "unwanted software") {
-				errMsg = fmt.Sprintf(
-					"下載被防毒軟體攔截。請以系統管理員身分開啟 PowerShell 並執行：\n\n"+
-						"Add-MpPreference -ExclusionPath '%s'\n\n"+
-						"執行後再試一次。",
-					m.dataDir,
-				)
-			}
-			m.setError("下載 frpc 失敗: " + errMsg)
+		m.setPhase(PhaseDownloading, "正在安裝 frpc...")
+		if err := m.installFrpc(frpcPath); err != nil {
+			m.setError("安裝 frpc 失敗: " + err.Error())
 			return
 		}
 	}
