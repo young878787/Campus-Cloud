@@ -38,8 +38,14 @@ func ensureDefenderExclusion(frpcDataDir string) error {
 // Matches exact path, case-insensitive. Also returns true if Defender isn't
 // running (e.g. third-party AV) — no point harassing the user with UAC.
 func isAlreadyExcluded(path string) bool {
+	// IMPORTANT: force UTF-8 output. PowerShell's default redirected-stdout
+	// encoding is the OEM code page (e.g. CP950 on zh-TW, CP936 on zh-CN),
+	// which would mangle any non-ASCII path like `C:\Users\陳洋\...`. Without
+	// this, the bytes we read back can't match our UTF-8 target, so we'd
+	// mistakenly think the exclusion wasn't added even when it was.
 	cmd := exec.Command("powershell", "-NoProfile", "-Command",
-		`(Get-MpPreference).ExclusionPath`)
+		`[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;`+
+			`(Get-MpPreference).ExclusionPath`)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()
 	if err != nil {
