@@ -8,6 +8,7 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router"
 import {
   ArrowLeft,
+  Brain,
   CheckCircle2,
   Circle,
   Loader2,
@@ -901,6 +902,12 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Link to="/groups/$groupId/ai-judge" params={{ groupId }}>
+            <Button variant="outline" size="sm">
+              <Brain className="mr-1 h-4 w-4" />
+              AI 評分助手
+            </Button>
+          </Link>
           <ImportCsvDialog groupId={groupId} />
           <AddMembersDialog groupId={groupId} />
           {members.length > 0 && (

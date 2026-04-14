@@ -17,6 +17,7 @@ from app.api.routes import (
     proxmox_config,
     resource_details,
     resources,
+    rubric,
     script_deploy,
     spec_change_requests,
     users,
@@ -48,6 +49,7 @@ api_router.include_router(proxmox_config.router)
 api_router.include_router(firewall.router)
 api_router.include_router(gateway.router)
 api_router.include_router(script_deploy.router)
+api_router.include_router(rubric.router)
 
 
 if settings.ENVIRONMENT == "local":

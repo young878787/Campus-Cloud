@@ -1,3 +1,5 @@
+"""Rubric service - AI analysis and chat for rubric evaluation."""
+
 from __future__ import annotations
 
 import io
@@ -18,6 +20,32 @@ logger = logging.getLogger(__name__)
 
 
 # ──────────────────────────────────────────────────────────────
+# HTTP Client singleton
+# ──────────────────────────────────────────────────────────────
+
+_http_client: httpx.AsyncClient | None = None
+
+
+async def get_http_client() -> httpx.AsyncClient:
+    """Get or create HTTP client singleton."""
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=5.0),
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+        )
+    return _http_client
+
+
+async def close_http_client() -> None:
+    """Close HTTP client on shutdown."""
+    global _http_client
+    if _http_client is not None and not _http_client.is_closed:
+        await _http_client.aclose()
+        _http_client = None
+
+
+# ──────────────────────────────────────────────────────────────
 # Shared helpers
 # ──────────────────────────────────────────────────────────────
 
@@ -32,14 +60,14 @@ def _strip_think_tags(text: str) -> str:
 def _apply_thinking_control(payload: dict[str, Any]) -> dict[str, Any]:
     payload["chat_template_kwargs"] = {
         **dict(payload.get("chat_template_kwargs") or {}),
-        "enable_thinking": settings.vllm_enable_thinking,
+        "enable_thinking": settings.TEMPLATE_RECOMMENDATION_VLLM_ENABLE_THINKING,
     }
     return payload
 
 
 def _vllm_headers() -> dict[str, str]:
     return {
-        "Authorization": f"Bearer {settings.vllm_api_key}",
+        "Authorization": f"Bearer {settings.TEMPLATE_RECOMMENDATION_VLLM_API_KEY}",
         "Content-Type": "application/json",
     }
 
@@ -120,15 +148,13 @@ async def _call_vllm(
     payload: dict[str, Any], timeout: float = 60.0
 ) -> tuple[str, dict]:
     """Call vLLM chat/completions and return (content, usage_metrics)."""
-    from app.core.dependencies import get_http_client
-
-    url = f"{settings.vllm_base_url}/chat/completions"
+    url = f"{settings.TEMPLATE_RECOMMENDATION_VLLM_BASE_URL}/chat/completions"
     started = perf_counter()
 
     logger.debug(f"Calling vLLM API: {url}")
 
     try:
-        client = get_http_client()
+        client = await get_http_client()
         resp = await client.post(
             url,
             json=payload,
@@ -235,8 +261,10 @@ _ANALYZE_SYSTEM_PROMPT = """
 
 async def analyze_rubric(raw_text: str) -> tuple[RubricAnalysis, dict]:
     """Send raw document text to AI, return structured RubricAnalysis."""
-    if not settings.vllm_model_name:
-        raise HTTPException(status_code=503, detail="VLLM_MODEL_NAME 未設定。")
+    if not settings.TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME:
+        raise HTTPException(
+            status_code=503, detail="TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME 未設定。"
+        )
 
     logger.info(f"Starting rubric analysis, text length: {len(raw_text)} characters")
 
@@ -244,19 +272,21 @@ async def analyze_rubric(raw_text: str) -> tuple[RubricAnalysis, dict]:
 
     payload = _apply_thinking_control(
         {
-            "model": settings.vllm_model_name,
+            "model": settings.TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME,
             "messages": [
                 {"role": "system", "content": _ANALYZE_SYSTEM_PROMPT},
                 {"role": "user", "content": user_content},
             ],
-            "max_tokens": settings.vllm_max_tokens,
+            "max_tokens": settings.TEMPLATE_RECOMMENDATION_VLLM_MAX_TOKENS,
             "temperature": 0.2,
-            "top_p": settings.vllm_top_p,
+            "top_p": settings.TEMPLATE_RECOMMENDATION_VLLM_TOP_P,
             "response_format": {"type": "json_object"},
         }
     )
 
-    content, metrics = await _call_vllm(payload, timeout=float(settings.vllm_timeout))
+    content, metrics = await _call_vllm(
+        payload, timeout=float(settings.TEMPLATE_RECOMMENDATION_VLLM_TIMEOUT)
+    )
 
     try:
         data = json.loads(content)
@@ -472,8 +502,10 @@ async def chat_with_rubric(
     - updated_items: complete list of RubricItem dicts when AI modified the rubric;
       None when AI only answered a question without changes.
     """
-    if not settings.vllm_model_name:
-        raise HTTPException(status_code=503, detail="VLLM_MODEL_NAME 未設定。")
+    if not settings.TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME:
+        raise HTTPException(
+            status_code=503, detail="TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME 未設定。"
+        )
 
     context_item_count = _extract_context_item_count(rubric_context)
     situation = _SITUATION_REFINE if is_refine else _SITUATION_NORMAL
@@ -491,18 +523,20 @@ async def chat_with_rubric(
 
     payload = _apply_thinking_control(
         {
-            "model": settings.vllm_model_name,
+            "model": settings.TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME,
             "messages": formatted,
-            "max_tokens": settings.vllm_chat_max_tokens,
-            "temperature": settings.vllm_chat_temperature,
-            "top_p": settings.vllm_top_p,
-            "top_k": settings.vllm_top_k,
-            "repetition_penalty": settings.vllm_repetition_penalty,
+            "max_tokens": settings.TEMPLATE_RECOMMENDATION_VLLM_CHAT_MAX_TOKENS,
+            "temperature": settings.TEMPLATE_RECOMMENDATION_VLLM_CHAT_TEMPERATURE,
+            "top_p": settings.TEMPLATE_RECOMMENDATION_VLLM_TOP_P,
+            "top_k": settings.TEMPLATE_RECOMMENDATION_VLLM_TOP_K,
+            "repetition_penalty": settings.TEMPLATE_RECOMMENDATION_VLLM_REPETITION_PENALTY,
             "response_format": {"type": "json_object"},
         }
     )
 
-    content, metrics = await _call_vllm(payload, timeout=float(settings.vllm_timeout))
+    content, metrics = await _call_vllm(
+        payload, timeout=float(settings.TEMPLATE_RECOMMENDATION_VLLM_TIMEOUT)
+    )
 
     # 解析結構化 JSON 回覆
     reply_text = content  # fallback
@@ -519,9 +553,6 @@ async def chat_with_rubric(
                 updated_count = len(normalized_updated)
                 # 如果項目數減少超過 1 個，且不是精煉模式（精煉模式不應該刪除項目）
                 if updated_count < context_item_count - 1:
-                    import logging
-
-                    logger = logging.getLogger("rubric_service")
                     logger.warning(
                         f"⚠️ AI 返回的項目數異常：期望至少 {context_item_count - 1} 個，"
                         f"實際返回 {updated_count} 個。可能導致資料遺失。"
