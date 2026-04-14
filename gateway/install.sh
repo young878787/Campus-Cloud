@@ -92,9 +92,16 @@ chmod +x /usr/local/bin/traefik
 rm -rf "$TMP_DIR"
 
 # 設定目錄
-mkdir -p /etc/traefik/dynamic
+mkdir -p /etc/traefik/dynamic /etc/traefik/env
 touch /etc/traefik/acme.json
 chmod 600 /etc/traefik/acme.json
+
+cat > /etc/traefik/env/campus-cloud.env << 'TRAEFIK_ENV_EOF'
+# Campus Cloud 自動管理，供 Traefik dnsChallenge 使用
+# 實際值會在 admin/domains 設定 Cloudflare Token 後由後端覆寫
+CF_DNS_API_TOKEN=""
+TRAEFIK_ENV_EOF
+chmod 600 /etc/traefik/env/campus-cloud.env
 
 # 靜態設定
 cat > /etc/traefik/traefik.yml << 'TRAEFIK_EOF'
@@ -111,6 +118,12 @@ entryPoints:
           scheme: https
   websecure:
     address: ":443"
+  traefik:
+    address: "127.0.0.1:8080"
+
+api:
+  dashboard: true
+  insecure: true
 
 providers:
   file:
@@ -120,11 +133,14 @@ providers:
 certificatesResolvers:
   letsencrypt:
     acme:
-      # 請修改為實際的管理員 Email
+      # 會在 admin/domains 完成設定後由 Campus Cloud 後端覆寫成正式值
       email: admin@example.com
       storage: /etc/traefik/acme.json
-      httpChallenge:
-        entryPoint: web
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
 
 log:
   level: INFO
@@ -152,6 +168,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
+EnvironmentFile=-/etc/traefik/env/campus-cloud.env
 ExecStart=/usr/local/bin/traefik --configFile=/etc/traefik/traefik.yml
 Restart=always
 RestartSec=5

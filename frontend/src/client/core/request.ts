@@ -1,347 +1,343 @@
-import axios from 'axios';
-import type { AxiosError, AxiosRequestConfig, AxiosResponse, AxiosInstance } from 'axios';
+import axios from "axios"
 
-import { ApiError } from './ApiError';
-import type { ApiRequestOptions } from './ApiRequestOptions';
-import type { ApiResult } from './ApiResult';
-import { CancelablePromise } from './CancelablePromise';
-import type { OnCancel } from './CancelablePromise';
-import type { OpenAPIConfig } from './OpenAPI';
+import { ApiError } from "./ApiError"
+import type { ApiRequestOptions } from "./ApiRequestOptions"
+import type { ApiResult } from "./ApiResult"
+import { CancelablePromise } from "./CancelablePromise"
+import type { OpenAPIConfig } from "./OpenAPI"
 
-export const isString = (value: unknown): value is string => {
-	return typeof value === 'string';
-};
+const isDefined = <T>(value: T | null | undefined): value is T => {
+  return value !== undefined && value !== null
+}
 
-export const isStringWithValue = (value: unknown): value is string => {
-	return isString(value) && value !== '';
-};
+const isString = (value: unknown): value is string => {
+  return typeof value === "string"
+}
 
-export const isBlob = (value: any): value is Blob => {
-	return value instanceof Blob;
-};
+const isStringWithValue = (value: unknown): value is string => {
+  return isString(value) && value.length > 0
+}
 
-export const isFormData = (value: unknown): value is FormData => {
-	return value instanceof FormData;
-};
+const isBlob = (value: unknown): value is Blob => {
+  return typeof Blob !== "undefined" && value instanceof Blob
+}
 
-export const isSuccess = (status: number): boolean => {
-	return status >= 200 && status < 300;
-};
+const isFile = (value: unknown): value is File => {
+  return typeof File !== "undefined" && value instanceof File
+}
 
-export const base64 = (str: string): string => {
-	try {
-		return btoa(str);
-	} catch (err) {
-		// @ts-ignore
-		return Buffer.from(str).toString('base64');
-	}
-};
+const isFormData = (value: unknown): value is FormData => {
+  return typeof FormData !== "undefined" && value instanceof FormData
+}
 
-export const getQueryString = (params: Record<string, unknown>): string => {
-	const qs: string[] = [];
+const isPlainObject = (
+  value: unknown,
+): value is Record<string, unknown> => {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
 
-	const append = (key: string, value: unknown) => {
-		qs.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
-	};
+const base64 = (value: string): string => {
+  if (typeof globalThis.btoa === "function") {
+    return globalThis.btoa(value)
+  }
+  return value
+}
 
-	const encodePair = (key: string, value: unknown) => {
-		if (value === undefined || value === null) {
-			return;
-		}
+const resolveValue = async <T>(
+  options: ApiRequestOptions<unknown>,
+  resolver?: T | ((options: ApiRequestOptions<unknown>) => Promise<T> | T),
+): Promise<T | undefined> => {
+  if (typeof resolver === "function") {
+    return await (resolver as (
+      options: ApiRequestOptions<unknown>,
+    ) => Promise<T> | T)(options)
+  }
+  return resolver
+}
 
-		if (value instanceof Date) {
-			append(key, value.toISOString());
-		} else if (Array.isArray(value)) {
-			value.forEach(v => encodePair(key, v));
-		} else if (typeof value === 'object') {
-			Object.entries(value).forEach(([k, v]) => encodePair(`${key}[${k}]`, v));
-		} else {
-			append(key, value);
-		}
-	};
+const appendQueryPair = (
+  key: string,
+  value: unknown,
+  query: Array<string>,
+): void => {
+  if (!isDefined(value)) {
+    return
+  }
 
-	Object.entries(params).forEach(([key, value]) => encodePair(key, value));
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      appendQueryPair(key, item, query)
+    }
+    return
+  }
 
-	return qs.length ? `?${qs.join('&')}` : '';
-};
+  if (
+    isPlainObject(value) &&
+    !isBlob(value) &&
+    !isFile(value) &&
+    !isFormData(value) &&
+    !(value instanceof Date)
+  ) {
+    for (const [nestedKey, nestedValue] of Object.entries(value)) {
+      appendQueryPair(`${key}[${nestedKey}]`, nestedValue, query)
+    }
+    return
+  }
 
-const getUrl = (config: OpenAPIConfig, options: ApiRequestOptions): string => {
-	const encoder = config.ENCODE_PATH || encodeURI;
+  const serializedValue = value instanceof Date ? value.toISOString() : String(value)
+  query.push(`${encodeURIComponent(key)}=${encodeURIComponent(serializedValue)}`)
+}
 
-	const path = options.url
-		.replace('{api-version}', config.VERSION)
-		.replace(/{(.*?)}/g, (substring: string, group: string) => {
-			if (options.path?.hasOwnProperty(group)) {
-				return encoder(String(options.path[group]));
-			}
-			return substring;
-		});
+const getQueryString = (params?: Record<string, unknown>): string => {
+  if (!params) {
+    return ""
+  }
 
-	const url = config.BASE + path;
-	return options.query ? url + getQueryString(options.query) : url;
-};
+  const query: Array<string> = []
 
-export const getFormData = (options: ApiRequestOptions): FormData | undefined => {
-	if (options.formData) {
-		const formData = new FormData();
+  for (const [key, value] of Object.entries(params)) {
+    appendQueryPair(key, value, query)
+  }
 
-		const process = (key: string, value: unknown) => {
-			if (isString(value) || isBlob(value)) {
-				formData.append(key, value);
-			} else {
-				formData.append(key, JSON.stringify(value));
-			}
-		};
+  return query.length > 0 ? `?${query.join("&")}` : ""
+}
 
-		Object.entries(options.formData)
-			.filter(([, value]) => value !== undefined && value !== null)
-			.forEach(([key, value]) => {
-				if (Array.isArray(value)) {
-					value.forEach(v => process(key, v));
-				} else {
-					process(key, value);
-				}
-			});
+const getUrl = (
+  config: OpenAPIConfig,
+  options: ApiRequestOptions<unknown>,
+): string => {
+  const encoder = config.ENCODE_PATH ?? encodeURIComponent
+  const path = options.url.replace(/\{(.*?)\}/g, (_, token: string) => {
+    const value = options.path?.[token]
+    return isDefined(value) ? encoder(String(value)) : ""
+  })
 
-		return formData;
-	}
-	return undefined;
-};
+  return `${config.BASE}${path}${getQueryString(options.query)}`
+}
 
-type Resolver<T> = (options: ApiRequestOptions<T>) => Promise<T>;
+const appendFormValue = (
+  formData: FormData,
+  key: string,
+  value: unknown,
+): void => {
+  if (!isDefined(value)) {
+    return
+  }
 
-export const resolve = async <T>(options: ApiRequestOptions<T>, resolver?: T | Resolver<T>): Promise<T | undefined> => {
-	if (typeof resolver === 'function') {
-		return (resolver as Resolver<T>)(options);
-	}
-	return resolver;
-};
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      appendFormValue(formData, key, item)
+    }
+    return
+  }
 
-export const getHeaders = async <T>(config: OpenAPIConfig, options: ApiRequestOptions<T>): Promise<Record<string, string>> => {
-	const [token, username, password, additionalHeaders] = await Promise.all([
-		// @ts-ignore
-		resolve(options, config.TOKEN),
-		// @ts-ignore
-		resolve(options, config.USERNAME),
-		// @ts-ignore
-		resolve(options, config.PASSWORD),
-		// @ts-ignore
-		resolve(options, config.HEADERS),
-	]);
+  if (isBlob(value) || isFile(value) || isString(value)) {
+    formData.append(key, value)
+    return
+  }
 
-	const headers = Object.entries({
-		Accept: 'application/json',
-		...additionalHeaders,
-		...options.headers,
-	})
-	.filter(([, value]) => value !== undefined && value !== null)
-	.reduce((headers, [key, value]) => ({
-		...headers,
-		[key]: String(value),
-	}), {} as Record<string, string>);
+  formData.append(key, isPlainObject(value) ? JSON.stringify(value) : String(value))
+}
 
-	if (isStringWithValue(token)) {
-		headers['Authorization'] = `Bearer ${token}`;
-	}
+const getFormData = (
+  options: ApiRequestOptions<unknown>,
+): FormData | undefined => {
+  if (!options.formData) {
+    return undefined
+  }
 
-	if (isStringWithValue(username) && isStringWithValue(password)) {
-		const credentials = base64(`${username}:${password}`);
-		headers['Authorization'] = `Basic ${credentials}`;
-	}
+  const formData = new FormData()
 
-	if (options.body !== undefined) {
-		if (options.mediaType) {
-			headers['Content-Type'] = options.mediaType;
-		} else if (isBlob(options.body)) {
-			headers['Content-Type'] = options.body.type || 'application/octet-stream';
-		} else if (isString(options.body)) {
-			headers['Content-Type'] = 'text/plain';
-		} else if (!isFormData(options.body)) {
-			headers['Content-Type'] = 'application/json';
-		}
-	} else if (options.formData !== undefined) {
-		if (options.mediaType) {
-			headers['Content-Type'] = options.mediaType;
-		}
-	}
+  for (const [key, value] of Object.entries(options.formData)) {
+    appendFormValue(formData, key, value)
+  }
 
-	return headers;
-};
+  return formData
+}
 
-export const getRequestBody = (options: ApiRequestOptions): unknown => {
-	if (options.body) {
-		return options.body;
-	}
-	return undefined;
-};
+const getUrlEncodedBody = (
+  values: Record<string, unknown>,
+): URLSearchParams => {
+  const searchParams = new URLSearchParams()
 
-export const sendRequest = async <T>(
-	config: OpenAPIConfig,
-	options: ApiRequestOptions<T>,
-	url: string,
-	body: unknown,
-	formData: FormData | undefined,
-	headers: Record<string, string>,
-	onCancel: OnCancel,
-	axiosClient: AxiosInstance
-): Promise<AxiosResponse<T>> => {
-	const controller = new AbortController();
+  for (const [key, value] of Object.entries(values)) {
+    if (!isDefined(value)) {
+      continue
+    }
 
-	let requestConfig: AxiosRequestConfig = {
-		data: body ?? formData,
-		headers,
-		method: options.method,
-		signal: controller.signal,
-		url,
-		withCredentials: config.WITH_CREDENTIALS,
-	};
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (isDefined(item)) {
+          searchParams.append(key, String(item))
+        }
+      }
+      continue
+    }
 
-	onCancel(() => controller.abort());
+    searchParams.append(key, String(value))
+  }
 
-	for (const fn of config.interceptors.request._fns) {
-		requestConfig = await fn(requestConfig);
-	}
+  return searchParams
+}
 
-	try {
-		return await axiosClient.request(requestConfig);
-	} catch (error) {
-		const axiosError = error as AxiosError<T>;
-		if (axiosError.response) {
-			return axiosError.response;
-		}
-		throw error;
-	}
-};
+const getRequestBody = (
+  options: ApiRequestOptions<unknown>,
+): unknown => {
+  if (options.formData) {
+    if (options.mediaType === "application/x-www-form-urlencoded") {
+      return getUrlEncodedBody(options.formData)
+    }
+    return getFormData(options)
+  }
 
-export const getResponseHeader = (response: AxiosResponse<unknown>, responseHeader?: string): string | undefined => {
-	if (responseHeader) {
-		const content = response.headers[responseHeader];
-		if (isString(content)) {
-			return content;
-		}
-	}
-	return undefined;
-};
+  if (!isDefined(options.body)) {
+    return undefined
+  }
 
-export const getResponseBody = (response: AxiosResponse<unknown>): unknown => {
-	if (response.status !== 204) {
-		return response.data;
-	}
-	return undefined;
-};
+  if (
+    options.mediaType === "application/x-www-form-urlencoded" &&
+    isPlainObject(options.body)
+  ) {
+    return getUrlEncodedBody(options.body)
+  }
 
-export const catchErrorCodes = (options: ApiRequestOptions, result: ApiResult): void => {
-	const errors: Record<number, string> = {
-		400: 'Bad Request',
-		401: 'Unauthorized',
-		402: 'Payment Required',
-		403: 'Forbidden',
-		404: 'Not Found',
-		405: 'Method Not Allowed',
-		406: 'Not Acceptable',
-		407: 'Proxy Authentication Required',
-		408: 'Request Timeout',
-		409: 'Conflict',
-		410: 'Gone',
-		411: 'Length Required',
-		412: 'Precondition Failed',
-		413: 'Payload Too Large',
-		414: 'URI Too Long',
-		415: 'Unsupported Media Type',
-		416: 'Range Not Satisfiable',
-		417: 'Expectation Failed',
-		418: 'Im a teapot',
-		421: 'Misdirected Request',
-		422: 'Unprocessable Content',
-		423: 'Locked',
-		424: 'Failed Dependency',
-		425: 'Too Early',
-		426: 'Upgrade Required',
-		428: 'Precondition Required',
-		429: 'Too Many Requests',
-		431: 'Request Header Fields Too Large',
-		451: 'Unavailable For Legal Reasons',
-		500: 'Internal Server Error',
-		501: 'Not Implemented',
-		502: 'Bad Gateway',
-		503: 'Service Unavailable',
-		504: 'Gateway Timeout',
-		505: 'HTTP Version Not Supported',
-		506: 'Variant Also Negotiates',
-		507: 'Insufficient Storage',
-		508: 'Loop Detected',
-		510: 'Not Extended',
-		511: 'Network Authentication Required',
-		...options.errors,
-	}
+  return options.body
+}
 
-	const error = errors[result.status];
-	if (error) {
-		throw new ApiError(options, result, error);
-	}
+const normalizeHeaders = (
+  headers?: Record<string, unknown>,
+): Record<string, string> => {
+  const normalized: Record<string, string> = {}
 
-	if (!result.ok) {
-		const errorStatus = result.status ?? 'unknown';
-		const errorStatusText = result.statusText ?? 'unknown';
-		const errorBody = (() => {
-			try {
-				return JSON.stringify(result.body, null, 2);
-			} catch (e) {
-				return undefined;
-			}
-		})();
+  if (!headers) {
+    return normalized
+  }
 
-		throw new ApiError(options, result,
-			`Generic Error: status: ${errorStatus}; status text: ${errorStatusText}; body: ${errorBody}`
-		);
-	}
-};
+  for (const [key, value] of Object.entries(headers)) {
+    if (!isDefined(value)) {
+      continue
+    }
+    normalized[key] = String(value)
+  }
 
-/**
- * Request method
- * @param config The OpenAPI configuration object
- * @param options The request options from the service
- * @param axiosClient The axios client instance to use
- * @returns CancelablePromise<T>
- * @throws ApiError
- */
-export const request = <T>(config: OpenAPIConfig, options: ApiRequestOptions<T>, axiosClient: AxiosInstance = axios): CancelablePromise<T> => {
-	return new CancelablePromise(async (resolve, reject, onCancel) => {
-		try {
-			const url = getUrl(config, options);
-			const formData = getFormData(options);
-			const body = getRequestBody(options);
-			const headers = await getHeaders(config, options);
+  return normalized
+}
 
-			if (!onCancel.isCancelled) {
-				let response = await sendRequest<T>(config, options, url, body, formData, headers, onCancel, axiosClient);
+const getHeaders = async (
+  config: OpenAPIConfig,
+  options: ApiRequestOptions<unknown>,
+): Promise<Record<string, string>> => {
+  const [token, username, password, defaultHeaders] = await Promise.all([
+    resolveValue(options, config.TOKEN),
+    resolveValue(options, config.USERNAME),
+    resolveValue(options, config.PASSWORD),
+    resolveValue(options, config.HEADERS),
+  ])
 
-				for (const fn of config.interceptors.response._fns) {
-					response = await fn(response);
-				}
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...normalizeHeaders(defaultHeaders),
+    ...normalizeHeaders(options.headers),
+  }
 
-				const responseBody = getResponseBody(response);
-				const responseHeader = getResponseHeader(response, options.responseHeader);
+  if (isStringWithValue(token)) {
+    headers.Authorization = `Bearer ${token}`
+  } else if (isStringWithValue(username) && isStringWithValue(password)) {
+    headers.Authorization = `Basic ${base64(`${username}:${password}`)}`
+  }
 
-				let transformedBody = responseBody;
-				if (options.responseTransformer && isSuccess(response.status)) {
-					transformedBody = await options.responseTransformer(responseBody)
-				}
+  if (options.mediaType) {
+    headers["Content-Type"] = options.mediaType
+  }
 
-				const result: ApiResult = {
-					url,
-					ok: isSuccess(response.status),
-					status: response.status,
-					statusText: response.statusText,
-					body: responseHeader ?? transformedBody,
-				};
+  if (options.formData && options.mediaType !== "application/x-www-form-urlencoded") {
+    delete headers["Content-Type"]
+  }
 
-				catchErrorCodes(options, result);
+  return headers
+}
 
-				resolve(result.body);
-			}
-		} catch (error) {
-			reject(error);
-		}
-	});
-};
+const isSuccessStatus = (status: number): boolean => {
+  return status >= 200 && status < 300
+}
+
+const getResponseBody = <T>(
+  response: { data: unknown; headers: Record<string, unknown> },
+  responseHeader?: string,
+): T => {
+  if (!responseHeader) {
+    return response.data as T
+  }
+
+  return response.headers[responseHeader.toLowerCase()] as T
+}
+
+const catchErrorCodes = (
+  options: ApiRequestOptions<unknown>,
+  result: ApiResult,
+): void => {
+  const errors = options.errors ?? {}
+  const message = errors[result.status]
+
+  if (message) {
+    throw new ApiError(options, result, message)
+  }
+
+  if (!result.ok) {
+    throw new ApiError(options, result, result.statusText || "Request failed")
+  }
+}
+
+export const request = <T>(
+  config: OpenAPIConfig,
+  options: ApiRequestOptions<unknown>,
+): CancelablePromise<T> => {
+  return new CancelablePromise<T>(async (resolve, reject, onCancel) => {
+    const controller = new AbortController()
+    onCancel(() => controller.abort())
+
+    try {
+      await config.PREPARE_REQUEST?.(options)
+
+      const url = getUrl(config, options)
+      const body = getRequestBody(options)
+      const headers = await getHeaders(config, options)
+
+      const response = await axios.request({
+        url,
+        method: options.method,
+        data: body,
+        headers,
+        signal: controller.signal,
+        withCredentials: config.WITH_CREDENTIALS,
+        validateStatus: () => true,
+      })
+
+      const result: ApiResult = {
+        url,
+        ok: isSuccessStatus(response.status),
+        status: response.status,
+        statusText: response.statusText,
+        body: response.data,
+      }
+
+      catchErrorCodes(options, result)
+      resolve(getResponseBody<T>(response, options.responseHeader))
+    } catch (error) {
+      if (axios.isCancel(error)) {
+        return
+      }
+
+      const axiosError = error instanceof Error ? error : new Error("Request failed")
+      const result: ApiResult = {
+        url: options.url,
+        ok: false,
+        status: 0,
+        statusText: axiosError.message,
+        body: error,
+      }
+
+      reject(new ApiError(options, result, axiosError.message))
+    }
+  })
+}

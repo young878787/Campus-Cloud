@@ -4,7 +4,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
+  Cloud,
   FileText,
+  Globe,
   Home,
   KeyRound,
   Monitor,
@@ -43,7 +45,8 @@ export function AppSidebar() {
 
   const resourceItems: Item[] = [
     { icon: ServerCog, title: t("sidebar.myResources"), path: "/my-resources" },
-    { icon: Shield, title: "Firewall", path: "/firewall" },
+    { icon: Shield, title: "防火牆", path: "/firewall" },
+    { icon: Globe, title: "反向代理", path: "/reverse-proxy" },
   ]
 
   const aiItems: Item[] = [{ icon: Bot, title: "AI API", path: "/ai-api" }]
@@ -80,6 +83,7 @@ export function AppSidebar() {
       title: "Migration Jobs",
       path: "/admin/migration-jobs",
     },
+    { icon: Cloud, title: "網域管理", path: "/admin/domains" },
     { icon: Network, title: "Gateway VM", path: "/admin/gateway" },
     { icon: ScrollText, title: "Audit Logs", path: "/admin/audit-logs" },
   ]

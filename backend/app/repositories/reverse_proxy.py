@@ -21,14 +21,26 @@ def get_rule(session: Session, rule_id: uuid.UUID) -> ReverseProxyRule | None:
     return session.get(ReverseProxyRule, rule_id)
 
 
-def is_domain_taken(session: Session, domain: str) -> bool:
-    existing = session.exec(
-        select(ReverseProxyRule).where(ReverseProxyRule.domain == domain)
-    ).first()
+def is_domain_taken(
+    session: Session,
+    domain: str,
+    exclude_rule_id: uuid.UUID | None = None,
+) -> bool:
+    statement = select(ReverseProxyRule).where(ReverseProxyRule.domain == domain)
+    if exclude_rule_id is not None:
+        statement = statement.where(ReverseProxyRule.id != exclude_rule_id)
+    existing = session.exec(statement).first()
     return existing is not None
 
 
 def create_rule(session: Session, rule: ReverseProxyRule) -> ReverseProxyRule:
+    session.add(rule)
+    session.commit()
+    session.refresh(rule)
+    return rule
+
+
+def update_rule(session: Session, rule: ReverseProxyRule) -> ReverseProxyRule:
     session.add(rule)
     session.commit()
     session.refresh(rule)

@@ -43,20 +43,34 @@ export type ServiceActionResult = {
   output: string
 }
 
+export type GatewayServiceVersionInfo = {
+  service: GatewayService
+  current_version: string | null
+  target_version: string | null
+  update_available: boolean | null
+  source: string
+  detection_error: string | null
+}
+
+export type GatewayServiceVersionsResult = {
+  items: GatewayServiceVersionInfo[]
+  checked_at: string
+}
+
 export type GatewayService = "haproxy" | "traefik" | "frps" | "frpc"
 export type ServiceAction = "start" | "stop" | "restart" | "reload"
 
-export class GatewayApiService {
+export const GatewayApiService = {
   /** 取得 Gateway VM 連線設定 */
-  static getConfig(): CancelablePromise<GatewayConfigPublic> {
+  getConfig(): CancelablePromise<GatewayConfigPublic> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/gateway/config",
     })
-  }
+  },
 
   /** 更新連線設定 */
-  static updateConfig(
+  updateConfig(
     data: GatewayConfigUpdate,
   ): CancelablePromise<GatewayConfigPublic> {
     return __request(OpenAPI, {
@@ -65,26 +79,34 @@ export class GatewayApiService {
       body: data,
       mediaType: "application/json",
     })
-  }
+  },
 
   /** 生成新的 SSH Keypair */
-  static generateKeypair(): CancelablePromise<GatewayConfigPublic> {
+  generateKeypair(): CancelablePromise<GatewayConfigPublic> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/gateway/generate-keypair",
     })
-  }
+  },
 
   /** 測試 SSH 連線 */
-  static testConnection(): CancelablePromise<GatewayConnectionTestResult> {
+  testConnection(): CancelablePromise<GatewayConnectionTestResult> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/gateway/test-connection",
     })
-  }
+  },
+
+  /** 套用 Cloudflare DNS Challenge 到 Traefik */
+  syncTraefikDnsChallenge(): CancelablePromise<{ message: string }> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/gateway/traefik/dns-challenge/sync",
+    })
+  },
 
   /** 讀取服務設定檔 */
-  static readServiceConfig(
+  readServiceConfig(
     service: GatewayService,
   ): CancelablePromise<ServiceConfigRead> {
     return __request(OpenAPI, {
@@ -92,10 +114,10 @@ export class GatewayApiService {
       url: "/api/v1/gateway/services/{service}/config",
       path: { service },
     })
-  }
+  },
 
   /** 寫入服務設定檔 */
-  static writeServiceConfig(
+  writeServiceConfig(
     service: GatewayService,
     content: string,
   ): CancelablePromise<{ message: string }> {
@@ -106,10 +128,10 @@ export class GatewayApiService {
       body: { content },
       mediaType: "application/json",
     })
-  }
+  },
 
   /** 取得服務狀態 */
-  static getServiceStatus(
+  getServiceStatus(
     service: GatewayService,
   ): CancelablePromise<ServiceStatusResult> {
     return __request(OpenAPI, {
@@ -117,10 +139,18 @@ export class GatewayApiService {
       url: "/api/v1/gateway/services/{service}/status",
       path: { service },
     })
-  }
+  },
+
+  /** 取得 Gateway 服務版本資訊 */
+  getServiceVersions(): CancelablePromise<GatewayServiceVersionsResult> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/gateway/services/versions",
+    })
+  },
 
   /** 控制服務 */
-  static controlService(
+  controlService(
     service: GatewayService,
     action: ServiceAction,
   ): CancelablePromise<ServiceActionResult> {
@@ -129,10 +159,10 @@ export class GatewayApiService {
       url: "/api/v1/gateway/services/{service}/{action}",
       path: { service, action },
     })
-  }
+  },
 
   /** 取得服務日誌 */
-  static async getServiceLogs(
+  async getServiceLogs(
     service: GatewayService,
     lines: number = 50,
   ): Promise<string> {
@@ -149,10 +179,10 @@ export class GatewayApiService {
       },
     )
     return resp.text()
-  }
+  },
 
   /** 取得安裝腳本下載 URL */
-  static getInstallScriptUrl(): string {
+  getInstallScriptUrl(): string {
     return `${OpenAPI.BASE}/api/v1/gateway/install-script`
-  }
+  },
 }

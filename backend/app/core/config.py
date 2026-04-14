@@ -114,6 +114,9 @@ class Settings(BaseSettings):
     PROXMOX_API_TIMEOUT: int = 30  # API request timeout in seconds
     PROXMOX_TASK_CHECK_INTERVAL: int = 1  # Seconds between task status checks
 
+    TRAEFIK_API_BASE_URL: str = "http://127.0.0.1:8080"
+    TRAEFIK_API_TIMEOUT: int = 10
+
     # vLLM settings for AI Teacher Judge
     TEMPLATE_RECOMMENDATION_VLLM_BASE_URL: str = "http://localhost:8000/v1"
     TEMPLATE_RECOMMENDATION_VLLM_API_KEY: str = "vllm-secret-key-change-me"
@@ -128,6 +131,9 @@ class Settings(BaseSettings):
     TEMPLATE_RECOMMENDATION_VLLM_CHAT_MAX_TOKENS: int = 4096
     TEMPLATE_RECOMMENDATION_VLLM_REPETITION_PENALTY: float = 1.0
     TEMPLATE_RECOMMENDATION_VLLM_MAX_UPLOAD_SIZE_MB: int = 10
+
+    TRAEFIK_API_BASE_URL: str = "http://127.0.0.1:8080"
+    TRAEFIK_API_TIMEOUT: int = 10
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":

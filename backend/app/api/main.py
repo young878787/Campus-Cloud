@@ -2,11 +2,12 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     ai_api,
-    ai_pve_advisor,
     ai_proxy,
+    ai_pve_advisor,
     ai_template_recommendation,
     audit_logs,
     batch_provision,
+    cloudflare,
     desktop_client,
     firewall,
     gateway,
@@ -18,6 +19,7 @@ from app.api.routes import (
     proxmox_config,
     resource_details,
     resources,
+    reverse_proxy,
     rubric,
     script_deploy,
     spec_change_requests,
@@ -48,7 +50,9 @@ api_router.include_router(audit_logs.router)
 api_router.include_router(groups.router)
 api_router.include_router(batch_provision.router)
 api_router.include_router(proxmox_config.router)
+api_router.include_router(cloudflare.router)
 api_router.include_router(firewall.router)
+api_router.include_router(reverse_proxy.router)
 api_router.include_router(gateway.router)
 api_router.include_router(script_deploy.router)
 api_router.include_router(rubric.router)

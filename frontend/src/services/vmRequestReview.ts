@@ -1,7 +1,7 @@
 import type { CancelablePromise } from "@/client"
 import { OpenAPI } from "@/client"
 import { request as __request } from "@/client/core/request"
-import type { VMRequestPublic } from "@/client/types.gen"
+import type { VMRequestPublic } from "@/client"
 
 export type VmRequestReviewRuntimeResource = {
   vmid: number

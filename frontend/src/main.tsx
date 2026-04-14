@@ -11,55 +11,15 @@ import "./lib/i18n"
 import { queryClient } from "./lib/queryClient"
 import { LanguageProvider } from "./providers/LanguageProvider"
 import { routeTree } from "./routeTree.gen"
-import { AuthSessionService } from "./services/authSession"
+import {
+  prepareOpenApiRequestAuth,
+  resolveOpenApiToken,
+} from "./services/openApiAuth"
 
 OpenAPI.BASE = import.meta.env.VITE_API_URL
 
-function getTokenExp(token: string): number {
-  try {
-    const payload = token.split(".")[1]
-    if (!payload) return 0
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/")
-    const json = atob(normalized)
-    const data = JSON.parse(json) as { exp?: number }
-    return typeof data.exp === "number" ? data.exp : 0
-  } catch {
-    return 0
-  }
-}
-
-const REFRESH_THRESHOLD_SEC = 30
-
-let refreshPromise: Promise<boolean> | null = null
-
-async function tryRefreshToken(): Promise<boolean> {
-  if (refreshPromise) return refreshPromise
-
-  refreshPromise = (async () => {
-    try {
-      return await AuthSessionService.refreshAccessToken()
-    } finally {
-      refreshPromise = null
-    }
-  })()
-
-  return refreshPromise
-}
-
-OpenAPI.TOKEN = async () => {
-  const token = AuthSessionService.getAccessToken()
-  if (!token) return ""
-
-  const exp = getTokenExp(token)
-  const nowSec = Math.floor(Date.now() / 1000)
-
-  if (exp > 0 && exp - nowSec <= REFRESH_THRESHOLD_SEC) {
-    const ok = await tryRefreshToken()
-    if (ok) return AuthSessionService.getAccessToken() || ""
-  }
-
-  return token
-}
+OpenAPI.PREPARE_REQUEST = prepareOpenApiRequestAuth
+OpenAPI.TOKEN = resolveOpenApiToken
 
 const router = createRouter({ routeTree })
 
@@ -69,7 +29,13 @@ declare module "@tanstack/react-router" {
   }
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root")
+
+if (!rootElement) {
+  throw new Error("Root element not found")
+}
+
+ReactDOM.createRoot(rootElement).render(
   <StrictMode>
     <LanguageProvider
       defaultLanguage="zh-TW"

@@ -9,6 +9,9 @@ type AuthTokens = {
 const ACCESS_TOKEN_KEY = "access_token"
 const REFRESH_TOKEN_KEY = "refresh_token"
 
+let _refreshPromise: Promise<boolean> | null = null
+let _lastSuccessfulRefreshAt = 0
+
 export const AuthSessionService = {
   getAccessToken() {
     return typeof window === "undefined"
@@ -32,6 +35,14 @@ export const AuthSessionService = {
   clearTokens() {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
+    _lastSuccessfulRefreshAt = 0
+  },
+
+  wasRefreshedRecently(windowMs = 3000) {
+    return (
+      _lastSuccessfulRefreshAt > 0 &&
+      Date.now() - _lastSuccessfulRefreshAt <= windowMs
+    )
   },
 
   async loginWithGoogle(idToken: string): Promise<AuthTokens> {
@@ -46,25 +57,34 @@ export const AuthSessionService = {
   },
 
   async refreshAccessToken(): Promise<boolean> {
-    const refreshToken = this.getRefreshToken()
-    if (!refreshToken) return false
+    if (_refreshPromise) return _refreshPromise
 
-    // Use bare fetch to bypass OpenAPI.TOKEN — otherwise this call would
-    // re-enter the token resolver and cause infinite recursion when the
-    // access token is near expiry.
-    try {
-      const base = (OpenAPI.BASE ?? "").replace(/\/+$/, "")
-      const res = await fetch(`${base}/api/v1/login/refresh-token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      })
-      if (!res.ok) return false
-      const tokens = (await res.json()) as AuthTokens
-      this.setTokens(tokens)
-      return true
-    } catch {
-      return false
-    }
+    _refreshPromise = (async () => {
+      const refreshToken = this.getRefreshToken()
+      if (!refreshToken) return false
+
+      // Use bare fetch to bypass OpenAPI.TOKEN — otherwise this call would
+      // re-enter the token resolver and cause infinite recursion when the
+      // access token is near expiry.
+      try {
+        const base = (OpenAPI.BASE ?? "").replace(/\/+$/, "")
+        const res = await fetch(`${base}/api/v1/login/refresh-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        })
+        if (!res.ok) return false
+        const tokens = (await res.json()) as AuthTokens
+        this.setTokens(tokens)
+        _lastSuccessfulRefreshAt = Date.now()
+        return true
+      } catch {
+        return false
+      }
+    })().finally(() => {
+      _refreshPromise = null
+    })
+
+    return _refreshPromise
   },
 }

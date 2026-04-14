@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
+import { Route as LayoutReverseProxyRouteImport } from './routes/_layout/reverse-proxy'
 import { Route as LayoutResourcesCreateRouteImport } from './routes/_layout/resources-create'
 import { Route as LayoutResourcesRouteImport } from './routes/_layout/resources'
 import { Route as LayoutMyResourcesRouteImport } from './routes/_layout/my-resources'
@@ -35,6 +36,7 @@ import { Route as LayoutGroupsGroupIdRouteImport } from './routes/_layout/groups
 import { Route as LayoutApprovalsRequestIdRouteImport } from './routes/_layout/approvals_.$requestId'
 import { Route as LayoutAdminMigrationJobsRouteImport } from './routes/_layout/admin.migration-jobs'
 import { Route as LayoutAdminGatewayRouteImport } from './routes/_layout/admin.gateway'
+import { Route as LayoutAdminDomainsRouteImport } from './routes/_layout/admin.domains'
 import { Route as LayoutAdminConfigurationRouteImport } from './routes/_layout/admin.configuration'
 import { Route as LayoutAdminAuditLogsRouteImport } from './routes/_layout/admin.audit-logs'
 import { Route as LayoutGroupsGroupIdAiJudgeRouteImport } from './routes/_layout/groups_.$groupId_.ai-judge'
@@ -71,6 +73,11 @@ const LayoutIndexRoute = LayoutIndexRouteImport.update({
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutReverseProxyRoute = LayoutReverseProxyRouteImport.update({
+  id: '/reverse-proxy',
+  path: '/reverse-proxy',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutResourcesCreateRoute = LayoutResourcesCreateRouteImport.update({
@@ -171,6 +178,11 @@ const LayoutAdminGatewayRoute = LayoutAdminGatewayRouteImport.update({
   path: '/gateway',
   getParentRoute: () => LayoutAdminRoute,
 } as any)
+const LayoutAdminDomainsRoute = LayoutAdminDomainsRouteImport.update({
+  id: '/domains',
+  path: '/domains',
+  getParentRoute: () => LayoutAdminRoute,
+} as any)
 const LayoutAdminConfigurationRoute =
   LayoutAdminConfigurationRouteImport.update({
     id: '/configuration',
@@ -207,9 +219,11 @@ export interface FileRoutesByFullPath {
   '/my-resources': typeof LayoutMyResourcesRoute
   '/resources': typeof LayoutResourcesRoute
   '/resources-create': typeof LayoutResourcesCreateRoute
+  '/reverse-proxy': typeof LayoutReverseProxyRoute
   '/settings': typeof LayoutSettingsRoute
   '/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
   '/admin/configuration': typeof LayoutAdminConfigurationRoute
+  '/admin/domains': typeof LayoutAdminDomainsRoute
   '/admin/gateway': typeof LayoutAdminGatewayRoute
   '/admin/migration-jobs': typeof LayoutAdminMigrationJobsRoute
   '/approvals/$requestId': typeof LayoutApprovalsRequestIdRoute
@@ -235,10 +249,12 @@ export interface FileRoutesByTo {
   '/my-resources': typeof LayoutMyResourcesRoute
   '/resources': typeof LayoutResourcesRoute
   '/resources-create': typeof LayoutResourcesCreateRoute
+  '/reverse-proxy': typeof LayoutReverseProxyRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
   '/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
   '/admin/configuration': typeof LayoutAdminConfigurationRoute
+  '/admin/domains': typeof LayoutAdminDomainsRoute
   '/admin/gateway': typeof LayoutAdminGatewayRoute
   '/admin/migration-jobs': typeof LayoutAdminMigrationJobsRoute
   '/approvals/$requestId': typeof LayoutApprovalsRequestIdRoute
@@ -267,10 +283,12 @@ export interface FileRoutesById {
   '/_layout/my-resources': typeof LayoutMyResourcesRoute
   '/_layout/resources': typeof LayoutResourcesRoute
   '/_layout/resources-create': typeof LayoutResourcesCreateRoute
+  '/_layout/reverse-proxy': typeof LayoutReverseProxyRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
   '/_layout/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
   '/_layout/admin/configuration': typeof LayoutAdminConfigurationRoute
+  '/_layout/admin/domains': typeof LayoutAdminDomainsRoute
   '/_layout/admin/gateway': typeof LayoutAdminGatewayRoute
   '/_layout/admin/migration-jobs': typeof LayoutAdminMigrationJobsRoute
   '/_layout/approvals_/$requestId': typeof LayoutApprovalsRequestIdRoute
@@ -300,9 +318,11 @@ export interface FileRouteTypes {
     | '/my-resources'
     | '/resources'
     | '/resources-create'
+    | '/reverse-proxy'
     | '/settings'
     | '/admin/audit-logs'
     | '/admin/configuration'
+    | '/admin/domains'
     | '/admin/gateway'
     | '/admin/migration-jobs'
     | '/approvals/$requestId'
@@ -328,10 +348,12 @@ export interface FileRouteTypes {
     | '/my-resources'
     | '/resources'
     | '/resources-create'
+    | '/reverse-proxy'
     | '/settings'
     | '/'
     | '/admin/audit-logs'
     | '/admin/configuration'
+    | '/admin/domains'
     | '/admin/gateway'
     | '/admin/migration-jobs'
     | '/approvals/$requestId'
@@ -359,10 +381,12 @@ export interface FileRouteTypes {
     | '/_layout/my-resources'
     | '/_layout/resources'
     | '/_layout/resources-create'
+    | '/_layout/reverse-proxy'
     | '/_layout/settings'
     | '/_layout/'
     | '/_layout/admin/audit-logs'
     | '/_layout/admin/configuration'
+    | '/_layout/admin/domains'
     | '/_layout/admin/gateway'
     | '/_layout/admin/migration-jobs'
     | '/_layout/approvals_/$requestId'
@@ -430,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof LayoutSettingsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/reverse-proxy': {
+      id: '/_layout/reverse-proxy'
+      path: '/reverse-proxy'
+      fullPath: '/reverse-proxy'
+      preLoaderRoute: typeof LayoutReverseProxyRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/resources-create': {
@@ -565,6 +596,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminGatewayRouteImport
       parentRoute: typeof LayoutAdminRoute
     }
+    '/_layout/admin/domains': {
+      id: '/_layout/admin/domains'
+      path: '/domains'
+      fullPath: '/admin/domains'
+      preLoaderRoute: typeof LayoutAdminDomainsRouteImport
+      parentRoute: typeof LayoutAdminRoute
+    }
     '/_layout/admin/configuration': {
       id: '/_layout/admin/configuration'
       path: '/configuration'
@@ -592,6 +630,7 @@ declare module '@tanstack/react-router' {
 interface LayoutAdminRouteChildren {
   LayoutAdminAuditLogsRoute: typeof LayoutAdminAuditLogsRoute
   LayoutAdminConfigurationRoute: typeof LayoutAdminConfigurationRoute
+  LayoutAdminDomainsRoute: typeof LayoutAdminDomainsRoute
   LayoutAdminGatewayRoute: typeof LayoutAdminGatewayRoute
   LayoutAdminMigrationJobsRoute: typeof LayoutAdminMigrationJobsRoute
   LayoutAdminIndexRoute: typeof LayoutAdminIndexRoute
@@ -600,6 +639,7 @@ interface LayoutAdminRouteChildren {
 const LayoutAdminRouteChildren: LayoutAdminRouteChildren = {
   LayoutAdminAuditLogsRoute: LayoutAdminAuditLogsRoute,
   LayoutAdminConfigurationRoute: LayoutAdminConfigurationRoute,
+  LayoutAdminDomainsRoute: LayoutAdminDomainsRoute,
   LayoutAdminGatewayRoute: LayoutAdminGatewayRoute,
   LayoutAdminMigrationJobsRoute: LayoutAdminMigrationJobsRoute,
   LayoutAdminIndexRoute: LayoutAdminIndexRoute,
@@ -622,6 +662,7 @@ interface LayoutRouteChildren {
   LayoutMyResourcesRoute: typeof LayoutMyResourcesRoute
   LayoutResourcesRoute: typeof LayoutResourcesRoute
   LayoutResourcesCreateRoute: typeof LayoutResourcesCreateRoute
+  LayoutReverseProxyRoute: typeof LayoutReverseProxyRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
   LayoutApprovalsRequestIdRoute: typeof LayoutApprovalsRequestIdRoute
@@ -644,6 +685,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutMyResourcesRoute: LayoutMyResourcesRoute,
   LayoutResourcesRoute: LayoutResourcesRoute,
   LayoutResourcesCreateRoute: LayoutResourcesCreateRoute,
+  LayoutReverseProxyRoute: LayoutReverseProxyRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
   LayoutApprovalsRequestIdRoute: LayoutApprovalsRequestIdRoute,

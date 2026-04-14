@@ -1,57 +1,61 @@
-import type { AxiosRequestConfig, AxiosResponse } from 'axios';
-import type { ApiRequestOptions } from './ApiRequestOptions';
+import type { ApiRequestOptions } from "./ApiRequestOptions"
 
-type Headers = Record<string, string>;
-type Middleware<T> = (value: T) => T | Promise<T>;
-type Resolver<T> = (options: ApiRequestOptions<T>) => Promise<T>;
+type Resolver<T> = (
+  options: ApiRequestOptions<unknown>,
+) => Promise<T | undefined> | T | undefined
 
-export class Interceptors<T> {
-  _fns: Middleware<T>[];
+type RequestPreparer = (
+  options: ApiRequestOptions<unknown>,
+) => Promise<void> | void
 
-  constructor() {
-    this._fns = [];
+type Headers = Record<string, string>
+
+class Interceptors<T> {
+  #items = new Map<number, T>()
+  #nextId = 0
+
+  public use(interceptor: T): number {
+    const id = this.#nextId
+    this.#items.set(id, interceptor)
+    this.#nextId += 1
+    return id
   }
 
-  eject(fn: Middleware<T>): void {
-    const index = this._fns.indexOf(fn);
-    if (index !== -1) {
-      this._fns = [...this._fns.slice(0, index), ...this._fns.slice(index + 1)];
-    }
-  }
-
-  use(fn: Middleware<T>): void {
-    this._fns = [...this._fns, fn];
+  public eject(id: number): void {
+    this.#items.delete(id)
   }
 }
 
 export type OpenAPIConfig = {
-	BASE: string;
-	CREDENTIALS: 'include' | 'omit' | 'same-origin';
-	ENCODE_PATH?: ((path: string) => string) | undefined;
-	HEADERS?: Headers | Resolver<Headers> | undefined;
-	PASSWORD?: string | Resolver<string> | undefined;
-	TOKEN?: string | Resolver<string> | undefined;
-	USERNAME?: string | Resolver<string> | undefined;
-	VERSION: string;
-	WITH_CREDENTIALS: boolean;
-	interceptors: {
-		request: Interceptors<AxiosRequestConfig>;
-		response: Interceptors<AxiosResponse>;
-	};
-};
+  BASE: string
+  VERSION: string
+  WITH_CREDENTIALS: boolean
+  CREDENTIALS: "include" | "omit" | "same-origin"
+  TOKEN?: string | Resolver<string>
+  USERNAME?: string | Resolver<string>
+  PASSWORD?: string | Resolver<string>
+  HEADERS?: Headers | Resolver<Headers>
+  ENCODE_PATH?: (path: string) => string
+  PREPARE_REQUEST?: RequestPreparer
+  interceptors: {
+    request: Interceptors<unknown>
+    response: Interceptors<unknown>
+  }
+}
 
 export const OpenAPI: OpenAPIConfig = {
-	BASE: '',
-	CREDENTIALS: 'include',
-	ENCODE_PATH: undefined,
-	HEADERS: undefined,
-	PASSWORD: undefined,
-	TOKEN: undefined,
-	USERNAME: undefined,
-	VERSION: '0.1.0',
-	WITH_CREDENTIALS: false,
-	interceptors: {
-		request: new Interceptors(),
-		response: new Interceptors(),
-	},
-};
+  BASE: "",
+  VERSION: "1.0.0",
+  WITH_CREDENTIALS: false,
+  CREDENTIALS: "include",
+  TOKEN: undefined,
+  USERNAME: undefined,
+  PASSWORD: undefined,
+  HEADERS: undefined,
+  ENCODE_PATH: undefined,
+  PREPARE_REQUEST: undefined,
+  interceptors: {
+    request: new Interceptors<unknown>(),
+    response: new Interceptors<unknown>(),
+  },
+}

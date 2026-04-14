@@ -3,19 +3,18 @@ import io
 import uuid
 from datetime import datetime
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.core.request_context import get_request_context
 from app.models import AuditAction, AuditLog, User
+from app.repositories import audit_log as audit_repo
 from app.schemas import (
     AuditActionMeta,
     AuditLogPublic,
-    AuditLogStats,
     AuditLogsPublic,
+    AuditLogStats,
     AuditUserOption,
 )
-from app.repositories import audit_log as audit_repo
-
 
 # Categorisation used by the admin UI to group actions in dropdowns and badges.
 ACTION_CATEGORY: dict[AuditAction, str] = {
@@ -76,6 +75,12 @@ ACTION_CATEGORY: dict[AuditAction, str] = {
     AuditAction.gateway_keypair_generate: "gateway",
     AuditAction.gateway_config_write: "gateway",
     AuditAction.gateway_service_control: "gateway",
+    # Cloudflare
+    AuditAction.cloudflare_config_update: "system",
+    AuditAction.cloudflare_zone_create: "system",
+    AuditAction.cloudflare_dns_record_create: "system",
+    AuditAction.cloudflare_dns_record_update: "system",
+    AuditAction.cloudflare_dns_record_delete: "system",
     # Proxmox / Migration
     AuditAction.proxmox_config_update: "system",
     AuditAction.proxmox_node_update: "system",
@@ -103,6 +108,8 @@ DANGER_ACTIONS: set[AuditAction] = {
     AuditAction.nat_rule_delete,
     AuditAction.reverse_proxy_rule_delete,
     AuditAction.proxmox_config_update,
+    AuditAction.cloudflare_config_update,
+    AuditAction.cloudflare_dns_record_delete,
     AuditAction.gateway_keypair_generate,
     AuditAction.login_failed,
     AuditAction.login_google_failed,
@@ -197,7 +204,11 @@ def list_audit_users(*, session: Session) -> list[AuditUserOption]:
     """List users that ever appeared as audit log actors (for filter dropdown)."""
     stmt = (
         select(User)
-        .where(User.id.in_(select(AuditLog.user_id).where(AuditLog.user_id.is_not(None))))
+        .where(
+            col(User.id).in_(
+                select(AuditLog.user_id).where(col(AuditLog.user_id).is_not(None))
+            )
+        )
         .order_by(User.email)
     )
     return [

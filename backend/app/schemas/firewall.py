@@ -198,6 +198,7 @@ class ReverseProxyRulePublic(BaseModel):
     vmid: int
     vm_ip: str
     domain: str
+    zone_id: str | None = None
     internal_port: int
     enable_https: bool
     dns_provider: str

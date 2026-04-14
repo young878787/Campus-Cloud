@@ -75,6 +75,8 @@ const DANGER_ACTIONS = new Set([
   "reverse_proxy_rule_delete",
   "proxmox_config_update",
   "gateway_keypair_generate",
+  "cloudflare_config_update",
+  "cloudflare_dns_record_delete",
   "login_failed",
   "login_google_failed",
 ])

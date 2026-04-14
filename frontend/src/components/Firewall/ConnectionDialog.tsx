@@ -1,13 +1,11 @@
 import { useQuery } from "@tanstack/react-query"
 import {
   AlertTriangle,
-  Globe,
   Info,
   Plug,
   Plus,
   Shield,
   Trash2,
-  Zap,
 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -71,6 +69,40 @@ type Props = {
   onClose: () => void
 }
 
+type PortPair = {
+  id: string
+  external: number
+  internal: number
+  protocol: string
+}
+
+type FirewallPortRow = {
+  id: string
+  port: number
+  protocol: string
+}
+
+function createPortPair(
+  external = 8080,
+  internal = 80,
+  protocol = "tcp",
+): PortPair {
+  return {
+    id: crypto.randomUUID(),
+    external,
+    internal,
+    protocol,
+  }
+}
+
+function createFirewallPort(port = 80, protocol = "tcp"): FirewallPortRow {
+  return {
+    id: crypto.randomUUID(),
+    port,
+    protocol,
+  }
+}
+
 // PVE 保留 port（前端提示用）
 const RESERVED_PORTS = new Set([
   22, 80, 443, 3128, 4007, 4008, 5900, 5901, 5902, 5903, 5904, 5905, 6789, 6800,
@@ -78,7 +110,7 @@ const RESERVED_PORTS = new Set([
 ])
 
 // 入站存取模式
-type InboundMode = "domain" | "port" | "firewall"
+type InboundMode = "port" | "firewall"
 
 export function ConnectionDialog({
   open,
@@ -95,22 +127,13 @@ export function ConnectionDialog({
   const isAdmin = currentUser?.role === "admin" || currentUser?.is_superuser
 
   // ─── 入站模式狀態 ────────────────────────────────────────────────────────
-  const [inboundMode, setInboundMode] = useState<InboundMode>("domain")
-
-  // 🌐 網域模式
-  const [domain, setDomain] = useState("")
-  const [domainPort, setDomainPort] = useState(80)
-  const [enableHttps, setEnableHttps] = useState(true)
+  const [inboundMode, setInboundMode] = useState<InboundMode>("port")
 
   // 🔌 Port 轉發模式
-  const [portPairs, setPortPairs] = useState<
-    { external: number; internal: number; protocol: string }[]
-  >([{ external: 8080, internal: 80, protocol: "tcp" }])
+  const [portPairs, setPortPairs] = useState<PortPair[]>([createPortPair()])
 
   // 🔓 僅開放模式 & 非入站通用
-  const [ports, setPorts] = useState<{ port: number; protocol: string }[]>([
-    { port: 80, protocol: "tcp" },
-  ])
+  const [ports, setPorts] = useState<FirewallPortRow[]>([createFirewallPort()])
 
   const [direction, setDirection] = useState<"one_way" | "bidirectional">(
     "one_way",
@@ -127,8 +150,7 @@ export function ConnectionDialog({
   const gatewaySetupMessage = isAdmin
     ? "Gateway VM 尚未設定，請先至「Gateway VM 管理」設定後再使用此功能。"
     : "此功能需要管理員先完成 Gateway VM 設定。"
-  const needsGateway =
-    isInbound && (inboundMode === "domain" || inboundMode === "port")
+  const needsGateway = isInbound && inboundMode === "port"
 
   // ─── 確認送出 ────────────────────────────────────────────────────────────
   const handleConfirm = () => {
@@ -136,26 +158,6 @@ export function ConnectionDialog({
 
     if (isInbound) {
       switch (inboundMode) {
-        case "domain": {
-          const d = domain.trim().toLowerCase()
-          if (!d) {
-            toast.error("請輸入網域名稱")
-            return
-          }
-          if (domainPort < 1 || domainPort > 65535) {
-            toast.error("請輸入有效的 port (1-65535)")
-            return
-          }
-          result = [
-            {
-              port: domainPort,
-              protocol: "tcp",
-              domain: d,
-              enable_https: enableHttps,
-            },
-          ]
-          break
-        }
         case "port": {
           const valid = portPairs.filter(
             (p) =>
@@ -211,13 +213,10 @@ export function ConnectionDialog({
 
     onConfirm(result, direction)
     // 重置
-    setDomain("")
-    setDomainPort(80)
-    setEnableHttps(true)
-    setPortPairs([{ external: 8080, internal: 80, protocol: "tcp" }])
-    setPorts([{ port: 80, protocol: "tcp" }])
+    setPortPairs([createPortPair()])
+    setPorts([createFirewallPort()])
     setDirection("one_way")
-    setInboundMode("domain")
+    setInboundMode("port")
   }
 
   return (
@@ -266,15 +265,9 @@ export function ConnectionDialog({
                 <Label className="text-foreground/80 text-sm">
                   你想怎麼從外面連到這台 VM？
                 </Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {(
                     [
-                      {
-                        mode: "domain" as InboundMode,
-                        icon: Globe,
-                        label: "用網域名稱",
-                        desc: "設定網域 → VM",
-                      },
                       {
                         mode: "port" as InboundMode,
                         icon: Plug,
@@ -290,6 +283,7 @@ export function ConnectionDialog({
                     ] as const
                   ).map(({ mode, icon: Icon, label, desc }) => (
                     <button
+                      type="button"
                       key={mode}
                       onClick={() => setInboundMode(mode)}
                       className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg text-xs transition-all ${
@@ -319,7 +313,7 @@ export function ConnectionDialog({
               )}
               {needsGateway && isGatewayConfigured && (
                 <div className="flex gap-2 items-start bg-emerald-950/40 border border-emerald-700/60 rounded-lg px-3 py-2.5 text-xs text-emerald-300">
-                  <Zap className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <Plug className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                   <span>
                     建立後將同時更新{" "}
                     <span className="font-medium">PVE 防火牆 + Gateway VM</span>
@@ -327,6 +321,12 @@ export function ConnectionDialog({
                   </span>
                 </div>
               )}
+              <div className="flex gap-2 items-start bg-sky-950/30 border border-sky-700/40 rounded-lg px-3 py-2.5 text-xs text-sky-300">
+                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>
+                  若要設定網域型反向代理，請改到新的「反向代理」頁面管理。
+                </span>
+              </div>
               {inboundMode === "firewall" && (
                 <div className="flex gap-2 items-start bg-blue-950/30 border border-blue-700/40 rounded-lg px-3 py-2.5 text-xs text-blue-300">
                   <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
@@ -337,59 +337,6 @@ export function ConnectionDialog({
                 </div>
               )}
             </>
-          )}
-
-          {/* ── 🌐 網域模式 ────────────────────────────────────────── */}
-          {isInbound && inboundMode === "domain" && (
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-muted-foreground text-xs">
-                  網域名稱
-                </Label>
-                <Input
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  placeholder="mysite.campus.edu"
-                  className="bg-card border-border text-foreground h-9"
-                />
-              </div>
-              <div className="flex gap-4 items-end">
-                <div className="space-y-1.5">
-                  <Label className="text-muted-foreground text-xs">
-                    VM 內部 Port
-                  </Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={65535}
-                    value={domainPort}
-                    onChange={(e) =>
-                      setDomainPort(parseInt(e.target.value, 10) || 80)
-                    }
-                    className="bg-card border-border text-foreground h-9 w-28"
-                  />
-                </div>
-                <label className="flex items-center gap-2 text-xs text-muted-foreground pb-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={enableHttps}
-                    onChange={(e) => setEnableHttps(e.target.checked)}
-                    className="rounded border-border bg-card text-emerald-600 focus:ring-emerald-600"
-                  />
-                  啟用 HTTPS（自動申請 Let's Encrypt）
-                </label>
-              </div>
-              {domain.trim() && (
-                <p className="text-xs text-muted-foreground">
-                  設定後可透過{" "}
-                  <span className="text-emerald-400 font-mono">
-                    {enableHttps ? "https" : "http"}://
-                    {domain.trim().toLowerCase()}
-                  </span>{" "}
-                  存取你的 VM port {domainPort}
-                </p>
-              )}
-            </div>
           )}
 
           {/* ── 🔌 Port 轉發模式 ──────────────────────────────────── */}
@@ -404,7 +351,7 @@ export function ConnectionDialog({
               {portPairs.map((pair, i) => {
                 const extWarning = RESERVED_PORTS.has(pair.external)
                 return (
-                  <div key={i} className="space-y-1">
+                  <div key={pair.id} className="space-y-1">
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
@@ -455,8 +402,9 @@ export function ConnectionDialog({
                       </Select>
                       {portPairs.length > 1 && (
                         <button
+                          type="button"
                           onClick={() =>
-                            setPortPairs(portPairs.filter((_, j) => j !== i))
+                            setPortPairs(portPairs.filter((currentPair) => currentPair.id !== pair.id))
                           }
                           className="p-1 hover:text-red-400 text-muted-foreground transition-colors"
                         >
@@ -473,10 +421,11 @@ export function ConnectionDialog({
                 )
               })}
               <button
+                type="button"
                 onClick={() =>
                   setPortPairs([
                     ...portPairs,
-                    { external: 0, internal: 0, protocol: "tcp" },
+                    createPortPair(0, 0, "tcp"),
                   ])
                 }
                 className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
@@ -493,7 +442,7 @@ export function ConnectionDialog({
               <div className="space-y-2">
                 <Label className="text-foreground/80 text-sm">允許端口</Label>
                 {ports.map((port, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                  <div key={port.id} className="flex items-center gap-2">
                     {PROTOCOLS_WITH_PORT.has(port.protocol) ? (
                       <Input
                         type="number"
@@ -537,8 +486,9 @@ export function ConnectionDialog({
                     </Select>
                     {ports.length > 1 && (
                       <button
+                        type="button"
                         onClick={() =>
-                          setPorts(ports.filter((_, i) => i !== index))
+                          setPorts(ports.filter((currentPort) => currentPort.id !== port.id))
                         }
                         className="p-1 hover:text-red-400 text-muted-foreground transition-colors"
                       >
@@ -548,8 +498,9 @@ export function ConnectionDialog({
                   </div>
                 ))}
                 <button
+                  type="button"
                   onClick={() =>
-                    setPorts([...ports, { port: 443, protocol: "tcp" }])
+                    setPorts([...ports, createFirewallPort(443, "tcp")])
                   }
                   className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
                 >
@@ -566,6 +517,7 @@ export function ConnectionDialog({
               <div className="flex gap-2">
                 {(["one_way", "bidirectional"] as const).map((dir) => (
                   <button
+                    type="button"
                     key={dir}
                     onClick={() => setDirection(dir)}
                     className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
