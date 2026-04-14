@@ -67,8 +67,73 @@
   .toast-error { background: var(--red); color: white; }
   @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-  .hidden { display: none; }
+  .hidden { display: none !important; }
   .section { margin-bottom: 32px; }
+
+  /* Spinner */
+  .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+  }
+  .spinner-lg { width: 24px; height: 24px; border-width: 3px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Phase panel (shown while tunnel is starting) */
+  .phase-panel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(59,130,246,0.08);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 10px;
+    margin-top: 8px;
+  }
+  .phase-panel .phase-text { flex: 1; }
+  .phase-panel .phase-msg { font-size: 0.95rem; }
+  .phase-panel .phase-sub { color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
+
+  /* Progress bar */
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 9999px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 9999px;
+    transition: width 0.2s ease;
+  }
+  .progress-bar-indeterminate {
+    width: 30%;
+    animation: indeterminate 1.4s ease-in-out infinite;
+  }
+  @keyframes indeterminate {
+    0% { margin-left: -30%; }
+    100% { margin-left: 100%; }
+  }
+
+  /* Login pending state */
+  .login-pending {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 10px;
+    font-size: 0.9rem;
+  }
 </style>
 </head>
 <body>
@@ -82,6 +147,10 @@
       登入 Campus Cloud
     </button>
     <p style="color: var(--muted); font-size: 0.85rem; margin-top: 12px;">將會開啟瀏覽器進行登入</p>
+    <div id="loginPending" class="login-pending hidden" style="margin-top: 16px;">
+      <span class="spinner"></span>
+      <span>請在瀏覽器中完成登入…</span>
+    </div>
   </div>
 
   <!-- Main App -->
@@ -103,6 +172,17 @@
         </div>
         <div id="tunnelActions">
           <button class="btn btn-success" onclick="startTunnel()" id="startTunnelBtn">啟動隧道</button>
+        </div>
+        <!-- Phase panel: shown while tunnel is starting (downloading frpc, etc.) -->
+        <div id="tunnelPhase" class="phase-panel hidden">
+          <span class="spinner spinner-lg"></span>
+          <div class="phase-text">
+            <div class="phase-msg" id="tunnelPhaseMsg">準備中…</div>
+            <div class="phase-sub" id="tunnelPhaseSub"></div>
+            <div class="progress-bar hidden" id="tunnelProgressBar">
+              <div class="progress-bar-fill" id="tunnelProgressFill" style="width: 0%"></div>
+            </div>
+          </div>
         </div>
         <div id="tunnelRunning" class="hidden">
           <button class="btn btn-danger" onclick="stopTunnel()" style="margin-bottom: 16px;">停止隧道</button>
@@ -161,8 +241,10 @@ async function checkState() {
 }
 
 async function doLogin() {
-  document.getElementById('loginBtn').disabled = true;
-  document.getElementById('loginBtn').textContent = '正在開啟登入視窗...';
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 正在開啟瀏覽器…';
+  document.getElementById('loginPending').classList.remove('hidden');
   try {
     await fetchJSON('/api/login', { method: 'POST' });
     // Poll for login completion
@@ -190,6 +272,7 @@ function resetLoginBtn() {
   const btn = document.getElementById('loginBtn');
   btn.disabled = false;
   btn.textContent = '登入 Campus Cloud';
+  document.getElementById('loginPending').classList.add('hidden');
 }
 
 async function doLogout() {
@@ -228,8 +311,10 @@ async function loadResources() {
 async function startTunnel() {
   const btn = document.getElementById('startTunnelBtn');
   btn.disabled = true;
-  btn.textContent = '正在啟動...';
+  btn.innerHTML = '<span class="spinner"></span> 啟動中…';
   try {
+    // Start is async on the backend — it returns immediately with phase="preparing".
+    // We poll /api/tunnel/status quickly to show phase transitions.
     const result = await fetchJSON('/api/tunnel/start', { method: 'POST' });
     if (result.error) {
       showToast(result.error, 'error');
@@ -237,13 +322,41 @@ async function startTunnel() {
       btn.textContent = '啟動隧道';
       return;
     }
-    showToast('隧道已啟動！', 'success');
     updateTunnelUI(result);
+    startFastPoll();
   } catch (e) {
     showToast('啟動失敗: ' + e.message, 'error');
     btn.disabled = false;
     btn.textContent = '啟動隧道';
   }
+}
+
+// Fast poll (1s) while tunnel is in a transitional phase; falls back to the
+// normal 5s poll once it reaches a terminal state (running / error / idle).
+let fastPollTimer = null;
+function startFastPoll() {
+  if (fastPollTimer) return;
+  fastPollTimer = setInterval(async () => {
+    try {
+      const status = await fetchJSON('/api/tunnel/status');
+      updateTunnelUI(status);
+      const transitional =
+        status.phase === 'preparing' ||
+        status.phase === 'excluding' ||
+        status.phase === 'downloading' ||
+        status.phase === 'extracting' ||
+        status.phase === 'starting';
+      if (!transitional) {
+        clearInterval(fastPollTimer);
+        fastPollTimer = null;
+        if (status.phase === 'error') {
+          showToast(status.error || '啟動失敗', 'error');
+        } else if (status.running) {
+          showToast('隧道已啟動！', 'success');
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }, 1000);
 }
 
 async function stopTunnel() {
@@ -252,17 +365,39 @@ async function stopTunnel() {
   updateTunnelUI({ running: false, tunnels: [] });
 }
 
+function formatBytes(n) {
+  if (!n || n < 0) return '';
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(1) + ' MB';
+}
+
 function updateTunnelUI(status) {
   const badge = document.getElementById('tunnelBadge');
   const actions = document.getElementById('tunnelActions');
+  const phasePanel = document.getElementById('tunnelPhase');
+  const phaseMsg = document.getElementById('tunnelPhaseMsg');
+  const phaseSub = document.getElementById('tunnelPhaseSub');
+  const progressBar = document.getElementById('tunnelProgressBar');
+  const progressFill = document.getElementById('tunnelProgressFill');
   const running = document.getElementById('tunnelRunning');
   const tbody = document.getElementById('tunnelTableBody');
+  const startBtn = document.getElementById('startTunnelBtn');
+
+  const phase = status && status.phase;
+  const transitional =
+    phase === 'preparing' || phase === 'excluding' ||
+    phase === 'downloading' || phase === 'extracting' || phase === 'starting';
+
+  // Reset sub-panels, then turn on the one that matches current state.
+  actions.classList.add('hidden');
+  phasePanel.classList.add('hidden');
+  running.classList.add('hidden');
 
   if (status && status.running) {
+    // Connected
     badge.innerHTML = '<span class="badge badge-green"><span class="dot dot-green"></span>已連線</span>';
-    actions.classList.add('hidden');
     running.classList.remove('hidden');
-
     tbody.innerHTML = (status.tunnels || []).map(t => `
       <tr>
         <td>${t.vm_name || 'VM-' + t.vmid} <span style="color:var(--muted)">(${t.vmid})</span></td>
@@ -270,13 +405,61 @@ function updateTunnelUI(status) {
         <td class="mono">127.0.0.1:${t.local_port}</td>
       </tr>
     `).join('');
+  } else if (transitional) {
+    // Startup in progress — show phase panel with spinner
+    badge.innerHTML = '<span class="badge badge-yellow"><span class="dot dot-yellow"></span>啟動中</span>';
+    phasePanel.classList.remove('hidden');
+    phaseMsg.textContent = status.message || phaseLabel(phase);
+    phaseSub.textContent = phaseSubLabel(phase);
+
+    // Progress bar — determinate if we have Content-Length, otherwise indeterminate
+    if (phase === 'downloading') {
+      progressBar.classList.remove('hidden');
+      const total = status.download_total || 0;
+      const done = status.download_done || 0;
+      if (total > 0) {
+        progressFill.classList.remove('progress-bar-indeterminate');
+        const pct = Math.min(100, (done / total) * 100);
+        progressFill.style.width = pct.toFixed(1) + '%';
+        phaseSub.textContent = `${formatBytes(done)} / ${formatBytes(total)} (${pct.toFixed(0)}%)`;
+      } else {
+        progressFill.classList.add('progress-bar-indeterminate');
+        progressFill.style.width = '';
+        if (done > 0) phaseSub.textContent = `已下載 ${formatBytes(done)}`;
+      }
+    } else {
+      progressBar.classList.add('hidden');
+    }
   } else {
-    badge.innerHTML = '<span class="badge badge-red"><span class="dot dot-red"></span>未連線</span>';
+    // Idle or error
+    const errored = phase === 'error' || (status && status.error);
+    if (errored) {
+      badge.innerHTML = '<span class="badge badge-red"><span class="dot dot-red"></span>錯誤</span>';
+    } else {
+      badge.innerHTML = '<span class="badge badge-red"><span class="dot dot-red"></span>未連線</span>';
+    }
     actions.classList.remove('hidden');
-    running.classList.add('hidden');
-    const btn = document.getElementById('startTunnelBtn');
-    btn.disabled = false;
-    btn.textContent = '啟動隧道';
+    startBtn.disabled = false;
+    startBtn.textContent = '啟動隧道';
+  }
+}
+
+function phaseLabel(phase) {
+  switch (phase) {
+    case 'preparing':   return '準備中…';
+    case 'excluding':   return '加入 Defender 排除（請按 UAC 的「是」）…';
+    case 'downloading': return '下載 frpc 中…';
+    case 'extracting':  return '解壓縮中…';
+    case 'starting':    return '啟動 frpc 中…';
+    default: return '處理中…';
+  }
+}
+
+function phaseSubLabel(phase) {
+  switch (phase) {
+    case 'excluding':   return '這只會在第一次啟動時出現';
+    case 'downloading': return '首次啟動需下載 frpc 約 10 MB';
+    default: return '';
   }
 }
 

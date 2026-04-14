@@ -124,37 +124,10 @@ function Login() {
     })
   }, [deviceCode, deviceApproved])
 
-  // Show success screen after device code approval
-  if (deviceApproved) {
-    return (
-      <AuthLayout>
-        <div className="flex flex-col items-center gap-4 text-center py-8">
-          <div className="rounded-full bg-green-100 p-3 dark:bg-green-900">
-            <svg className="h-8 w-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold">
-            {t("auth:deviceApprovalSuccess.title", { defaultValue: "授權成功" })}
-          </h2>
-          <p className="text-muted-foreground">
-            {t("auth:deviceApprovalSuccess.description", {
-              defaultValue: "桌面連線工具已授權，你可以關閉此頁面。",
-            })}
-          </p>
-          <button
-            className="mt-4 text-sm text-muted-foreground underline"
-            onClick={() => navigate({ to: "/" })}
-          >
-            {t("auth:deviceApprovalSuccess.goHome", { defaultValue: "前往主頁" })}
-          </button>
-        </div>
-      </AuthLayout>
-    )
-  }
-
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return
+    // Skip Google button setup on the success screen — the DOM node won't exist.
+    if (deviceApproved) return
 
     const init = () => {
       if (!window.google || !googleButtonRef.current) return
@@ -182,7 +155,7 @@ function Login() {
       script?.addEventListener("load", init)
       return () => script?.removeEventListener("load", init)
     }
-  }, [])
+  }, [deviceApproved])
 
   const formSchema = useMemo(
     () =>
@@ -213,6 +186,48 @@ function Login() {
   const onSubmit = (data: FormData) => {
     if (loginMutation.isPending) return
     loginMutation.mutate(data)
+  }
+
+  // Show success screen after device code approval.
+  // IMPORTANT: Must be rendered AFTER all hooks above — an early return before
+  // hooks would violate the Rules of Hooks and crash on re-render.
+  if (deviceApproved) {
+    return (
+      <AuthLayout>
+        <div className="flex flex-col items-center gap-4 text-center py-8">
+          <div className="rounded-full bg-green-100 p-3 dark:bg-green-900">
+            <svg
+              className="h-8 w-8 text-green-600 dark:text-green-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold">
+            {t("auth:deviceApprovalSuccess.title", { defaultValue: "授權成功" })}
+          </h2>
+          <p className="text-muted-foreground">
+            {t("auth:deviceApprovalSuccess.description", {
+              defaultValue: "桌面連線工具已授權，你可以關閉此頁面。",
+            })}
+          </p>
+          <button
+            type="button"
+            className="mt-4 text-sm text-muted-foreground underline"
+            onClick={() => navigate({ to: "/" })}
+          >
+            {t("auth:deviceApprovalSuccess.goHome", { defaultValue: "前往主頁" })}
+          </button>
+        </div>
+      </AuthLayout>
+    )
   }
 
   return (

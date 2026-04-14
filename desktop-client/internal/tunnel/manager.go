@@ -21,11 +21,32 @@ import (
 
 const frpcVersion = "0.61.1"
 
+// Phase values exposed to the UI so it can render spinners / progress bars.
+const (
+	PhaseIdle        = "idle"
+	PhasePreparing   = "preparing"   // creating dirs, fetching config
+	PhaseExcluding   = "excluding"   // asking for UAC to add Defender exclusion
+	PhaseDownloading = "downloading" // downloading frpc archive
+	PhaseExtracting  = "extracting"  // extracting frpc binary from archive
+	PhaseStarting    = "starting"    // spawning frpc process
+	PhaseRunning     = "running"
+	PhaseStopping    = "stopping"
+	PhaseError       = "error"
+)
+
 // Status represents the current state of the tunnel manager.
 type Status struct {
 	Running bool           `json:"running"`
 	Tunnels []TunnelStatus `json:"tunnels"`
 	Error   string         `json:"error,omitempty"`
+	// Phase is a machine-readable state (see Phase* constants).
+	Phase string `json:"phase,omitempty"`
+	// Message is a human-readable status string to display next to a spinner.
+	Message string `json:"message,omitempty"`
+	// DownloadTotal/DownloadDone track bytes for the frpc download progress bar.
+	// Zero when not downloading or when total size is unknown.
+	DownloadTotal int64 `json:"download_total,omitempty"`
+	DownloadDone  int64 `json:"download_done,omitempty"`
 }
 
 type TunnelStatus struct {
@@ -59,33 +80,72 @@ func (m *Manager) GetStatus() Status {
 	return m.status
 }
 
-// Start downloads frpc if needed, writes visitor config, and starts the frpc process.
+// setPhase updates Phase + Message atomically.
+func (m *Manager) setPhase(phase, message string) {
+	m.mu.Lock()
+	m.status.Phase = phase
+	m.status.Message = message
+	m.mu.Unlock()
+}
+
+// setError transitions to the error phase and stores the message.
+func (m *Manager) setError(message string) {
+	m.mu.Lock()
+	m.status.Phase = PhaseError
+	m.status.Running = false
+	m.status.Error = message
+	m.status.Message = message
+	m.mu.Unlock()
+}
+
+// isBusy reports whether a start is already in progress or frpc is running.
+// Caller must hold m.mu.
+func (m *Manager) isBusy() bool {
+	if m.cmd != nil {
+		return true
+	}
+	switch m.status.Phase {
+	case PhasePreparing, PhaseExcluding, PhaseDownloading, PhaseExtracting, PhaseStarting:
+		return true
+	}
+	return false
+}
+
+// Start kicks off the tunnel startup pipeline asynchronously and returns
+// immediately. The UI should poll GetStatus() to observe phase transitions
+// (preparing → excluding → downloading → extracting → starting → running).
 func (m *Manager) Start(config *api.TunnelConfig) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.cmd != nil {
-		return fmt.Errorf("tunnel already running")
+	if m.isBusy() {
+		m.mu.Unlock()
+		return fmt.Errorf("tunnel already running or starting")
 	}
+	// Reset status to preparing so the UI immediately shows a spinner.
+	m.status = Status{Phase: PhasePreparing, Message: "準備中..."}
+	m.mu.Unlock()
 
+	go m.startAsync(config)
+	return nil
+}
+
+func (m *Manager) startAsync(config *api.TunnelConfig) {
 	if err := os.MkdirAll(m.dataDir, 0o755); err != nil {
-		return fmt.Errorf("create data dir: %w", err)
+		m.setError("建立資料夾失敗: " + err.Error())
+		return
 	}
 
 	// Ensure frpc binary exists
 	frpcPath := filepath.Join(m.dataDir, frpcBinaryName())
 	if _, err := os.Stat(frpcPath); os.IsNotExist(err) {
-		// Before downloading, try to add a Windows Defender exclusion for
-		// the frpc-data folder (Windows only, no-op elsewhere). This avoids
-		// the download being quarantined. Errors are non-fatal — we still try.
+		// Try to add Windows Defender exclusion first (Windows-only; no-op elsewhere).
+		// This may pop a UAC prompt — surface that phase so the UI can say so.
+		m.setPhase(PhaseExcluding, "請在 UAC 視窗按「是」以加入 Defender 排除…")
 		if err := ensureDefenderExclusion(m.dataDir); err != nil {
 			log.Printf("Defender 排除加入失敗（將嘗試直接下載）: %v", err)
 		}
 
-		m.status.Error = "正在下載 frpc..."
-		if err := downloadFrpc(frpcPath); err != nil {
-			// If the download was blocked by AV, show actionable guidance
-			// including the exact path the user needs to exclude.
+		m.setPhase(PhaseDownloading, "正在下載 frpc...")
+		if err := m.downloadFrpcWithProgress(frpcPath); err != nil {
 			errMsg := err.Error()
 			if strings.Contains(strings.ToLower(errMsg), "virus") ||
 				strings.Contains(strings.ToLower(errMsg), "unwanted software") {
@@ -96,33 +156,31 @@ func (m *Manager) Start(config *api.TunnelConfig) error {
 					m.dataDir,
 				)
 			}
-			m.status.Error = "下載 frpc 失敗: " + errMsg
-			return fmt.Errorf("download frpc: %w", err)
+			m.setError("下載 frpc 失敗: " + errMsg)
+			return
 		}
 	}
 	m.frpcPath = frpcPath
 
 	// Write visitor config (pre-built by backend, just write to disk)
+	m.setPhase(PhaseStarting, "正在啟動 frpc...")
 	configPath := filepath.Join(m.dataDir, "frpc-visitor.toml")
 	if err := os.WriteFile(configPath, []byte(config.FrpcConfig), 0o600); err != nil {
-		m.status.Error = "寫入設定失敗: " + err.Error()
-		return fmt.Errorf("write config: %w", err)
+		m.setError("寫入設定失敗: " + err.Error())
+		return
 	}
 	m.configPath = configPath
 
 	// Start frpc
 	ctx, cancel := context.WithCancel(context.Background())
-	m.cancel = cancel
-
 	cmd := exec.CommandContext(ctx, frpcPath, "-c", configPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
 		cancel()
-		m.status.Error = "啟動 frpc 失敗: " + err.Error()
-		return fmt.Errorf("start frpc: %w", err)
+		m.setError("啟動 frpc 失敗: " + err.Error())
+		return
 	}
-	m.cmd = cmd
 
 	// Build tunnel status list
 	tunnels := make([]TunnelStatus, 0, len(config.Tunnels))
@@ -135,19 +193,29 @@ func (m *Manager) Start(config *api.TunnelConfig) error {
 			LocalPort: t.VisitorPort,
 		})
 	}
-	m.status = Status{Running: true, Tunnels: tunnels}
+
+	m.mu.Lock()
+	m.cmd = cmd
+	m.cancel = cancel
+	m.status = Status{
+		Running: true,
+		Phase:   PhaseRunning,
+		Message: "已連線",
+		Tunnels: tunnels,
+	}
+	m.mu.Unlock()
 
 	// Monitor process in background
 	go func() {
 		_ = cmd.Wait()
 		m.mu.Lock()
 		m.status.Running = false
+		m.status.Phase = PhaseIdle
+		m.status.Message = ""
 		m.cmd = nil
 		m.cancel = nil
 		m.mu.Unlock()
 	}()
-
-	return nil
 }
 
 func (m *Manager) Stop() {
@@ -160,6 +228,10 @@ func (m *Manager) Stop() {
 	m.cmd = nil
 	m.status.Running = false
 	m.status.Tunnels = nil
+	m.status.Phase = PhaseIdle
+	m.status.Message = ""
+	m.status.DownloadTotal = 0
+	m.status.DownloadDone = 0
 }
 
 func frpcBinaryName() string {
@@ -169,7 +241,23 @@ func frpcBinaryName() string {
 	return "frpc"
 }
 
-func downloadFrpc(destPath string) error {
+// progressWriter wraps an io.Writer to report bytes-written progress via a callback.
+type progressWriter struct {
+	w      io.Writer
+	onCopy func(n int64)
+}
+
+func (pw *progressWriter) Write(p []byte) (int, error) {
+	n, err := pw.w.Write(p)
+	if n > 0 && pw.onCopy != nil {
+		pw.onCopy(int64(n))
+	}
+	return n, err
+}
+
+// downloadFrpcWithProgress downloads and extracts frpc, updating m.status.DownloadDone
+// as bytes are copied so the UI can render a progress bar.
+func (m *Manager) downloadFrpcWithProgress(destPath string) error {
 	osName := runtime.GOOS
 	arch := runtime.GOARCH
 	// frpc doesn't provide 386 builds; use amd64 which works on 64-bit Windows
@@ -177,14 +265,13 @@ func downloadFrpc(destPath string) error {
 		arch = "amd64"
 	}
 
-	var archiveURL string
 	var ext string
 	if osName == "windows" {
 		ext = "zip"
 	} else {
 		ext = "tar.gz"
 	}
-	archiveURL = fmt.Sprintf(
+	archiveURL := fmt.Sprintf(
 		"https://github.com/fatedier/frp/releases/download/v%s/frp_%s_%s_%s.%s",
 		frpcVersion, frpcVersion, osName, arch, ext,
 	)
@@ -199,20 +286,36 @@ func downloadFrpc(destPath string) error {
 		return fmt.Errorf("download HTTP %d from %s", resp.StatusCode, archiveURL)
 	}
 
-	// Save to temp file
+	// Seed progress with Content-Length so the UI can show a determinate bar.
+	m.mu.Lock()
+	m.status.DownloadTotal = resp.ContentLength
+	m.status.DownloadDone = 0
+	m.mu.Unlock()
+
+	// Save to temp file with progress tracking
 	tmpFile, err := os.CreateTemp(filepath.Dir(destPath), "frpc-download-*")
 	if err != nil {
 		return err
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+	pw := &progressWriter{
+		w: tmpFile,
+		onCopy: func(n int64) {
+			m.mu.Lock()
+			m.status.DownloadDone += n
+			m.mu.Unlock()
+		},
+	}
+	if _, err := io.Copy(pw, resp.Body); err != nil {
 		tmpFile.Close()
 		return err
 	}
 	tmpFile.Close()
 
-	// Extract frpc binary
+	// Extracting is fast — show it as its own phase so the UI updates message.
+	m.setPhase(PhaseExtracting, "解壓縮中...")
+
 	if ext == "zip" {
 		return extractFromZip(tmpFile.Name(), destPath)
 	}
