@@ -162,7 +162,7 @@ export const GatewayApiService = {
   },
 
   /** 取得服務日誌 */
-  static async getServiceLogs(
+  async getServiceLogs(
     service: GatewayService,
     lines: number = 50,
   ): Promise<string> {
@@ -179,7 +179,7 @@ export const GatewayApiService = {
       },
     )
     return resp.text()
-  }
+  },
 
   /** 取得安裝腳本下載 URL */
   getInstallScriptUrl(): string {

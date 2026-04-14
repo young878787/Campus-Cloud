@@ -11,10 +11,14 @@ import "./lib/i18n"
 import { queryClient } from "./lib/queryClient"
 import { LanguageProvider } from "./providers/LanguageProvider"
 import { routeTree } from "./routeTree.gen"
-import { resolveOpenApiToken } from "./services/openApiAuth"
+import {
+  prepareOpenApiRequestAuth,
+  resolveOpenApiToken,
+} from "./services/openApiAuth"
 
 OpenAPI.BASE = import.meta.env.VITE_API_URL
 
+OpenAPI.PREPARE_REQUEST = prepareOpenApiRequestAuth
 OpenAPI.TOKEN = resolveOpenApiToken
 
 const router = createRouter({ routeTree })
@@ -25,7 +29,13 @@ declare module "@tanstack/react-router" {
   }
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root")
+
+if (!rootElement) {
+  throw new Error("Root element not found")
+}
+
+ReactDOM.createRoot(rootElement).render(
   <StrictMode>
     <LanguageProvider
       defaultLanguage="zh-TW"

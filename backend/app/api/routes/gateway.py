@@ -237,6 +237,8 @@ def get_service_versions(session: SessionDep, _: AdminUser):
     """取得 Gateway VM 上受管理服務的版本資訊與更新建議"""
     try:
         return gateway_service.get_service_versions(session=session)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/services/{service}/logs")
