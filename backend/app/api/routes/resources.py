@@ -8,10 +8,12 @@ from app.api.deps import (
     ResourceInfoDep,
     SessionDep,
 )
+from app.core.security import decrypt_value
 from app.exceptions import ProxmoxError
-from app.schemas import Message, NodeSchema, ResourcePublic, VMSchema
+from app.schemas import Message, NodeSchema, ResourcePublic, SSHKeyResponse
 from app.services.proxmox import proxmox_service
 from app.services.resource import resource_service
+from app.repositories import resource as resource_repo
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +43,11 @@ def list_my_resources(session: SessionDep, current_user: CurrentUser):
     )
 
 
-@router.get("/{vmid}", response_model=VMSchema)
-def get_resource(resource_info: ResourceInfoDep):
-    return resource_info
+@router.get("/{vmid}", response_model=ResourcePublic)
+def get_resource(vmid: int, resource_info: ResourceInfoDep, session: SessionDep):
+    return resource_service.get_by_vmid(
+        session=session, vmid=vmid, resource_info=resource_info
+    )
 
 
 @router.get("/{vmid}/config")
@@ -147,4 +151,27 @@ def delete_resource(
         user_id=current_user.id,
         purge=purge,
         force=force,
+    )
+
+
+@router.get("/{vmid}/ssh-key", response_model=SSHKeyResponse)
+def get_ssh_key(
+    vmid: int,
+    session: SessionDep,
+    _current_user: CurrentUser,
+    _resource_info: ResourceInfoDep,
+):
+    """取得資源的 SSH 金鑰（包含私鑰，僅限資源擁有者或管理員）"""
+    db_resource = resource_repo.get_resource_by_vmid(session=session, vmid=vmid)
+    if not db_resource:
+        raise ProxmoxError("Resource not found in database")
+
+    private_key: str | None = None
+    if db_resource.ssh_private_key_encrypted:
+        private_key = decrypt_value(db_resource.ssh_private_key_encrypted)
+
+    return SSHKeyResponse(
+        vmid=vmid,
+        ssh_public_key=db_resource.ssh_public_key,
+        ssh_private_key=private_key,
     )

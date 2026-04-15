@@ -25,7 +25,17 @@
     "environmentInfoDesc": "Environment type, OS, and expiry date",
     "environmentType": "Environment Type",
     "osInfo": "OS",
-    "expiryDate": "Expiry Date"
+    "expiryDate": "Expiry Date",
+    "sshKey": "SSH Key",
+    "sshKeyDesc": "SSH key for connecting to this virtual machine",
+    "sshPublicKey": "Public Key",
+    "sshPrivateKey": "Private Key",
+    "sshPrivateKeyHidden": "Private key is hidden. Click \"Show\" to reveal.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "show": "Show",
+    "hide": "Hide",
+    "download": "Download"
   },
   "monitoring": {
     "title": "Resource Monitoring",

@@ -1877,6 +1877,18 @@ export type GroupMemberPublic = {
      * Vm Type
      */
     vm_type?: string | null;
+    /**
+     * Vm Cpu Usage Pct
+     */
+    vm_cpu_usage_pct?: number | null;
+    /**
+     * Vm Ram Usage Pct
+     */
+    vm_ram_usage_pct?: number | null;
+    /**
+     * Vm Disk Usage Pct
+     */
+    vm_disk_usage_pct?: number | null;
 };
 
 /**
@@ -3239,6 +3251,10 @@ export type ResourcePublic = {
      */
     ip_address?: string | null;
     /**
+     * Ssh Public Key
+     */
+    ssh_public_key?: string | null;
+    /**
      * Cpu
      */
     cpu?: number | null;
@@ -3499,6 +3515,26 @@ export type RubricExportRequest = {
      * Summary
      */
     summary?: string;
+};
+
+/**
+ * SSHKeyResponse
+ *
+ * SSH 金鑰回應
+ */
+export type SshKeyResponse = {
+    /**
+     * Vmid
+     */
+    vmid: number;
+    /**
+     * Ssh Public Key
+     */
+    ssh_public_key?: string | null;
+    /**
+     * Ssh Private Key
+     */
+    ssh_private_key?: string | null;
 };
 
 /**
@@ -6219,6 +6255,36 @@ export type ResourcesResetResourceResponses = {
      */
     200: unknown;
 };
+
+export type ResourcesGetSshKeyData = {
+    body?: never;
+    path: {
+        /**
+         * Vmid
+         */
+        vmid: number;
+    };
+    query?: never;
+    url: '/api/v1/resources/{vmid}/ssh-key';
+};
+
+export type ResourcesGetSshKeyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ResourcesGetSshKeyError = ResourcesGetSshKeyErrors[keyof ResourcesGetSshKeyErrors];
+
+export type ResourcesGetSshKeyResponses = {
+    /**
+     * Successful Response
+     */
+    200: SshKeyResponse;
+};
+
+export type ResourcesGetSshKeyResponse = ResourcesGetSshKeyResponses[keyof ResourcesGetSshKeyResponses];
 
 export type ResourceDetailsGetCurrentStatsData = {
     body?: never;

@@ -25,7 +25,17 @@
     "environmentInfoDesc": "環境類型、作業系統和到期日期",
     "environmentType": "環境類型",
     "osInfo": "作業系統",
-    "expiryDate": "到期日期"
+    "expiryDate": "到期日期",
+    "sshKey": "SSH 金鑰",
+    "sshKeyDesc": "用於連線至此虛擬機的 SSH 金鑰",
+    "sshPublicKey": "公鑰",
+    "sshPrivateKey": "私鑰",
+    "sshPrivateKeyHidden": "私鑰已隱藏，點擊「顯示」查看",
+    "copy": "複製",
+    "copied": "已複製",
+    "show": "顯示",
+    "hide": "隱藏",
+    "download": "下載"
   },
   "monitoring": {
     "title": "資源監控",

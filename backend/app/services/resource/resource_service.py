@@ -93,12 +93,23 @@ def _build_resource_public(
         os_info=db_resource.os_info if db_resource else None,
         expiry_date=db_resource.expiry_date if db_resource else None,
         ip_address=ip_address,
+        ssh_public_key=db_resource.ssh_public_key if db_resource else None,
         cpu=resource.get("cpu"),
         maxcpu=resource.get("maxcpu"),
         mem=resource.get("mem"),
         maxmem=resource.get("maxmem"),
         uptime=resource.get("uptime"),
     )
+
+
+def get_by_vmid(
+    *, session: Session, vmid: int, resource_info: dict,
+) -> ResourcePublic:
+    """Get a single resource with merged Proxmox + DB data."""
+    vm_type = resource_info.get("type", "")
+    vm_node = resource_info.get("node", "")
+    db_resource = resource_repo.get_resource_by_vmid(session=session, vmid=vmid)
+    return _build_resource_public(resource_info, db_resource, vm_node, vm_type, session)
 
 
 def list_all(
@@ -257,6 +268,13 @@ def delete(
                 delete_params["destroy-unreferenced-disks"] = 1
 
         proxmox_service.delete_resource(node, vmid, resource_type, **delete_params)
+
+        # Clean up reverse proxy rules and Cloudflare DNS records for this VM
+        try:
+            from app.services.network import reverse_proxy_service  # noqa: PLC0415
+            reverse_proxy_service.remove_reverse_proxy_rules_for_vmid(session, vmid)
+        except Exception as exc:
+            logger.warning("Failed to clean up reverse proxy rules for VM %s: %s", vmid, exc)
 
         # Remove from database (resource record + all associated audit logs)
         resource_repo.delete_resource(session=session, vmid=vmid)

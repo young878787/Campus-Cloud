@@ -15,6 +15,7 @@ type ResourceOverview = ClientTypes.VmSchema & {
   environment_type?: string | null
   os_info?: string | null
   expiry_date?: string | null
+  ssh_public_key?: string | null
 }
 
 const validationError = { 422: "Validation Error" } as const
@@ -413,6 +414,15 @@ export class ResourcesService {
         purge: data.purge,
         force: data.force,
       },
+      errors: validationError,
+    })
+  }
+
+  public static getSshKey(data: { vmid: number }) {
+    return __request<ClientTypes.SshKeyResponse>(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/resources/{vmid}/ssh-key",
+      path: { vmid: data.vmid },
       errors: validationError,
     })
   }
