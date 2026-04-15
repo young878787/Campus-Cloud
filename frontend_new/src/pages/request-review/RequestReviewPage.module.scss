@@ -1,0 +1,183 @@
+@use "../../assets/styles/variables" as *;
+@use "../../assets/styles/mixins" as *;
+
+/* ── Page shell ── */
+.page {
+  @include flex-column;
+  gap: $spacing-16;
+  padding: $spacing-8 $spacing-16;
+  flex: 1;
+
+  @include respond-to(md) {
+    padding: 0;
+  }
+}
+
+/* ── Header ── */
+.pageHeader {
+  @include flex-between;
+  flex-wrap: wrap;
+  gap: $spacing-16;
+}
+
+.pageHeading {
+  @include flex-column;
+  gap: $spacing-4;
+}
+
+.pageTitle {
+  font-size: $font-size-24;
+  font-weight: $font-weight-700;
+  color: var(--color-text-primary);
+
+  @include respond-to(sm) {
+    font-size: $font-size-32;
+  }
+}
+
+.pageSubtitle {
+  font-size: $font-size-14;
+  color: var(--color-text-secondary);
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: $spacing-4;
+}
+
+.tab {
+  padding: 6px $spacing-16;
+  border-radius: $radius-pill;
+  font-size: $font-size-14;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background $transition-base, color $transition-base;
+
+  &:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+
+  &.tabActive {
+    background: var(--color-text);
+    color: var(--color-surface);
+    font-weight: $font-weight-500;
+  }
+}
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  @include flex-column;
+}
+
+/* ── Empty state ── */
+.empty {
+  flex: 1;
+  @include flex-column;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-16;
+  padding: $spacing-48 $spacing-16;
+  text-align: center;
+}
+
+.emptyIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: $radius-16;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  @include flex-center;
+}
+
+.emptyTitle {
+  font-size: $font-size-18;
+  font-weight: $font-weight-700;
+  color: var(--color-text-primary);
+}
+
+.emptyDesc {
+  font-size: $font-size-14;
+  color: var(--color-text-primary);
+  max-width: 320px;
+  line-height: $line-height-base;
+}
+
+/* ── List ── */
+.list {
+  @include flex-column;
+  gap: $spacing-8;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-16;
+  padding: $spacing-16;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: $radius-12;
+  box-shadow: var(--shadow-sm);
+}
+
+.rowIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: $radius-8;
+  background: var(--color-hover);
+  color: var(--color-primary);
+  @include flex-center;
+  flex-shrink: 0;
+}
+
+.rowMain {
+  @include flex-column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rowName {
+  font-size: $font-size-14;
+  font-weight: $font-weight-500;
+  color: var(--color-text-primary);
+  @include text-truncate;
+}
+
+.rowMeta {
+  font-size: $font-size-12;
+  color: var(--color-text-muted);
+}
+
+.rowActions {
+  display: flex;
+  gap: $spacing-8;
+  flex-shrink: 0;
+}
+
+%review-btn {
+  padding: 6px $spacing-16;
+  border-radius: $radius-8;
+  font-size: $font-size-14;
+  font-weight: $font-weight-500;
+  cursor: pointer;
+  transition: background $transition-base;
+}
+
+.btnApprove {
+  @extend %review-btn;
+  background: color-mix(in srgb, #28a745 12%, transparent);
+  color: #28a745;
+
+  &:hover { background: color-mix(in srgb, #28a745 20%, transparent); }
+}
+
+.btnReject {
+  @extend %review-btn;
+  background: color-mix(in srgb, #dc3545 10%, transparent);
+  color: #dc3545;
+
+  &:hover { background: color-mix(in srgb, #dc3545 18%, transparent); }
+}
