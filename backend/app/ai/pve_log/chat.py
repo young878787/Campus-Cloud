@@ -162,9 +162,9 @@ async def chat(message: str) -> ChatResponse:
         try:
             resp = await client.post(url, json=payload, headers=headers)
             resp.raise_for_status()
-        except Exception as exc:
-            logger.error("vLLM 請求失敗：%s", exc)
-            return ChatResponse(reply="", error=f"無法連線至 LLM 服務：{exc}")
+        except Exception:
+            logger.exception("vLLM 請求失敗")
+            return ChatResponse(reply="", error="無法連線至 LLM 服務")
 
         try:
             data = resp.json()
