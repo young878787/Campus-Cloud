@@ -158,8 +158,8 @@ def delete_resource(
 def get_ssh_key(
     vmid: int,
     session: SessionDep,
-    current_user: CurrentUser,
-    resource_info: ResourceInfoDep,
+    _current_user: CurrentUser,
+    _resource_info: ResourceInfoDep,
 ):
     """取得資源的 SSH 金鑰（包含私鑰，僅限資源擁有者或管理員）"""
     db_resource = resource_repo.get_resource_by_vmid(session=session, vmid=vmid)
