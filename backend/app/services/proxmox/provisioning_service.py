@@ -2,11 +2,13 @@ import logging
 import uuid
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from urllib.parse import quote
 
 from sqlmodel import Session
 
 from app.infrastructure.proxmox import get_proxmox_settings
-from app.core.security import decrypt_value
+from app.infrastructure.ssh.client import generate_ed25519_keypair
+from app.core.security import decrypt_value, encrypt_value
 from app.exceptions import ProxmoxError
 from app.schemas import (
     LXCCreateRequest,
@@ -241,6 +243,9 @@ def create_lxc(
     )
     created = False
     try:
+        # Generate SSH key pair for platform access
+        private_key_pem, public_key = generate_ed25519_keypair()
+
         config = {
             "vmid": vmid,
             "hostname": to_punycode_hostname(lxc_data.hostname),
@@ -255,6 +260,7 @@ def create_lxc(
             "start": int(lxc_data.start),
             "pool": get_proxmox_settings().pool_name,
             "features": "nesting=1",
+            "ssh-public-keys": public_key,
         }
 
         result = proxmox_service.create_lxc(target_node, **config)
@@ -269,6 +275,8 @@ def create_lxc(
             environment_type=lxc_data.environment_type,
             os_info=lxc_data.os_info,
             expiry_date=lxc_data.expiry_date,
+            ssh_private_key_encrypted=encrypt_value(private_key_pem),
+            ssh_public_key=public_key,
             commit=False,
         )
 
@@ -326,6 +334,9 @@ def create_vm(
     )
     created = False
     try:
+        # Generate SSH key pair for platform access
+        private_key_pem, public_key = generate_ed25519_keypair()
+
         clone_config = {
             "newid": new_vmid,
             "name": to_punycode_hostname(vm_data.hostname),
@@ -342,7 +353,7 @@ def create_vm(
             "memory": vm_data.memory,
             "ciuser": vm_data.username,
             "cipassword": vm_data.password,
-            "sshkeys": "",
+            "sshkeys": quote(public_key, safe=""),
             "ciupgrade": 0,
         }
         proxmox_service.update_config(target_node, new_vmid, "qemu", **config_updates)
@@ -365,6 +376,8 @@ def create_vm(
             os_info=vm_data.os_info,
             expiry_date=vm_data.expiry_date,
             template_id=vm_data.template_id,
+            ssh_private_key_encrypted=encrypt_value(private_key_pem),
+            ssh_public_key=public_key,
             commit=False,
         )
 
@@ -432,6 +445,9 @@ def plan_provision(*, session: Session, db_request) -> dict:
     target_node = placement.node
     resource_type = "lxc" if db_request.resource_type == "lxc" else "qemu"
 
+    # Generate SSH key pair for platform access
+    private_key_pem, public_key = generate_ed25519_keypair()
+
     plan: dict = {
         "vmid": new_vmid,
         "target_node": target_node,
@@ -447,6 +463,8 @@ def plan_provision(*, session: Session, db_request) -> dict:
         "os_info": db_request.os_info,
         "expiry_date": db_request.expiry_date,
         "storage": db_request.storage,
+        "ssh_private_key_encrypted": encrypt_value(private_key_pem),
+        "ssh_public_key": public_key,
     }
 
     if db_request.resource_type == "lxc":
@@ -519,6 +537,7 @@ def execute_provision(plan: dict) -> tuple[int, str]:
                 "start": int(plan["start_immediately"]),
                 "pool": pool_name,
                 "features": "nesting=1",
+                "ssh-public-keys": plan.get("ssh_public_key", ""),
             }
             proxmox_service.create_lxc(target_node, **config)
             created = True
@@ -567,7 +586,7 @@ def execute_provision(plan: dict) -> tuple[int, str]:
                 "memory": plan["memory"],
                 "ciuser": plan.get("username"),
                 "cipassword": plan["password"],
-                "sshkeys": "",
+                "sshkeys": quote(plan.get("ssh_public_key", ""), safe=""),
                 "ciupgrade": 0,
             }
             proxmox_service.update_config(actual_node, new_vmid, "qemu", **config_updates)
@@ -610,6 +629,8 @@ def provision_from_request(*, session: Session, db_request) -> tuple[int, str | 
         os_info=db_request.os_info,
         expiry_date=db_request.expiry_date,
         template_id=getattr(db_request, "template_id", None),
+        ssh_private_key_encrypted=plan.get("ssh_private_key_encrypted"),
+        ssh_public_key=plan.get("ssh_public_key"),
         commit=False,
     )
     return new_vmid, actual_node, plan["placement_strategy"]

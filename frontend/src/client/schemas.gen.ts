@@ -3473,6 +3473,39 @@ export const GroupMemberPublicSchema = {
                 }
             ],
             title: 'Vm Type'
+        },
+        vm_cpu_usage_pct: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Vm Cpu Usage Pct'
+        },
+        vm_ram_usage_pct: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Vm Ram Usage Pct'
+        },
+        vm_disk_usage_pct: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Vm Disk Usage Pct'
         }
     },
     type: 'object',
@@ -5620,6 +5653,17 @@ export const ResourcePublicSchema = {
             ],
             title: 'Ip Address'
         },
+        ssh_public_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Ssh Public Key'
+        },
         cpu: {
             anyOf: [
                 {
@@ -6054,6 +6098,43 @@ export const RubricExportRequestSchema = {
     ],
     title: 'RubricExportRequest',
     description: '匯出 Excel 請求。'
+} as const;
+
+export const SSHKeyResponseSchema = {
+    properties: {
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        ssh_public_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Ssh Public Key'
+        },
+        ssh_private_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Ssh Private Key'
+        }
+    },
+    type: 'object',
+    required: [
+        'vmid'
+    ],
+    title: 'SSHKeyResponse',
+    description: 'SSH 金鑰回應'
 } as const;
 
 export const ScriptDeployRequestSchema = {

@@ -188,11 +188,20 @@ class ResourcePublic(BaseModel):
     os_info: str | None = None
     expiry_date: date | None = None
     ip_address: str | None = None
+    ssh_public_key: str | None = None
     cpu: float | None = None
     maxcpu: int | None = None
     mem: int | None = None
     maxmem: int | None = None
     uptime: int | None = None
+
+
+class SSHKeyResponse(BaseModel):
+    """SSH 金鑰回應"""
+
+    vmid: int
+    ssh_public_key: str | None = None
+    ssh_private_key: str | None = None
 
 
 # ===== Monitoring Schemas =====

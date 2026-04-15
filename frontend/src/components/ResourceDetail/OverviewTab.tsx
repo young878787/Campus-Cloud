@@ -1,16 +1,24 @@
-import { useSuspenseQuery } from "@tanstack/react-query"
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query"
 import {
   Calendar,
+  Check,
+  Copy,
   Cpu,
+  Download,
+  Eye,
+  EyeOff,
+  KeyRound,
   MemoryStick,
   Network,
   Package,
   Server,
 } from "lucide-react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { ResourcesService } from "@/client"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -18,6 +26,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard"
 import { decodeName } from "@/lib/utils"
 
 interface OverviewTabProps {
@@ -26,10 +35,18 @@ interface OverviewTabProps {
 
 export default function OverviewTab({ vmid }: OverviewTabProps) {
   const { t } = useTranslation("resourceDetail")
+  const [copiedText, copyToClipboard] = useCopyToClipboard()
+  const [showPrivateKey, setShowPrivateKey] = useState(false)
 
   const { data: resource } = useSuspenseQuery({
     queryKey: ["resource", vmid],
     queryFn: () => ResourcesService.getResource({ vmid }),
+  })
+
+  const { data: sshKeyData } = useQuery({
+    queryKey: ["resource", vmid, "ssh-key"],
+    queryFn: () => ResourcesService.getSshKey({ vmid }),
+    enabled: !!resource.ssh_public_key,
   })
 
   const getStatusBadge = (status: string) => {
@@ -203,6 +220,121 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
                 <div className="text-2xl font-bold">
                   {new Date(resource.expiry_date).toLocaleDateString()}
                 </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* SSH Key Information */}
+      {resource.ssh_public_key && (
+        <Card className="border-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>{t("overview.sshKey")}</CardTitle>
+            </div>
+            <CardDescription>{t("overview.sshKeyDesc")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Public Key */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {t("overview.sshPublicKey")}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={() => copyToClipboard(resource.ssh_public_key ?? "")}
+                >
+                  {copiedText === resource.ssh_public_key ? (
+                    <Check className="h-3 w-3" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
+                  {copiedText === resource.ssh_public_key
+                    ? t("overview.copied")
+                    : t("overview.copy")}
+                </Button>
+              </div>
+              <pre className="rounded-md bg-muted/50 border p-3 text-xs font-mono break-all whitespace-pre-wrap">
+                {resource.ssh_public_key}
+              </pre>
+            </div>
+
+            {/* Private Key */}
+            {sshKeyData?.ssh_private_key && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {t("overview.sshPrivateKey")}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      onClick={() => setShowPrivateKey(!showPrivateKey)}
+                    >
+                      {showPrivateKey ? (
+                        <EyeOff className="h-3 w-3" />
+                      ) : (
+                        <Eye className="h-3 w-3" />
+                      )}
+                      {showPrivateKey
+                        ? t("overview.hide")
+                        : t("overview.show")}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      onClick={() =>
+                        copyToClipboard(sshKeyData.ssh_private_key ?? "")
+                      }
+                    >
+                      {copiedText === sshKeyData.ssh_private_key ? (
+                        <Check className="h-3 w-3" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                      {copiedText === sshKeyData.ssh_private_key
+                        ? t("overview.copied")
+                        : t("overview.copy")}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      onClick={() => {
+                        const blob = new Blob(
+                          [sshKeyData.ssh_private_key ?? ""],
+                          { type: "text/plain" },
+                        )
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement("a")
+                        a.href = url
+                        a.download = `id_ed25519_vm${vmid}`
+                        a.click()
+                        URL.revokeObjectURL(url)
+                      }}
+                    >
+                      <Download className="h-3 w-3" />
+                      {t("overview.download")}
+                    </Button>
+                  </div>
+                </div>
+                {showPrivateKey ? (
+                  <pre className="rounded-md bg-muted/50 border p-3 text-xs font-mono break-all whitespace-pre-wrap">
+                    {sshKeyData.ssh_private_key}
+                  </pre>
+                ) : (
+                  <div className="rounded-md bg-muted/50 border p-3 text-xs text-muted-foreground italic">
+                    {t("overview.sshPrivateKeyHidden")}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

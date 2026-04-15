@@ -16,6 +16,8 @@ def create_resource(
     os_info: str | None = None,
     expiry_date: date | None = None,
     template_id: int | None = None,
+    ssh_private_key_encrypted: str | None = None,
+    ssh_public_key: str | None = None,
     commit: bool = True,
 ) -> Resource:
     db_resource = Resource(
@@ -25,6 +27,8 @@ def create_resource(
         os_info=os_info,
         expiry_date=expiry_date,
         template_id=template_id,
+        ssh_private_key_encrypted=ssh_private_key_encrypted,
+        ssh_public_key=ssh_public_key,
         created_at=datetime.now(timezone.utc),
     )
     session.add(db_resource)

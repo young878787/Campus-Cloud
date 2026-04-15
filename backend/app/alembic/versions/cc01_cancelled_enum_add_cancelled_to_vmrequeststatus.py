@@ -1,6 +1,6 @@
 """add cancelled to vmrequeststatus
 
-Revision ID: g7h8i9j0k1l2
+Revision ID: cc01_cancelled_enum
 Revises: f6a7b8c9d0e1
 Create Date: 2026-04-13 00:00:00.000000
 
@@ -8,7 +8,7 @@ Create Date: 2026-04-13 00:00:00.000000
 
 from alembic import op
 
-revision = "g7h8i9j0k1l2"
+revision = "cc01_cancelled_enum"
 down_revision = "f6a7b8c9d0e1"
 branch_labels = None
 depends_on = None
