@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import {
+  BarChart3,
+  BrainCircuit,
   CheckCircle2,
   Clock3,
   Copy,
@@ -13,10 +15,11 @@ import {
   Save,
   Send,
   Trash2,
+  TrendingUp,
   X,
   XCircle,
 } from "lucide-react"
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,6 +45,11 @@ import {
   type AiApiRequestStatus,
   AiApiService,
 } from "@/services/aiApi"
+import {
+  AiUserUsageService,
+  type TemplateUsageStatsResponse,
+  type UsageStatsResponse,
+} from "@/services/aiMonitoring"
 import { handleError } from "@/utils"
 
 export const Route = createFileRoute("/_layout/ai-api")({
@@ -406,6 +414,237 @@ function RequestRow({ item }: { item: AiApiRequestPublic }) {
   )
 }
 
+// ---- 我的用量 tab helpers ----
+
+type UsageDatePreset = "7d" | "30d" | "90d"
+
+function getUsageDates(preset: UsageDatePreset): { start: string; end: string } {
+  const now = new Date()
+  const end = now.toISOString().split("T")[0]!
+  const start = new Date(now)
+  if (preset === "7d") start.setDate(start.getDate() - 7)
+  else if (preset === "30d") start.setDate(start.getDate() - 30)
+  else start.setDate(start.getDate() - 90)
+  return { start: start.toISOString().split("T")[0]!, end }
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return String(n)
+}
+
+function UsageStatCard({
+  label,
+  value,
+}: {
+  label: string
+  value: string | number
+}) {
+  return (
+    <div className="rounded-xl border bg-background/70 p-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-bold">{value}</div>
+    </div>
+  )
+}
+
+function MyUsageTab({
+  credentials,
+}: {
+  credentials: AiApiCredentialPublic[]
+}) {
+  const [preset, setPreset] = useState<UsageDatePreset>("30d")
+  const { start, end } = useMemo(() => getUsageDates(preset), [preset])
+
+  const activeCredential = credentials.find(
+    (c) => !c.revoked_at && !isExpired(c.expires_at),
+  )
+
+  const templateQuery = useQuery({
+    queryKey: queryKeys.aiMonitoring.myTemplateUsage({ start, end }),
+    queryFn: () =>
+      AiUserUsageService.getMyTemplateUsage({
+        start_date: start,
+        end_date: end,
+      }),
+    enabled: Boolean(start && end),
+  })
+
+  const proxyQuery = useQuery({
+    queryKey: queryKeys.aiMonitoring.myProxyUsage({
+      apiKey: activeCredential?.api_key,
+      start,
+      end,
+    }),
+    queryFn: () =>
+      AiUserUsageService.getMyProxyUsage({
+        apiKey: activeCredential!.api_key,
+        start_date: start,
+        end_date: end,
+      }),
+    enabled: Boolean(activeCredential && start && end),
+    retry: false,
+  })
+
+  const tpl = templateQuery.data as TemplateUsageStatsResponse | undefined
+  const proxy = proxyQuery.data as UsageStatsResponse | undefined
+
+  return (
+    <div className="space-y-6">
+      {/* Date range selector */}
+      <div className="flex items-center gap-2">
+        {(["7d", "30d", "90d"] as const).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPreset(p)}
+            className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+              preset === p
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background/60 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {p === "7d" ? "7 天" : p === "30d" ? "30 天" : "90 天"}
+          </button>
+        ))}
+        <span className="text-xs text-muted-foreground">
+          {start} ~ {end}
+        </span>
+      </div>
+
+      {/* Proxy usage */}
+      <Panel
+        title="Proxy 用量"
+        description={
+          activeCredential
+            ? "直接呼叫 AI API 的 Token 用量。"
+            : "需要先取得一個有效的 AI API Key 才能查看 Proxy 用量。"
+        }
+      >
+        {activeCredential ? (
+          proxyQuery.isLoading ? (
+            <div className="text-sm text-muted-foreground">載入中…</div>
+          ) : proxyQuery.isError ? (
+            <div className="text-sm text-destructive">無法取得 Proxy 用量資料。</div>
+          ) : proxy ? (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <UsageStatCard
+                  label="總呼叫次數"
+                  value={proxy.total_requests}
+                />
+                <UsageStatCard
+                  label="輸入 Tokens"
+                  value={formatTokens(proxy.total_input_tokens)}
+                />
+                <UsageStatCard
+                  label="輸出 Tokens"
+                  value={formatTokens(proxy.total_output_tokens)}
+                />
+              </div>
+              {Object.keys(proxy.by_model).length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    按模型
+                  </div>
+                  <div className="divide-y rounded-lg border">
+                    {Object.entries(proxy.by_model).map(([model, stats]) => (
+                      <div
+                        key={model}
+                        className="grid grid-cols-[minmax(0,1fr)_80px_80px_80px] items-center gap-4 px-4 py-2.5 text-sm"
+                      >
+                        <span className="truncate font-mono text-xs">
+                          {model}
+                        </span>
+                        <span className="text-right text-muted-foreground">
+                          {stats.requests} 次
+                        </span>
+                        <span className="text-right text-muted-foreground">
+                          ↑ {formatTokens(stats.input_tokens)}
+                        </span>
+                        <span className="text-right text-muted-foreground">
+                          ↓ {formatTokens(stats.output_tokens)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null
+        ) : (
+          <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+            你目前沒有有效的 AI API Key，無法查詢 Proxy 用量。
+          </div>
+        )}
+      </Panel>
+
+      {/* Template usage */}
+      <Panel
+        title="Template 用量"
+        description="使用 AI Template API 的 Token 用量。"
+      >
+        {templateQuery.isLoading ? (
+          <div className="text-sm text-muted-foreground">載入中…</div>
+        ) : templateQuery.isError ? (
+          <div className="text-sm text-destructive">無法取得 Template 用量資料。</div>
+        ) : tpl ? (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <UsageStatCard label="總呼叫次數" value={tpl.total_calls} />
+              <UsageStatCard
+                label="輸入 Tokens"
+                value={formatTokens(tpl.total_input_tokens)}
+              />
+              <UsageStatCard
+                label="輸出 Tokens"
+                value={formatTokens(tpl.total_output_tokens)}
+              />
+            </div>
+            {Object.keys(tpl.by_call_type).length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                  <BrainCircuit className="h-3.5 w-3.5" />
+                  按呼叫類型
+                </div>
+                <div className="divide-y rounded-lg border">
+                  {Object.entries(tpl.by_call_type).map(
+                    ([callType, stats]) => (
+                      <div
+                        key={callType}
+                        className="grid grid-cols-[minmax(0,1fr)_80px_80px_80px] items-center gap-4 px-4 py-2.5 text-sm"
+                      >
+                        <span className="truncate text-xs">{callType}</span>
+                        <span className="text-right text-muted-foreground">
+                          {stats.calls} 次
+                        </span>
+                        <span className="text-right text-muted-foreground">
+                          ↑ {formatTokens(stats.input_tokens)}
+                        </span>
+                        <span className="text-right text-muted-foreground">
+                          ↓ {formatTokens(stats.output_tokens)}
+                        </span>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+            此時段無 Template 呼叫紀錄。
+          </div>
+        )}
+      </Panel>
+    </div>
+  )
+}
+
 function AiApiPage() {
   const [purpose, setPurpose] = useState("")
   const [apiKeyName, setApiKeyName] = useState("test")
@@ -468,10 +707,14 @@ function AiApiPage() {
       </div>
 
       <Tabs defaultValue="request" className="space-y-5">
-        <TabsList className="grid h-auto w-full grid-cols-3 p-1 md:w-[520px]">
+        <TabsList className="grid h-auto w-full grid-cols-4 p-1 md:w-[680px]">
           <TabsTrigger value="request">申請</TabsTrigger>
           <TabsTrigger value="keys">API Keys</TabsTrigger>
           <TabsTrigger value="history">申請紀錄</TabsTrigger>
+          <TabsTrigger value="usage">
+            <TrendingUp className="mr-1 h-3.5 w-3.5" />
+            我的用量
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="request" className="space-y-5">
@@ -587,6 +830,10 @@ function AiApiPage() {
               </div>
             )}
           </Panel>
+        </TabsContent>
+
+        <TabsContent value="usage" className="space-y-5">
+          <MyUsageTab credentials={credentials} />
         </TabsContent>
       </Tabs>
     </div>

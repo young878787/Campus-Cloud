@@ -62,4 +62,17 @@ export const queryKeys = {
     adminCredentialsCount: (status: string) =>
       ["ai-api", "admin-credentials", "count", status] as const,
   },
+  aiMonitoring: {
+    stats: (params: unknown) => ["ai-monitoring", "stats", params] as const,
+    apiCalls: (params: unknown) =>
+      ["ai-monitoring", "api-calls", params] as const,
+    templateCalls: (params: unknown) =>
+      ["ai-monitoring", "template-calls", params] as const,
+    usersUsage: (params: unknown) =>
+      ["ai-monitoring", "users", params] as const,
+    myProxyUsage: (params: unknown) =>
+      ["ai-monitoring", "my-proxy", params] as const,
+    myTemplateUsage: (params: unknown) =>
+      ["ai-monitoring", "my-template", params] as const,
+  },
 } as const

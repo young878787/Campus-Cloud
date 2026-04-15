@@ -11,6 +11,7 @@ from .ai_api_credential import AIAPICredential
 from .ai_api_rate_limit import AIAPIRateLimit
 from .ai_api_request import AIAPIRequest, AIAPIRequestStatus
 from .ai_api_usage import AIAPIUsage
+from .ai_template_call_log import AITemplateCallLog
 from .base import get_datetime_utc
 from .resource import Resource
 from .user import User, UserBase, UserRole
@@ -54,6 +55,7 @@ __all__ = [
     "AIAPIRequestStatus",
     "AIAPIUsage",
     "AIAPIRateLimit",
+    "AITemplateCallLog",
     # Resource
     "Resource",
     "VMMigrationJob",

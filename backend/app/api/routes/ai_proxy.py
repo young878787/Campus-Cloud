@@ -2,6 +2,7 @@
 AI Proxy API Routes - 代理到 VLLM 的 API 端点
 """
 
+import json
 import logging
 import time
 from datetime import datetime, timedelta
@@ -31,8 +32,8 @@ router = APIRouter(prefix="/ai-proxy", tags=["ai_proxy"])
 @router.post(
     "/chat/completions",
     response_model=ChatCompletionResponse,
-    summary="聊天补全",
-    description="OpenAI 兼容的聊天补全接口，支持流式和非流式响应",
+    summary="聊天補全",
+    description="OpenAI 相容的聊天補全介面，支援串流和非串流回應",
 )
 async def chat_completions(
     request: ChatCompletionRequest,
@@ -40,17 +41,16 @@ async def chat_completions(
     session: SessionDep,
 ):
     """
-    聊天补全接口
+    聊天補全介面
 
     需要在 Authorization header 中提供 API Key:
     Authorization: Bearer ccai_xxx
 
-    支持流式响应（stream=true）和非流式响应（stream=false）
+    支援串流回應（stream=true）和非串流回應（stream=false）
     """
     user, credential = user_and_credential
 
     # === 檢查 Redis 速率限制 ===
-    # 使用 credential 的 rate_limit，如果為 None 則使用預設值
     rate_limit = (
         credential.rate_limit
         if credential.rate_limit is not None
@@ -77,49 +77,144 @@ async def chat_completions(
             },
         )
 
-    # 转换为 dict（用于代理）
     request_data = request.model_dump(exclude_none=True)
+    model_name = request_data.get("model", "unknown")
 
     try:
         if request.stream:
-            return StreamingResponse(
-                ai_gateway_service.proxy_to_vllm_chat_completion_stream(
+            # 串流模式：包裝 generator 以擷取最後 chunk 的 usage 並記錄
+            async def _stream_with_logging():
+                input_tokens = 0
+                output_tokens = 0
+                start_time = time.time()
+
+                async for (
+                    chunk_str
+                ) in ai_gateway_service.proxy_to_vllm_chat_completion_stream(
                     user=user,
                     request_data=request_data,
-                ),
+                ):
+                    # 嘗試從 chunk 中擷取 usage（vLLM 在最後一個 data chunk 含 usage）
+                    if (
+                        chunk_str.startswith("data: ")
+                        and chunk_str.strip() != "data: [DONE]"
+                    ):
+                        try:
+                            chunk_data = json.loads(chunk_str[6:])
+                            usage = chunk_data.get("usage")
+                            if usage:
+                                input_tokens = int(usage.get("prompt_tokens") or 0)
+                                output_tokens = int(usage.get("completion_tokens") or 0)
+                        except (json.JSONDecodeError, ValueError):
+                            pass
+
+                    yield chunk_str
+
+                # 串流結束後記錄 usage
+                duration_ms = int((time.time() - start_time) * 1000)
+                try:
+                    ai_gateway_service.record_usage(
+                        session=session,
+                        user_id=user.id,
+                        credential_id=credential.id,
+                        model_name=model_name,
+                        request_type="chat_completion",
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        request_duration_ms=duration_ms,
+                        status="success",
+                    )
+                except Exception as rec_err:
+                    logger.error("Failed to record stream usage: %s", rec_err)
+
+            return StreamingResponse(
+                _stream_with_logging(),
                 media_type="text/event-stream",
             )
         else:
+            # 非串流模式
             result = await ai_gateway_service.proxy_to_vllm_chat_completion(
                 user=user,
                 request_data=request_data,
             )
+
+            # 記錄 usage
+            usage = result.get("usage", {})
+            try:
+                ai_gateway_service.record_usage(
+                    session=session,
+                    user_id=user.id,
+                    credential_id=credential.id,
+                    model_name=model_name,
+                    request_type="chat_completion",
+                    input_tokens=int(usage.get("prompt_tokens") or 0),
+                    output_tokens=int(usage.get("completion_tokens") or 0),
+                    request_duration_ms=result.get("duration_ms"),
+                    status="success",
+                )
+            except Exception as rec_err:
+                logger.error("Failed to record usage: %s", rec_err)
+
             return result
 
     except httpx.HTTPStatusError as e:
-        # VLLM 返回的 HTTP 错误
         logger.error(
             "VLLM error for user %s: status=%d, body=%s",
             user.email,
             e.response.status_code,
             e.response.text,
         )
+        # 記錄失敗
+        try:
+            ai_gateway_service.record_usage(
+                session=session,
+                user_id=user.id,
+                credential_id=credential.id,
+                model_name=model_name,
+                request_type="chat_completion",
+                status="error",
+                error_message=f"HTTP {e.response.status_code}: {e.response.text[:500]}",
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=e.response.status_code,
             detail=f"Upstream model service error: {e.response.text}",
         )
 
     except httpx.RequestError as e:
-        # 网络连接错误
         logger.error("VLLM connection error for user %s: %s", user.email, str(e))
+        try:
+            ai_gateway_service.record_usage(
+                session=session,
+                user_id=user.id,
+                credential_id=credential.id,
+                model_name=model_name,
+                request_type="chat_completion",
+                status="error",
+                error_message=f"Connection error: {str(e)[:500]}",
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Model service is temporarily unavailable. Please try again later.",
         )
 
     except Exception as e:
-        # 其他未知错误
         logger.exception("Unexpected error for user %s: %s", user.email, str(e))
+        try:
+            ai_gateway_service.record_usage(
+                session=session,
+                user_id=user.id,
+                credential_id=credential.id,
+                model_name=model_name,
+                request_type="chat_completion",
+                status="error",
+                error_message=f"Unexpected: {str(e)[:500]}",
+            )
+        except Exception:
+            pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred. Please contact support.",
@@ -178,10 +273,10 @@ async def list_models(
     description="查看当前用户的 AI API 使用统计",
 )
 async def get_my_usage_stats(
+    user_and_credential: AIAPIUserDep,
+    session: SessionDep,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
-    user_and_credential: AIAPIUserDep = None,
-    session: SessionDep = None,
 ):
     """
     查看我的使用统计

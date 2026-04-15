@@ -27,6 +27,7 @@ from .ai_proxy import (
     ChatMessage,
     ModelsResponse,
     RateLimitStatusResponse,
+    TemplateUsageStatsResponse,
     UsageStatsResponse,
 )
 from .audit_log import (
@@ -161,6 +162,7 @@ __all__ = [
     "ChatCompletionResponse",
     "ModelsResponse",
     "UsageStatsResponse",
+    "TemplateUsageStatsResponse",
     "RateLimitStatusResponse",
     # User
     "UserCreate",

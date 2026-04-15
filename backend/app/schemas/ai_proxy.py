@@ -107,22 +107,39 @@ class ModelsResponse(BaseModel):
 
 # ===== 使用量统计相关 =====
 class UsageByModel(BaseModel):
-    """按模型分组的使用量"""
+    """按模型分組的使用量"""
 
     requests: int
-    tokens: int
-    prompt_tokens: int
-    completion_tokens: int
+    input_tokens: int
+    output_tokens: int
 
 
 class UsageStatsResponse(BaseModel):
-    """使用量统计响应"""
+    """Proxy 使用量統計回應"""
 
     total_requests: int
-    total_tokens: int
-    total_prompt_tokens: int
-    total_completion_tokens: int
+    total_input_tokens: int
+    total_output_tokens: int
     by_model: dict[str, UsageByModel]
+    start_date: datetime
+    end_date: datetime
+
+
+class TemplateUsageByCallType(BaseModel):
+    """按 call_type 分組的 template 使用量"""
+
+    calls: int
+    input_tokens: int
+    output_tokens: int
+
+
+class TemplateUsageStatsResponse(BaseModel):
+    """Template 呼叫量統計回應"""
+
+    total_calls: int
+    total_input_tokens: int
+    total_output_tokens: int
+    by_call_type: dict[str, TemplateUsageByCallType]
     start_date: datetime
     end_date: datetime
 
@@ -157,6 +174,8 @@ __all__ = [
     # Usage Stats
     "UsageByModel",
     "UsageStatsResponse",
+    "TemplateUsageByCallType",
+    "TemplateUsageStatsResponse",
     # Rate Limit
     "RateLimitStatusResponse",
 ]

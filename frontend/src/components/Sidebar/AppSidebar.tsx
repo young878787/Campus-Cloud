@@ -1,5 +1,6 @@
 import {
   ArrowRightLeft,
+  BarChart3,
   Bot,
   ChevronLeft,
   ChevronRight,
@@ -75,6 +76,7 @@ export function AppSidebar() {
     ...aiItems,
     { icon: ClipboardCheck, title: "AI API Review", path: "/ai-api-approvals" },
     { icon: KeyRound, title: "AI API Keys", path: "/ai-api-credentials" },
+    { icon: BarChart3, title: "AI 用量監控", path: "/admin/ai-monitoring" },
     { icon: UsersRound, title: "Groups", path: "/groups" },
     { icon: Users, title: t("sidebar.admin"), path: "/admin" },
     { icon: Settings2, title: "System Settings", path: "/admin/configuration" },
