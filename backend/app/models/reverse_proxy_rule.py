@@ -29,6 +29,12 @@ class ReverseProxyRule(SQLModel, table=True):
         sa_column_kwargs={"unique": True},
         description="對外網域名稱（如 mysite.campus.edu）",
     )
+    zone_id: str | None = Field(default=None, max_length=64, description="Cloudflare Zone ID")
+    cloudflare_record_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description="由 Campus Cloud 自動管理的 Cloudflare DNS record ID",
+    )
     internal_port: int = Field(ge=1, le=65535, description="VM 內部 port")
     enable_https: bool = Field(default=True, description="是否啟用 HTTPS（Let's Encrypt）")
 

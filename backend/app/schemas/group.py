@@ -37,6 +37,9 @@ class GroupMemberPublic(BaseModel):
     vmid: int | None = None
     vm_status: str | None = None  # "running" | "stopped" | None (未開過機器)
     vm_type: str | None = None  # "qemu" | "lxc" | None
+    vm_cpu_usage_pct: float | None = None  # CPU 使用率百分比
+    vm_ram_usage_pct: float | None = None  # 記憶體使用率百分比
+    vm_disk_usage_pct: float | None = None  # 磁碟使用率百分比
 
 
 class GroupPublic(BaseModel):

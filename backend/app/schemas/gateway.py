@@ -1,5 +1,6 @@
 """Gateway VM 管理相關 schemas"""
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -49,6 +50,20 @@ class ServiceActionResult(BaseModel):
     output: str
 
 
+class GatewayServiceVersionInfo(BaseModel):
+    service: GatewayService
+    current_version: str | None = None
+    target_version: str | None = None
+    update_available: bool | None = None
+    source: str
+    detection_error: str | None = None
+
+
+class GatewayServiceVersionsResult(BaseModel):
+    items: list[GatewayServiceVersionInfo]
+    checked_at: datetime
+
+
 __all__ = [
     "GatewayService",
     "ServiceAction",
@@ -59,4 +74,6 @@ __all__ = [
     "ServiceConfigWrite",
     "ServiceStatusResult",
     "ServiceActionResult",
+    "GatewayServiceVersionInfo",
+    "GatewayServiceVersionsResult",
 ]

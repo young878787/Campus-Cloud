@@ -4,6 +4,8 @@ import csv
 import io
 import logging
 import secrets
+import threading
+import time
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -36,10 +38,51 @@ from app.utils import generate_new_account_email, send_email
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
+_GROUP_RESOURCES_CACHE_TTL_SECONDS = 8.0
+_group_resources_cache_lock = threading.Lock()
+_group_resources_cache_data: list[dict] | None = None
+_group_resources_cache_monotonic = 0.0
+
 
 def _check_group_access(current_user, db_group) -> None:
     """確認使用者是群組擁有者或 admin，否則拋出例外"""
     require_group_access(current_user, db_group.owner_id)
+
+
+def _safe_usage_pct(used: object, total: object) -> float | None:
+    """將 used/total 轉成 0~100 的百分比，無法計算時回傳 None。"""
+    try:
+        used_value = float(used)
+        total_value = float(total)
+    except (TypeError, ValueError):
+        return None
+
+    if total_value <= 0:
+        return None
+
+    pct = max(0.0, min((used_value / total_value) * 100, 100.0))
+    return round(pct, 1)
+
+
+def _get_cached_group_resources() -> list[dict]:
+    """回傳群組 VM 查詢所需的 Proxmox 資源列表（短 TTL 快取）。"""
+    global _group_resources_cache_data, _group_resources_cache_monotonic
+
+    now = time.monotonic()
+    with _group_resources_cache_lock:
+        if (
+            _group_resources_cache_data is not None
+            and now - _group_resources_cache_monotonic
+            < _GROUP_RESOURCES_CACHE_TTL_SECONDS
+        ):
+            return list(_group_resources_cache_data)
+
+    resources = proxmox_ops.list_all_resources()
+
+    with _group_resources_cache_lock:
+        _group_resources_cache_data = list(resources)
+        _group_resources_cache_monotonic = time.monotonic()
+        return list(_group_resources_cache_data)
 
 
 @router.post("/", response_model=GroupPublic)
@@ -115,14 +158,33 @@ def get_group(
     # 批量取得所有 VM 的即時狀態與類型（一次 Proxmox API 呼叫）
     vm_status_map: dict[int, str] = {}
     vm_type_map: dict[int, str] = {}
+    vm_cpu_usage_map: dict[int, float | None] = {}
+    vm_ram_usage_map: dict[int, float | None] = {}
+    vm_disk_usage_map: dict[int, float | None] = {}
     vmids_to_check = [v for v in member_vmids.values() if v is not None]
     if vmids_to_check:
         try:
-            all_resources = proxmox_ops.list_all_resources()
+            vmid_set = set(vmids_to_check)
+            all_resources = _get_cached_group_resources()
             for r in all_resources:
-                if r["vmid"] in vmids_to_check:
-                    vm_status_map[r["vmid"]] = r.get("status", "unknown")
-                    vm_type_map[r["vmid"]] = r.get("type", "unknown")
+                raw_vmid = r.get("vmid")
+                try:
+                    vmid = int(raw_vmid)
+                except (TypeError, ValueError):
+                    continue
+
+                if vmid not in vmid_set:
+                    continue
+
+                vm_status_map[vmid] = r.get("status", "unknown")
+                vm_type_map[vmid] = r.get("type", "unknown")
+                vm_cpu_usage_map[vmid] = _safe_usage_pct(r.get("cpu"), 1)
+                vm_ram_usage_map[vmid] = _safe_usage_pct(
+                    r.get("mem"), r.get("maxmem")
+                )
+                vm_disk_usage_map[vmid] = _safe_usage_pct(
+                    r.get("disk"), r.get("maxdisk")
+                )
         except Exception:
             logger.warning("無法取得 Proxmox 資源狀態，將略過 VM 狀態欄位")
 
@@ -137,6 +199,15 @@ def get_group(
             if u.id in member_vmids
             else None,
             vm_type=vm_type_map.get(member_vmids[u.id])
+            if u.id in member_vmids
+            else None,
+            vm_cpu_usage_pct=vm_cpu_usage_map.get(member_vmids[u.id])
+            if u.id in member_vmids
+            else None,
+            vm_ram_usage_pct=vm_ram_usage_map.get(member_vmids[u.id])
+            if u.id in member_vmids
+            else None,
+            vm_disk_usage_pct=vm_disk_usage_map.get(member_vmids[u.id])
             if u.id in member_vmids
             else None,
         )

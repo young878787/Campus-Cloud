@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FirewallService } from "@/services/firewall"
+import { CloudflareApiService } from "@/services/cloudflare"
 import {
   GatewayApiService,
   type GatewayService,
@@ -36,6 +37,17 @@ import {
 export const Route = createFileRoute("/_layout/admin/gateway")({
   component: GatewayPage,
 })
+
+function getApiErrorMessage(error: unknown): string {
+  if (error && typeof error === "object") {
+    const maybeApiError = error as {
+      body?: { detail?: string }
+      message?: string
+    }
+    return maybeApiError.body?.detail ?? maybeApiError.message ?? "未知錯誤"
+  }
+  return "未知錯誤"
+}
 
 // ─── 安裝一行指令元件 ──────────────────────────────────────────────────────────
 
@@ -104,8 +116,8 @@ function ServicePanel({ service }: { service: GatewayService }) {
     mutationFn: () =>
       GatewayApiService.writeServiceConfig(service, editorContent),
     onSuccess: () => toast.success(`${service} 設定已儲存`),
-    onError: (e: any) =>
-      toast.error(`儲存失敗：${e.body?.detail ?? e.message}`),
+    onError: (error: unknown) =>
+      toast.error(`儲存失敗：${getApiErrorMessage(error)}`),
   })
 
   const actionMutation = useMutation({
@@ -120,8 +132,8 @@ function ServicePanel({ service }: { service: GatewayService }) {
       refetchStatus()
       setConfirmAction(null)
     },
-    onError: (e: any) => {
-      toast.error(`操作失敗：${e.body?.detail ?? e.message}`)
+    onError: (error: unknown) => {
+      toast.error(`操作失敗：${getApiErrorMessage(error)}`)
       setConfirmAction(null)
     },
   })
@@ -335,14 +347,32 @@ function ConnectionPanel() {
       await FirewallService.syncReverseProxyRules()
     },
     onSuccess: () =>
-      toast.success("Port Forwarding + 反向代理規則已同步到 Gateway VM"),
-    onError: (e: any) =>
-      toast.error(`同步失敗：${e.body?.detail ?? e.message}`),
+      toast.success("Port Forwarding 與反向代理規則已同步到 Gateway VM"),
+    onError: (error: unknown) =>
+      toast.error(`同步失敗：${getApiErrorMessage(error)}`),
   })
 
   const { data: config, isLoading } = useQuery({
     queryKey: ["gateway-config-conn"],
     queryFn: GatewayApiService.getConfig,
+  })
+
+  const { data: cloudflareConfig } = useQuery({
+    queryKey: ["cloudflare-config"],
+    queryFn: CloudflareApiService.getConfig,
+    retry: false,
+  })
+
+  const {
+    data: serviceVersions,
+    isLoading: serviceVersionsLoading,
+    isFetching: serviceVersionsFetching,
+    refetch: refetchServiceVersions,
+  } = useQuery({
+    queryKey: ["gateway-service-versions"],
+    queryFn: GatewayApiService.getServiceVersions,
+    enabled: !!config?.is_configured,
+    retry: false,
   })
 
   useEffect(() => {
@@ -364,8 +394,8 @@ function ConnectionPanel() {
       toast.success("連線設定已儲存")
       queryClient.invalidateQueries({ queryKey: ["gateway-config-conn"] })
     },
-    onError: (e: any) =>
-      toast.error(`儲存失敗：${e.body?.detail ?? e.message}`),
+    onError: (error: unknown) =>
+      toast.error(`儲存失敗：${getApiErrorMessage(error)}`),
   })
 
   const keypairMutation = useMutation({
@@ -374,8 +404,8 @@ function ConnectionPanel() {
       toast.success("SSH Keypair 已生成")
       queryClient.invalidateQueries({ queryKey: ["gateway-config-conn"] })
     },
-    onError: (e: any) =>
-      toast.error(`生成失敗：${e.body?.detail ?? e.message}`),
+    onError: (error: unknown) =>
+      toast.error(`生成失敗：${getApiErrorMessage(error)}`),
   })
 
   const testMutation = useMutation({
@@ -387,6 +417,17 @@ function ConnectionPanel() {
         toast.error(data.message)
       }
     },
+  })
+
+  const dnsChallengeMutation = useMutation({
+    mutationFn: GatewayApiService.syncTraefikDnsChallenge,
+    onSuccess: (data) => {
+      toast.success(data.message)
+      queryClient.invalidateQueries({ queryKey: ["gateway-config", "traefik"] })
+      queryClient.invalidateQueries({ queryKey: ["gateway-status", "traefik"] })
+    },
+    onError: (error: unknown) =>
+      toast.error(`套用失敗：${getApiErrorMessage(error)}`),
   })
 
   const copyPublicKey = () => {
@@ -550,6 +591,164 @@ function ConnectionPanel() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base text-foreground/90 flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4" />
+            Traefik 憑證設定
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-border bg-card px-4 py-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm text-foreground/80">
+              {cloudflareConfig?.is_configured ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-yellow-500" />
+              )}
+              <span>
+                {cloudflareConfig?.is_configured
+                  ? "已偵測到 admin/domains 的 Cloudflare API Token"
+                  : "尚未在 admin/domains 設定 Cloudflare API Token"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              套用後會將 Gateway VM 上的 Traefik 切換為 Cloudflare DNS
+              Challenge，並保留 127.0.0.1:8080 的 runtime API 供 Campus Cloud 後端查詢。
+            </p>
+            {cloudflareConfig?.last_verified_at && (
+              <p className="text-xs text-muted-foreground">
+                最近驗證：
+                {new Date(cloudflareConfig.last_verified_at).toLocaleString()}
+              </p>
+            )}
+          </div>
+          <Button
+            onClick={() => dnsChallengeMutation.mutate()}
+            disabled={
+              dnsChallengeMutation.isPending ||
+              !config?.is_configured ||
+              !cloudflareConfig?.is_configured
+            }
+            size="sm"
+            variant="outline"
+            className="border-border bg-card hover:bg-accent"
+          >
+            {dnsChallengeMutation.isPending ? (
+              <Loader2 className="w-3 h-3 animate-spin mr-1" />
+            ) : (
+              <RefreshCw className="w-3 h-3 mr-1" />
+            )}
+            套用 Cloudflare DNS Challenge
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base text-foreground/90 flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            軟體版本偵測
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
+            <div>
+              <p className="text-sm text-foreground/90">
+                讀取 Gateway VM 上實際安裝版本，並與平台安裝腳本或套件來源的目標版本比較。
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                若顯示可更新，通常代表重新執行安裝腳本或升級套件後可與平台維持一致。
+              </p>
+            </div>
+            <Button
+              onClick={() => refetchServiceVersions()}
+              disabled={!config?.is_configured || serviceVersionsFetching}
+              size="sm"
+              variant="outline"
+              className="border-border bg-card hover:bg-accent"
+            >
+              {serviceVersionsFetching ? (
+                <Loader2 className="w-3 h-3 animate-spin mr-1" />
+              ) : (
+                <RefreshCw className="w-3 h-3 mr-1" />
+              )}
+              重新檢查
+            </Button>
+          </div>
+
+          {!config?.is_configured ? (
+            <p className="text-sm text-muted-foreground">請先完成 Gateway VM 連線設定。</p>
+          ) : serviceVersionsLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : serviceVersions?.items?.length ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {serviceVersions.items.map((item) => {
+                const statusText = item.update_available === null
+                  ? "狀態未知"
+                  : item.update_available
+                    ? "可更新"
+                    : "已最新"
+                const statusClass = item.update_available === null
+                  ? "text-muted-foreground"
+                  : item.update_available
+                    ? "text-amber-500"
+                    : "text-emerald-500"
+
+                return (
+                  <div
+                    key={item.service}
+                    className="rounded-lg border border-border bg-muted/20 px-4 py-3 space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-sm font-medium text-foreground">
+                        {item.service}
+                      </div>
+                      <div className={`text-xs font-medium ${statusClass}`}>
+                        {statusText}
+                      </div>
+                    </div>
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <div>
+                        目前版本：
+                        <span className="ml-1 font-mono text-foreground">
+                          {item.current_version ?? "未偵測"}
+                        </span>
+                      </div>
+                      <div>
+                        目標版本：
+                        <span className="ml-1 font-mono text-foreground">
+                          {item.target_version ?? "未提供"}
+                        </span>
+                      </div>
+                      <div>
+                        來源：
+                        <span className="ml-1 text-foreground">{item.source}</span>
+                      </div>
+                      {item.detection_error && (
+                        <div className="text-amber-500">
+                          偵測失敗：{item.detection_error}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未取得版本資訊。</p>
+          )}
+
+          {serviceVersions?.checked_at && (
+            <p className="text-xs text-muted-foreground">
+              最近檢查：{new Date(serviceVersions.checked_at).toLocaleString("zh-TW")}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* 安裝教學 */}
       <Card>
         <CardHeader className="pb-3">
@@ -625,7 +824,7 @@ function ConnectionPanel() {
                   填入 IP 並測試連線
                 </p>
                 <p className="text-muted-foreground mt-0.5">
-                  在上方連線設定填入 Gateway VM IP，點擊「測試連線」確認成功。
+                  在上方連線設定填入 Gateway VM IP，點擊「測試連線」確認成功；若要讓 Traefik 用 Cloudflare DNS Challenge 申請憑證，再套用一次上方憑證設定。
                 </p>
               </div>
             </li>

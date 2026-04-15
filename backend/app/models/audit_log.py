@@ -89,6 +89,13 @@ class AuditAction(str, enum.Enum):
     gateway_config_write = "gateway_config_write"
     gateway_service_control = "gateway_service_control"
 
+    # Cloudflare
+    cloudflare_config_update = "cloudflare_config_update"
+    cloudflare_zone_create = "cloudflare_zone_create"
+    cloudflare_dns_record_create = "cloudflare_dns_record_create"
+    cloudflare_dns_record_update = "cloudflare_dns_record_update"
+    cloudflare_dns_record_delete = "cloudflare_dns_record_delete"
+
     # Proxmox 設定
     proxmox_config_update = "proxmox_config_update"
     proxmox_node_update = "proxmox_node_update"

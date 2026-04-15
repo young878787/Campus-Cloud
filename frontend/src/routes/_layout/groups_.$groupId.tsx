@@ -24,7 +24,12 @@ import {
 import { Suspense, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 
-import { GroupsService, LxcService, VmService } from "@/client"
+import {
+  type GroupMemberPublic,
+  GroupsService,
+  LxcService,
+  VmService,
+} from "@/client"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -100,6 +105,12 @@ type BatchJob = {
   tasks: BatchTask[]
 }
 
+type GroupMemberWithRuntimeStats = GroupMemberPublic & {
+  vm_cpu_usage_pct?: number | null
+  vm_ram_usage_pct?: number | null
+  vm_disk_usage_pct?: number | null
+}
+
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export const Route = createFileRoute("/_layout/groups_/$groupId")({
@@ -134,7 +145,13 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
   )
 }
 
-function VmStatusBadge({ vmid, status }: { vmid?: number | null; status?: string | null }) {
+function VmStatusBadge({
+  vmid,
+  status,
+}: {
+  vmid?: number | null
+  status?: string | null
+}) {
   if (!vmid) {
     return (
       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -170,6 +187,91 @@ function VmStatusBadge({ vmid, status }: { vmid?: number | null; status?: string
     >
       {inner}
     </Link>
+  )
+}
+
+function clampUsagePct(value?: number | null): number | null {
+  if (typeof value !== "number" || Number.isNaN(value)) return null
+  return Math.max(0, Math.min(value, 100))
+}
+
+function UsageCircle({
+  label,
+  value,
+  color,
+}: {
+  label: string
+  value?: number | null
+  color: string
+}) {
+  const pct = clampUsagePct(value)
+  const radius = 14
+  const circumference = 2 * Math.PI * radius
+  const dashOffset =
+    pct === null ? circumference : circumference * (1 - pct / 100)
+
+  return (
+    <div className="flex flex-col items-center gap-0.5 min-w-10">
+      <div className="relative h-9 w-9">
+        <svg className="h-9 w-9 -rotate-90" viewBox="0 0 36 36">
+          <title>{`${label} 使用率`}</title>
+          <circle
+            cx="18"
+            cy="18"
+            r={radius}
+            fill="none"
+            stroke="hsl(var(--muted))"
+            strokeWidth="3"
+          />
+          <circle
+            cx="18"
+            cy="18"
+            r={radius}
+            fill="none"
+            stroke={color}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeDasharray={`${circumference} ${circumference}`}
+            strokeDashoffset={dashOffset}
+            className="transition-[stroke-dashoffset] duration-500"
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-foreground">
+          {pct === null ? "--" : Math.round(pct)}
+        </span>
+      </div>
+      <span className="text-[10px] leading-none text-muted-foreground">
+        {label}
+      </span>
+    </div>
+  )
+}
+
+function VmRuntimeIndicators({
+  member,
+}: {
+  member: GroupMemberWithRuntimeStats
+}) {
+  if (!member.vmid || member.vm_status !== "running") return null
+
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/20 px-2 py-1">
+      <UsageCircle
+        label="CPU"
+        value={member.vm_cpu_usage_pct}
+        color="#3b82f6"
+      />
+      <UsageCircle
+        label="RAM"
+        value={member.vm_ram_usage_pct}
+        color="#10b981"
+      />
+      <UsageCircle
+        label="碟"
+        value={member.vm_disk_usage_pct}
+        color="#f59e0b"
+      />
+    </div>
   )
 }
 
@@ -870,7 +972,7 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
   const { showSuccessToast, showErrorToast } = useCustomToast()
 
   const { data: group } = useSuspenseQuery(groupDetailQueryOptions(groupId))
-  const members = group.members ?? []
+  const members = (group.members ?? []) as GroupMemberWithRuntimeStats[]
 
   const removeMutation = useMutation({
     mutationFn: (userId: string) =>
@@ -931,10 +1033,18 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
           <>
             {/* 統計 bar */}
             {(() => {
-              const lxcMembers = members.filter((m) => m.vm_type === "lxc" && m.vmid)
-              const vmMembers = members.filter((m) => m.vm_type === "qemu" && m.vmid)
-              const lxcRunning = lxcMembers.filter((m) => m.vm_status === "running").length
-              const vmRunning = vmMembers.filter((m) => m.vm_status === "running").length
+              const lxcMembers = members.filter(
+                (m) => m.vm_type === "lxc" && m.vmid,
+              )
+              const vmMembers = members.filter(
+                (m) => m.vm_type === "qemu" && m.vmid,
+              )
+              const lxcRunning = lxcMembers.filter(
+                (m) => m.vm_status === "running",
+              ).length
+              const vmRunning = vmMembers.filter(
+                (m) => m.vm_status === "running",
+              ).length
               return (
                 <div className="flex items-center gap-4 mb-3 text-sm">
                   <span className="text-muted-foreground">
@@ -958,7 +1068,7 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
                   <TableHead>姓名</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>VMID</TableHead>
-                  <TableHead>VM 狀態</TableHead>
+                  <TableHead>VM 狀態 / 即時資源</TableHead>
                   <TableHead>加入時間</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
@@ -972,7 +1082,13 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
                       {member.vmid ?? "-"}
                     </TableCell>
                     <TableCell>
-                      <VmStatusBadge vmid={member.vmid} status={member.vm_status} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <VmStatusBadge
+                          vmid={member.vmid}
+                          status={member.vm_status}
+                        />
+                        <VmRuntimeIndicators member={member} />
+                      </div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {member.added_at

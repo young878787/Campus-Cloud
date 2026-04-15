@@ -27,22 +27,116 @@ from app.ai.template_recommendation.schemas import (
 )
 
 
+MIN_VM_DISK_GB = 20
+MIN_LXC_DISK_GB = 8
+
+
 def _extract_user_signal_flags(messages: list[ChatMessage]) -> dict[str, bool]:
     user_text = "\n".join(
         str(message.content)
         for message in messages
         if str(message.role).strip().lower() == "user"
-    ).lower()
+    )
+
+    normalized_text = _normalize_user_text_for_intent(user_text)
 
     def _contains_any(keywords: tuple[str, ...]) -> bool:
-        return any(keyword in user_text for keyword in keywords)
+        return any(keyword in normalized_text for keyword in keywords)
 
     return {
-        "needs_windows": _contains_any(("windows", "win11", "win10", "rdp", "remote desktop", "gui")),
-        "requires_gpu": _contains_any(("gpu", "cuda", "pytorch", "tensorflow", "llm", "stable diffusion", "comfyui", "ai")),
-        "needs_database": _contains_any(("database", "db", "mysql", "postgres", "postgresql", "mariadb", "mongodb", "redis", "sql")),
-        "needs_public_web": _contains_any(("public", "internet", "external", "domain")),
+        "needs_windows": _contains_any(
+            (
+                "windows",
+                "window",
+                "win11",
+                "win10",
+                "rdp",
+                "remote desktop",
+                "gui",
+                "視窗",
+                "視窗系統",
+                "圖形介面",
+                "桌面環境",
+                "遠端桌面",
+            )
+        ),
+        "requires_gpu": _contains_any(
+            (
+                "gpu",
+                "cuda",
+                "pytorch",
+                "tensorflow",
+                "llm",
+                "stable diffusion",
+                "comfyui",
+                "gpu訓練",
+                "gpu推論",
+                "顯卡訓練",
+                "顯卡推論",
+                "ai訓練",
+                "機器學習",
+                "深度學習",
+            )
+        ),
+        "needs_database": _contains_any(
+            (
+                "database",
+                "db",
+                "mysql",
+                "postgres",
+                "postgresql",
+                "mariadb",
+                "mongodb",
+                "redis",
+                "sql",
+                "資料庫",
+                "数据库",
+                "db服務",
+                "dbserver",
+            )
+        ),
+        "needs_public_web": _contains_any(
+            (
+                "public",
+                "internet",
+                "external",
+                "domain",
+                "公開網站",
+                "公開",
+                "外網",
+                "對外",
+                "網域",
+                "域名",
+                "公網",
+            )
+        ),
     }
+
+
+def _normalize_user_text_for_intent(text: str) -> str:
+    normalized = text.lower()
+    replacements = {
+        "視窗": "windows",
+        "視窗系統": "windows",
+        "窗口": "windows",
+        "遠端桌面": "rdp",
+        "圖形介面": "gui",
+        "資料庫": "database",
+        "数据库": "database",
+        "對外": "external",
+        "外網": "external",
+        "公網": "public",
+        "網域": "domain",
+        "域名": "domain",
+        "顯卡": "gpu",
+        "gpu 訓練": "gpu訓練",
+        "gpu推里": "gpu推論",
+        "gpu推論": "gpu推論",
+        "gpu推理": "gpu推論",
+    }
+    for source, target in replacements.items():
+        normalized = normalized.replace(source, target)
+    return normalized
 
 
 def _apply_thinking_control(payload: dict[str, Any]) -> dict[str, Any]:
@@ -63,6 +157,10 @@ def _safe_int(value: Any, default: int, minimum: int) -> int:
     except (TypeError, ValueError):
         parsed = default
     return max(parsed, minimum)
+
+
+def _minimum_disk_gb(resource_type: str) -> int:
+    return MIN_VM_DISK_GB if resource_type == "vm" else MIN_LXC_DISK_GB
 
 
 def _build_submission_reason(
@@ -157,10 +255,12 @@ async def generate_ai_plan(
     user_context = {
         "goal": request.goal,
         "role": request.role,
+        "preset": request.preset,
         "course_context": request.course_context,
         "sharing_scope": request.sharing_scope,
         "expected_users": request.expected_users,
         "budget_mode": request.budget_mode,
+        "resource_baseline": request.resource_baseline,
         "needs_public_web": request.needs_public_web,
         "needs_database": request.needs_database,
         "requires_gpu": request.requires_gpu,
@@ -315,11 +415,16 @@ def normalize_ai_result(
         default_resources = dict((install_methods[0].get("resources") or {})) if install_methods else {}
         cpu = _safe_int(machine.get("cpu"), int(default_resources.get("cpu") or 2), 1)
         memory_mb = _safe_int(machine.get("memory_mb"), int(default_resources.get("ram") or 2048), 256)
-        disk_gb = _safe_int(machine.get("disk_gb"), int(default_resources.get("hdd") or 10), 2)
         gpu = _safe_int(machine.get("gpu"), 1 if request.requires_gpu else 0, 0)
         deployment_type = str(machine.get("deployment_type") or "").strip().lower()
         if deployment_type not in {"lxc", "vm"}:
             deployment_type = "vm" if (request.needs_windows or gpu > 0) else "lxc"
+        default_disk_gb = int(default_resources.get("hdd") or _minimum_disk_gb(deployment_type))
+        disk_gb = _safe_int(
+            machine.get("disk_gb"),
+            default_disk_gb,
+            _minimum_disk_gb(deployment_type),
+        )
 
         machines.append(
             {
@@ -384,7 +489,11 @@ def normalize_ai_result(
 
     cores = _safe_int(ai_result.get("form_prefill", {}).get("cores") or primary_machine.get("cpu"), 2, 1)
     memory_mb = _safe_int(ai_result.get("form_prefill", {}).get("memory_mb") or primary_machine.get("memory_mb"), 2048, 512)
-    disk_gb = _safe_int(ai_result.get("form_prefill", {}).get("disk_gb") or primary_machine.get("disk_gb"), 10, 8)
+    disk_gb = _safe_int(
+        ai_result.get("form_prefill", {}).get("disk_gb") or primary_machine.get("disk_gb"),
+        _minimum_disk_gb(resource_type),
+        _minimum_disk_gb(resource_type),
+    )
     username = ""
     if resource_type == "vm":
         username = str(ai_result.get("form_prefill", {}).get("username") or "student").strip() or "student"
@@ -419,9 +528,11 @@ def normalize_ai_result(
     return {
         "persona": {
             "role": request.role,
+            "preset": request.preset,
             "course_context": request.course_context,
             "sharing_scope": request.sharing_scope,
             "budget_mode": request.budget_mode,
+            "resource_baseline": request.resource_baseline,
         },
         "device_profile": summarize_device_nodes(nodes),
         "summary": str(ai_result.get("summary") or "").strip(),

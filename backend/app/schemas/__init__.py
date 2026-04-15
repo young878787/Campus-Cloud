@@ -36,6 +36,19 @@ from .audit_log import (
     AuditLogsPublic,
     AuditUserOption,
 )
+from .cloudflare import (
+    CloudflareConfigPublic,
+    CloudflareConfigUpdate,
+    CloudflareConnectionTestResult,
+    CloudflareDNSRecordCreate,
+    CloudflareDNSRecordPublic,
+    CloudflareDNSRecordsPublic,
+    CloudflareDNSRecordUpdate,
+    CloudflarePageInfoPublic,
+    CloudflareZoneCreate,
+    CloudflareZonePublic,
+    CloudflareZonesPublic,
+)
 from .common import Message, NewPassword, Token, TokenPayload
 from .resource import (
     CurrentStatsResponse,
@@ -50,6 +63,7 @@ from .resource import (
     SnapshotCreateRequest,
     SnapshotInfo,
     SnapshotResponse,
+    SSHKeyResponse,
     TemplateSchema,
     TerminalInfoSchema,
     VMCreateRequest,
@@ -167,6 +181,7 @@ __all__ = [
     "LXCCreateRequest",
     "LXCCreateResponse",
     "ResourcePublic",
+    "SSHKeyResponse",
     "VMCreateRequest",
     "VMCreateResponse",
     "CurrentStatsResponse",
@@ -200,6 +215,18 @@ __all__ = [
     "AuditLogStats",
     "AuditActionMeta",
     "AuditUserOption",
+    # Cloudflare
+    "CloudflareConfigPublic",
+    "CloudflareConfigUpdate",
+    "CloudflareConnectionTestResult",
+    "CloudflarePageInfoPublic",
+    "CloudflareZonePublic",
+    "CloudflareZonesPublic",
+    "CloudflareZoneCreate",
+    "CloudflareDNSRecordPublic",
+    "CloudflareDNSRecordsPublic",
+    "CloudflareDNSRecordCreate",
+    "CloudflareDNSRecordUpdate",
     # Spec Change Request
     "SpecChangeRequestCreate",
     "SpecChangeRequestReview",

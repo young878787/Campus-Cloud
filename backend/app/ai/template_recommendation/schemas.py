@@ -1,6 +1,59 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field, model_validator
+
+
+PersonaPreset = Literal[
+    "student_individual",
+    "student_team_project",
+    "teaching_class_service",
+]
+
+
+PRESET_RESOURCE_BASELINES: dict[str, dict[str, dict[str, int]]] = {
+    "student_individual": {
+        "lxc": {"cpu": 1, "memory_mb": 1024, "disk_gb": 8},
+        "vm": {"cpu": 2, "memory_mb": 2048, "disk_gb": 20},
+    },
+    "student_team_project": {
+        "lxc": {"cpu": 2, "memory_mb": 2048, "disk_gb": 16},
+        "vm": {"cpu": 2, "memory_mb": 4096, "disk_gb": 40},
+    },
+    "teaching_class_service": {
+        "lxc": {"cpu": 4, "memory_mb": 8192, "disk_gb": 40},
+        "vm": {"cpu": 4, "memory_mb": 8192, "disk_gb": 60},
+    },
+}
+
+
+PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
+    "student_individual": {
+        "role": "student",
+        "course_context": "coursework",
+        "sharing_scope": "personal",
+        "budget_mode": "low-cost",
+        "expected_users": 1,
+        "experience_level": "beginner",
+    },
+    "student_team_project": {
+        "role": "student",
+        "course_context": "coursework",
+        "sharing_scope": "shared",
+        "budget_mode": "balanced",
+        "expected_users": 5,
+        "experience_level": "intermediate",
+    },
+    "teaching_class_service": {
+        "role": "teacher",
+        "course_context": "teaching",
+        "sharing_scope": "shared",
+        "budget_mode": "stable",
+        "expected_users": 30,
+        "experience_level": "intermediate",
+    },
+}
 
 
 class DeviceNode(BaseModel):
@@ -46,6 +99,7 @@ class ChatRequest(BaseModel):
 
 class RecommendationRequest(BaseModel):
     goal: str = Field(..., min_length=3)
+    preset: PersonaPreset | None = Field(default=None)
     role: str = Field(default="student")
     course_context: str = Field(default="coursework")
     sharing_scope: str = Field(default="personal")
@@ -60,5 +114,41 @@ class RecommendationRequest(BaseModel):
     experience_level: str = Field(default="beginner")
     top_k: int = Field(default=5, ge=1, le=10)
     device_nodes: list[DeviceNode] = Field(default_factory=list)
+    resource_baseline: dict[str, dict[str, int]] = Field(default_factory=dict)
     clarification_answers: list[dict[str, str]] | None = Field(default=None)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _apply_preset_defaults(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        preset = data.get("preset")
+        if not preset or preset not in PRESET_DEFAULTS:
+            return data
+
+        defaults = PRESET_DEFAULTS[preset]
+        for key, value in defaults.items():
+            if key not in data or data.get(key) in (None, ""):
+                data[key] = value
+
+        if not data.get("resource_baseline"):
+            data["resource_baseline"] = PRESET_RESOURCE_BASELINES[preset]
+
+        return data
+
+    @model_validator(mode="after")
+    def _infer_preset_when_missing(self) -> "RecommendationRequest":
+        if self.preset is None:
+            if self.role == "teacher" and self.course_context == "teaching":
+                self.preset = "teaching_class_service"
+            elif self.role == "student" and self.sharing_scope == "shared":
+                self.preset = "student_team_project"
+            else:
+                self.preset = "student_individual"
+
+        if not self.resource_baseline:
+            self.resource_baseline = PRESET_RESOURCE_BASELINES[self.preset]
+
+        return self
 

@@ -25,7 +25,11 @@ class BatchProvisionRequest(BaseModel):
     """Payload used to create one batch provisioning job."""
 
     resource_type: str = Field(..., pattern="^(lxc|qemu)$")
-    hostname_prefix: str = Field(..., min_length=1, max_length=50)
+    hostname_prefix: str = Field(
+        ..., min_length=1, max_length=50,
+        pattern=r"^[a-zA-Z0-9][a-zA-Z0-9-]*$",
+        description="Hostname prefix: ASCII letters, digits, hyphens; cannot start with hyphen",
+    )
     password: str = Field(..., min_length=6)
     cores: int = Field(2, ge=1, le=32)
     memory: int = Field(2048, ge=128, le=65536)

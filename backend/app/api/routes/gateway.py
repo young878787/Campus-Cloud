@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
 
 from app.api.deps import AdminUser, SessionDep
+from app.exceptions import BadRequestError, ProxmoxError
 from app.models import AuditAction
 from app.repositories import gateway_config as gw_repo
 from app.schemas.gateway import (
@@ -16,6 +17,7 @@ from app.schemas.gateway import (
     ServiceConfigRead,
     ServiceConfigWrite,
     ServiceStatusResult,
+    GatewayServiceVersionsResult,
 )
 from app.schemas.common import Message
 from app.services.network import gateway_service
@@ -190,6 +192,28 @@ def write_config(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/traefik/dns-challenge/sync", response_model=Message)
+def sync_traefik_dns_challenge(session: SessionDep, current_user: AdminUser):
+    """套用 Cloudflare DNS Challenge 設定到 Gateway VM 的 Traefik"""
+    try:
+        gateway_service.sync_traefik_dns_challenge(session=session)
+        audit_service.log_action(
+            session=session,
+            user_id=current_user.id,
+            action=AuditAction.gateway_config_write,
+            details="Synced Traefik dnsChallenge config from Cloudflare settings",
+        )
+        return Message(message="Traefik 已套用 Cloudflare DNS Challenge 設定")
+    except BadRequestError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except ProxmoxError as exc:
+        logger.error("Failed to sync Traefik dnsChallenge config: %s", exc)
+        raise HTTPException(status_code=502, detail="Proxmox 操作失敗")
+    except Exception:
+        logger.exception("Unexpected error syncing Traefik dnsChallenge config")
+        raise HTTPException(status_code=500, detail="同步 Traefik 憑證設定失敗")
+
+
 # ─── 服務控制 ──────────────────────────────────────────────────────────────────
 
 
@@ -204,6 +228,15 @@ def service_status(service: str, session: SessionDep, _: AdminUser):
         return ServiceStatusResult(
             service=service, active=active, status_text=status_text
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/services/versions", response_model=GatewayServiceVersionsResult)
+def get_service_versions(session: SessionDep, _: AdminUser):
+    """取得 Gateway VM 上受管理服務的版本資訊與更新建議"""
+    try:
+        return gateway_service.get_service_versions(session=session)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

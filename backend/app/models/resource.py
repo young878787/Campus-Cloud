@@ -31,6 +31,12 @@ class Resource(SQLModel, table=True):
     template_id: int | None = Field(
         default=None, description="使用的模板ID（如果是從模板創建）"
     )
+    ssh_private_key_encrypted: str | None = Field(
+        default=None, description="Fernet 加密後的 SSH 私鑰（PEM 格式）"
+    )
+    ssh_public_key: str | None = Field(
+        default=None, description="SSH 公鑰（OpenSSH 格式）"
+    )
     created_at: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False),
         description="創建時間",

@@ -241,6 +241,8 @@ def _provision_new_resource(
             os_info=request_os_info,
             expiry_date=request_expiry_date,
             template_id=request_template_id,
+            ssh_private_key_encrypted=plan.get("ssh_private_key_encrypted"),
+            ssh_public_key=plan.get("ssh_public_key"),
             commit=False,
         )
         vm_request_repo.update_vm_request_provisioning(

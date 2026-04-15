@@ -25,7 +25,17 @@
     "environmentInfoDesc": "環境タイプ、OS、有効期限",
     "environmentType": "環境タイプ",
     "osInfo": "OS",
-    "expiryDate": "有効期限"
+    "expiryDate": "有効期限",
+    "sshKey": "SSH キー",
+    "sshKeyDesc": "この仮想マシンに接続するための SSH キー",
+    "sshPublicKey": "公開鍵",
+    "sshPrivateKey": "秘密鍵",
+    "sshPrivateKeyHidden": "秘密鍵は非表示です。「表示」をクリックして表示します。",
+    "copy": "コピー",
+    "copied": "コピー済み",
+    "show": "表示",
+    "hide": "非表示",
+    "download": "ダウンロード"
   },
   "monitoring": {
     "title": "リソース監視",

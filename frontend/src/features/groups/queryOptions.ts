@@ -15,6 +15,7 @@ export function groupDetailQueryOptions(groupId: string) {
   return queryOptions({
     queryKey: queryKeys.groups.detail(groupId),
     queryFn: () => GroupsService.getGroup({ groupId }),
+    refetchInterval: 10000,
   })
 }
 
