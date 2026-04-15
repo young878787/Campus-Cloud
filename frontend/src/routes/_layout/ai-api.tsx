@@ -438,7 +438,12 @@ function AiApiPage() {
 
   const requests = requestsQuery.data?.data ?? []
   const credentials = credentialsQuery.data?.data ?? []
-  const activeCredentials = credentials.filter((item) => !item.revoked_at)
+  const activeCredentials = credentials.filter(
+    (item) => !item.revoked_at && !isExpired(item.expires_at),
+  )
+  const expiredCredentials = credentials.filter(
+    (item) => !item.revoked_at && isExpired(item.expires_at),
+  )
   const approvedRequests = requests.filter((item) => item.status === "approved")
 
   return (
@@ -457,6 +462,7 @@ function AiApiPage() {
         <div className="flex flex-wrap gap-3">
           <StatPill label="申請紀錄" value={requests.length} />
           <StatPill label="使用中金鑰" value={activeCredentials.length} />
+          <StatPill label="過期金鑰" value={expiredCredentials.length} />
           <StatPill label="已通過申請" value={approvedRequests.length} />
         </div>
       </div>

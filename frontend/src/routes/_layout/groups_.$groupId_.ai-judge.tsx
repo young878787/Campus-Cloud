@@ -14,7 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { requireAdminUser } from "@/features/auth/guards"
+import { requireGroupManagerUser } from "@/features/auth/guards"
 import {
   AiJudgeService,
   downloadBlob,
@@ -35,7 +35,7 @@ import useCustomToast from "@/hooks/useCustomToast"
 
 export const Route = createFileRoute("/_layout/groups_/$groupId_/ai-judge")({
   component: AiJudgePage,
-  beforeLoad: () => requireAdminUser(),
+  beforeLoad: () => requireGroupManagerUser(),
   head: () => ({
     meta: [{ title: "AI 評分助手 - Campus Cloud" }],
   }),

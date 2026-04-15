@@ -64,6 +64,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { requireGroupManagerUser } from "@/features/auth/guards"
 import { GroupFeatureService } from "@/features/groups/api"
 import { groupDetailQueryOptions } from "@/features/groups/queryOptions"
+import useAuth from "@/hooks/useAuth"
 import useCustomToast from "@/hooks/useCustomToast"
 import { queryKeys } from "@/lib/queryKeys"
 
@@ -148,9 +149,11 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
 function VmStatusBadge({
   vmid,
   status,
+  detailView,
 }: {
   vmid?: number | null
   status?: string | null
+  detailView?: "admin" | "my" | null
 }) {
   if (!vmid) {
     return (
@@ -179,14 +182,37 @@ function VmStatusBadge({
       </span>
     )
 
+  if (detailView === "admin") {
+    return (
+      <Link
+        to="/resources/$vmid"
+        params={{ vmid: String(vmid) }}
+        className="hover:opacity-70 transition-opacity"
+      >
+        {inner}
+      </Link>
+    )
+  }
+
+  if (detailView === "my") {
+    return (
+      <Link
+        to="/my-resources/$vmid"
+        params={{ vmid: String(vmid) }}
+        className="hover:opacity-70 transition-opacity"
+      >
+        {inner}
+      </Link>
+    )
+  }
+
   return (
-    <Link
-      to="/resources/$vmid"
-      params={{ vmid: String(vmid) }}
-      className="hover:opacity-70 transition-opacity"
+    <span
+      className="inline-flex items-center"
+      title="教師檢視模式：僅顯示狀態摘要"
     >
       {inner}
-    </Link>
+    </span>
   )
 }
 
@@ -969,7 +995,10 @@ function BatchProvisionDialog({
 
 function GroupDetailContent({ groupId }: { groupId: string }) {
   const queryClient = useQueryClient()
+  const { user: currentUser } = useAuth()
   const { showSuccessToast, showErrorToast } = useCustomToast()
+  const canOpenAdminResourceDetail =
+    currentUser?.role === "admin" || currentUser?.is_superuser || false
 
   const { data: group } = useSuspenseQuery(groupDetailQueryOptions(groupId))
   const members = (group.members ?? []) as GroupMemberWithRuntimeStats[]
@@ -1025,6 +1054,11 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
         <h2 className="text-lg font-semibold mb-3">
           成員列表（{members.length} 人）
         </h2>
+        {!canOpenAdminResourceDetail && (
+          <p className="mb-3 text-xs text-muted-foreground">
+            教師檢視模式：僅提供 VM 狀態與即時資源摘要，不會直接導向管理員資源詳情頁。
+          </p>
+        )}
         {members.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             尚無成員，點擊「加入成員」開始新增
@@ -1086,6 +1120,13 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
                         <VmStatusBadge
                           vmid={member.vmid}
                           status={member.vm_status}
+                          detailView={
+                            canOpenAdminResourceDetail
+                              ? "admin"
+                              : currentUser?.id === member.user_id
+                                ? "my"
+                                : null
+                          }
                         />
                         <VmRuntimeIndicators member={member} />
                       </div>
