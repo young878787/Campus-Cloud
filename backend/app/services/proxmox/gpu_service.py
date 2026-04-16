@@ -163,8 +163,9 @@ def _resolve_vram_for_mapping(
         mdev_type_vram = _get_mdev_types(first_map.node, first_map.path)
 
         # Total VRAM = largest mdev profile (full-card profile) × physical GPUs
-        if mdev_type_vram:
-            max_profile_vram = max(mdev_type_vram.values())
+        positive_profile_vram = [v for v in mdev_type_vram.values() if v > 0]
+        if positive_profile_vram:
+            max_profile_vram = max(positive_profile_vram)
             total_vram_mb = max_profile_vram * physical_gpu_count
         elif per_card_vram_mb:
             total_vram_mb = per_card_vram_mb * physical_gpu_count
