@@ -434,6 +434,19 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
+function formatModelDisplay(modelName?: string | null): string {
+  if (!modelName) return "-"
+  const trimmed = modelName.trim()
+  if (!trimmed) return "-"
+
+  const match = trimmed.match(/models--([^/]+)--([^/]+)/)
+  if (!match) return trimmed
+
+  const org = match[1]
+  const name = match[2]
+  return `${org}/${name}`
+}
+
 function UsageStatCard({
   label,
   value,
@@ -557,8 +570,8 @@ function MyUsageTab({
                         key={model}
                         className="grid grid-cols-[minmax(0,1fr)_80px_80px_80px] items-center gap-4 px-4 py-2.5 text-sm"
                       >
-                        <span className="truncate font-mono text-xs">
-                          {model}
+                        <span className="truncate font-mono text-xs" title={model}>
+                          {formatModelDisplay(model)}
                         </span>
                         <span className="text-right text-muted-foreground">
                           {stats.requests} 次
