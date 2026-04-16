@@ -8,7 +8,8 @@
     "admin": "管理員",
     "settings": "設定",
     "language": "語言",
-    "appearance": "外觀"
+    "appearance": "外觀",
+    "gpuManagement": "GPU 管理"
   },
   "pageTitle": {
     "dashboard": "儀表板 - Campus Cloud",

@@ -21,6 +21,7 @@ import { Route as LayoutResourcesCreateRouteImport } from './routes/_layout/reso
 import { Route as LayoutResourcesRouteImport } from './routes/_layout/resources'
 import { Route as LayoutMyResourcesRouteImport } from './routes/_layout/my-resources'
 import { Route as LayoutGroupsRouteImport } from './routes/_layout/groups'
+import { Route as LayoutGpuManagementRouteImport } from './routes/_layout/gpu-management'
 import { Route as LayoutFirewallRouteImport } from './routes/_layout/firewall'
 import { Route as LayoutApprovalsRouteImport } from './routes/_layout/approvals'
 import { Route as LayoutApplicationsCreateRouteImport } from './routes/_layout/applications-create'
@@ -100,6 +101,11 @@ const LayoutMyResourcesRoute = LayoutMyResourcesRouteImport.update({
 const LayoutGroupsRoute = LayoutGroupsRouteImport.update({
   id: '/groups',
   path: '/groups',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutGpuManagementRoute = LayoutGpuManagementRouteImport.update({
+  id: '/gpu-management',
+  path: '/gpu-management',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutFirewallRoute = LayoutFirewallRouteImport.update({
@@ -228,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/applications-create': typeof LayoutApplicationsCreateRoute
   '/approvals': typeof LayoutApprovalsRoute
   '/firewall': typeof LayoutFirewallRoute
+  '/gpu-management': typeof LayoutGpuManagementRoute
   '/groups': typeof LayoutGroupsRoute
   '/my-resources': typeof LayoutMyResourcesRoute
   '/resources': typeof LayoutResourcesRoute
@@ -260,6 +267,7 @@ export interface FileRoutesByTo {
   '/applications-create': typeof LayoutApplicationsCreateRoute
   '/approvals': typeof LayoutApprovalsRoute
   '/firewall': typeof LayoutFirewallRoute
+  '/gpu-management': typeof LayoutGpuManagementRoute
   '/groups': typeof LayoutGroupsRoute
   '/my-resources': typeof LayoutMyResourcesRoute
   '/resources': typeof LayoutResourcesRoute
@@ -296,6 +304,7 @@ export interface FileRoutesById {
   '/_layout/applications-create': typeof LayoutApplicationsCreateRoute
   '/_layout/approvals': typeof LayoutApprovalsRoute
   '/_layout/firewall': typeof LayoutFirewallRoute
+  '/_layout/gpu-management': typeof LayoutGpuManagementRoute
   '/_layout/groups': typeof LayoutGroupsRoute
   '/_layout/my-resources': typeof LayoutMyResourcesRoute
   '/_layout/resources': typeof LayoutResourcesRoute
@@ -333,6 +342,7 @@ export interface FileRouteTypes {
     | '/applications-create'
     | '/approvals'
     | '/firewall'
+    | '/gpu-management'
     | '/groups'
     | '/my-resources'
     | '/resources'
@@ -365,6 +375,7 @@ export interface FileRouteTypes {
     | '/applications-create'
     | '/approvals'
     | '/firewall'
+    | '/gpu-management'
     | '/groups'
     | '/my-resources'
     | '/resources'
@@ -400,6 +411,7 @@ export interface FileRouteTypes {
     | '/_layout/applications-create'
     | '/_layout/approvals'
     | '/_layout/firewall'
+    | '/_layout/gpu-management'
     | '/_layout/groups'
     | '/_layout/my-resources'
     | '/_layout/resources'
@@ -514,6 +526,13 @@ declare module '@tanstack/react-router' {
       path: '/groups'
       fullPath: '/groups'
       preLoaderRoute: typeof LayoutGroupsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/gpu-management': {
+      id: '/_layout/gpu-management'
+      path: '/gpu-management'
+      fullPath: '/gpu-management'
+      preLoaderRoute: typeof LayoutGpuManagementRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/firewall': {
@@ -699,6 +718,7 @@ interface LayoutRouteChildren {
   LayoutApplicationsCreateRoute: typeof LayoutApplicationsCreateRoute
   LayoutApprovalsRoute: typeof LayoutApprovalsRoute
   LayoutFirewallRoute: typeof LayoutFirewallRoute
+  LayoutGpuManagementRoute: typeof LayoutGpuManagementRoute
   LayoutGroupsRoute: typeof LayoutGroupsRoute
   LayoutMyResourcesRoute: typeof LayoutMyResourcesRoute
   LayoutResourcesRoute: typeof LayoutResourcesRoute
@@ -723,6 +743,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutApplicationsCreateRoute: LayoutApplicationsCreateRoute,
   LayoutApprovalsRoute: LayoutApprovalsRoute,
   LayoutFirewallRoute: LayoutFirewallRoute,
+  LayoutGpuManagementRoute: LayoutGpuManagementRoute,
   LayoutGroupsRoute: LayoutGroupsRoute,
   LayoutMyResourcesRoute: LayoutMyResourcesRoute,
   LayoutResourcesRoute: LayoutResourcesRoute,

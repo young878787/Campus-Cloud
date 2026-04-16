@@ -356,6 +356,9 @@ def create_vm(
             "sshkeys": quote(public_key, safe=""),
             "ciupgrade": 0,
         }
+        gpu_mapping_id = getattr(vm_data, "gpu_mapping_id", None)
+        if gpu_mapping_id:
+            config_updates["hostpci0"] = f"mapping={gpu_mapping_id}"
         proxmox_service.update_config(target_node, new_vmid, "qemu", **config_updates)
 
         if vm_data.disk_size:
@@ -485,6 +488,8 @@ def plan_provision(*, session: Session, db_request) -> dict:
         plan["template_node"] = template["node"]
         plan["disk_size"] = db_request.disk_size
         plan["username"] = db_request.username
+        if db_request.gpu_mapping_id:
+            plan["gpu_mapping_id"] = db_request.gpu_mapping_id
         plan["target_storage"] = _resolve_managed_storage(
             session=session,
             node=target_node,
@@ -589,6 +594,8 @@ def execute_provision(plan: dict) -> tuple[int, str]:
                 "sshkeys": quote(plan.get("ssh_public_key", ""), safe=""),
                 "ciupgrade": 0,
             }
+            if plan.get("gpu_mapping_id"):
+                config_updates["hostpci0"] = f"mapping={plan['gpu_mapping_id']}"
             proxmox_service.update_config(actual_node, new_vmid, "qemu", **config_updates)
 
             if plan.get("disk_size"):

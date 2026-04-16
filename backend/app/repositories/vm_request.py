@@ -43,6 +43,7 @@ def create_vm_request(
         template_id=vm_request_in.template_id,
         disk_size=vm_request_in.disk_size,
         username=vm_request_in.username,
+        gpu_mapping_id=vm_request_in.gpu_mapping_id,
         status=VMRequestStatus.pending,
         migration_status=VMMigrationStatus.idle,
         created_at=datetime.now(timezone.utc),

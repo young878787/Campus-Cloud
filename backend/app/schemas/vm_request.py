@@ -65,6 +65,7 @@ class VMRequestCreate(BaseModel):
     template_id: int | None = None
     disk_size: int | None = None
     username: str | None = None
+    gpu_mapping_id: str | None = None
 
 
 class VMRequestReview(BaseModel):
@@ -95,6 +96,7 @@ class VMRequestPublic(BaseModel):
     template_id: int | None = None
     disk_size: int | None = None
     username: str | None = None
+    gpu_mapping_id: str | None = None
 
     status: VMRequestStatus
     reviewer_id: uuid.UUID | None = None

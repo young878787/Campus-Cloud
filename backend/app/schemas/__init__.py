@@ -134,6 +134,15 @@ from .proxmox_config import (
     ProxmoxConfigUpdate,
     ProxmoxConnectionTestResult,
 )
+from .gpu import (
+    GPUMappingCreate,
+    GPUMappingDetail,
+    GPUMappingPublic,
+    GPUMappingsPublic,
+    GPUMappingUpdate,
+    GPUSummary,
+    GPUUsageInfo,
+)
 from .script_deploy import (
     ScriptDeployRequest,
     ScriptDeployResponse,

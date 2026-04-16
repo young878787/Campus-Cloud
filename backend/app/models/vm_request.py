@@ -62,6 +62,7 @@ class VMRequest(SQLModel, table=True):
     template_id: int | None = Field(default=None)
     disk_size: int | None = Field(default=None)
     username: str | None = Field(default=None)
+    gpu_mapping_id: str | None = Field(default=None)
 
     status: VMRequestStatus = Field(
         default=VMRequestStatus.pending,
