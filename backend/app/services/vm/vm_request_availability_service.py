@@ -94,7 +94,7 @@ def assess_existing_request(
         disk_size=int(db_request.disk_size or 0) or None,
         rootfs_size=int(db_request.rootfs_size or 0) or None,
         instance_count=1,
-        gpu_required=0,
+        gpu_required=1 if db_request.gpu_mapping_id else 0,
         days=days,
         timezone=timezone,
         policy_role=role,
@@ -131,7 +131,7 @@ def validate_request_window(
             rootfs_size=getattr(request_in, "rootfs_size", None),
         ),
         instance_count=1,
-        gpu_required=0,
+        gpu_required=1 if bool(getattr(request_in, "gpu_mapping_id", None)) else 0,
     )
     selection = vm_request_placement_service.select_reserved_target_node_for_request(
         session=session,

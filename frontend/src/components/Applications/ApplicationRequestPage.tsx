@@ -228,6 +228,10 @@ export function ApplicationRequestPage() {
     control: form.control,
     name: "immediate_no_end",
   })
+  const watchedGpuMappingId = useWatch({
+    control: form.control,
+    name: "gpu_mapping_id",
+  })
 
   function getSelectedTemplateLabel() {
     if (resourceType === "lxc") {
@@ -316,11 +320,56 @@ export function ApplicationRequestPage() {
     enabled: resourceType === "vm",
   })
 
+  const isScheduledMode = watchedMode !== "immediate"
+  const hasSelectedWindow = Boolean(watchedStartAt && watchedEndAt)
+  const canLoadGpuOptions =
+    resourceType === "vm" && (!isScheduledMode || hasSelectedWindow)
+  const gpuOptionsQueryParams = useMemo(
+    () =>
+      isScheduledMode
+        ? {
+            startAt: watchedStartAt || undefined,
+            endAt: watchedEndAt || undefined,
+          }
+        : undefined,
+    [isScheduledMode, watchedEndAt, watchedStartAt],
+  )
+
   const { data: gpuOptions } = useQuery({
-    queryKey: queryKeys.gpu.options,
-    queryFn: () => GpuService.listOptions(),
-    enabled: resourceType === "vm",
+    queryKey: queryKeys.gpu.options(gpuOptionsQueryParams),
+    queryFn: () => GpuService.listOptions(gpuOptionsQueryParams),
+    enabled: canLoadGpuOptions,
   })
+
+  const updateFormValue = useCallback(
+    (field: keyof FormData, value: FormData[keyof FormData]) => {
+      form.setValue(field, value as never, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      })
+    },
+    [form],
+  )
+
+  useEffect(() => {
+    if (resourceType !== "vm") return
+    if (!canLoadGpuOptions && watchedGpuMappingId) {
+      updateFormValue("gpu_mapping_id", "")
+      return
+    }
+    if (!watchedGpuMappingId || !gpuOptions) return
+    const exists = gpuOptions.some((gpu) => gpu.mapping_id === watchedGpuMappingId)
+    if (!exists) {
+      updateFormValue("gpu_mapping_id", "")
+    }
+  }, [
+    canLoadGpuOptions,
+    gpuOptions,
+    resourceType,
+    updateFormValue,
+    watchedGpuMappingId,
+  ])
 
   const selectedTemplateLabel = getSelectedTemplateLabel()
 
@@ -347,17 +396,6 @@ export function ApplicationRequestPage() {
     },
     onError: (err) => handleError.call(showErrorToast, err as ApiError),
   })
-
-  const updateFormValue = useCallback(
-    (field: keyof FormData, value: FormData[keyof FormData]) => {
-      form.setValue(field, value as never, {
-        shouldDirty: true,
-        shouldTouch: true,
-        shouldValidate: true,
-      })
-    },
-    [form],
-  )
 
   const handleImportPlan = useCallback(
     (prefill: ImportedFormPrefill | undefined) => {
@@ -428,9 +466,39 @@ export function ApplicationRequestPage() {
     [updateFormValue],
   )
 
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data)
-  }
+  const onSubmit = useCallback(
+    async (data: FormData) => {
+      const selectedGpuId = data.gpu_mapping_id?.trim()
+
+      if (data.resource_type === "vm" && selectedGpuId) {
+        const queryParams =
+          data.mode === "scheduled"
+            ? {
+                startAt: data.start_at || undefined,
+                endAt: data.end_at || undefined,
+              }
+            : undefined
+
+        const latestGpuOptions = await queryClient.fetchQuery({
+          queryKey: queryKeys.gpu.options(queryParams),
+          queryFn: () => GpuService.listOptions(queryParams),
+          staleTime: 0,
+        })
+
+        const selectedGpu = latestGpuOptions.find(
+          (gpu) => gpu.mapping_id === selectedGpuId,
+        )
+
+        if (!selectedGpu) {
+          showErrorToast("目前所選時段的 GPU 已不可用，請重新選擇時段或 GPU。")
+          return
+        }
+      }
+
+      mutation.mutate(data)
+    },
+    [mutation, queryClient, showErrorToast],
+  )
 
   useEffect(() => {
     const updateDesktopPanelFrame = () => {
@@ -1129,9 +1197,19 @@ export function ApplicationRequestPage() {
                     </div>
 
                     {/* GPU Selection */}
-                    {gpuOptions && gpuOptions.length > 0 && (
+                    {resourceType === "vm" && (
                       <div className="rounded-2xl border bg-muted/20 p-5">
                         <h3 className="mb-4 font-medium">GPU 加速</h3>
+                        {isScheduledMode && !hasSelectedWindow && (
+                          <p className="mb-3 text-xs text-muted-foreground">
+                            請先選擇租借時段，再載入該時段可用的 GPU。
+                          </p>
+                        )}
+                        {canLoadGpuOptions && (!gpuOptions || gpuOptions.length === 0) && (
+                          <p className="mb-3 text-xs text-muted-foreground">
+                            此時段目前沒有可用 GPU，可改選其他時段或不使用 GPU。
+                          </p>
+                        )}
                         <FormField
                           control={form.control}
                           name="gpu_mapping_id"
@@ -1139,6 +1217,7 @@ export function ApplicationRequestPage() {
                             <FormItem>
                               <FormLabel>選擇 GPU（可選）</FormLabel>
                               <Select
+                                disabled={!canLoadGpuOptions || !gpuOptions || gpuOptions.length === 0}
                                 onValueChange={(value) =>
                                   field.onChange(
                                     value === "__none__" ? "" : value,
@@ -1148,14 +1227,20 @@ export function ApplicationRequestPage() {
                               >
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="不需要 GPU" />
+                                    <SelectValue
+                                      placeholder={
+                                        canLoadGpuOptions
+                                          ? "不需要 GPU"
+                                          : "請先選擇時段"
+                                      }
+                                    />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                   <SelectItem value="__none__">
                                     不需要 GPU
                                   </SelectItem>
-                                  {gpuOptions.map((gpu: GPUSummary) => (
+                                  {(gpuOptions || []).map((gpu: GPUSummary) => (
                                     <SelectItem
                                       key={gpu.mapping_id}
                                       value={gpu.mapping_id}
@@ -1191,8 +1276,7 @@ export function ApplicationRequestPage() {
                                 </SelectContent>
                               </Select>
                               <p className="text-xs text-muted-foreground">
-                                GPU 將透過 PCI Passthrough 或 vGPU
-                                方式分配給虛擬機
+                                GPU 會依所選時段重新計算可用性，送出前仍會再做一次檢查。
                               </p>
                               <FormMessage />
                             </FormItem>
@@ -1249,6 +1333,8 @@ export function ApplicationRequestPage() {
                           ? Number(watchedRootfsSize || 0)
                           : null,
                       instance_count: 1,
+                      gpu_required:
+                        resourceType === "vm" && watchedGpuMappingId ? 1 : 0,
                       days: 7,
                       timezone: "Asia/Taipei",
                     }}

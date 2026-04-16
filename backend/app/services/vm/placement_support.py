@@ -600,5 +600,5 @@ def to_placement_request(db_request: VMRequest) -> PlacementRequest:
         memory_mb=int(db_request.memory or 512),
         disk_gb=disk_gb,
         instance_count=1,
-        gpu_required=0,
+        gpu_required=1 if bool(getattr(db_request, "gpu_mapping_id", None)) else 0,
     )

@@ -23,7 +23,7 @@ from app.repositories import resource as resource_repo
 from app.repositories import vm_request as vm_request_repo
 from app.services.network import firewall_service
 from app.services.network import tunnel_proxy_service
-from app.services.proxmox import proxmox_service
+from app.services.proxmox import gpu_service, proxmox_service
 from app.services.user import audit_service
 from app.services.vm import vm_request_placement_service
 
@@ -110,6 +110,18 @@ def cleanup_provisioned_resource(vmid: int) -> None:
     _cleanup_failed_resource(resource["node"], vmid, resource["type"])
 
 
+def _gpu_mapping_nodes(mapping_id: str | None) -> set[str]:
+    if not mapping_id:
+        return set()
+
+    mapping = gpu_service.get_gpu_mapping(str(mapping_id))
+    return {
+        str(item.node).strip()
+        for item in mapping.maps
+        if str(item.node).strip()
+    }
+
+
 def _select_request_placement(
     *,
     session: Session,
@@ -117,10 +129,18 @@ def _select_request_placement(
     placement_request,
     placement_strategy: str,
 ):
+    compatible_nodes = _gpu_mapping_nodes(getattr(db_request, "gpu_mapping_id", None))
+
     pinned_node = getattr(db_request, "desired_node", None) or getattr(
         db_request, "assigned_node", None
     )
     if pinned_node:
+        if compatible_nodes and str(pinned_node) not in compatible_nodes:
+            raise ProxmoxError(
+                f"Pinned node '{pinned_node}' is not compatible with GPU mapping "
+                f"'{getattr(db_request, 'gpu_mapping_id', '')}'."
+            )
+
         nodes, resources = advisor_service._load_cluster_state()
         cpu_overcommit_ratio, disk_overcommit_ratio = (
             vm_request_placement_service.get_overcommit_ratios(session)
@@ -168,6 +188,11 @@ def _select_request_placement(
                 reserved_requests=reserved_requests,
             )
             if fallback.node and fallback.plan.feasible:
+                if compatible_nodes and str(fallback.node) not in compatible_nodes:
+                    raise ProxmoxError(
+                        f"No feasible GPU-compatible node for mapping "
+                        f"'{getattr(db_request, 'gpu_mapping_id', '')}' in the selected time window."
+                    )
                 logger.warning(
                     "Reserved node %s is no longer feasible for request %s; falling back to %s",
                     pinned_node,
@@ -177,10 +202,16 @@ def _select_request_placement(
                 return fallback
         return placement
 
-    return vm_request_placement_service.select_current_target_node(
+    selection = vm_request_placement_service.select_current_target_node(
         session=session,
         db_request=db_request,
     )
+    if compatible_nodes and selection.node and str(selection.node) not in compatible_nodes:
+        raise ProxmoxError(
+            f"Selected node '{selection.node}' is not compatible with GPU mapping "
+            f"'{getattr(db_request, 'gpu_mapping_id', '')}'."
+        )
+    return selection
 
 
 def _get_lxc_target_node() -> str:

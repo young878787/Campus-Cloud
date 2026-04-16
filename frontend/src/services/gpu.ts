@@ -99,10 +99,17 @@ export const GpuService = {
     })
   },
 
-  listOptions(): CancelablePromise<GPUSummary[]> {
+  listOptions(params?: {
+    startAt?: string
+    endAt?: string
+  }): CancelablePromise<GPUSummary[]> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/gpu/options",
+      query: {
+        start_at: params?.startAt,
+        end_at: params?.endAt,
+      },
       errors: { 422: "Validation Error" },
     })
   },
