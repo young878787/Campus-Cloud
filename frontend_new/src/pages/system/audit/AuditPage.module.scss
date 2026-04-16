@@ -1,0 +1,143 @@
+@use "../../../assets/styles/variables" as *;
+@use "../../../assets/styles/mixins" as *;
+
+.page {
+  @include flex-column;
+  gap: $spacing-24;
+  padding: $spacing-8 $spacing-16;
+  flex: 1;
+
+  @include respond-to(md) {
+    padding: 0;
+  }
+}
+
+.pageHeader {
+  @include flex-between;
+  flex-wrap: wrap;
+  gap: $spacing-16;
+  align-items: center;
+}
+
+.pageHeading {
+  @include flex-column;
+  gap: $spacing-4;
+}
+
+.pageTitle {
+  font-size: $font-size-24;
+  font-weight: $font-weight-700;
+  color: var(--color-text-primary);
+
+  @include respond-to(sm) {
+    font-size: $font-size-28;
+  }
+}
+
+.pageSubtitle {
+  font-size: $font-size-14;
+  color: var(--color-text-secondary);
+}
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px $spacing-16;
+  border-radius: $radius-8;
+  font-size: $font-size-14;
+  font-weight: $font-weight-500;
+  cursor: pointer;
+  white-space: nowrap;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  transition: background $transition-base;
+
+  &:hover {
+    background: var(--color-hover);
+  }
+}
+
+.content {
+  flex: 1;
+  @include flex-column;
+}
+
+/* ── Empty state ── */
+.empty {
+  flex: 1;
+  @include flex-column;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-16;
+  padding: $spacing-48 $spacing-16;
+  text-align: center;
+}
+
+.emptyIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: $radius-16;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  @include flex-center;
+}
+
+.emptyTitle {
+  font-size: $font-size-18;
+  font-weight: $font-weight-700;
+  color: var(--color-text-primary);
+}
+
+.emptyDesc {
+  font-size: $font-size-14;
+  color: var(--color-text-primary);
+  max-width: 320px;
+  line-height: $line-height-base;
+}
+
+/* ── Table ── */
+.tableWrap {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: $radius-16;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.th {
+  padding: $spacing-8 $spacing-16;
+  font-size: $font-size-12;
+  font-weight: $font-weight-500;
+  color: var(--color-text-muted);
+  text-align: left;
+  background: var(--color-hover);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.tr {
+  transition: background $transition-base;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  &:hover {
+    background: var(--color-hover);
+  }
+}
+
+.td {
+  padding: $spacing-8 $spacing-16;
+  font-size: $font-size-14;
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}

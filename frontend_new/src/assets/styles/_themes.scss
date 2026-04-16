@@ -1,0 +1,93 @@
+/* ============================================
+   Theme Variables (CSS Custom Properties)
+   切換 body.dark 即可套用深色主題
+   ============================================ */
+
+:root {
+  /* ----- Backgrounds ----- */
+  --color-bg-base: #e8f0fd;
+  --color-bg-gradient-blue: #c1daff;
+  --color-bg-gradient-yellow: #feffed;
+  --color-bg-gradient-green: #edfff6;
+  --color-bg-gradient-opacity: 1;
+
+  /* ----- Surfaces ----- */
+  --color-surface: #ffffff;
+  --color-sidebar: #ffffff;
+  --color-sidebar-glass: rgba(255, 255, 255, 0.5);
+  --color-sidebar-glass-border: rgba(255, 255, 255, 0.35);
+
+  /* ----- Brand ----- */
+  --color-primary: #5471bf;
+  --color-primary-dark: #2b4d98;
+  --color-primary-light: #6a7fb3;
+
+  /* ----- Text ----- */
+  --color-text: #5471bf;
+  --color-text-primary: #3a549d;
+  --color-text-secondary: #617dc8;
+  --color-text-muted: #8291aa;
+  --color-text-on-primary: #ffffff;
+
+  /* ----- Borders & dividers ----- */
+  --color-border: #e5eaf3;
+  --color-divider: #eef2f9;
+
+  /* ----- Interactive ----- */
+  --color-hover: #e8efff;
+  --color-overlay: rgba(20, 30, 60, 0.25);
+
+  /* ----- Status ----- */
+  --color-success: #28a745;
+  --color-warning: #ffc107;
+  --color-danger: #dc3545;
+
+  /* ----- Shadows ----- */
+  --shadow-sm: 0 1px 3px rgba(67, 90, 149, 0.08);
+  --shadow-md: 0 4px 12px rgba(67, 90, 149, 0.08);
+  --shadow-lg: 0 8px 24px rgba(67, 90, 149, 0.12);
+}
+
+/* ============================================
+   Dark Theme
+   深色背景延續三色暈染概念，但壓低飽和、提高對比
+   ============================================ */
+
+body.dark {
+  /* ----- Backgrounds ----- */
+  --color-bg-base: #0d1117;
+  --color-bg-gradient-blue: #1a2a48;
+  --color-bg-gradient-yellow: #2a2618;
+  --color-bg-gradient-green: #0f2a22;
+
+  /* ----- Surfaces ----- */
+  --color-surface: #161b26;
+  --color-sidebar: #161b26;
+  --color-sidebar-glass: rgba(22, 27, 38, 0.65);
+  --color-sidebar-glass-border: rgba(255, 255, 255, 0.06);
+
+  /* ----- Brand ----- */
+  --color-primary: #4361a2;
+  --color-primary-dark: rgb(47, 78, 140);
+  --color-primary-light: #89a5e0;
+
+  /* ----- Text ----- */
+  --color-text: #d4deef;
+  --color-text-primary: #f0f4ff;
+  --color-text-secondary: #8494b0;
+  --color-text-muted: #5c6880;
+  --color-text-on-primary: #ffffff;
+
+  /* ----- Borders ----- */
+  --color-border: #2a3142;
+  --color-divider: #1f2636;
+
+  /* ----- Interactive ----- */
+  --color-hover: #1f2636;
+  --color-overlay: rgba(0, 0, 0, 0.6);
+
+  /* ----- Shadows ----- */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+}

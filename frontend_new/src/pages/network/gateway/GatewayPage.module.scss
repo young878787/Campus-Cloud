@@ -1,0 +1,121 @@
+@use "../../../assets/styles/variables" as *;
+@use "../../../assets/styles/mixins" as *;
+
+.page {
+  @include flex-column;
+  gap: $spacing-16;
+  padding: $spacing-8 $spacing-16;
+  flex: 1;
+
+  @include respond-to(md) {
+    padding: 0;
+  }
+}
+
+.pageHeader {
+  @include flex-between;
+  flex-wrap: wrap;
+  gap: $spacing-16;
+  align-items: center;
+}
+
+.pageHeading {
+  @include flex-column;
+  gap: $spacing-4;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-16;
+}
+
+.pageTitle {
+  font-size: $font-size-24;
+  font-weight: $font-weight-700;
+  color: var(--color-text-primary);
+
+  @include respond-to(sm) {
+    font-size: $font-size-28;
+  }
+}
+
+.ipBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: $radius-pill;
+  font-size: $font-size-12;
+  font-weight: $font-weight-500;
+  background: #1a9e5f;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.pageSubtitle {
+  font-size: $font-size-14;
+  color: var(--color-text-secondary);
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: $spacing-4;
+  flex-wrap: wrap;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px $spacing-16;
+  border-radius: $radius-pill;
+  font-size: $font-size-14;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background $transition-base, color $transition-base;
+
+  &:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+
+  &.tabActive {
+    background: var(--color-text);
+    color: var(--color-surface);
+    font-weight: $font-weight-500;
+  }
+}
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  @include flex-column;
+}
+
+/* ── Empty state ── */
+.empty {
+  flex: 1;
+  @include flex-column;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-16;
+  padding: $spacing-48 $spacing-16;
+  text-align: center;
+}
+
+.emptyIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: $radius-16;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  @include flex-center;
+}
+
+.emptyTitle {
+  font-size: $font-size-18;
+  font-weight: $font-weight-700;
+  color: var(--color-text-primary);
+}

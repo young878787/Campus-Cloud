@@ -1,0 +1,436 @@
+/* ===== Sidebar ===== */
+.sidebar {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  bottom: 20px;
+  width: $sidebar-width;
+  background: var(--color-sidebar-glass);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  color: var(--color-text);
+  @include flex-column;
+  z-index: 100;
+  transform: translateX(calc(-100% - 12px));
+  transition: transform 0.3s ease, width 0.25s ease, background-color 0.3s ease;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: $radius-16;
+  border: 1px solid var(--color-sidebar-glass-border);
+  box-shadow: var(--shadow-md);
+
+  &.mobileOpen {
+    transform: translateX(0);
+  }
+
+  @include respond-to(md) {
+    position: sticky;
+    top: var(--layout-py);
+    left: auto;
+    bottom: auto;
+    height: calc(100vh - var(--layout-py) * 2);
+    height: calc(100dvh - var(--layout-py) * 2);
+    transform: none;
+    z-index: auto;
+    align-self: stretch;
+    flex-shrink: 0;
+
+    &.collapsed {
+      width: $sidebar-width-collapsed;
+    }
+  }
+
+  /* ----- Scrollbar (細 + 跟著主題色) ----- */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: $radius-pill;
+  }
+}
+
+/* ===== Brand ===== */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: $spacing-8;
+  padding: $spacing-16 $spacing-24;
+  cursor: pointer;
+  user-select: none;
+
+  .collapsed & {
+    justify-content: center;
+    padding: $spacing-16 $spacing-4;
+  }
+}
+
+.brandIcon {
+  @include flex-center;
+  width: 24px;
+  height: 24px;
+  border-radius: $radius-8;
+  background: var(--color-text-secondary);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.brandText {
+  font-weight: $font-weight-700;
+  font-size: $font-size-16;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  flex: 1;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  flex-shrink: 0;
+}
+
+/* ===== Nav ===== */
+.nav {
+  @include flex-column;
+  gap: 2px;
+  padding: $spacing-8 $spacing-16;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ===== Group ===== */
+.group {
+  @include flex-column;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-8 + 4px;
+  padding: 8px $spacing-8;
+  border-radius: $radius-8;
+  width: 100%;
+  text-align: left;
+  color: var(--color-text-secondary);
+  font-size: $font-size-14;
+  font-weight: $font-weight-500;
+  transition: background $transition-base, color $transition-base;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+
+  &.groupHeaderActive {
+    color: var(--color-text);
+  }
+
+  .collapsed & {
+    justify-content: center;
+    padding: 10px;
+    gap: 0;
+  }
+}
+
+.groupLabel {
+  flex: 1;
+  @include text-truncate;
+}
+
+.groupChevron {
+  display: flex;
+  align-items: center;
+  transition: transform $transition-base;
+  opacity: 0.5;
+  flex-shrink: 0;
+
+  .collapsed & {
+    display: none;
+  }
+
+  &.open {
+    transform: rotate(90deg);
+  }
+}
+
+.groupItems {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+
+  &.groupItemsOpen {
+    grid-template-rows: 1fr;
+  }
+
+  .collapsed & {
+    grid-template-rows: 0fr;
+  }
+}
+
+.groupItemsInner {
+  @include flex-column;
+  gap: 2px;
+  padding-left: $spacing-16;
+  overflow: hidden;
+
+  .collapsed & {
+    padding-left: 0;
+  }
+}
+
+/* ===== Nav Item ===== */
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-8 + 4px;
+  padding: 8px $spacing-8;
+  border-radius: $radius-8;
+  color: var(--color-text-secondary);
+  font-size: $font-size-14;
+  text-align: left;
+  white-space: nowrap;
+  width: 100%;
+  transition: background $transition-base, color $transition-base;
+
+  &:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+
+  &.active {
+    background: var(--color-primary);
+    color: var(--color-text-on-primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .collapsed & {
+    justify-content: center;
+    padding: 10px;
+    gap: 0;
+  }
+}
+
+.navLabel {
+  flex: 1;
+  @include text-truncate;
+}
+
+/* ===== Appearance Popup ===== */
+.appearanceWrap {
+  position: relative;
+}
+
+.appearancePopup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: $radius-12;
+  box-shadow: var(--shadow-md);
+  padding: $spacing-4;
+  @include flex-column;
+  gap: 2px;
+  z-index: 200;
+
+  .collapsed & {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: max-content;
+  }
+}
+
+.optionFlag {
+  font-size: 16px;
+  line-height: 1;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.appearanceOption {
+  display: flex;
+  align-items: center;
+  gap: $spacing-8;
+  padding: 7px $spacing-8;
+  border-radius: $radius-8;
+  font-size: $font-size-14;
+  color: var(--color-text-secondary);
+  width: 100%;
+  text-align: left;
+  transition: background $transition-base, color $transition-base;
+
+  &:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+
+  &.appearanceOptionActive {
+    background: var(--color-primary);
+    color: var(--color-text-on-primary);
+  }
+}
+
+/* ===== Bottom ===== */
+.bottom {
+  @include flex-column;
+  gap: 4px;
+  padding: $spacing-8 $spacing-16;
+  border-top: 1px solid var(--color-sidebar-glass-border);
+}
+
+/* ===== User Popup ===== */
+.userPopup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: $radius-12;
+  box-shadow: var(--shadow-md);
+  padding: $spacing-4;
+  z-index: 200;
+
+  .collapsed & {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: max-content;
+  }
+}
+
+.userPopupHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-8;
+  padding: $spacing-8;
+}
+
+.userPopupAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  @include flex-center;
+  font-size: $font-size-14;
+  font-weight: $font-weight-700;
+  flex-shrink: 0;
+}
+
+.userPopupInfo {
+  @include flex-column;
+  min-width: 0;
+
+  .userName {
+    font-size: $font-size-14;
+    font-weight: $font-weight-500;
+    color: var(--color-text);
+    @include text-truncate;
+  }
+
+  .userEmail {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    @include text-truncate;
+  }
+}
+
+.userPopupDivider {
+  height: 1px;
+  background: var(--color-border);
+  margin: $spacing-4 0;
+}
+
+.userPopupItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-8;
+  padding: 7px $spacing-8;
+  border-radius: $radius-8;
+  font-size: $font-size-14;
+  color: var(--color-text-secondary);
+  width: 100%;
+  text-align: left;
+  transition: background $transition-base, color $transition-base;
+
+  &:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+
+  &.userPopupItemDanger {
+    color: var(--color-error, #e53e3e);
+    &:hover {
+      background: color-mix(in srgb, var(--color-error, #e53e3e) 10%, transparent);
+    }
+  }
+}
+
+/* ===== User ===== */
+.user {
+  display: flex;
+  align-items: center;
+  gap: $spacing-8 + 2px;
+  padding: $spacing-8;
+  margin-top: $spacing-4;
+  border-radius: $radius-12;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background $transition-base;
+
+  &:hover {
+    background: var(--color-hover);
+  }
+
+  &.userActive {
+    background: var(--color-primary);
+    color: var(--color-text-on-primary);
+
+    .userName { color: var(--color-text-on-primary); }
+    .userEmail { color: color-mix(in srgb, var(--color-text-on-primary) 75%, transparent); }
+    .avatar    { background: rgba(255,255,255,0.25); }
+  }
+
+  .collapsed & {
+    justify-content: center;
+    padding: $spacing-8 $spacing-4;
+  }
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-text-primary);
+  color: #fff;
+  @include flex-center;
+  flex-shrink: 0;
+}
+
+.userInfo {
+  @include flex-column;
+  min-width: 0;
+  flex: 1;
+}
+
+.userName {
+  font-size: $font-size-14;
+  font-weight: $font-weight-500;
+  color: var(--color-text-primary);
+  @include text-truncate;
+}
+
+.userEmail {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  @include text-truncate;
+}

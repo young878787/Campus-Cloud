@@ -1,0 +1,75 @@
+.layout {
+  --layout-py: 30px;
+  --layout-px: 60px;
+  display: flex;
+  flex: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+  gap: 20px;
+  padding: $spacing-8;
+
+  @include respond-to(md) {
+    padding: var(--layout-py) var(--layout-px);
+  }
+}
+
+/* Mobile overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-overlay);
+  z-index: 99;
+
+  @include respond-to(md) {
+    display: none;
+  }
+}
+
+/* Main content area */
+.main {
+  flex: 1;
+  min-width: 0;
+  @include flex-column;
+  position: relative;
+
+  @include respond-to(md) {
+    padding-left: 20px;
+  }
+}
+
+/* Mobile top bar */
+.mobileTopBar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-8;
+  padding: $spacing-8 $spacing-16;
+
+  @include respond-to(md) {
+    display: none;
+  }
+}
+
+.mobileMenuBtn {
+  @include flex-center;
+  padding: $spacing-8;
+  background: var(--color-sidebar-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--color-sidebar-glass-border);
+  border-radius: $radius-8;
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text);
+}
+
+/* Footer */
+.footer {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: left;
+  margin-top: auto;
+  padding: $spacing-8 0;
+
+  @include respond-to(md) {
+    padding: 0;
+  }
+}

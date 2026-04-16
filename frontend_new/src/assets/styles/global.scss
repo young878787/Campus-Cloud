@@ -1,0 +1,26 @@
+@use "themes";
+@use "reset";
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  @include flex-column;
+}
+
+/* ===== 全頁面三色暈染背景 ===== */
+body {
+  position: relative;
+
+  &::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 100% 60% at 100% 0%, var(--color-bg-gradient-blue) 0%, transparent 100%),
+      radial-gradient(ellipse 100% 80% at 0% 90%, var(--color-bg-gradient-yellow) 0%, transparent 100%),
+      radial-gradient(ellipse 150% 70% at 100% 100%, var(--color-bg-gradient-green) 0%, transparent 100%);
+    transition: opacity 0.3s ease;
+  }
+}
