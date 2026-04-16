@@ -42,6 +42,7 @@ import useCustomToast from "@/hooks/useCustomToast"
 import { queryKeys } from "@/lib/queryKeys"
 import { toVmRequestCreateRequestBody } from "@/lib/resourcePayloads"
 import { cn } from "@/lib/utils"
+import { GpuService, type GPUSummary } from "@/services/gpu"
 import { VmRequestsApi } from "@/services/vmRequests"
 import { handleError } from "@/utils"
 import { AiChatPanel, type AiPlanResult } from "./AiChatPanel"
@@ -150,6 +151,7 @@ export function ApplicationRequestPage() {
         username: z.string().optional(),
         cores: z.number().min(1).max(8),
         memory: z.number().min(512).max(32768),
+        gpu_mapping_id: z.string().optional(),
         password: z
           .string()
           .min(1, { message: t("validation:password.required") })
@@ -181,6 +183,7 @@ export function ApplicationRequestPage() {
       username: "",
       cores: 2,
       memory: 2048,
+      gpu_mapping_id: "",
       disk_size: 20,
       rootfs_size: 8,
       password: "",
@@ -310,6 +313,12 @@ export function ApplicationRequestPage() {
   const { data: vmTemplates, isLoading: vmTemplatesLoading } = useQuery({
     queryKey: queryKeys.resources.templates.vm,
     queryFn: () => VmService.getVmTemplates(),
+    enabled: resourceType === "vm",
+  })
+
+  const { data: gpuOptions } = useQuery({
+    queryKey: queryKeys.gpu.options,
+    queryFn: () => GpuService.listOptions(),
     enabled: resourceType === "vm",
   })
 
@@ -1118,6 +1127,79 @@ export function ApplicationRequestPage() {
                         />
                       </div>
                     </div>
+
+                    {/* GPU Selection */}
+                    {gpuOptions && gpuOptions.length > 0 && (
+                      <div className="rounded-2xl border bg-muted/20 p-5">
+                        <h3 className="mb-4 font-medium">GPU 加速</h3>
+                        <FormField
+                          control={form.control}
+                          name="gpu_mapping_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>選擇 GPU（可選）</FormLabel>
+                              <Select
+                                onValueChange={(value) =>
+                                  field.onChange(
+                                    value === "__none__" ? "" : value,
+                                  )
+                                }
+                                value={field.value || "__none__"}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="不需要 GPU" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="__none__">
+                                    不需要 GPU
+                                  </SelectItem>
+                                  {gpuOptions.map((gpu: GPUSummary) => (
+                                    <SelectItem
+                                      key={gpu.mapping_id}
+                                      value={gpu.mapping_id}
+                                      disabled={gpu.available_count <= 0}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span>{gpu.description || gpu.mapping_id}</span>
+                                        {gpu.has_mdev && (
+                                          <span className="text-xs text-blue-500">vGPU</span>
+                                        )}
+                                        {gpu.total_vram_mb > 0 && (
+                                          <span className="text-xs text-muted-foreground">
+                                            ({gpu.total_vram_mb >= 1024 ? `${(gpu.total_vram_mb / 1024).toFixed(0)} GB` : `${gpu.total_vram_mb} MB`}
+                                            {gpu.has_mdev && gpu.used_vram_mb > 0 ? `, 已分配 ${gpu.used_vram_mb >= 1024 ? `${(gpu.used_vram_mb / 1024).toFixed(0)} GB` : `${gpu.used_vram_mb} MB`}` : ""})
+                                          </span>
+                                        )}
+                                        {!gpu.total_vram_mb && gpu.vram && (
+                                          <span className="text-xs text-muted-foreground">
+                                            ({gpu.vram})
+                                          </span>
+                                        )}
+                                        <span className="text-xs text-muted-foreground">
+                                          [{gpu.available_count}/{gpu.device_count} 可用]
+                                        </span>
+                                        {gpu.available_count <= 0 && (
+                                          <span className="text-xs text-destructive">
+                                            已滿
+                                          </span>
+                                        )}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
+                                GPU 將透過 PCI Passthrough 或 vGPU
+                                方式分配給虛擬機
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
                   </TabsContent>
 
                   <FormField

@@ -8,7 +8,8 @@
     "admin": "Admin",
     "settings": "Settings",
     "language": "Language",
-    "appearance": "Appearance"
+    "appearance": "Appearance",
+    "gpuManagement": "GPU Management"
   },
   "pageTitle": {
     "dashboard": "Dashboard - Campus Cloud",

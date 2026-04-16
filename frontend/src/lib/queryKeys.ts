@@ -62,6 +62,11 @@ export const queryKeys = {
     adminCredentialsCount: (status: string) =>
       ["ai-api", "admin-credentials", "count", status] as const,
   },
+  gpu: {
+    mappings: ["gpu-mappings"] as const,
+    mapping: (id: string) => ["gpu-mapping", id] as const,
+    options: ["gpu-options"] as const,
+  },
   aiMonitoring: {
     stats: (params: unknown) => ["ai-monitoring", "stats", params] as const,
     apiCalls: (params: unknown) =>
