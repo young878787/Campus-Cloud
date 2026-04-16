@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 import logging
 import threading
 import time
@@ -99,10 +100,43 @@ def get_active_host() -> str:
     return get_proxmox_settings().host
 
 
+def _task_log_tail(
+    proxmox: ProxmoxAPI,
+    *,
+    node_name: str,
+    task_id: str,
+    limit: int,
+) -> list[str]:
+    try:
+        raw_entries = proxmox.nodes(node_name).tasks(task_id).log.get() or []
+    except Exception as exc:
+        logger.warning("Failed to fetch task log for %s on %s: %s", task_id, node_name, exc)
+        return []
+
+    lines: list[str] = []
+    for entry in raw_entries[-max(limit, 0) :]:
+        if isinstance(entry, dict):
+            text = (
+                entry.get("t")
+                or entry.get("msg")
+                or entry.get("message")
+                or entry.get("line")
+                or ""
+            )
+        else:
+            text = entry
+        rendered = str(text or "").strip()
+        if rendered:
+            lines.append(rendered)
+    return lines
+
+
 def basic_blocking_task_status(
     node_name: str,
     task_id: str,
     check_interval: int | None = None,
+    progress_callback: Callable[[dict], None] | None = None,
+    task_log_tail_lines: int = 8,
 ) -> dict:
     if check_interval is None:
         check_interval = get_proxmox_settings().task_check_interval
@@ -123,6 +157,17 @@ def basic_blocking_task_status(
             exitstatus,
         )
 
+        if progress_callback is not None:
+            try:
+                progress_callback(data)
+            except Exception as exc:
+                logger.warning(
+                    "Task progress callback failed for %s on %s: %s",
+                    task_id,
+                    node_name,
+                    exc,
+                )
+
         if status == "stopped":
             if exitstatus == "OK" or (
                 isinstance(exitstatus, str) and exitstatus.startswith("WARNINGS")
@@ -138,6 +183,14 @@ def basic_blocking_task_status(
                 return data
 
             error_msg = f"Task {task_id} failed with exitstatus: {exitstatus}"
+            log_tail = _task_log_tail(
+                proxmox,
+                node_name=node_name,
+                task_id=task_id,
+                limit=task_log_tail_lines,
+            )
+            if log_tail:
+                error_msg = f"{error_msg}. Task log tail: {' | '.join(log_tail)}"
             logger.error(error_msg)
             raise ProxmoxError(error_msg)
 
@@ -148,10 +201,14 @@ async def wait_for_task_status(
     node_name: str,
     task_id: str,
     check_interval: int | None = None,
+    progress_callback: Callable[[dict], None] | None = None,
+    task_log_tail_lines: int = 8,
 ) -> dict:
     return await asyncio.to_thread(
         basic_blocking_task_status,
         node_name,
         task_id,
         check_interval,
+        progress_callback,
+        task_log_tail_lines,
     )

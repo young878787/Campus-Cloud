@@ -661,6 +661,7 @@ def _migrate_request_to_desired_node(
             block_reason,
         )
         return current_node, False
+    started_at = _utc_now()
     if job is not None:
         vm_migration_job_repo.update_job_status(
             session=session,
@@ -669,7 +670,7 @@ def _migrate_request_to_desired_node(
             last_error=None,
             attempt_delta=1,
             available_at=None,
-            started_at=now,
+            started_at=started_at,
             source_node=current_node,
             target_node=desired_node,
             vmid=request.vmid,
@@ -690,15 +691,43 @@ def _migrate_request_to_desired_node(
         last_migrated_at=request.last_migrated_at,
         commit=False,
     )
+    claim_refresh_interval_seconds = max(
+        5,
+        min(
+            max(int(policy.claim_timeout_seconds or 0) // 3, 5),
+            30,
+        ),
+    )
+    last_claim_refresh = time.monotonic()
+
+    def _heartbeat(_: dict) -> None:
+        nonlocal last_claim_refresh
+        if job is None:
+            return
+        if (time.monotonic() - last_claim_refresh) < claim_refresh_interval_seconds:
+            return
+        vm_migration_job_repo.extend_job_claim(
+            session=session,
+            job=job,
+            now=_utc_now(),
+            claim_timeout_seconds=policy.claim_timeout_seconds,
+            commit=True,
+        )
+        last_claim_refresh = time.monotonic()
+
+    if job is not None:
+        session.commit()
     proxmox_service.migrate_resource(
         current_node,
         desired_node,
         request.vmid,
         resource_type,
         online=online,
+        progress_callback=_heartbeat if job is not None else None,
     )
     migrated_resource = proxmox_service.find_resource(request.vmid)
     new_actual_node = str(migrated_resource["node"])
+    finished_at = _utc_now()
     if job is not None:
         vm_migration_job_repo.update_job_status(
             session=session,
@@ -716,7 +745,7 @@ def _migrate_request_to_desired_node(
             source_node=current_node,
             target_node=desired_node,
             vmid=request.vmid,
-            finished_at=now,
+            finished_at=finished_at,
             commit=False,
         )
     vm_request_repo.update_vm_request_provisioning(
@@ -739,7 +768,9 @@ def _migrate_request_to_desired_node(
         ),
         rebalance_epoch=request.rebalance_epoch,
         last_rebalanced_at=request.last_rebalanced_at,
-        last_migrated_at=now if new_actual_node == desired_node else request.last_migrated_at,
+        last_migrated_at=(
+            finished_at if new_actual_node == desired_node else request.last_migrated_at
+        ),
         commit=False,
     )
     audit_service.log_action(
@@ -781,6 +812,7 @@ def _process_pending_migration_jobs(
     )
     if not claimed_jobs:
         return 0
+    session.commit()
 
     migrations_used = 0
     active_request_map = {request.id: request for request in active_requests}
@@ -790,15 +822,18 @@ def _process_pending_migration_jobs(
             request_id=job.request_id,
             for_update=True,
         )
-        if request is None or request.status != VMRequestStatus.approved:
-            vm_migration_job_repo.update_job_status(
+        if request is None:
+            deleted_jobs = vm_migration_job_repo.delete_jobs_for_request(
                 session=session,
-                job=job,
-                status=VMMigrationJobStatus.cancelled,
-                last_error="Migration queue entry was cancelled because the request no longer exists.",
-                finished_at=now,
+                request_id=job.request_id,
                 commit=False,
             )
+            logger.warning(
+                "Deleted %s orphaned migration job(s) for missing request %s",
+                deleted_jobs,
+                job.request_id,
+            )
+            session.commit()
             continue
         if request.id not in active_request_map:
             vm_migration_job_repo.update_job_status(
@@ -809,6 +844,7 @@ def _process_pending_migration_jobs(
                 finished_at=now,
                 commit=False,
             )
+            session.commit()
             continue
 
         try:
@@ -835,6 +871,7 @@ def _process_pending_migration_jobs(
                 db_request=request,
                 commit=False,
             )
+            session.commit()
             continue
 
         desired_node = str(request.desired_node or request.assigned_node or "")
@@ -866,6 +903,7 @@ def _process_pending_migration_jobs(
                 last_migrated_at=request.last_migrated_at,
                 commit=False,
             )
+            session.commit()
             continue
 
         try:
@@ -880,6 +918,7 @@ def _process_pending_migration_jobs(
             )
             if migrated:
                 migrations_used += 1
+            session.commit()
         except Exception as exc:
             exceeded_retry_limit = int(job.attempt_count or 0) >= policy.retry_limit > 0
             new_status = (
@@ -931,6 +970,7 @@ def _process_pending_migration_jobs(
                 job.id,
                 request.id,
             )
+            session.commit()
 
     return migrations_used
 

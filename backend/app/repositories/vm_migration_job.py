@@ -134,6 +134,26 @@ def cancel_pending_jobs_for_request(
     return len(jobs)
 
 
+def delete_jobs_for_request(
+    *,
+    session: Session,
+    request_id: uuid.UUID,
+    commit: bool = True,
+) -> int:
+    jobs = list(
+        session.exec(
+            select(VMMigrationJob).where(VMMigrationJob.request_id == request_id)
+        ).all()
+    )
+    for job in jobs:
+        session.delete(job)
+    if commit:
+        session.commit()
+    elif jobs:
+        session.flush()
+    return len(jobs)
+
+
 def list_pending_jobs_for_requests(
     *,
     session: Session,
@@ -269,6 +289,29 @@ def update_job_status(
     return job
 
 
+def extend_job_claim(
+    *,
+    session: Session,
+    job: VMMigrationJob,
+    now: datetime,
+    claim_timeout_seconds: int,
+    commit: bool = True,
+) -> VMMigrationJob:
+    normalized_now = _normalize_datetime(now) or now
+    job.claimed_at = normalized_now
+    job.claim_expires_at = normalized_now + timedelta(
+        seconds=max(int(claim_timeout_seconds or 0), 1)
+    )
+    job.updated_at = normalized_now
+    session.add(job)
+    if commit:
+        session.commit()
+        session.refresh(job)
+    else:
+        session.flush()
+    return job
+
+
 def list_all_jobs(
     *,
     session: Session,
@@ -355,6 +398,8 @@ __all__ = [
     "cancel_pending_jobs_for_request",
     "claim_jobs_for_requests",
     "create_or_update_pending_job",
+    "delete_jobs_for_request",
+    "extend_job_claim",
     "get_job_by_id",
     "get_latest_job_for_request",
     "get_migration_stats",

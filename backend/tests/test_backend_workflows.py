@@ -34,6 +34,7 @@ from app.schemas import (
 )
 from app.infrastructure.proxmox import operations as proxmox_service
 from app.services.proxmox import provisioning_service
+from app.services.scheduling import support as scheduling_support
 from app.services.scheduling import vm_request_schedule_service
 from app.services.user import user_service
 from app.services.vm import spec_change_service, vm_request_placement_service, vm_request_service
@@ -2133,6 +2134,123 @@ def test_delete_user_rejects_owned_resources(db: Session) -> None:
     assert db.get(User, owner.id) is not None
 
 
+def test_delete_user_removes_owned_migration_jobs(db: Session) -> None:
+    owner = _create_user(db)
+    admin = _create_user(db, is_superuser=True)
+    now = datetime.now(timezone.utc)
+    request = VMRequest(
+        id=uuid.uuid4(),
+        user_id=owner.id,
+        reason="Cleanup request",
+        resource_type="vm",
+        hostname="cleanup-vm",
+        cores=2,
+        memory=2048,
+        password="encrypted",
+        storage="local-lvm",
+        environment_type="Cleanup",
+        status=VMRequestStatus.pending,
+        created_at=now,
+    )
+    db.add(request)
+    db.flush()
+    job = VMMigrationJob(
+        request_id=request.id,
+        vmid=166,
+        source_node="pve",
+        target_node="pve2",
+        status=VMMigrationJobStatus.pending,
+        rebalance_epoch=9,
+        requested_at=now,
+        updated_at=now,
+    )
+    db.add(job)
+    db.commit()
+
+    user_service.delete_user(session=db, user_id=owner.id, current_user=admin)
+
+    assert db.get(User, owner.id) is None
+    assert db.get(VMRequest, request.id) is None
+    assert db.get(VMMigrationJob, job.id) is None
+
+
+@pytest.mark.parametrize(
+    ("vmid", "desired_node", "actual_node", "expected_reason"),
+    [
+        (
+            None,
+            "pve2",
+            "pve",
+            "Migration queue cleared because the request no longer has a VMID.",
+        ),
+        (
+            166,
+            None,
+            "pve",
+            "Migration queue cleared because the request no longer has a desired target node.",
+        ),
+        (
+            166,
+            "pve2",
+            "pve2",
+            "Migration queue cleared because the request is already on the target node.",
+        ),
+    ],
+)
+def test_sync_request_migration_job_uses_specific_clear_reason(
+    db: Session,
+    vmid: int | None,
+    desired_node: str | None,
+    actual_node: str | None,
+    expected_reason: str,
+) -> None:
+    now = datetime.now(timezone.utc)
+    request = VMRequest(
+        id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        reason="Status detail test",
+        resource_type="vm",
+        hostname="status-detail-vm",
+        cores=2,
+        memory=2048,
+        password="encrypted",
+        storage="local-lvm",
+        environment_type="Cleanup",
+        status=VMRequestStatus.approved,
+        vmid=vmid,
+        desired_node=desired_node,
+        assigned_node=desired_node,
+        actual_node=actual_node,
+        migration_status=VMMigrationStatus.pending,
+        created_at=now,
+    )
+    job = VMMigrationJob(
+        request_id=request.id,
+        vmid=166,
+        source_node="pve",
+        target_node="pve2",
+        status=VMMigrationJobStatus.pending,
+        rebalance_epoch=1,
+        requested_at=now,
+        updated_at=now,
+    )
+    db.add(request)
+    db.add(job)
+    db.commit()
+
+    scheduling_support.sync_request_migration_job(
+        session=db,
+        request=request,
+        source_node=actual_node,
+        now=now,
+    )
+    db.commit()
+    db.refresh(job)
+
+    assert job.status == VMMigrationJobStatus.cancelled
+    assert job.last_error == expected_reason
+
+
 def test_vm_templates_are_filtered_by_pool(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "app.infrastructure.proxmox.operations.get_proxmox_settings",
@@ -2561,3 +2679,186 @@ def test_process_pending_migration_jobs_reclaims_expired_running_claim(
     assert job.claimed_by is None
     assert request.actual_node == "pve-a"
     assert request.migration_status == VMMigrationStatus.completed
+
+
+def test_process_pending_migration_jobs_deletes_orphaned_jobs(
+    db: Session,
+) -> None:
+    now = datetime.now(timezone.utc)
+    request = VMRequest(
+        id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        reason="Orphan cleanup test",
+        resource_type="vm",
+        hostname="orphan-cleanup-vm",
+        cores=2,
+        memory=2048,
+        password="encrypted",
+        storage="local-lvm",
+        environment_type="Cleanup",
+        status=VMRequestStatus.approved,
+        start_at=now - timedelta(minutes=1),
+        end_at=now + timedelta(hours=1),
+        vmid=994,
+        assigned_node="pve",
+        desired_node="pve2",
+        actual_node="pve",
+        migration_status=VMMigrationStatus.pending,
+        created_at=now,
+    )
+    job = VMMigrationJob(
+        request_id=request.id,
+        vmid=994,
+        source_node="pve",
+        target_node="pve2",
+        status=VMMigrationJobStatus.pending,
+        rebalance_epoch=9,
+        requested_at=now,
+        updated_at=now,
+    )
+    db.add(request)
+    db.add(job)
+    db.commit()
+
+    stale_request = request
+    db.delete(request)
+    db.commit()
+
+    migrations_used = vm_request_schedule_service._process_pending_migration_jobs(
+        session=db,
+        now=now,
+        policy=vm_request_schedule_service._MigrationPolicy(
+            enabled=True,
+            max_per_rebalance=2,
+            min_interval_minutes=0,
+            retry_limit=3,
+            worker_concurrency=1,
+            claim_timeout_seconds=300,
+            retry_backoff_seconds=120,
+        ),
+        active_requests=[stale_request],
+    )
+
+    assert migrations_used == 0
+    assert db.get(VMMigrationJob, job.id) is None
+
+
+def test_migrate_request_to_desired_node_refreshes_job_claim_while_waiting(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    now = datetime.now(timezone.utc)
+    request = VMRequest(
+        id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        reason="Heartbeat test",
+        resource_type="vm",
+        hostname="heartbeat-vm",
+        cores=2,
+        memory=2048,
+        password="encrypted",
+        storage="local-lvm",
+        environment_type="Heartbeat",
+        status=VMRequestStatus.approved,
+        start_at=now - timedelta(minutes=1),
+        end_at=now + timedelta(hours=1),
+        vmid=993,
+        assigned_node="pve-a",
+        desired_node="pve-b",
+        actual_node="pve-a",
+        migration_status=VMMigrationStatus.pending,
+        created_at=now,
+    )
+    job = VMMigrationJob(
+        request_id=request.id,
+        vmid=993,
+        source_node="pve-a",
+        target_node="pve-b",
+        status=VMMigrationJobStatus.pending,
+        rebalance_epoch=1,
+        requested_at=now - timedelta(minutes=1),
+        updated_at=now - timedelta(minutes=1),
+    )
+    db.add(request)
+    db.add(job)
+    db.commit()
+
+    refresh_calls: list[datetime] = []
+    monotonic_values = iter([0.0, 16.0, 16.0, 32.0])
+    utc_values = iter([now, now + timedelta(seconds=16), now + timedelta(seconds=35)])
+
+    monkeypatch.setattr(
+        "app.services.scheduling.coordinator.time.monotonic",
+        lambda: next(monotonic_values),
+    )
+    monkeypatch.setattr(
+        "app.services.scheduling.coordinator._utc_now",
+        lambda: next(utc_values),
+    )
+    monkeypatch.setattr(
+        "app.services.scheduling.coordinator.proxmox_service.get_status",
+        lambda node, vmid, resource_type: {"status": "running"},
+    )
+    monkeypatch.setattr(
+        "app.services.scheduling.coordinator.proxmox_service.get_config",
+        lambda node, vmid, resource_type: {
+            "scsi0": "local-lvm:vm-993-disk-0,size=20G",
+        },
+    )
+    monkeypatch.setattr(
+        "app.services.scheduling.coordinator.proxmox_service.list_node_storages",
+        lambda node: [{"storage": "local-lvm"}],
+    )
+    monkeypatch.setattr(
+        "app.services.scheduling.coordinator.proxmox_service.find_resource",
+        lambda vmid: {"vmid": vmid, "node": "pve-b", "name": "heartbeat-vm", "type": "qemu"},
+    )
+
+    original_extend = vm_request_schedule_service.vm_migration_job_repo.extend_job_claim
+
+    def _extend_job_claim(**kwargs):
+        refresh_calls.append(kwargs["now"])
+        return original_extend(**kwargs)
+
+    monkeypatch.setattr(
+        "app.services.scheduling.coordinator.vm_migration_job_repo.extend_job_claim",
+        _extend_job_claim,
+    )
+
+    def _migrate(source_node, target_node, vmid, resource_type, online=True, progress_callback=None, **kwargs):
+        assert progress_callback is not None
+        progress_callback({"status": "running"})
+        return "UPID:migrate"
+
+    monkeypatch.setattr(
+        "app.services.scheduling.coordinator.proxmox_service.migrate_resource",
+        _migrate,
+    )
+    monkeypatch.setattr(
+        "app.services.scheduling.coordinator.audit_service.log_action",
+        lambda *args, **kwargs: None,
+    )
+
+    result_node, migrated = vm_request_schedule_service._migrate_request_to_desired_node(
+        session=db,
+        request=request,
+        current_node="pve-a",
+        now=now,
+        policy=vm_request_schedule_service._MigrationPolicy(
+            enabled=True,
+            max_per_rebalance=2,
+            min_interval_minutes=0,
+            retry_limit=3,
+            worker_concurrency=1,
+            claim_timeout_seconds=30,
+            retry_backoff_seconds=120,
+        ),
+        migrations_used=0,
+        job=job,
+    )
+
+    db.refresh(job)
+    assert migrated is True
+    assert result_node == "pve-b"
+    assert len(refresh_calls) == 1
+    assert refresh_calls[0] == now + timedelta(seconds=16)
+    assert job.claimed_by is None

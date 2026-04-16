@@ -68,6 +68,15 @@ export const MigrationJobsService = {
     })
   },
 
+  get(data: { jobId: string }): CancelablePromise<MigrationJob> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/migration-jobs/{job_id}",
+      path: { job_id: data.jobId },
+      errors: { 422: "Validation Error" },
+    })
+  },
+
   retry(data: { jobId: string }): CancelablePromise<MigrationJob> {
     return __request(OpenAPI, {
       method: "POST",

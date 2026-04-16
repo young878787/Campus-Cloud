@@ -5,6 +5,7 @@ control, resize, specs, session ticket, etc.) so that callers no longer
 duplicate the same cluster.resources iteration or qemu/lxc dispatch logic.
 """
 
+from collections.abc import Callable
 import logging
 from typing import Literal
 
@@ -309,6 +310,7 @@ def migrate_resource(
     *,
     online: bool = True,
     with_local_disks: bool = True,
+    progress_callback: Callable[[dict], None] | None = None,
 ) -> str:
     if source_node == target_node:
         raise BadRequestError("Source and target nodes must be different for migration")
@@ -324,7 +326,11 @@ def migrate_resource(
             params["restart"] = 1
 
     task = _resource_api(source_node, vmid, resource_type).migrate.post(**params)
-    basic_blocking_task_status(source_node, task)
+    basic_blocking_task_status(
+        source_node,
+        task,
+        progress_callback=progress_callback,
+    )
     return task
 
 

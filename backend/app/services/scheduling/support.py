@@ -210,11 +210,30 @@ def sync_request_migration_job(
 ) -> None:
     desired_node = str(request.desired_node or request.assigned_node or "")
     actual_node = str(source_node or request.actual_node or request.assigned_node or "")
-    if request.vmid is None or not desired_node or desired_node == actual_node:
+    if request.vmid is None:
         vm_migration_job_repo.cancel_pending_jobs_for_request(
             session=session,
             request_id=request.id,
-            reason="Migration queue cleared because the request is already aligned.",
+            reason="Migration queue cleared because the request no longer has a VMID.",
+            commit=False,
+        )
+        return
+    if not desired_node:
+        vm_migration_job_repo.cancel_pending_jobs_for_request(
+            session=session,
+            request_id=request.id,
+            reason=(
+                "Migration queue cleared because the request no longer has a "
+                "desired target node."
+            ),
+            commit=False,
+        )
+        return
+    if desired_node == actual_node:
+        vm_migration_job_repo.cancel_pending_jobs_for_request(
+            session=session,
+            request_id=request.id,
+            reason="Migration queue cleared because the request is already on the target node.",
             commit=False,
         )
         return

@@ -32,6 +32,7 @@ from .vm_migration_job import (
     cancel_pending_jobs_for_request,
     claim_jobs_for_requests,
     create_or_update_pending_job,
+    delete_jobs_for_request,
     get_latest_job_for_request,
     get_open_job_for_request,
     list_pending_jobs_for_requests,
