@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 from fastapi import HTTPException
 
-from app.core.config import settings
+from app.ai.teacher_judge.config import settings
 from app.schemas.rubric import ChatMessage, RubricAnalysis, RubricItem
 
 

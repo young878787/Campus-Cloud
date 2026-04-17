@@ -7,8 +7,8 @@ import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import Response
 
+from app.ai.teacher_judge.config import settings
 from app.api.deps.auth import InstructorUser
-from app.core.config import settings
 from app.schemas.rubric import RubricChatRequest, RubricExportRequest
 from app.services.rubric_parser import parse_document
 from app.services.rubric_service import (

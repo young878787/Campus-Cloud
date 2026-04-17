@@ -155,8 +155,8 @@ async def chat(message: str) -> ChatResponse:
             "messages": messages,
             "tools": _TOOLS,
             "tool_choice": "auto",
-            "temperature": 0.1,
-            "max_tokens": 4096,
+            "temperature": settings.vllm_temperature,
+            "max_tokens": settings.vllm_max_tokens,
         }
 
         try:
@@ -215,8 +215,8 @@ async def chat(message: str) -> ChatResponse:
             payload2: dict[str, Any] = {
                 "model": settings.vllm_model_name,
                 "messages": messages,
-                "temperature": 0.1,
-                "max_tokens": 4096,
+                "temperature": settings.vllm_temperature,
+                "max_tokens": settings.vllm_max_tokens,
             }
             try:
                 resp2 = await client.post(url, json=payload2, headers=headers)
