@@ -64,6 +64,9 @@ class VMRequest(SQLModel, table=True):
     username: str | None = Field(default=None)
     gpu_mapping_id: str | None = Field(default=None)
 
+    service_template_slug: str | None = Field(default=None)
+    service_template_script_path: str | None = Field(default=None)
+
     status: VMRequestStatus = Field(
         default=VMRequestStatus.pending,
         sa_column=Column(

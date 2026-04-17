@@ -36,6 +36,8 @@ type SharedResourceFormInput = {
   username?: string
   gpu_mapping_id?: string
   expiry_date?: string
+  service_template_slug?: string
+  service_template_script_path?: string
 }
 
 type ApplicationRequestFormInput = SharedResourceFormInput & {
@@ -54,6 +56,8 @@ export type VmRequestCreateRequestBody = Omit<
   start_at?: string
   end_at?: string
   gpu_mapping_id?: string
+  service_template_slug?: string
+  service_template_script_path?: string
 }
 
 type NormalizedLxcPayload = {
@@ -246,6 +250,10 @@ export function toVmRequestCreateRequestBody(
     start_at: window.start_at,
     end_at: window.end_at,
     gpu_mapping_id: trimToUndefined(values.gpu_mapping_id),
+    service_template_slug: trimToUndefined(values.service_template_slug),
+    service_template_script_path: trimToUndefined(
+      values.service_template_script_path,
+    ),
   }
 
   if (payload.resource_type === "lxc") {

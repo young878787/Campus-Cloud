@@ -179,6 +179,11 @@ def _provision_new_resource(
     resource_type = _resource_type_for_request(request)
     desired_node = str(request.desired_node or request.assigned_node or "")
 
+    # Service template deployment path: community-scripts creates the LXC
+    # itself, so skip normal clone-based provisioning.
+    if resource_type == "lxc" and request.service_template_slug:
+        return _provision_via_service_template(session=session, request=request)
+
     # --- Phase 1: mark as provisioning + plan (short txn) -----------------
     request.status = VMRequestStatus.provisioning
     session.add(request)
@@ -305,6 +310,133 @@ def _provision_new_resource(
         request_id, new_vmid, actual_node,
     )
     return new_vmid, actual_node, plan["placement_strategy"]
+
+
+def _provision_via_service_template(
+    *,
+    session: Session,
+    request: VMRequest,
+) -> tuple[int, str, str | None]:
+    """Provision LXC by running a community-scripts template (e.g. docker/nginx).
+
+    The community script creates the container itself; we just trigger it
+    synchronously via SSH then record the resulting vmid/node in our DB.
+    """
+    from app.core.security import decrypt_value
+    from app.services.network import script_deploy_service
+
+    request_id = request.id
+    request_user_id = request.user_id
+    request_env_type = request.environment_type
+    request_os_info = request.os_info
+    request_expiry_date = request.expiry_date
+    template_slug = str(request.service_template_slug or "")
+    script_path = request.service_template_script_path or f"ct/{template_slug}.sh"
+    hostname = request.hostname
+    cores = int(request.cores or 2)
+    memory = int(request.memory or 2048)
+    disk = int(request.rootfs_size or 8)
+
+    try:
+        password_plain = decrypt_value(request.password)
+    except Exception as exc:
+        logger.error("Failed to decrypt password for request %s: %s", request_id, exc)
+        raise
+
+    # Mark provisioning and close txn before the long-running SSH deploy.
+    request.status = VMRequestStatus.provisioning
+    session.add(request)
+    session.commit()
+    logger.info(
+        "Marked request %s as provisioning (service template %s)",
+        request_id, template_slug,
+    )
+
+    try:
+        new_vmid, _task = script_deploy_service.deploy_for_vm_request_sync(
+            user_id=str(request_user_id),
+            template_slug=template_slug,
+            script_path=script_path,
+            hostname=hostname,
+            password=password_plain,
+            cpu=cores,
+            ram=memory,
+            disk=disk,
+            unprivileged=True,
+            ssh=True,
+            environment_type=request_env_type,
+            os_info=request_os_info,
+        )
+    except Exception as exc:
+        logger.error(
+            "Script deploy failed for request %s (%s): %s",
+            request_id, template_slug, exc,
+        )
+        with Session(engine) as rb:
+            req = vm_request_repo.get_vm_request_by_id(
+                session=rb, request_id=request_id, for_update=True,
+            )
+            if req and req.status == VMRequestStatus.provisioning:
+                req.status = VMRequestStatus.approved
+                rb.add(req)
+                rb.commit()
+        raise
+
+    try:
+        info = proxmox_service.find_resource(new_vmid)
+        actual_node = str(info.get("node") or "")
+    except Exception:
+        actual_node = ""
+
+    with Session(engine) as finish_session:
+        req = vm_request_repo.get_vm_request_by_id(
+            session=finish_session, request_id=request_id, for_update=True,
+        )
+        if req is None:
+            raise NotFoundError(f"Request {request_id} no longer exists")
+
+        resource_repo.create_resource(
+            session=finish_session,
+            vmid=new_vmid,
+            user_id=request_user_id,
+            environment_type=request_env_type,
+            os_info=request_os_info,
+            expiry_date=request_expiry_date,
+            commit=False,
+        )
+        vm_request_repo.update_vm_request_provisioning(
+            session=finish_session,
+            db_request=req,
+            vmid=new_vmid,
+            assigned_node=actual_node or None,
+            desired_node=actual_node or None,
+            actual_node=actual_node or None,
+            placement_strategy_used="service_template",
+            migration_status=VMMigrationStatus.completed,
+            migration_error=None,
+            commit=False,
+        )
+        req.status = VMRequestStatus.running
+        finish_session.add(req)
+
+        audit_service.log_action(
+            session=finish_session,
+            user_id=None,
+            vmid=new_vmid,
+            action="script_deploy",
+            details=(
+                f"Deployed service template {template_slug} for request "
+                f"{request_id} on {actual_node or 'unknown'}"
+            ),
+            commit=False,
+        )
+        finish_session.commit()
+
+    logger.info(
+        "Service template deployed: request %s → VMID %s (%s) on %s",
+        request_id, new_vmid, template_slug, actual_node,
+    )
+    return new_vmid, actual_node, "service_template"
 
 
 def _mark_request_runtime_error(

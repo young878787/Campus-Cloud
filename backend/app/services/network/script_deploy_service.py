@@ -11,6 +11,7 @@ import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+
 from sqlmodel import Session
 
 from app.infrastructure.proxmox import (
@@ -24,7 +25,6 @@ from app.infrastructure.ssh import (
     exec_command_streaming,
 )
 from app.infrastructure.worker import ExpiringStore
-from app.exceptions import ProxmoxError
 from app.models.proxmox_config import ProxmoxConfig
 from app.services.network import firewall_service
 from app.services.proxmox import proxmox_service
@@ -101,7 +101,7 @@ def _ssh_exec(client, command: str, timeout: int = 600) -> tuple[int, str, str]:
 def _ssh_exec_streaming(
     client,
     command: str,
-    task: "DeploymentTask",
+    task: DeploymentTask,
     timeout: int = 900,
 ) -> tuple[int, str, str]:
     stdout_chunks: list[str] = []
@@ -467,3 +467,53 @@ def start_deployment(
     thread.start()
 
     return task_id
+
+
+def deploy_for_vm_request_sync(
+    *,
+    user_id: str,
+    template_slug: str,
+    script_path: str | None,
+    hostname: str,
+    password: str,
+    cpu: int,
+    ram: int,
+    disk: int,
+    unprivileged: bool = True,
+    ssh: bool = True,
+    environment_type: str = "服務模板",
+    os_info: str | None = None,
+) -> tuple[int, DeploymentTask]:
+    """同步執行 community-scripts 部署，成功回傳 (vmid, task)。
+
+    用於 VM 請求自動核准後的 LXC 建立（由腳本建立容器）。
+    失敗會拋出 RuntimeError 且 task 內含錯誤訊息。
+    """
+    task_id = str(uuid.uuid4())
+    task = DeploymentTask(
+        task_id=task_id,
+        user_id=user_id,
+        template_name=os_info or template_slug,
+    )
+    _store_task(task)
+
+    request_data = {
+        "template_slug": template_slug,
+        "script_path": script_path or f"ct/{template_slug}.sh",
+        "hostname": hostname,
+        "password": password,
+        "cpu": cpu,
+        "ram": ram,
+        "disk": max(int(disk), 1),
+        "unprivileged": unprivileged,
+        "ssh": ssh,
+        "environment_type": environment_type,
+        "os_info": os_info,
+    }
+
+    _run_deployment(task, request_data)
+
+    if task.status == "completed" and task.vmid is not None:
+        return task.vmid, task
+
+    raise RuntimeError(task.error or "Script deployment failed")

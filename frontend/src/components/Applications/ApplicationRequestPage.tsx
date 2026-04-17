@@ -122,6 +122,7 @@ export function ApplicationRequestPage() {
   const [resourceType, setResourceType] = useState<"lxc" | "vm">("lxc")
   const [serviceTemplateName, setServiceTemplateName] = useState("")
   const [serviceTemplateSlug, setServiceTemplateSlug] = useState("")
+  const [serviceTemplateScriptPath, setServiceTemplateScriptPath] = useState("")
   const aiColumnRef = useRef<HTMLElement | null>(null)
   const [desktopPanelFrame, setDesktopPanelFrame] =
     useState<DesktopPanelFrame | null>(null)
@@ -336,8 +337,14 @@ export function ApplicationRequestPage() {
         },
       }
 
+      const enrichedData = {
+        ...data,
+        service_template_slug: serviceTemplateSlug || undefined,
+        service_template_script_path: serviceTemplateScriptPath || undefined,
+      }
+
       return VmRequestsApi.create({
-        requestBody: toVmRequestCreateRequestBody(data, payloadOptions),
+        requestBody: toVmRequestCreateRequestBody(enrichedData, payloadOptions),
       })
     },
     onSuccess: () => {
@@ -383,6 +390,7 @@ export function ApplicationRequestPage() {
         if (prefill.service_template_slug) {
           setServiceTemplateSlug(prefill.service_template_slug)
           setServiceTemplateName(prefill.service_template_slug)
+          setServiceTemplateScriptPath(`ct/${prefill.service_template_slug}.sh`)
         }
       } else {
         if (prefill.disk_gb) updateFormValue("disk_size", prefill.disk_gb)
@@ -409,13 +417,16 @@ export function ApplicationRequestPage() {
     (template: FastTemplate) => {
       setServiceTemplateName(template.name || "")
       setServiceTemplateSlug(template.slug || "")
+      const method = template.install_methods?.[0]
+      setServiceTemplateScriptPath(
+        method?.script || (template.slug ? `ct/${template.slug}.sh` : ""),
+      )
       setResourceType("lxc")
       updateFormValue("resource_type", "lxc")
       if (template.name) {
         updateFormValue("hostname", normalizeHostname(template.name))
       }
       // 帶入模板的預設資源值
-      const method = template.install_methods?.[0]
       if (method?.resources) {
         if (method.resources.cpu) updateFormValue("cores", method.resources.cpu)
         if (method.resources.ram)
@@ -688,6 +699,7 @@ export function ApplicationRequestPage() {
                               onClick={() => {
                                 setServiceTemplateName("")
                                 setServiceTemplateSlug("")
+                                setServiceTemplateScriptPath("")
                               }}
                             >
                               <X className="h-3.5 w-3.5" />

@@ -4827,6 +4827,14 @@ export type VmRequestCreate = {
      * Username
      */
     username?: string | null;
+    /**
+     * Service Template Slug
+     */
+    service_template_slug?: string | null;
+    /**
+     * Service Template Script Path
+     */
+    service_template_script_path?: string | null;
 };
 
 /**
