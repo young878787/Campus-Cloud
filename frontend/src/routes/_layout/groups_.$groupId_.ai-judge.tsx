@@ -24,7 +24,6 @@ import {
   type RubricItem,
 } from "@/features/ai-judge/api"
 import {
-  AchievementReviewTable,
   ChatPanel,
   RubricCard,
   RubricStats,
@@ -203,7 +202,7 @@ function AiJudgePage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">AI 情境評估助手</h1>
             <p className="text-sm text-muted-foreground">
-              上傳評估表，查看 AI 產生的達成審核表與偵測判斷
+              上傳評估表，查看 AI 偵測判斷並調整評估項目
             </p>
           </div>
         </div>
@@ -251,16 +250,6 @@ function AiJudgePage() {
                     {analysis.summary}
                   </p>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Achievement review table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>達成審核表</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <AchievementReviewTable items={items} />
               </CardContent>
             </Card>
 

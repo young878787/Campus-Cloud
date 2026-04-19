@@ -2,7 +2,7 @@
  * RubricCard - Structured editable card for a single rubric item
  *
  * Layout:
- *   Row 1: #index + detectable badge (read-only) + achieved status (read-only) + delete
+ *   Row 1: #index + detectable badge (read-only) + delete
  *   Row 2: Title input (user-editable)
  *   Row 3: Description input (user-editable)
  *   Row 4: Detection info section (AI-managed, read-only)
@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
 import type { RubricItem } from "../api"
-import { getCheckedInfo, getDetectableInfo } from "../api"
+import { getDetectableInfo } from "../api"
 
 type RubricCardProps = {
   item: RubricItem
@@ -34,7 +34,6 @@ export function RubricCard({
   disabled = false,
 }: RubricCardProps) {
   const detectableInfo = getDetectableInfo(item.detectable)
-  const checkedInfo = getCheckedInfo(item.checked)
 
   const handleFieldChange = useCallback(
     (field: keyof RubricItem, value: string | null) => {
@@ -58,7 +57,7 @@ export function RubricCard({
         borderColor,
       )}
     >
-      {/* ── Row 1: Index + Badge (read-only) + Achieved Status (read-only) + Delete ── */}
+      {/* ── Row 1: Index + Badge (read-only) + Delete ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-60" />
@@ -78,14 +77,6 @@ export function RubricCard({
         </div>
 
         <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "rounded-md border px-2.5 py-1 text-xs font-medium",
-              checkedInfo.className,
-            )}
-          >
-            {checkedInfo.label}
-          </span>
           <Button
             variant="ghost"
             size="icon"
