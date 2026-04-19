@@ -7,7 +7,7 @@ import { CheckCircle, Clock, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type RubricStatsProps = {
-  totalScore: number
+  totalItems: number
   autoCount: number
   partialCount: number
   manualCount: number
@@ -15,19 +15,19 @@ type RubricStatsProps = {
 }
 
 export function RubricStats({
-  totalScore,
+  totalItems,
   autoCount,
   partialCount,
   manualCount,
   className,
 }: RubricStatsProps) {
-  const total = autoCount + partialCount + manualCount
+  const total = totalItems || autoCount + partialCount + manualCount
 
   return (
     <div className={cn("grid grid-cols-2 gap-3 sm:grid-cols-4", className)}>
       <div className="rounded-xl bg-card/50 p-3 text-center">
-        <p className="text-2xl font-bold">{totalScore}</p>
-        <p className="text-xs text-muted-foreground">總分</p>
+        <p className="text-2xl font-bold">{total}</p>
+        <p className="text-xs text-muted-foreground">共幾題</p>
       </div>
       <div className="rounded-xl bg-green-50 p-3 text-center dark:bg-green-900/20">
         <div className="flex items-center justify-center gap-1">

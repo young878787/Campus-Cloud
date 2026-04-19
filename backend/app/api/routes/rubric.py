@@ -7,8 +7,8 @@ import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import Response
 
+from app.ai.teacher_judge.config import settings
 from app.api.deps.auth import InstructorUser
-from app.core.config import settings
 from app.schemas.rubric import RubricChatRequest, RubricExportRequest
 from app.services.rubric_parser import parse_document
 from app.services.rubric_service import (
@@ -45,14 +45,12 @@ async def upload_rubric(
     file_bytes = await file.read()
 
     # 檔案大小檢查
-    max_upload_size_bytes = (
-        settings.TEMPLATE_RECOMMENDATION_VLLM_MAX_UPLOAD_SIZE_MB * 1024 * 1024
-    )
+    max_upload_size_bytes = settings.VLLM_MAX_UPLOAD_SIZE_MB * 1024 * 1024
     file_size_mb = len(file_bytes) / (1024 * 1024)
     if len(file_bytes) > max_upload_size_bytes:
         raise HTTPException(
             status_code=413,
-            detail=f"檔案大小 {file_size_mb:.1f}MB 超過限制（最大 {settings.TEMPLATE_RECOMMENDATION_VLLM_MAX_UPLOAD_SIZE_MB}MB）",
+            detail=f"檔案大小 {file_size_mb:.1f}MB 超過限制（最大 {settings.VLLM_MAX_UPLOAD_SIZE_MB}MB）",
         )
 
     if not file_bytes:
@@ -138,5 +136,5 @@ async def health_check():
     """健康檢查端點。"""
     return {
         "status": "ok",
-        "vllm_configured": bool(settings.TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME),
+        "vllm_configured": bool(settings.VLLM_MODEL_NAME),
     }

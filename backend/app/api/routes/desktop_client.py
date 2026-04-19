@@ -7,16 +7,13 @@ The desktop client authenticates via a "device auth" flow:
 4. Client polls GET /auth/poll?code={code} -> gets access_token
 """
 
-import io
-import json
 import logging
 import secrets
 import time
-import zipfile
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, SessionDep
@@ -126,26 +123,20 @@ def poll_device_code(code: str) -> DevicePollResponse:
 
 @router.get("/download")
 def download_desktop_client(session: SessionDep, current_user: CurrentUser):
-    """Download a zip with the desktop client exe + config.json.
+    """Return the desktop client zip (Electron portable build).
 
-    Config only contains the backend URL — no secrets.
+    If DESKTOP_CLIENT_DOWNLOAD_URL is set, redirects to that URL (e.g. a
+    GitHub Releases asset). Otherwise serves a local file from static/downloads/.
     """
-    exe_path = _STATIC_DIR / "campus-cloud-connect.exe"
-    if not exe_path.exists():
-        raise HTTPException(status_code=404, detail="Desktop client executable not found")
+    if settings.DESKTOP_CLIENT_DOWNLOAD_URL:
+        return RedirectResponse(settings.DESKTOP_CLIENT_DOWNLOAD_URL, status_code=302)
 
-    config_data = {
-        "backend_url": str(settings.DESKTOP_CLIENT_BACKEND_URL).rstrip("/"),
-    }
+    zip_path = _STATIC_DIR / "campus-cloud-connect.zip"
+    if not zip_path.exists():
+        raise HTTPException(status_code=404, detail="Desktop client zip not found")
 
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.write(exe_path, "campus-cloud-connect.exe")
-        zf.writestr("config.json", json.dumps(config_data, indent=2, ensure_ascii=False))
-
-    buf.seek(0)
-    return StreamingResponse(
-        buf,
+    return FileResponse(
+        zip_path,
         media_type="application/zip",
-        headers={"Content-Disposition": "attachment; filename=campus-cloud-connect.zip"},
+        filename="campus-cloud-connect.zip",
     )

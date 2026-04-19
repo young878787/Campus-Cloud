@@ -5,14 +5,13 @@ from __future__ import annotations
 import io
 import json
 import logging
-import re
 from time import perf_counter
 from typing import Any
 
 import httpx
 from fastapi import HTTPException
 
-from app.core.config import settings
+from app.ai.teacher_judge.config import settings
 from app.schemas.rubric import ChatMessage, RubricAnalysis, RubricItem
 
 
@@ -60,34 +59,29 @@ def _strip_think_tags(text: str) -> str:
 def _apply_thinking_control(payload: dict[str, Any]) -> dict[str, Any]:
     payload["chat_template_kwargs"] = {
         **dict(payload.get("chat_template_kwargs") or {}),
-        "enable_thinking": settings.TEMPLATE_RECOMMENDATION_VLLM_ENABLE_THINKING,
+        "enable_thinking": settings.VLLM_ENABLE_THINKING,
     }
     return payload
 
 
 def _vllm_headers() -> dict[str, str]:
     return {
-        "Authorization": f"Bearer {settings.TEMPLATE_RECOMMENDATION_VLLM_API_KEY}",
+        "Authorization": f"Bearer {settings.VLLM_API_KEY}",
         "Content-Type": "application/json",
     }
 
 
-def _to_float(value: Any, default: float = 0.0) -> float:
+def _to_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
     if isinstance(value, (int, float)):
-        return float(value)
+        return bool(value)
     if isinstance(value, str):
-        text = value.strip()
-        if not text:
-            return default
-        try:
-            return float(text)
-        except ValueError:
-            match = re.search(r"-?\d+(?:\.\d+)?", text)
-            if match:
-                try:
-                    return float(match.group(0))
-                except ValueError:
-                    return default
+        text = value.strip().lower()
+        if text in {"true", "1", "yes", "y", "on", "checked", "done"}:
+            return True
+        if text in {"false", "0", "no", "n", "off", "unchecked", "todo"}:
+            return False
     return default
 
 
@@ -104,7 +98,7 @@ def _normalize_rubric_items(raw_items: Any) -> list[RubricItem]:
         item_id = str(raw.get("id") or f"item-{i + 1}")
         title = str(raw.get("title") or raw.get("name") or "").strip() or "未命名項目"
         description = str(raw.get("description") or raw.get("desc") or "")
-        max_score = _to_float(raw.get("max_score", raw.get("score", 0.0)))
+        checked = _to_bool(raw.get("checked", raw.get("is_checked")), default=False)
 
         detectable = str(raw.get("detectable") or "manual").strip().lower()
         if detectable not in {"auto", "partial", "manual"}:
@@ -118,7 +112,7 @@ def _normalize_rubric_items(raw_items: Any) -> list[RubricItem]:
                 id=item_id,
                 title=title,
                 description=description,
-                max_score=max_score,
+                checked=checked,
                 detectable=detectable,
                 detection_method=str(detection_method)
                 if detection_method is not None
@@ -148,7 +142,7 @@ async def _call_vllm(
     payload: dict[str, Any], timeout: float = 60.0
 ) -> tuple[str, dict]:
     """Call vLLM chat/completions and return (content, usage_metrics)."""
-    url = f"{settings.TEMPLATE_RECOMMENDATION_VLLM_BASE_URL}/chat/completions"
+    url = f"{settings.VLLM_BASE_URL}/chat/completions"
     started = perf_counter()
 
     logger.debug(f"Calling vLLM API: {url}")
@@ -248,23 +242,21 @@ _ANALYZE_SYSTEM_PROMPT = """
       "id": "item-1",
       "title": "評分項目名稱",
       "description": "評分說明（從原文萃取或精簡改寫）",
-      "max_score": 數字,
+            "checked": 布林值（true 代表「已達成」、false 代表「未達成」，若無明確達成證據請填 false）, 
       "detectable": "auto | partial | manual",
       "detection_method": "若 auto/partial，具體說明偵測方式（e.g., TCP Port 80 探測）；否則 null",
       "fallback": "若 manual/partial，說明替代方案（e.g., 請學生提交截圖、要求提交 GitHub 連結）；否則 null"
     }
   ],
-  "summary": "整體評分表說明，約 2-3 句，使用繁體中文。包含總配分、可自動偵測比例、哪些項目需特別注意或無法自動評分。"
+    "summary": "整體評分表說明，約 2-3 句，使用繁體中文。包含共幾題、可自動偵測比例、哪些項目需特別注意或無法自動評分。"
 }
 """.strip()
 
 
 async def analyze_rubric(raw_text: str) -> tuple[RubricAnalysis, dict]:
     """Send raw document text to AI, return structured RubricAnalysis."""
-    if not settings.TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME:
-        raise HTTPException(
-            status_code=503, detail="TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME 未設定。"
-        )
+    if not settings.VLLM_MODEL_NAME:
+        raise HTTPException(status_code=503, detail="VLLM_MODEL_NAME 未設定。")
 
     logger.info(f"Starting rubric analysis, text length: {len(raw_text)} characters")
 
@@ -272,20 +264,20 @@ async def analyze_rubric(raw_text: str) -> tuple[RubricAnalysis, dict]:
 
     payload = _apply_thinking_control(
         {
-            "model": settings.TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME,
+            "model": settings.VLLM_MODEL_NAME,
             "messages": [
                 {"role": "system", "content": _ANALYZE_SYSTEM_PROMPT},
                 {"role": "user", "content": user_content},
             ],
-            "max_tokens": settings.TEMPLATE_RECOMMENDATION_VLLM_MAX_TOKENS,
+            "max_tokens": settings.VLLM_MAX_TOKENS,
             "temperature": 0.2,
-            "top_p": settings.TEMPLATE_RECOMMENDATION_VLLM_TOP_P,
+            "top_p": settings.VLLM_TOP_P,
             "response_format": {"type": "json_object"},
         }
     )
 
     content, metrics = await _call_vllm(
-        payload, timeout=float(settings.TEMPLATE_RECOMMENDATION_VLLM_TIMEOUT)
+        payload, timeout=float(settings.VLLM_TIMEOUT)
     )
 
     try:
@@ -300,18 +292,20 @@ async def analyze_rubric(raw_text: str) -> tuple[RubricAnalysis, dict]:
     items_raw = data.get("items") or []
     items = _normalize_rubric_items(items_raw)
 
-    total_score = sum(item.max_score for item in items)
+    total_items = len(items)
+    checked_count = sum(1 for item in items if item.checked)
     auto_count = sum(1 for item in items if item.detectable == "auto")
     partial_count = sum(1 for item in items if item.detectable == "partial")
     manual_count = sum(1 for item in items if item.detectable == "manual")
 
     logger.info(
-        f"Analysis complete: {len(items)} items, {total_score} total points (auto: {auto_count}, partial: {partial_count}, manual: {manual_count})"
+        f"Analysis complete: {total_items} items, {checked_count} checked (auto: {auto_count}, partial: {partial_count}, manual: {manual_count})"
     )
 
     analysis = RubricAnalysis(
         items=items,
-        total_score=total_score,
+        total_items=total_items,
+        checked_count=checked_count,
         auto_count=auto_count,
         partial_count=partial_count,
         manual_count=manual_count,
@@ -360,8 +354,8 @@ _CHAT_SYSTEM_TEMPLATE = """
 ## 精簡回覆原則（極為重要）
 - 當執行修改時，只需**簡短總結**變更結果，不要逐一列出每個欄位的前後差異。
 - 修改應在背景靜默完成，回覆只需告知老師「做了什麼」和「結果如何」。
-- 好的回覆範例：「好的，已幫你調整了 3 個項目的偵測方式，配分也一併更新了。」
-- 不好的回覆範例：「已修改如下：第 1 項：標題從 X 改為 Y，配分從 5 改為 10，偵測方式從...改為...；第 2 項：...」
+- 好的回覆範例：「好的，已幫你調整了 3 個項目的偵測方式，也同步標記達成狀態。」
+- 不好的回覆範例：「已修改如下：第 1 項：標題從 X 改為 Y，狀態從未達成改成已達成，偵測方式從...改為...；第 2 項：...」
 
 ## 語氣示範
 ❌ 不好：「經分析，該項目不符合自動偵測條件，建議歸類為手動評閱。」
@@ -410,15 +404,17 @@ IMPORTANT RULES - 意圖識別（極為重要）
 2. **確認執行**：老師對前面的建議表示同意並要執行
    - 例如：「好」「OK」「就這樣做」「照你說的改」「可以，請執行」
 3. **直接陳述變更**：直接說要改什麼，沒有問號
-   - 例如：「第 3 項改成自動偵測」「把配分改成 10 分」「刪掉第 5 項」
+    - 例如：「第 3 項改成自動偵測」「把第 2 項改成已達成」「刪掉第 5 項」
 
 ## 黃金原則
 **當你無法確定是「詢問」還是「指令」時，優先視為「詢問」，僅提供建議。**
 如果老師滿意你的建議，會明確說「好，請修改」或「就這樣做」。
 
 ## 輸出結構約束
-- 每個 item 需有：id, title, description, max_score, detectable, detection_method, fallback。
+- 每個 item 需有：id, title, description, checked, detectable, detection_method, fallback。
 - 若修改表單（updated_items 不為 null），必須包含「完整列表」，未被要求變更的項目必須原樣保留，不得省略。
+- `checked` 表示「是否已達成」：除非老師明確要求調整，或對話中提供了可判斷的直接證據，否則維持原值。
+- 若缺乏明確證據，`checked` 預設應為 false，不可自行假設為已達成。
 
 ## ⚠️ 極為重要：完整列表規則
 當你需要修改評分表時（updated_items 不為 null）：
@@ -429,11 +425,11 @@ IMPORTANT RULES - 意圖識別（極為重要）
 5. 如果老師要求新增項目，返回的項目數會增加
 
 **錯誤範例**（絕對不可以這樣做）：
-- 老師說「把第 3 項配分改成 10」→ 你只返回第 3 項 ❌
+- 老師說「把第 3 項改成已達成」→ 你只返回第 3 項 ❌
 - 老師說「新增一個檢查 Port 80 的項目」→ 你只返回新增的項目 ❌
 
 **正確範例**：
-- 老師說「把第 3 項配分改成 10」→ 你返回全部項目，只有第 3 項的 max_score 改成 10 ✅
+- 老師說「把第 3 項改成已達成」→ 你返回全部項目，只有第 3 項的 checked 改成 true ✅
 - 老師說「新增一個檢查 Port 80 的項目」→ 你返回原本所有項目 + 新增的項目 ✅
 """.strip()
 
@@ -442,7 +438,7 @@ _SITUATION_NORMAL = """
 老師正在對話中修改或詢問評分表相關問題。
 
 ## 你的任務
-- 老師可能會**詢問**特定項目的偵測方式、配分建議、可行性分析。
+- 老師可能會**詢問**特定項目的偵測方式、達成判斷建議、可行性分析。
 - 老師也可能會**下達指令**，要求修改、新增、刪除評分項目。
 - 請依據上方的「意圖識別規則」判斷老師是在詢問還是下指令。
 
@@ -461,6 +457,12 @@ _SITUATION_REFINE = """
 檢查每個項目的「可偵測性判斷」與「檢查方式」是否邏輯一致：
 - 例如：標記為可自動偵測，但檢查方式是「人工檢視程式碼」→ 不一致，需更正。
 - 例如：標記為人工評閱，但檢查方式是「偵測 Port 80」→ 不一致，需更正。
+
+### 1.5 達成狀態判準（務必保守）
+- `checked` 只在兩種情況下調整：
+    1) 老師明確指示（例如「第 2 題改成已達成」）
+    2) 對話提供了可直接判定的證據
+- 若老師沒有要求且沒有直接證據，維持原本 `checked`，不要為了潤飾而改動。
 
 ### 2. 補齊空白欄位
 針對未填寫的「偵測方式」(detection_method) 和「替代建議」(fallback)，依平台能力推斷並補充：
@@ -502,10 +504,8 @@ async def chat_with_rubric(
     - updated_items: complete list of RubricItem dicts when AI modified the rubric;
       None when AI only answered a question without changes.
     """
-    if not settings.TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME:
-        raise HTTPException(
-            status_code=503, detail="TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME 未設定。"
-        )
+    if not settings.VLLM_MODEL_NAME:
+        raise HTTPException(status_code=503, detail="VLLM_MODEL_NAME 未設定。")
 
     context_item_count = _extract_context_item_count(rubric_context)
     situation = _SITUATION_REFINE if is_refine else _SITUATION_NORMAL
@@ -523,19 +523,19 @@ async def chat_with_rubric(
 
     payload = _apply_thinking_control(
         {
-            "model": settings.TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME,
+            "model": settings.VLLM_MODEL_NAME,
             "messages": formatted,
-            "max_tokens": settings.TEMPLATE_RECOMMENDATION_VLLM_CHAT_MAX_TOKENS,
-            "temperature": settings.TEMPLATE_RECOMMENDATION_VLLM_CHAT_TEMPERATURE,
-            "top_p": settings.TEMPLATE_RECOMMENDATION_VLLM_TOP_P,
-            "top_k": settings.TEMPLATE_RECOMMENDATION_VLLM_TOP_K,
-            "repetition_penalty": settings.TEMPLATE_RECOMMENDATION_VLLM_REPETITION_PENALTY,
+            "max_tokens": settings.VLLM_CHAT_MAX_TOKENS,
+            "temperature": settings.VLLM_CHAT_TEMPERATURE,
+            "top_p": settings.VLLM_TOP_P,
+            "top_k": settings.VLLM_TOP_K,
+            "repetition_penalty": settings.VLLM_REPETITION_PENALTY,
             "response_format": {"type": "json_object"},
         }
     )
 
     content, metrics = await _call_vllm(
-        payload, timeout=float(settings.TEMPLATE_RECOMMENDATION_VLLM_TIMEOUT)
+        payload, timeout=float(settings.VLLM_TIMEOUT)
     )
 
     # 解析結構化 JSON 回覆
@@ -587,6 +587,11 @@ _DETECTABLE_COLORS = {
     "manual": "FDDEDE",  # 紅
 }
 
+_CHECKED_LABELS = {
+    True: "✅ 已達成",
+    False: "⬜ 未達成",
+}
+
 
 def export_to_excel(items: list[RubricItem], summary: str = "") -> bytes:
     """Generate an .xlsx file from RubricItem list, return as bytes."""
@@ -604,12 +609,12 @@ def export_to_excel(items: list[RubricItem], summary: str = "") -> bytes:
         "項目編號",
         "評分項目",
         "說明",
-        "配分",
+        "是否達成",
         "可偵測性",
         "自動偵測方式",
         "替代建議",
     ]
-    col_widths = [10, 25, 40, 8, 18, 35, 35]
+    col_widths = [10, 25, 40, 12, 18, 35, 35]
 
     for col_idx, (h, w) in enumerate(zip(headers, col_widths), start=1):
         cell = ws.cell(row=1, column=col_idx, value=h)
@@ -633,7 +638,7 @@ def export_to_excel(items: list[RubricItem], summary: str = "") -> bytes:
             item.id,
             item.title,
             item.description,
-            item.max_score,
+            _CHECKED_LABELS.get(bool(item.checked), "⬜ 未達成"),
             label,
             item.detection_method or "",
             item.fallback or "",

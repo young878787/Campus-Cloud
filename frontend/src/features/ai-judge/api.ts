@@ -12,7 +12,7 @@ export type RubricItem = {
   id: string
   title: string
   description: string
-  max_score: number
+  checked: boolean
   detectable: "auto" | "partial" | "manual"
   detection_method: string | null
   fallback: string | null
@@ -20,7 +20,8 @@ export type RubricItem = {
 
 export type RubricAnalysis = {
   items: RubricItem[]
-  total_score: number
+  total_items: number
+  checked_count: number
   auto_count: number
   partial_count: number
   manual_count: number
@@ -161,7 +162,8 @@ export function downloadBlob(blob: Blob, filename: string) {
 export function rubricToContext(analysis: RubricAnalysis): string {
   return JSON.stringify({
     items: analysis.items,
-    total_score: analysis.total_score,
+    total_items: analysis.total_items,
+    checked_count: analysis.checked_count,
     summary: analysis.summary,
   })
 }
@@ -187,5 +189,22 @@ export function getDetectableInfo(detectable: string) {
         label: "需人工評閱",
         className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
       }
+  }
+}
+
+/**
+ * Get achieved status badge info
+ */
+export function getCheckedInfo(checked: boolean) {
+  if (checked) {
+    return {
+      label: "已達成",
+      className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    }
+  }
+
+  return {
+    label: "未達成",
+    className: "bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300",
   }
 }

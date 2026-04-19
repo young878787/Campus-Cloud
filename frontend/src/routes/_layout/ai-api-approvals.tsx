@@ -1,3 +1,4 @@
+import { redirect } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import type { ColumnDef } from "@tanstack/react-table"
@@ -30,14 +31,10 @@ import { handleError } from "@/utils"
 
 export const Route = createFileRoute("/_layout/ai-api-approvals")({
   component: AiApiApprovalsPage,
-  beforeLoad: () => requireAdminUser(),
-  head: () => ({
-    meta: [
-      {
-        title: "AI API Approvals - Campus Cloud",
-      },
-    ],
-  }),
+  beforeLoad: () => {
+    requireAdminUser()
+    throw redirect({ to: "/admin/ai-management" })
+  },
 })
 
 function formatTime(value?: string | null) {

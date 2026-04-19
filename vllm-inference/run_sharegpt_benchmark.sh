@@ -17,8 +17,25 @@ NC='\033[0m'
 
 # 載入 .env
 if [[ -f .env ]]; then
+    if ! ENV_SYNTAX_ERROR=$(bash -n .env 2>&1); then
+        echo -e "${YELLOW}⚠${NC} .env 語法錯誤，無法載入環境變數"
+        echo ""
+        echo "bash -n .env 輸出:"
+        echo "$ENV_SYNTAX_ERROR"
+        echo ""
+        echo "常見修正: 含空白的 JSON 值請加引號，例如"
+        echo "  LIMIT_MM_PER_PROMPT='{\"image\":5,\"video\":1,\"audio\":0}'"
+        echo ""
+        exit 1
+    fi
+
     set -a
-    source .env
+    if ! source .env; then
+        set +a
+        echo -e "${YELLOW}⚠${NC} 載入 .env 失敗，請檢查變數格式"
+        echo "提示: 變數值若包含空白、逗號或 JSON，請使用單引號或雙引號包住"
+        exit 1
+    fi
     set +a
 fi
 

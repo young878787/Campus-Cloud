@@ -150,6 +150,48 @@ Benchmark 結果會輸出於 `benchmark_results/`，包含：
 - TPOT（Time Per Output Token）
 - Token 長度統計
 
+## Campus Cloud 主架構整合測試
+
+可用以下腳本直接驗證「主架構」AI 路由（非子專案路由整合測試）：
+
+- AI 評分助手：`/api/v1/rubric/upload`
+- AI 模板推薦：`/api/v1/ai/template-recommendation/chat`
+- AI-PVE：`/api/v1/ai/pve-log/chat`
+
+腳本位置：`tools/campus_ai_integration_test.py`
+
+### 執行方式
+
+```bash
+python tools/campus_ai_integration_test.py \
+  --base-url http://localhost:8000 \
+  --username teacher@example.com \
+  --password your-password \
+  --rubric-file "專題 AI 實戰評分測試表.docx" \
+  --template-prompt "我想建立python環境" \
+  --pve-prompt "請幫我看節點狀態" \
+  --strict \
+  --report-file campus-ai-test-report.json
+```
+
+### 參數重點
+
+- `--skip-rubric`：略過評分表上傳情境
+- `--insecure`：停用 TLS 憑證驗證（測試環境可用）
+- `--strict`：任一案例失敗時回傳非 0 exit code
+- `--report-file`：輸出完整 JSON 報告
+
+也可用環境變數帶入：
+
+- `CAMPUS_BACKEND_BASE_URL`
+- `CAMPUS_BACKEND_API_V1`
+- `CAMPUS_BACKEND_USERNAME`
+- `CAMPUS_BACKEND_PASSWORD`
+- `CAMPUS_RUBRIC_FILE`
+- `CAMPUS_TEMPLATE_PROMPT`
+- `CAMPUS_PVE_PROMPT`
+- `CAMPUS_TEST_TIMEOUT`
+
 ## `.env` 主要參數
 
 | 變數 | 說明 | 預設值 |

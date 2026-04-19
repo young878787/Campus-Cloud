@@ -18,7 +18,6 @@ class SystemAIEnvSettings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        env_prefix="TEMPLATE_RECOMMENDATION_",
     )
 
     vllm_base_url: str = "http://localhost:8000/v1"
@@ -63,11 +62,22 @@ class PVEAdvisorConfig(BaseModel):
     vllm: SystemAIVLLMConfig = Field(default_factory=SystemAIVLLMConfig)
 
 
+class PVELogConfig(BaseModel):
+    vllm: SystemAIVLLMConfig = Field(default_factory=SystemAIVLLMConfig)
+
+
+class TeacherJudgeConfig(BaseModel):
+    max_upload_size_mb: int = 10
+    vllm: SystemAIVLLMConfig = Field(default_factory=SystemAIVLLMConfig)
+
+
 class SystemAIConfig(BaseModel):
     template_recommendation: TemplateRecommendationConfig = Field(
         default_factory=TemplateRecommendationConfig
     )
     pve_advisor: PVEAdvisorConfig = Field(default_factory=PVEAdvisorConfig)
+    pve_log: PVELogConfig = Field(default_factory=PVELogConfig)
+    teacher_judge: TeacherJudgeConfig = Field(default_factory=TeacherJudgeConfig)
 
 
 def load_system_ai_config() -> SystemAIConfig:

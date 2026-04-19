@@ -13,6 +13,7 @@ from app.core.authorizers import (
     require_admin_access,
     require_instructor_or_admin_access,
 )
+from app.core.permissions import Permission, require_permission
 from app.core import security
 from app.core.config import settings
 from app.core.db import engine
@@ -72,6 +73,22 @@ def get_current_instructor_or_admin(current_user: CurrentUser) -> User:
 
 
 InstructorUser = Annotated[User, Depends(get_current_instructor_or_admin)]
+
+
+def get_current_ai_api_reviewer(current_user: CurrentUser) -> User:
+    require_permission(current_user, Permission.AI_API_REVIEW)
+    return current_user
+
+
+AIAPIReviewerUser = Annotated[User, Depends(get_current_ai_api_reviewer)]
+
+
+def get_current_ai_api_view_all(current_user: CurrentUser) -> User:
+    require_permission(current_user, Permission.AI_API_VIEW_ALL)
+    return current_user
+
+
+AIAPIViewAllUser = Annotated[User, Depends(get_current_ai_api_view_all)]
 
 
 async def get_ws_current_user(

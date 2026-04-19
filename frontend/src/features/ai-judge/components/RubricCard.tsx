@@ -2,7 +2,7 @@
  * RubricCard - Structured editable card for a single rubric item
  *
  * Layout:
- *   Row 1: #index + detectable badge (read-only) + score + delete
+ *   Row 1: #index + detectable badge (read-only) + delete
  *   Row 2: Title input (user-editable)
  *   Row 3: Description input (user-editable)
  *   Row 4: Detection info section (AI-managed, read-only)
@@ -36,7 +36,7 @@ export function RubricCard({
   const detectableInfo = getDetectableInfo(item.detectable)
 
   const handleFieldChange = useCallback(
-    (field: keyof RubricItem, value: string | number | null) => {
+    (field: keyof RubricItem, value: string | null) => {
       onChange({ ...item, [field]: value })
     },
     [item, onChange],
@@ -57,7 +57,7 @@ export function RubricCard({
         borderColor,
       )}
     >
-      {/* ── Row 1: Index + Badge (read-only) + Score + Delete ── */}
+      {/* ── Row 1: Index + Badge (read-only) + Delete ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-60" />
@@ -77,19 +77,6 @@ export function RubricCard({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">
-            配分
-          </span>
-          <Input
-            type="number"
-            value={item.max_score}
-            onChange={(e) =>
-              handleFieldChange("max_score", parseFloat(e.target.value) || 0)
-            }
-            min={0}
-            disabled={disabled}
-            className="h-8 w-16 text-center text-sm font-medium"
-          />
           <Button
             variant="ghost"
             size="icon"

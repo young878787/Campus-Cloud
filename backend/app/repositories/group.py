@@ -12,6 +12,7 @@ from app.models.batch_provision import (
 )
 from app.models.group import Group
 from app.models.group_member import GroupMember
+from app.models.resource import Resource
 from app.models.user import User
 
 
@@ -77,12 +78,12 @@ def add_members_by_emails(
     added: list[GroupMember] = []
     not_found: list[str] = []
 
-    existing_members = set(
+    existing_members = {
         m.user_id
         for m in session.exec(
             select(GroupMember).where(GroupMember.group_id == group_id)
         ).all()
-    )
+    }
 
     # Use a single query to fetch all users whose emails are in the list,
     # then do in-memory lookups to avoid N+1 queries.
@@ -186,7 +187,7 @@ def get_member_counts(
         .where(GroupMember.group_id.in_(group_ids))
         .group_by(GroupMember.group_id)
     ).all()
-    return {group_id: count for group_id, count in rows}
+    return dict(rows)
 
 
 def get_member_vmids(
@@ -219,9 +220,43 @@ def get_member_vmids(
     )
     rows = session.exec(stmt).all()
 
+    vmids = {vmid for _, vmid, _ in rows if vmid is not None}
+    if not vmids:
+        return {}
+
+    resource_rows = session.exec(
+        select(Resource.vmid, Resource.user_id, Resource.created_at).where(
+            Resource.vmid.in_(vmids)
+        )
+    ).all()
+    resources_by_vmid = {
+        vmid: (owner_id, created_at)
+        for vmid, owner_id, created_at in resource_rows
+    }
+
     # 每個 user_id 只取最新一筆
     result: dict[uuid.UUID, int | None] = {}
-    for user_id, vmid, _ in rows:
+    for user_id, vmid, finished_at in rows:
         if user_id not in result:
+            if vmid is None:
+                continue
+
+            resource_meta = resources_by_vmid.get(vmid)
+            if resource_meta is None:
+                continue
+
+            owner_id, created_at = resource_meta
+            if owner_id != user_id:
+                continue
+
+            # VMID may be reused after the original batch-created resource was deleted.
+            # If the current resource was created after the task completed, ignore it.
+            if (
+                finished_at is not None
+                and created_at is not None
+                and created_at > finished_at
+            ):
+                continue
+
             result[user_id] = vmid
     return result

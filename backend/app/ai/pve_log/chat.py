@@ -133,7 +133,7 @@ async def chat(message: str) -> ChatResponse:
     if not settings.vllm_base_url or not settings.vllm_model_name:
         return ChatResponse(
             reply="",
-            error="vLLM 設定不完整，請確認 .env 中的 TEMPLATE_RECOMMENDATION_VLLM_* 設定",
+            error="vLLM 設定不完整，請確認 .env 中的 VLLM_* 設定",
         )
 
     url = f"{settings.vllm_base_url.rstrip('/')}/chat/completions"
@@ -155,8 +155,8 @@ async def chat(message: str) -> ChatResponse:
             "messages": messages,
             "tools": _TOOLS,
             "tool_choice": "auto",
-            "temperature": 0.1,
-            "max_tokens": 4096,
+            "temperature": settings.vllm_temperature,
+            "max_tokens": settings.vllm_max_tokens,
         }
 
         try:
@@ -215,8 +215,8 @@ async def chat(message: str) -> ChatResponse:
             payload2: dict[str, Any] = {
                 "model": settings.vllm_model_name,
                 "messages": messages,
-                "temperature": 0.1,
-                "max_tokens": 4096,
+                "temperature": settings.vllm_temperature,
+                "max_tokens": settings.vllm_max_tokens,
             }
             try:
                 resp2 = await client.post(url, json=payload2, headers=headers)

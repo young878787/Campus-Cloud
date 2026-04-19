@@ -1,15 +1,17 @@
 [
   {
-    "alias": "gpt-oss-20B",
-    "model_name": "./AImodels/gpt-oss-20B",
+    "alias": "Gemma-4-31B-IT",
+    "model_name": "./AImodels/Gemma-4-31B-IT-NVFP4",
     "api_port": 8103,
     "max_model_len": 24576,
-    "gpu_memory_utilization": 0.45,
+    "gpu_memory_utilization": 0.55,
     "max_num_seqs": 24,
     "max_num_batched_tokens": 49152,
-    "tiktoken_encodings_base": "./tiktoken_encodings",
-    "enable_auto_tool_choice": false,
-    "tool_call_parser": ""
+    "quantization": "modelopt",
+    "kv_cache_dtype": "fp8",
+    "reasoning_parser": "gemma4",
+    "enable_auto_tool_choice": true,
+    "tool_call_parser": "gemma4"
   },
   {
     "alias": "Qwen/Qwen3-14B-FP8",
@@ -19,6 +21,7 @@
     "gpu_memory_utilization": 0.35,
     "max_num_seqs": 24,
     "max_num_batched_tokens": 49152,
+    "kv_cache_dtype": "fp8",
     "enable_auto_tool_choice": true,
     "tool_call_parser": "qwen3_coder"
   }

@@ -68,8 +68,10 @@ class Settings(BaseSettings):
     disable_log_requests: bool = Field(default=False, description="停用請求日誌")
     disable_custom_all_reduce: bool = Field(default=False, description="停用自定義 all-reduce (提高穩定性)")
     quantization: str = Field(default="", description="量化方法 (awq, gptq, fp8 等)")
+    kv_cache_dtype: str = Field(default="", description="KV Cache 資料型別 (fp8, auto 等)")
     enable_auto_tool_choice: bool = Field(default=False, description="啟用自動工具呼叫 (Function Calling / Tool Use)")
     tool_call_parser: str = Field(default="", description="工具呼叫解析器 (openai, mistral, hermes, llama3_json 等)")
+    reasoning_parser: str = Field(default="", description="Reasoning 輸出解析器 (qwen3, deepseek_r1 等)")
 
     # ---- 併發與效能 ----
     uvicorn_workers: int = Field(default=1, description="Uvicorn worker 數", ge=1)
@@ -161,7 +163,7 @@ class Settings(BaseSettings):
     # 快取已解析的模型路徑
     _cached_model_path: str | None = None
 
-    @field_validator("quantization", mode="before")
+    @field_validator("quantization", "kv_cache_dtype", "tool_call_parser", "reasoning_parser", mode="before")
     @classmethod
     def empty_str_to_none(cls, v: str) -> str:
         """空字串視為無量化"""
@@ -284,12 +286,21 @@ class Settings(BaseSettings):
             args.append("--disable-custom-all-reduce")
         if self.quantization:
             args.extend(["--quantization", self.quantization])
+        if self.kv_cache_dtype:
+            args.extend(["--kv-cache-dtype", self.kv_cache_dtype])
         if self.allowed_local_media_path:
             args.extend(["--allowed-local-media-path", self.allowed_local_media_path])
+        tool_call_parser = self.tool_call_parser.strip()
+        if self.enable_auto_tool_choice and not tool_call_parser:
+            raise ValueError(
+                "設定衝突: ENABLE_AUTO_TOOL_CHOICE=True 時必須設定 TOOL_CALL_PARSER"
+            )
         if self.enable_auto_tool_choice:
             args.append("--enable-auto-tool-choice")
-        if self.tool_call_parser:
-            args.extend(["--tool-call-parser", self.tool_call_parser])
+        if tool_call_parser:
+            args.extend(["--tool-call-parser", tool_call_parser])
+        if self.reasoning_parser:
+            args.extend(["--reasoning-parser", self.reasoning_parser])
 
         return args
 

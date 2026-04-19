@@ -11,7 +11,7 @@ class RubricItem(BaseModel):
     id: str = Field(..., description="評分項目唯一 ID")
     title: str = Field(..., description="評分項目名稱")
     description: str = Field(default="", description="評分說明")
-    max_score: float = Field(default=0.0, description="配分")
+    checked: bool = Field(default=False, description="是否已達成（有做到就打勾）")
     detectable: str = Field(
         default="manual",
         description="可偵測性：auto | partial | manual",
@@ -30,7 +30,8 @@ class RubricAnalysis(BaseModel):
     """AI 分析評分表後的結構化結果。"""
 
     items: list[RubricItem] = Field(default_factory=list)
-    total_score: float = Field(default=0.0)
+    total_items: int = Field(default=0)
+    checked_count: int = Field(default=0)
     auto_count: int = Field(default=0)
     partial_count: int = Field(default=0)
     manual_count: int = Field(default=0)

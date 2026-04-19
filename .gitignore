@@ -32,3 +32,5 @@ __pycache__/
 .idea
 *tiktoken_encodings/
 *AImodels/
+backend/app/static/downloads/*.zip
+vllm-inference/config/tool_chat_template_gemma4.jinja

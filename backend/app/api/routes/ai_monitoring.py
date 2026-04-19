@@ -9,7 +9,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Query
 
-from app.api.deps import AdminUser, SessionDep
+from app.api.deps import AIAPIViewAllUser, SessionDep
 from app.schemas.ai_monitoring import (
     AIMonitoringStats,
     AIProxyCallsResponse,
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/ai-api/monitoring", tags=["ai-monitoring"])
 )
 def get_stats(
     session: SessionDep,
-    current_user: AdminUser,
+    _current_user: AIAPIViewAllUser,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
 ):
@@ -47,7 +47,7 @@ def get_stats(
 )
 def list_api_calls(
     session: SessionDep,
-    current_user: AdminUser,
+    _current_user: AIAPIViewAllUser,
     user_id: uuid.UUID | None = None,
     model_name: str | None = Query(default=None, max_length=255),
     status: str | None = Query(default=None, max_length=50),
@@ -76,7 +76,7 @@ def list_api_calls(
 )
 def list_template_calls(
     session: SessionDep,
-    current_user: AdminUser,
+    _current_user: AIAPIViewAllUser,
     user_id: uuid.UUID | None = None,
     call_type: str | None = Query(default=None, max_length=30),
     preset: str | None = Query(default=None, max_length=50),
@@ -107,7 +107,7 @@ def list_template_calls(
 )
 def list_users_usage(
     session: SessionDep,
-    current_user: AdminUser,
+    _current_user: AIAPIViewAllUser,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     skip: int = Query(default=0, ge=0),

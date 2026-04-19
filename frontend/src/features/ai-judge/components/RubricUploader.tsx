@@ -118,7 +118,7 @@ export function RubricUploader({
           <>
             <Upload className="h-10 w-10 text-muted-foreground" />
             <div className="text-center">
-              <p className="font-medium">拖放評分表文件到這裡</p>
+              <p className="font-medium">拖放情境評估表文件到這裡</p>
               <p className="text-sm text-muted-foreground">
                 或點擊選擇檔案（支援 .docx、.pdf）
               </p>

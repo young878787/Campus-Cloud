@@ -84,12 +84,14 @@ def load_gateway_config(base_env_file: str | Path = DEFAULT_BASE_ENV) -> Gateway
 def load_model_instances(
     base_env_file: str | Path = DEFAULT_BASE_ENV,
     models_json_file: str | Path = DEFAULT_MODELS_JSON,
+    cli_overrides: dict[str, str] | None = None,
 ) -> list[ModelInstanceConfig]:
     """載入多模型實例設定。
     
     Args:
         base_env_file: 共用環境變數檔案路徑（預設 .env）
         models_json_file: 模型配置 JSON 檔案路徑（預設 models.json）
+        cli_overrides: 由 main.py 傳入的命令列參數覆寫值
     
     Returns:
         模型實例配置列表
@@ -120,8 +122,18 @@ def load_model_instances(
     for idx, model_config in enumerate(models_config):
         if not isinstance(model_config, dict):
             raise ValueError(f"模型配置 #{idx} 格式錯誤：應為物件")
+
+        effective_model_config = dict(model_config)
+        if cli_overrides:
+            # 僅套用非空覆寫值，避免空字串覆蓋 models.json 的既有設定。
+            normalized_overrides = {
+                key: value.strip()
+                for key, value in cli_overrides.items()
+                if isinstance(value, str) and value.strip()
+            }
+            effective_model_config.update(normalized_overrides)
         
-        alias = model_config.get("alias", "").strip()
+        alias = effective_model_config.get("alias", "").strip()
         if not alias:
             raise ValueError(f"模型配置 #{idx} 缺少 'alias' 欄位")
         
@@ -144,13 +156,15 @@ def load_model_instances(
             "dtype": "DTYPE",
             "tensor_parallel_size": "TENSOR_PARALLEL_SIZE",
             "quantization": "QUANTIZATION",
+            "kv_cache_dtype": "KV_CACHE_DTYPE",
             "enable_auto_tool_choice": "ENABLE_AUTO_TOOL_CHOICE",
             "tool_call_parser": "TOOL_CALL_PARSER",
+            "reasoning_parser": "REASONING_PARSER",
         }
         
         for json_key, env_key in field_mapping.items():
-            if json_key in model_config:
-                model_env_overrides[env_key] = str(model_config[json_key])
+            if json_key in effective_model_config:
+                model_env_overrides[env_key] = str(effective_model_config[json_key])
         
         # 臨時設定環境變數（在 Settings 初始化時會被讀取）
         original_env = {}
@@ -177,7 +191,7 @@ def load_model_instances(
         instances.append(
             ModelInstanceConfig(
                 alias=alias,
-                model_config=model_config,
+                model_config=effective_model_config,
                 settings=settings,
             )
         )

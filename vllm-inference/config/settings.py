@@ -9,7 +9,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from utils.model_utils import is_vision_model
@@ -68,8 +68,27 @@ class Settings(BaseSettings):
     disable_log_requests: bool = Field(default=False, description="停用請求日誌")
     disable_custom_all_reduce: bool = Field(default=False, description="停用自定義 all-reduce (提高穩定性)")
     quantization: str = Field(default="", description="量化方法 (awq, gptq, fp8 等)")
+    kv_cache_dtype: str = Field(default="", description="KV Cache 資料類型 (auto, fp8 等)；空值表示交由 vLLM 自動選擇")
+    vllm_nvfp4_gemm_backend: str = Field(default="", description="NVFP4 GEMM backend (如 marlin)；空值表示交由 vLLM 自動選擇")
     enable_auto_tool_choice: bool = Field(default=False, description="啟用自動工具呼叫 (Function Calling / Tool Use)")
     tool_call_parser: str = Field(default="", description="工具呼叫解析器 (openai, mistral, hermes, llama3_json 等)")
+    reasoning_parser: str = Field(
+        default="",
+        description="推理解析器 (gemma4 等)；空值表示不傳入 --reasoning-parser",
+        validation_alias=AliasChoices("REASONING_PARSER", "reasoning-parser", "reasoning_parser"),
+    )
+    chat_template: str = Field(
+        default="",
+        description="Chat template 路徑 (Jinja2 格式)；啟用 tool-call-parser 或 reasoning-parser 時通常必填",
+    )
+    limit_mm_per_prompt: str = Field(
+        default="",
+        description='每個 prompt 允許的多模態輸入上限，JSON 格式，例如 \'{"image": 5, "video": 1, "audio": 0}\'',
+    )
+    moe_backend: str = Field(
+        default="",
+        description="MoE expert 層的計算後端 (marlin 等)；空值表示 vLLM 自動選擇",
+    )
 
     # ---- 併發與效能 ----
     uvicorn_workers: int = Field(default=1, description="Uvicorn worker 數", ge=1)
@@ -157,10 +176,15 @@ class Settings(BaseSettings):
     # 快取已解析的模型路徑
     _cached_model_path: str | None = None
 
-    @field_validator("quantization", mode="before")
+    @field_validator(
+        "quantization", "tool_call_parser", "kv_cache_dtype",
+        "vllm_nvfp4_gemm_backend", "reasoning_parser",
+        "chat_template", "limit_mm_per_prompt", "moe_backend",
+        mode="before",
+    )
     @classmethod
-    def empty_str_to_none(cls, v: str) -> str:
-        """空字串視為無量化"""
+    def strip_optional_text(cls, v: str | None) -> str:
+        """可選字串參數去除空白，空值維持為空字串。"""
         return v.strip() if v else ""
     
     @field_validator("gpu_memory_utilization")
@@ -257,12 +281,26 @@ class Settings(BaseSettings):
             args.append("--disable-custom-all-reduce")
         if self.quantization:
             args.extend(["--quantization", self.quantization])
+        if self.kv_cache_dtype:
+            args.extend(["--kv-cache-dtype", self.kv_cache_dtype])
         if self.allowed_local_media_path:
             args.extend(["--allowed-local-media-path", self.allowed_local_media_path])
         if self.enable_auto_tool_choice:
             args.append("--enable-auto-tool-choice")
         if self.tool_call_parser:
             args.extend(["--tool-call-parser", self.tool_call_parser])
+        if self.reasoning_parser:
+            args.extend(["--reasoning-parser", self.reasoning_parser])
+        if self.chat_template:
+            # 支援相對路徑（相對於專案根目錄）
+            tmpl_path = Path(self.chat_template)
+            if not tmpl_path.is_absolute():
+                tmpl_path = PROJECT_ROOT / tmpl_path
+            args.extend(["--chat-template", str(tmpl_path)])
+        if self.limit_mm_per_prompt:
+            args.extend(["--limit-mm-per-prompt", self.limit_mm_per_prompt])
+        if self.moe_backend:
+            args.extend(["--moe-backend", self.moe_backend])
 
         return args
 
@@ -281,6 +319,12 @@ class Settings(BaseSettings):
             os.environ.setdefault("CUDA_HOME", self.cuda_home)
         if self.triton_cache_dir:
             os.environ.setdefault("TRITON_CACHE_DIR", self.triton_cache_dir)
+        
+        # 空值時移除，避免沿用外部環境中既有值，交由 vLLM 自動選擇
+        if self.vllm_nvfp4_gemm_backend:
+            os.environ["VLLM_NVFP4_GEMM_BACKEND"] = self.vllm_nvfp4_gemm_backend
+        else:
+            os.environ.pop("VLLM_NVFP4_GEMM_BACKEND", None)
 
 
 @lru_cache(maxsize=1)

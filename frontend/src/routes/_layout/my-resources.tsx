@@ -114,10 +114,10 @@ function DownloadDesktopClientButton() {
     setErrorMessage(null)
 
     try {
-      const token =
-        typeof OpenAPI.TOKEN === "function"
-          ? await (OpenAPI.TOKEN as (options: object) => Promise<string>)({})
-          : (OpenAPI.TOKEN as string)
+      const token = localStorage.getItem("access_token")
+      if (!token) {
+        throw new Error("尚未登入，請重新登入後再試。")
+      }
       const resp = await fetch(
         `${OpenAPI.BASE}/api/v1/desktop-client/download`,
         { headers: { Authorization: `Bearer ${token}` } },

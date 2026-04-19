@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib
 from importlib.metadata import PackageNotFoundError, version
 import os
 import shutil
@@ -234,27 +235,51 @@ def pre_launch_check(settings=None, logger_name: str = "PreCheck") -> bool:
 
 
 def check_dependency_compatibility(logger) -> bool:
-    """檢查關鍵 Python 套件版本相容性。"""
+    """檢查關鍵 Python 套件相容性（以實際匯入結果為準）。"""
     try:
         hub_version = version("huggingface-hub")
     except PackageNotFoundError:
         logger.error("缺少 huggingface-hub 套件")
-        logger.info("請執行: .venv/bin/pip install \"huggingface-hub>=0.34.0,<1.0\"")
+        logger.info("請執行: .venv/bin/pip install huggingface-hub")
         return False
 
     try:
+        transformers_version = version("transformers")
+    except PackageNotFoundError:
+        logger.error("缺少 transformers 套件")
+        logger.info("請執行: .venv/bin/pip install transformers")
+        return False
+
+    # 以實際匯入能力判定相容性，避免僅用版本號造成誤判。
+    try:
+        importlib.import_module("transformers")
+        importlib.import_module("transformers.utils.hub")
+    except ImportError as exc:
+        logger.error("Transformers 與 huggingface-hub 目前不相容，啟動前檢查失敗")
+        logger.info(f"ImportError: {exc}")
+        if "is_offline_mode" in str(exc) or "huggingface_hub" in str(exc):
+            logger.info(
+                "請嘗試對齊版本，例如: "
+                ".venv/bin/pip install \"transformers>=4.52\" \"huggingface-hub>=0.34.0,<1.0\""
+            )
+        return False
+
+    logger.success(
+        "依賴檢查通過: "
+        f"transformers={transformers_version}, huggingface-hub={hub_version}"
+    )
+
+    try:
         major = int(hub_version.split(".")[0])
-    except Exception:
+    except ValueError:
         logger.warning(f"無法解析 huggingface-hub 版本: {hub_version}")
         return True
 
     if major >= 1:
-        logger.error(
-            "huggingface-hub 版本不相容: "
-            f"{hub_version}（當前 transformers 需要 < 1.0）"
+        logger.warning(
+            "偵測到 huggingface-hub >= 1.0，"
+            "目前改以實際匯入驗證為準（若能匯入則允許啟動）"
         )
-        logger.info("請執行: .venv/bin/pip install \"huggingface-hub>=0.34.0,<1.0\"")
-        return False
     
     return True
 
@@ -426,6 +451,10 @@ def quick_start_cluster(
     startup_delay: float = 5.0,
     start_gateway: bool = True,
     gateway_ready_timeout: int = 60,
+    quantization: str = "",
+    tool_call_parser: str = "",
+    reasoning_parser: str = "",
+    kv_cache_dtype: str = "",
 ) -> ClusterRuntime | None:
     """一次啟動三模型集群。
     
@@ -438,11 +467,25 @@ def quick_start_cluster(
         startup_delay: 串行模式下每個模型完成後的額外等待秒數
         start_gateway: 是否啟動 Gateway
         gateway_ready_timeout: Gateway 健康檢查超時秒數
+        quantization: vLLM --quantization 覆寫值（空字串表示不啟用）
+        tool_call_parser: vLLM --tool-call-parser 覆寫值（空字串表示不啟用）
+        reasoning_parser: vLLM --reasoning-parser 覆寫值（空字串表示不啟用）
+        kv_cache_dtype: vLLM --kv-cache-dtype 覆寫值（空字串表示不啟用）
     """
     logger = get_logger("ClusterLauncher")
 
     try:
-        instances = load_model_instances(base_env_file=base_env, models_json_file=models_json)
+        cli_overrides = {
+            "quantization": quantization,
+            "tool_call_parser": tool_call_parser,
+            "reasoning_parser": reasoning_parser,
+            "kv_cache_dtype": kv_cache_dtype,
+        }
+        instances = load_model_instances(
+            base_env_file=base_env,
+            models_json_file=models_json,
+            cli_overrides=cli_overrides,
+        )
         validate_cluster_resources(instances)
         gateway_config = load_gateway_config(base_env_file=base_env)
         routes = build_gateway_routes(instances)
@@ -566,6 +609,30 @@ def main() -> None:
         default=60,
         help="Gateway 健康檢查超時秒數（預設 60）"
     )
+    parser.add_argument(
+        "--quantization",
+        type=str,
+        default="",
+        help="覆寫 vLLM --quantization（預設空字串）"
+    )
+    parser.add_argument(
+        "--tool-call-parser",
+        type=str,
+        default="",
+        help="覆寫 vLLM --tool-call-parser（預設空字串）"
+    )
+    parser.add_argument(
+        "--reasoning-parser",
+        type=str,
+        default="",
+        help="覆寫 vLLM --reasoning-parser（預設空字串）"
+    )
+    parser.add_argument(
+        "--kv-cache-dtype",
+        type=str,
+        default="",
+        help="覆寫 vLLM --kv-cache-dtype（預設空字串）"
+    )
     args = parser.parse_args()
     
     logger = get_logger("Main")
@@ -575,6 +642,13 @@ def main() -> None:
     logger.info(f"模型配置檔: {args.models_json}")
     logger.info(f"啟動 Gateway: {'否' if args.no_gateway else '是'}")
     logger.info("啟動模式: 串行模式（已移除並行模式）")
+    logger.info(
+        "CLI 啟動覆寫: "
+        f"quantization='{args.quantization}', "
+        f"tool_call_parser='{args.tool_call_parser}', "
+        f"reasoning_parser='{args.reasoning_parser}', "
+        f"kv_cache_dtype='{args.kv_cache_dtype}'"
+    )
 
     try:
         runtime = quick_start_cluster(
@@ -586,6 +660,10 @@ def main() -> None:
             startup_delay=args.startup_delay,
             start_gateway=not args.no_gateway,
             gateway_ready_timeout=args.gateway_ready_timeout,
+            quantization=args.quantization,
+            tool_call_parser=args.tool_call_parser,
+            reasoning_parser=args.reasoning_parser,
+            kv_cache_dtype=args.kv_cache_dtype,
         )
     except KeyboardInterrupt:
         logger.info("收到中斷信號，啟動已取消")

@@ -129,6 +129,56 @@ PROXMOX_VERIFY_SSL=false
 
 可於後端 `admin/configuration` 頁面動態切換 cluster 連線設定，支援 HA failover（TCP ping 偵測）。
 
+## SSH 目錄查看腳本
+
+專案根目錄提供獨立腳本 `resource_ssh_ls.py`，可透過後端 API 取得指定 VM/LXC 的 SSH 私鑰與 IP，並用 SSH 列出遠端目錄內容。
+
+### 前置條件
+
+- 後端 API 可連線（預設 `http://localhost:8000/api/v1`）
+- 目標 VM/LXC 已開機且可透過 IP 連線
+- 該 VMID 在 `resources` 已有 `ssh_private_key_encrypted` / `ssh_public_key`
+- 本機 Python 環境可使用 `requests` 與 `paramiko`
+
+### 基本用法
+
+```bash
+python resource_ssh_ls.py --vmid 101 --ssh-user ubuntu --path /home/ubuntu
+
+# 或執行自訂遠端指令
+python resource_ssh_ls.py --vmid 101 --ssh-user ubuntu --command "whoami; hostname; id"
+```
+
+### 常用參數
+
+- `--api-base`：API Base URL（預設 `http://localhost:8000/api/v1`）
+- `--api-user`：Campus Cloud 帳號（email）
+- `--api-password`：Campus Cloud 密碼（不填會互動式提示輸入）
+- `--vmid`：目標 VM/LXC 的 VMID（必填）
+- `--ssh-user`：登入 VM/LXC 的 Linux 帳號（必填）
+- `--ssh-port`：SSH port（預設 22）
+- `--path`：要列出的遠端目錄（預設 `/`）
+- `--command`：自訂遠端指令（提供後會覆蓋 `--path` 的 ls 模式）
+- `--timeout`：HTTP/SSH timeout 秒數（預設 15）
+- `--insecure-host-key`：改用 AutoAdd host key policy（僅建議內網除錯）
+
+### 環境變數（可選）
+
+- `CAMPUS_CLOUD_API_BASE`
+- `CAMPUS_CLOUD_API_USER`
+- `CAMPUS_CLOUD_API_PASSWORD`
+
+範例：
+
+```bash
+export CAMPUS_CLOUD_API_BASE=http://localhost:8000/api/v1
+export CAMPUS_CLOUD_API_USER=admin@example.com
+export CAMPUS_CLOUD_API_PASSWORD=your_password
+python resource_ssh_ls.py --vmid 101 --ssh-user ubuntu --path /etc
+```
+
+> 若看到 `Resource has no ip_address`，通常代表機器尚未開機、未取得 DHCP/靜態 IP，或後端尚未快取到最新 IP。
+
 ## 文件索引
 
 - [`development.md`](development.md) — 完整開發環境設置

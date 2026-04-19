@@ -151,3 +151,27 @@ def list_jobs_by_group(
         .order_by(BatchProvisionJob.created_at.desc())
     )
     return list(session.exec(stmt).all())
+
+
+def clear_task_vmid_references(
+    *, session: Session, vmid: int, commit: bool = True
+) -> int:
+    """Clear VMID references from batch tasks when the underlying resource is deleted."""
+    tasks = list(
+        session.exec(
+            select(BatchProvisionTask).where(BatchProvisionTask.vmid == vmid)
+        ).all()
+    )
+    if not tasks:
+        return 0
+
+    for task in tasks:
+        task.vmid = None
+        session.add(task)
+
+    if commit:
+        session.commit()
+    else:
+        session.flush()
+
+    return len(tasks)

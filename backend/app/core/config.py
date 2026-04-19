@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # Public base URL of the backend API as seen by desktop clients.
     # Defaults to http://localhost:8000 when unset (override in .env for deploys).
     DESKTOP_CLIENT_BACKEND_URL: str = "http://localhost:8000"
+    # External URL for the desktop client zip (e.g. GitHub Releases asset).
+    # When set, /desktop-client/download redirects here instead of serving a local file.
+    DESKTOP_CLIENT_DOWNLOAD_URL: str = ""
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
 
     BACKEND_CORS_ORIGINS: Annotated[
@@ -118,19 +121,19 @@ class Settings(BaseSettings):
     TRAEFIK_API_TIMEOUT: int = 10
 
     # vLLM settings for AI Teacher Judge
-    TEMPLATE_RECOMMENDATION_VLLM_BASE_URL: str = "http://localhost:8000/v1"
-    TEMPLATE_RECOMMENDATION_VLLM_API_KEY: str = "vllm-secret-key-change-me"
-    TEMPLATE_RECOMMENDATION_VLLM_MODEL_NAME: str = ""
-    TEMPLATE_RECOMMENDATION_VLLM_ENABLE_THINKING: bool = False
-    TEMPLATE_RECOMMENDATION_VLLM_TIMEOUT: int = 60
-    TEMPLATE_RECOMMENDATION_VLLM_TEMPERATURE: float = 0.2
-    TEMPLATE_RECOMMENDATION_VLLM_CHAT_TEMPERATURE: float = 0.7
-    TEMPLATE_RECOMMENDATION_VLLM_TOP_P: float = 0.95
-    TEMPLATE_RECOMMENDATION_VLLM_TOP_K: int = 20
-    TEMPLATE_RECOMMENDATION_VLLM_MAX_TOKENS: int = 8192
-    TEMPLATE_RECOMMENDATION_VLLM_CHAT_MAX_TOKENS: int = 4096
-    TEMPLATE_RECOMMENDATION_VLLM_REPETITION_PENALTY: float = 1.0
-    TEMPLATE_RECOMMENDATION_VLLM_MAX_UPLOAD_SIZE_MB: int = 10
+    VLLM_BASE_URL: str = "http://localhost:8000/v1"
+    VLLM_API_KEY: str = "vllm-secret-key-change-me"
+    VLLM_MODEL_NAME: str = ""
+    VLLM_ENABLE_THINKING: bool = False
+    VLLM_TIMEOUT: int = 60
+    VLLM_TEMPERATURE: float = 0.2
+    VLLM_CHAT_TEMPERATURE: float = 0.7
+    VLLM_TOP_P: float = 0.95
+    VLLM_TOP_K: int = 20
+    VLLM_MAX_TOKENS: int = 8192
+    VLLM_CHAT_MAX_TOKENS: int = 4096
+    VLLM_REPETITION_PENALTY: float = 1.0
+    VLLM_MAX_UPLOAD_SIZE_MB: int = 10
 
     TRAEFIK_API_BASE_URL: str = "http://127.0.0.1:8080"
     TRAEFIK_API_TIMEOUT: int = 10

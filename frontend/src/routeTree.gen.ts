@@ -41,6 +41,7 @@ import { Route as LayoutAdminDomainsRouteImport } from './routes/_layout/admin.d
 import { Route as LayoutAdminConfigurationRouteImport } from './routes/_layout/admin.configuration'
 import { Route as LayoutAdminAuditLogsRouteImport } from './routes/_layout/admin.audit-logs'
 import { Route as LayoutAdminAiMonitoringRouteImport } from './routes/_layout/admin.ai-monitoring'
+import { Route as LayoutAdminAiManagementRouteImport } from './routes/_layout/admin.ai-management'
 import { Route as LayoutGroupsGroupIdAiPveMessageRouteImport } from './routes/_layout/groups_.$groupId_.ai-pve-message'
 import { Route as LayoutGroupsGroupIdAiJudgeRouteImport } from './routes/_layout/groups_.$groupId_.ai-judge'
 
@@ -207,6 +208,11 @@ const LayoutAdminAiMonitoringRoute = LayoutAdminAiMonitoringRouteImport.update({
   path: '/ai-monitoring',
   getParentRoute: () => LayoutAdminRoute,
 } as any)
+const LayoutAdminAiManagementRoute = LayoutAdminAiManagementRouteImport.update({
+  id: '/ai-management',
+  path: '/ai-management',
+  getParentRoute: () => LayoutAdminRoute,
+} as any)
 const LayoutGroupsGroupIdAiPveMessageRoute =
   LayoutGroupsGroupIdAiPveMessageRouteImport.update({
     id: '/groups_/$groupId_/ai-pve-message',
@@ -241,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/resources-create': typeof LayoutResourcesCreateRoute
   '/reverse-proxy': typeof LayoutReverseProxyRoute
   '/settings': typeof LayoutSettingsRoute
+  '/admin/ai-management': typeof LayoutAdminAiManagementRoute
   '/admin/ai-monitoring': typeof LayoutAdminAiMonitoringRoute
   '/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
   '/admin/configuration': typeof LayoutAdminConfigurationRoute
@@ -275,6 +282,7 @@ export interface FileRoutesByTo {
   '/reverse-proxy': typeof LayoutReverseProxyRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
+  '/admin/ai-management': typeof LayoutAdminAiManagementRoute
   '/admin/ai-monitoring': typeof LayoutAdminAiMonitoringRoute
   '/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
   '/admin/configuration': typeof LayoutAdminConfigurationRoute
@@ -312,6 +320,7 @@ export interface FileRoutesById {
   '/_layout/reverse-proxy': typeof LayoutReverseProxyRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
+  '/_layout/admin/ai-management': typeof LayoutAdminAiManagementRoute
   '/_layout/admin/ai-monitoring': typeof LayoutAdminAiMonitoringRoute
   '/_layout/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
   '/_layout/admin/configuration': typeof LayoutAdminConfigurationRoute
@@ -349,6 +358,7 @@ export interface FileRouteTypes {
     | '/resources-create'
     | '/reverse-proxy'
     | '/settings'
+    | '/admin/ai-management'
     | '/admin/ai-monitoring'
     | '/admin/audit-logs'
     | '/admin/configuration'
@@ -383,6 +393,7 @@ export interface FileRouteTypes {
     | '/reverse-proxy'
     | '/settings'
     | '/'
+    | '/admin/ai-management'
     | '/admin/ai-monitoring'
     | '/admin/audit-logs'
     | '/admin/configuration'
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/_layout/reverse-proxy'
     | '/_layout/settings'
     | '/_layout/'
+    | '/_layout/admin/ai-management'
     | '/_layout/admin/ai-monitoring'
     | '/_layout/admin/audit-logs'
     | '/_layout/admin/configuration'
@@ -668,6 +680,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminAiMonitoringRouteImport
       parentRoute: typeof LayoutAdminRoute
     }
+    '/_layout/admin/ai-management': {
+      id: '/_layout/admin/ai-management'
+      path: '/ai-management'
+      fullPath: '/admin/ai-management'
+      preLoaderRoute: typeof LayoutAdminAiManagementRouteImport
+      parentRoute: typeof LayoutAdminRoute
+    }
     '/_layout/groups_/$groupId_/ai-pve-message': {
       id: '/_layout/groups_/$groupId_/ai-pve-message'
       path: '/groups/$groupId/ai-pve-message'
@@ -686,6 +705,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface LayoutAdminRouteChildren {
+  LayoutAdminAiManagementRoute: typeof LayoutAdminAiManagementRoute
   LayoutAdminAiMonitoringRoute: typeof LayoutAdminAiMonitoringRoute
   LayoutAdminAuditLogsRoute: typeof LayoutAdminAuditLogsRoute
   LayoutAdminConfigurationRoute: typeof LayoutAdminConfigurationRoute
@@ -696,6 +716,7 @@ interface LayoutAdminRouteChildren {
 }
 
 const LayoutAdminRouteChildren: LayoutAdminRouteChildren = {
+  LayoutAdminAiManagementRoute: LayoutAdminAiManagementRoute,
   LayoutAdminAiMonitoringRoute: LayoutAdminAiMonitoringRoute,
   LayoutAdminAuditLogsRoute: LayoutAdminAuditLogsRoute,
   LayoutAdminConfigurationRoute: LayoutAdminConfigurationRoute,

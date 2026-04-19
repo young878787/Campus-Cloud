@@ -1,5 +1,7 @@
 from app.api.deps.ai_api_key import AIAPIUserDep, get_current_user_by_ai_api_key
 from app.api.deps.auth import (
+    AIAPIReviewerUser,
+    AIAPIViewAllUser,
     AdminUser,
     CurrentUser,
     InstructorUser,
@@ -29,6 +31,8 @@ __all__ = [
     # Auth
     "reusable_oauth2",
     "TokenDep",
+    "AIAPIReviewerUser",
+    "AIAPIViewAllUser",
     "get_current_user",
     "CurrentUser",
     "get_current_active_superuser",

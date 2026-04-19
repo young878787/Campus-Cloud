@@ -52,7 +52,7 @@ export function ChatPanel({
 
   const handleRefine = useCallback(() => {
     if (!isLoading) {
-      onSendMessage("請幫我審核並潤飾目前的評分表", true)
+      onSendMessage("請幫我審核並潤飾目前的情境評估表", true)
     }
   }, [isLoading, onSendMessage])
 
@@ -64,7 +64,7 @@ export function ChatPanel({
           <div className="flex h-full items-center justify-center">
             <div className="text-center text-muted-foreground">
               <Bot className="mx-auto mb-2 h-8 w-8" />
-              <p>與 AI 對話來精煉你的評分表</p>
+              <p>與 AI 對話來精煉你的情境評估表</p>
               <p className="mt-1 text-sm">
                 可以詢問修改建議，或直接下達調整指令
               </p>
@@ -157,7 +157,7 @@ export function ChatPanel({
           </Button>
         </form>
         <p className="mt-2 text-xs text-muted-foreground">
-          提示：詢問問題不會修改評分表，需明確指令（如「幫我改」「新增」）才會執行變更
+          提示：詢問問題不會修改評估表，需明確指令（如「幫我改」「新增」）才會執行變更
         </p>
       </div>
     </div>

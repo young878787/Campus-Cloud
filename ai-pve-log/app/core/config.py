@@ -37,18 +37,18 @@ class Settings(BaseSettings):
     collector_retry_attempts: int = Field(default=3, ge=1, le=10)
     collector_retry_backoff: float = Field(default=0.3, ge=0.0, le=10.0)
 
-    # vLLM / AI 設定（共用全局 TEMPLATE_RECOMMENDATION_* 變數）
+    # vLLM / AI 設定（共用全局 VLLM_* 變數）
     vllm_base_url: str = Field(
         default="http://localhost:8000/v1",
-        alias="template_recommendation_vllm_base_url",
+        alias="vllm_base_url",
     )
     vllm_api_key: str = Field(
         default="",
-        alias="template_recommendation_vllm_api_key",
+        alias="vllm_api_key",
     )
     vllm_model_name: str = Field(
         default="",
-        alias="template_recommendation_vllm_model_name",
+        alias="vllm_model_name",
     )
     # AI 對話逾時（秒），預留給快照收集 + LLM 兩次呼叫
     chat_timeout: int = Field(default=120, ge=10, le=600)

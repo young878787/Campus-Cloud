@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Query
 
-from app.api.deps import AdminUser, CurrentUser, SessionDep
+from app.api.deps import AIAPIReviewerUser, AIAPIViewAllUser, CurrentUser, SessionDep
 from app.models import AIAPIRequestStatus
 from app.schemas import (
     AIAPICredentialsAdminPublic,
@@ -47,7 +47,7 @@ def list_my_ai_api_requests(
 @router.get("/requests", response_model=AIAPIRequestsPublic)
 def list_all_ai_api_requests(
     session: SessionDep,
-    current_user: AdminUser,
+    _current_user: AIAPIReviewerUser,
     status: AIAPIRequestStatus | None = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=100),
@@ -73,7 +73,7 @@ def review_ai_api_request(
     request_id: uuid.UUID,
     review: AIAPIRequestReview,
     session: SessionDep,
-    current_user: AdminUser,
+    current_user: AIAPIReviewerUser,
 ) -> Any:
     return ai_gateway_service.review_request(
         session=session,
@@ -98,7 +98,7 @@ def list_my_ai_api_credentials(
 @router.get("/credentials", response_model=AIAPICredentialsAdminPublic)
 def list_all_ai_api_credentials(
     session: SessionDep,
-    current_user: AdminUser,
+    _current_user: AIAPIViewAllUser,
     status: Literal["active", "inactive"] | None = None,
     user_email: str | None = Query(default=None, max_length=255),
     skip: int = Query(default=0, ge=0),

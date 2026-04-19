@@ -7,10 +7,11 @@ from sqlmodel import Session
 
 from app.exceptions import BadRequestError, ProxmoxError
 from app.models.vm_request import VMRequestStatus
+from app.repositories import audit_log as audit_log_repo
+from app.repositories import batch_provision as batch_provision_repo
+from app.repositories import resource as resource_repo
 from app.repositories import vm_request as vm_request_repo
 from app.schemas import ResourcePublic
-from app.repositories import resource as resource_repo
-from app.repositories import audit_log as audit_log_repo
 from app.services.network import firewall_service
 from app.services.proxmox import proxmox_service
 from app.services.user import audit_service
@@ -275,6 +276,28 @@ def delete(
             reverse_proxy_service.remove_reverse_proxy_rules_for_vmid(session, vmid)
         except Exception as exc:
             logger.warning("Failed to clean up reverse proxy rules for VM %s: %s", vmid, exc)
+
+        # Unlink deleted VMID from historical batch tasks so group status won't
+        # accidentally match a future resource that reuses the same VMID.
+        try:
+            cleared_count = batch_provision_repo.clear_task_vmid_references(
+                session=session,
+                vmid=vmid,
+                commit=False,
+            )
+            if cleared_count:
+                logger.info(
+                    "Cleared VMID %s from %s batch task(s)",
+                    vmid,
+                    cleared_count,
+                )
+        except Exception as exc:
+            session.rollback()
+            logger.warning(
+                "Failed to clear batch task VMID references for VM %s: %s",
+                vmid,
+                exc,
+            )
 
         # Remove from database (resource record + all associated audit logs)
         resource_repo.delete_resource(session=session, vmid=vmid)

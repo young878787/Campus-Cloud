@@ -1,3 +1,4 @@
+import { redirect } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import {
@@ -47,7 +48,10 @@ import {
 
 export const Route = createFileRoute("/_layout/admin/ai-monitoring")({
   component: AdminAiMonitoringPage,
-  beforeLoad: () => requireAdminUser(),
+  beforeLoad: () => {
+    requireAdminUser()
+    throw redirect({ to: "/admin/ai-management" })
+  },
 })
 
 const LIMIT = 50
@@ -74,6 +78,19 @@ function formatDuration(ms?: number | null): string {
   if (ms == null) return "-"
   if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`
   return `${ms}ms`
+}
+
+function formatModelDisplay(modelName?: string | null): string {
+  if (!modelName) return "-"
+  const trimmed = modelName.trim()
+  if (!trimmed) return "-"
+
+  const match = trimmed.match(/models--([^/]+)--([^/]+)/)
+  if (!match) return trimmed
+
+  const org = match[1]
+  const name = match[2]
+  return `${org}/${name}`
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -288,8 +305,8 @@ function ProxyCallsTab({
                             fullName={row.user_full_name}
                           />
                         </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {row.model_name}
+                        <TableCell className="font-mono text-sm" title={row.model_name}>
+                          {formatModelDisplay(row.model_name)}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {row.request_type}
@@ -438,8 +455,8 @@ function TemplateCallsTab({
                           />
                         </TableCell>
                         <TableCell className="text-sm">{row.call_type}</TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {row.model_name}
+                        <TableCell className="font-mono text-sm" title={row.model_name}>
+                          {formatModelDisplay(row.model_name)}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {row.preset ?? "-"}
@@ -721,8 +738,8 @@ function AdminAiMonitoringPage() {
             {stats?.models_used && stats.models_used.length > 0 ? (
               <div className="space-y-1">
                 {stats.models_used.map((m) => (
-                  <div key={m} className="truncate font-mono text-sm">
-                    {m}
+                  <div key={m} className="truncate font-mono text-sm" title={m}>
+                    {formatModelDisplay(m)}
                   </div>
                 ))}
               </div>

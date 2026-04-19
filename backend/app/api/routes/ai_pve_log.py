@@ -18,7 +18,7 @@ from app.ai.pve_log.schemas import (
     StorageInfo,
     SystemSnapshot,
 )
-from app.api.deps.auth import InstructorUser
+from app.api.deps import InstructorUser
 
 logger = logging.getLogger(__name__)
 

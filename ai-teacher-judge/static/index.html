@@ -733,7 +733,8 @@
           freezeOldCard();
           currentEditableCardDiv = renderMessage("assistant", renderRubricCard(analysis, "📋 評分表分析結果", true));
 
-          // Reset chat history on new upload
+          // Update rubric context for future chat
+          const rubricContext = JSON.stringify({ items: currentRubricItems, summary: currentRubricSummary });
           conversationHistory = [];   // reset chat history on new upload
 
           // Enable chat

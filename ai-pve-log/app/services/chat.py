@@ -214,7 +214,7 @@ async def chat(message: str) -> ChatResponse:
     if not settings.vllm_base_url or not settings.vllm_model_name:
         return ChatResponse(
             reply="",
-            error="vLLM 設定不完整，請確認 .env 中的 TEMPLATE_RECOMMENDATION_VLLM_* 設定",
+            error="vLLM 設定不完整，請確認 .env 中的 VLLM_* 設定",
         )
 
     url = f"{settings.vllm_base_url.rstrip('/')}/chat/completions"

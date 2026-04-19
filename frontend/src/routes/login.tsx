@@ -73,10 +73,11 @@ export const Route = createFileRoute("/login")({
 
 async function approveDeviceCode(deviceCode: string): Promise<boolean> {
   try {
-    const token =
-      typeof OpenAPI.TOKEN === "function"
-        ? await (OpenAPI.TOKEN as (options: object) => Promise<string>)({})
-        : (OpenAPI.TOKEN as string)
+    const token = localStorage.getItem("access_token")
+    if (!token) {
+      console.warn("[approveDeviceCode] no access_token in localStorage")
+      return false
+    }
     const resp = await fetch(
       `${OpenAPI.BASE}/api/v1/desktop-client/auth/approve`,
       {
@@ -88,8 +89,13 @@ async function approveDeviceCode(deviceCode: string): Promise<boolean> {
         body: JSON.stringify({ device_code: deviceCode }),
       },
     )
+    if (!resp.ok) {
+      const body = await resp.text()
+      console.warn("[approveDeviceCode] failed", resp.status, body)
+    }
     return resp.ok
-  } catch {
+  } catch (err) {
+    console.warn("[approveDeviceCode] error", err)
     return false
   }
 }
@@ -104,8 +110,8 @@ function Login() {
   const { loginMutation, googleLoginMutation } = useAuth({
     onLoginSuccess: deviceCode
       ? async () => {
-          await approveDeviceCode(deviceCode)
-          setDeviceApproved(true)
+          const ok = await approveDeviceCode(deviceCode)
+          if (ok) setDeviceApproved(true)
           return true // prevent navigate to "/"
         }
       : undefined,
