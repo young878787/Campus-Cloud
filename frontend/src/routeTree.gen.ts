@@ -42,8 +42,6 @@ import { Route as LayoutAdminConfigurationRouteImport } from './routes/_layout/a
 import { Route as LayoutAdminAuditLogsRouteImport } from './routes/_layout/admin.audit-logs'
 import { Route as LayoutAdminAiMonitoringRouteImport } from './routes/_layout/admin.ai-monitoring'
 import { Route as LayoutAdminAiManagementRouteImport } from './routes/_layout/admin.ai-management'
-import { Route as LayoutGroupsGroupIdAiPveMessageRouteImport } from './routes/_layout/groups_.$groupId_.ai-pve-message'
-import { Route as LayoutGroupsGroupIdAiJudgeRouteImport } from './routes/_layout/groups_.$groupId_.ai-judge'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -213,18 +211,6 @@ const LayoutAdminAiManagementRoute = LayoutAdminAiManagementRouteImport.update({
   path: '/ai-management',
   getParentRoute: () => LayoutAdminRoute,
 } as any)
-const LayoutGroupsGroupIdAiPveMessageRoute =
-  LayoutGroupsGroupIdAiPveMessageRouteImport.update({
-    id: '/groups_/$groupId_/ai-pve-message',
-    path: '/groups/$groupId/ai-pve-message',
-    getParentRoute: () => LayoutRoute,
-  } as any)
-const LayoutGroupsGroupIdAiJudgeRoute =
-  LayoutGroupsGroupIdAiJudgeRouteImport.update({
-    id: '/groups_/$groupId_/ai-judge',
-    path: '/groups/$groupId/ai-judge',
-    getParentRoute: () => LayoutRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof LayoutIndexRoute
@@ -259,8 +245,6 @@ export interface FileRoutesByFullPath {
   '/my-resources/$vmid': typeof LayoutMyResourcesVmidRoute
   '/resources/$vmid': typeof LayoutResourcesVmidRoute
   '/admin/': typeof LayoutAdminIndexRoute
-  '/groups/$groupId/ai-judge': typeof LayoutGroupsGroupIdAiJudgeRoute
-  '/groups/$groupId/ai-pve-message': typeof LayoutGroupsGroupIdAiPveMessageRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -294,8 +278,6 @@ export interface FileRoutesByTo {
   '/my-resources/$vmid': typeof LayoutMyResourcesVmidRoute
   '/resources/$vmid': typeof LayoutResourcesVmidRoute
   '/admin': typeof LayoutAdminIndexRoute
-  '/groups/$groupId/ai-judge': typeof LayoutGroupsGroupIdAiJudgeRoute
-  '/groups/$groupId/ai-pve-message': typeof LayoutGroupsGroupIdAiPveMessageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -332,8 +314,6 @@ export interface FileRoutesById {
   '/_layout/my-resources_/$vmid': typeof LayoutMyResourcesVmidRoute
   '/_layout/resources_/$vmid': typeof LayoutResourcesVmidRoute
   '/_layout/admin/': typeof LayoutAdminIndexRoute
-  '/_layout/groups_/$groupId_/ai-judge': typeof LayoutGroupsGroupIdAiJudgeRoute
-  '/_layout/groups_/$groupId_/ai-pve-message': typeof LayoutGroupsGroupIdAiPveMessageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -370,8 +350,6 @@ export interface FileRouteTypes {
     | '/my-resources/$vmid'
     | '/resources/$vmid'
     | '/admin/'
-    | '/groups/$groupId/ai-judge'
-    | '/groups/$groupId/ai-pve-message'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -405,8 +383,6 @@ export interface FileRouteTypes {
     | '/my-resources/$vmid'
     | '/resources/$vmid'
     | '/admin'
-    | '/groups/$groupId/ai-judge'
-    | '/groups/$groupId/ai-pve-message'
   id:
     | '__root__'
     | '/_layout'
@@ -442,8 +418,6 @@ export interface FileRouteTypes {
     | '/_layout/my-resources_/$vmid'
     | '/_layout/resources_/$vmid'
     | '/_layout/admin/'
-    | '/_layout/groups_/$groupId_/ai-judge'
-    | '/_layout/groups_/$groupId_/ai-pve-message'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -687,20 +661,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminAiManagementRouteImport
       parentRoute: typeof LayoutAdminRoute
     }
-    '/_layout/groups_/$groupId_/ai-pve-message': {
-      id: '/_layout/groups_/$groupId_/ai-pve-message'
-      path: '/groups/$groupId/ai-pve-message'
-      fullPath: '/groups/$groupId/ai-pve-message'
-      preLoaderRoute: typeof LayoutGroupsGroupIdAiPveMessageRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/groups_/$groupId_/ai-judge': {
-      id: '/_layout/groups_/$groupId_/ai-judge'
-      path: '/groups/$groupId/ai-judge'
-      fullPath: '/groups/$groupId/ai-judge'
-      preLoaderRoute: typeof LayoutGroupsGroupIdAiJudgeRouteImport
-      parentRoute: typeof LayoutRoute
-    }
   }
 }
 
@@ -751,8 +711,6 @@ interface LayoutRouteChildren {
   LayoutGroupsGroupIdRoute: typeof LayoutGroupsGroupIdRoute
   LayoutMyResourcesVmidRoute: typeof LayoutMyResourcesVmidRoute
   LayoutResourcesVmidRoute: typeof LayoutResourcesVmidRoute
-  LayoutGroupsGroupIdAiJudgeRoute: typeof LayoutGroupsGroupIdAiJudgeRoute
-  LayoutGroupsGroupIdAiPveMessageRoute: typeof LayoutGroupsGroupIdAiPveMessageRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
@@ -776,8 +734,6 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutGroupsGroupIdRoute: LayoutGroupsGroupIdRoute,
   LayoutMyResourcesVmidRoute: LayoutMyResourcesVmidRoute,
   LayoutResourcesVmidRoute: LayoutResourcesVmidRoute,
-  LayoutGroupsGroupIdAiJudgeRoute: LayoutGroupsGroupIdAiJudgeRoute,
-  LayoutGroupsGroupIdAiPveMessageRoute: LayoutGroupsGroupIdAiPveMessageRoute,
 }
 
 const LayoutRouteWithChildren =
