@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
@@ -340,7 +340,9 @@ def list_due_for_rebalance_vm_requests(
     *,
     session: Session,
     at_time: datetime,
+    interval_minutes: int = 15,
 ) -> list[VMRequest]:
+    rebalance_before = at_time - timedelta(minutes=max(int(interval_minutes or 0), 0))
     statement = (
         select(VMRequest)
         .where(
@@ -351,6 +353,7 @@ def list_due_for_rebalance_vm_requests(
             (
                 VMRequest.last_rebalanced_at.is_(None)
                 | (VMRequest.last_rebalanced_at < VMRequest.start_at)
+                | (VMRequest.last_rebalanced_at <= rebalance_before)
             ),
         )
         .options(selectinload(VMRequest.user))  # type: ignore[arg-type]

@@ -35,11 +35,14 @@ from app.domain.placement.storage import (
 from app.models import VMRequest
 from app.repositories import proxmox_storage as proxmox_storage_repo
 from app.repositories import vm_request as vm_request_repo
+from app.services.scheduling import policy as scheduling_policy
+from app.services.scheduling import support as scheduling_support
 from app.services.vm import placement_support
 
 GIB = 1024**3
 _STORAGE_SPEED_RANK = {"nvme": 0, "ssd": 1, "hdd": 2, "unknown": 3}
 DEFAULT_PLACEMENT_STRATEGY = placement_policy.DEFAULT_PLACEMENT_STRATEGY
+_MigrationPolicy = scheduling_policy.MigrationPolicy
 
 
 @dataclass
@@ -105,6 +108,40 @@ def _build_rebalance_baseline_nodes(
         get_overcommit_ratios_fn=get_overcommit_ratios,
         release_request_from_capacities_fn=_release_request_from_capacities,
     )
+
+
+def _build_active_rebalance_allowed_target_nodes(
+    *,
+    ordered_requests: list[VMRequest],
+    baseline_nodes: list[NodeCapacity],
+    policy: _MigrationPolicy,
+    now: datetime,
+) -> dict[uuid.UUID, set[str]]:
+    candidate_nodes = [item.node for item in baseline_nodes]
+    target_storages_by_node: dict[str, set[str]] = {}
+    for node_name in candidate_nodes:
+        try:
+            target_storages_by_node[node_name] = (
+                scheduling_support.shared_storage_ids_on_node(
+                    node=node_name
+                )
+            )
+        except Exception:
+            target_storages_by_node[node_name] = set()
+
+    allowed_target_nodes: dict[uuid.UUID, set[str]] = {}
+    for request in ordered_requests:
+        allowed, _ = scheduling_support.migration_allowed_target_nodes_for_request(
+            request=request,
+            candidate_nodes=candidate_nodes,
+            current_node=_provisioned_current_node(request),
+            policy=policy,
+            now=now,
+            safe=True,
+            target_storages_by_node=target_storages_by_node,
+        )
+        allowed_target_nodes[request.id] = allowed
+    return allowed_target_nodes
 
 
 def _build_preview_vm_request(
@@ -463,6 +500,8 @@ def _evaluate_active_assignment_map(
     assignments: dict[uuid.UUID, str],
     priorities: dict[str, int],
     tuning: _PlacementTuning,
+    allowed_target_nodes_by_request: dict[uuid.UUID, set[str]] | None = None,
+    max_migrations: int | None = None,
 ) -> _AssignmentEvaluation:
     working_nodes = [item.model_copy(deep=True) for item in baseline_nodes]
     by_node = {item.node: item for item in working_nodes}
@@ -478,6 +517,12 @@ def _evaluate_active_assignment_map(
     for request in ordered_requests:
         target_node = assignments.get(request.id)
         if not target_node:
+            return _AssignmentEvaluation(
+                feasible=False,
+                objective=(float("inf"), float("inf"), 10**9, float("inf")),
+            )
+        allowed_targets = (allowed_target_nodes_by_request or {}).get(request.id)
+        if allowed_targets is not None and target_node not in allowed_targets:
             return _AssignmentEvaluation(
                 feasible=False,
                 objective=(float("inf"), float("inf"), 10**9, float("inf")),
@@ -545,6 +590,12 @@ def _evaluate_active_assignment_map(
         if _provisioned_current_node(request) not in {None, target_node}:
             movement_count += 1
 
+    if max_migrations is not None and movement_count > max(max_migrations, 0):
+        return _AssignmentEvaluation(
+            feasible=False,
+            objective=(float("inf"), float("inf"), 10**9, float("inf")),
+        )
+
     node_score_map = {
         node.node: _node_balance_score(node, tuning=tuning) for node in working_nodes
     }
@@ -590,6 +641,8 @@ def _initial_active_assignment_map(
     priorities: dict[str, int],
     tuning: _PlacementTuning,
     fixed_assignments: dict[uuid.UUID, str] | None = None,
+    allowed_target_nodes_by_request: dict[uuid.UUID, set[str]] | None = None,
+    max_migrations: int | None = None,
 ) -> dict[uuid.UUID, str]:
     working_nodes = [item.model_copy(deep=True) for item in baseline_nodes]
     storage_pools_by_node, has_managed_storage = _build_storage_pool_state(
@@ -600,6 +653,7 @@ def _initial_active_assignment_map(
     placements: dict[str, int] = {item.node: 0 for item in working_nodes}
     assignments: dict[uuid.UUID, str] = {}
     locked_nodes = fixed_assignments or {}
+    movement_count = 0
 
     for request in ordered_requests:
         placement_request = _to_placement_request(request)
@@ -615,10 +669,21 @@ def _initial_active_assignment_map(
             effective_resource_type,
         )
         required_disk = placement_request.disk_gb * GIB
+        current_node = _provisioned_current_node(request)
+        movement_budget_exhausted = (
+            max_migrations is not None
+            and current_node is not None
+            and movement_count >= max(max_migrations, 0)
+        )
         candidates: list[tuple[NodeCapacity, _StorageSelection | None]] = []
         for item in working_nodes:
             forced_node = locked_nodes.get(request.id)
             if forced_node and item.node != forced_node:
+                continue
+            if movement_budget_exhausted and item.node != current_node:
+                continue
+            allowed_targets = (allowed_target_nodes_by_request or {}).get(request.id)
+            if allowed_targets is not None and item.node not in allowed_targets:
                 continue
             if not item.candidate or not advisor_service._can_fit(
                 item,
@@ -657,6 +722,8 @@ def _initial_active_assignment_map(
                 tuning=tuning,
                 locked_request_ids=set(locked_nodes.keys()),
                 disk_overcommit_ratio=disk_overcommit_ratio,
+                allowed_target_nodes_by_request=allowed_target_nodes_by_request,
+                max_migrations=max_migrations,
             )
             if relief is not None:
                 # Adopt the relief assignments and continue
@@ -694,6 +761,8 @@ def _initial_active_assignment_map(
         )
         assignments[request.id] = chosen.node
         placements[chosen.node] += 1
+        if current_node is not None and chosen.node != current_node:
+            movement_count += 1
         _reserve_request_on_capacities(
             node_capacities=working_nodes,
             db_request=request,
@@ -718,6 +787,8 @@ def _run_local_rebalance_search(
     priorities: dict[str, int],
     tuning: _PlacementTuning,
     locked_request_ids: set[uuid.UUID] | None = None,
+    allowed_target_nodes_by_request: dict[uuid.UUID, set[str]] | None = None,
+    max_migrations: int | None = None,
 ) -> dict[uuid.UUID, str]:
     if tuning.search_depth <= 0 or tuning.search_max_relocations <= 0:
         return initial_assignments
@@ -735,6 +806,8 @@ def _run_local_rebalance_search(
         assignments=current_assignments,
         priorities=priorities,
         tuning=tuning,
+        allowed_target_nodes_by_request=allowed_target_nodes_by_request,
+        max_migrations=max_migrations,
     )
     if not current_eval.feasible:
         return initial_assignments
@@ -756,8 +829,11 @@ def _run_local_rebalance_search(
             current_node = current_assignments.get(request.id)
             if not current_node:
                 continue
+            allowed_targets = (allowed_target_nodes_by_request or {}).get(request.id)
             for candidate_node in node_names:
                 if candidate_node == current_node:
+                    continue
+                if allowed_targets is not None and candidate_node not in allowed_targets:
                     continue
                 trial_assignments = dict(current_assignments)
                 trial_assignments[request.id] = candidate_node
@@ -768,6 +844,8 @@ def _run_local_rebalance_search(
                     assignments=trial_assignments,
                     priorities=priorities,
                     tuning=tuning,
+                    allowed_target_nodes_by_request=allowed_target_nodes_by_request,
+                    max_migrations=max_migrations,
                 )
                 if not trial_eval.feasible or trial_eval.objective >= current_eval.objective:
                     continue
@@ -799,6 +877,8 @@ def _run_local_rebalance_search(
                         assignments=trial_assignments,
                         priorities=priorities,
                         tuning=tuning,
+                        allowed_target_nodes_by_request=allowed_target_nodes_by_request,
+                        max_migrations=max_migrations,
                     )
                     if not trial_eval.feasible or trial_eval.objective >= current_eval.objective:
                         continue
@@ -833,6 +913,8 @@ def _try_relief_relocation(
     tuning: _PlacementTuning,
     locked_request_ids: set[uuid.UUID],
     disk_overcommit_ratio: float,
+    allowed_target_nodes_by_request: dict[uuid.UUID, set[str]] | None = None,
+    max_migrations: int | None = None,
 ) -> dict[uuid.UUID, str] | None:
     """Try 1-move or 2-move relief to make room for a stuck request.
 
@@ -864,9 +946,15 @@ def _try_relief_relocation(
         current_node = current_assignments.get(req.id)
         if not current_node:
             continue
+        req_allowed_targets = (allowed_target_nodes_by_request or {}).get(req.id)
+        stuck_allowed_targets = (allowed_target_nodes_by_request or {}).get(stuck_request.id)
+        if stuck_allowed_targets is not None and current_node not in stuck_allowed_targets:
+            continue
 
         for target_node in node_names:
             if target_node == current_node:
+                continue
+            if req_allowed_targets is not None and target_node not in req_allowed_targets:
                 continue
             if evaluations >= _RELIEF_MAX_EVALUATIONS:
                 break
@@ -889,6 +977,8 @@ def _try_relief_relocation(
                     assignments=trial,
                     priorities=priorities,
                     tuning=tuning,
+                    allowed_target_nodes_by_request=allowed_target_nodes_by_request,
+                    max_migrations=max_migrations,
                 )
             except (ValueError, KeyError):
                 continue
@@ -912,6 +1002,8 @@ def _solve_rebalance_assignments(
     priorities: dict[str, int],
     tuning: _PlacementTuning,
     fixed_assignments: dict[uuid.UUID, str] | None = None,
+    allowed_target_nodes_by_request: dict[uuid.UUID, set[str]] | None = None,
+    max_migrations: int | None = None,
 ) -> dict[uuid.UUID, str]:
     initial_assignments = _initial_active_assignment_map(
         session=session,
@@ -921,6 +1013,8 @@ def _solve_rebalance_assignments(
         priorities=priorities,
         tuning=tuning,
         fixed_assignments=fixed_assignments,
+        allowed_target_nodes_by_request=allowed_target_nodes_by_request,
+        max_migrations=max_migrations,
     )
     final_assignments = _run_local_rebalance_search(
         session=session,
@@ -933,6 +1027,8 @@ def _solve_rebalance_assignments(
             set((fixed_assignments or {}).keys())
             | {r.id for r in ordered_requests if getattr(r, 'migration_pinned', False)}
         ),
+        allowed_target_nodes_by_request=allowed_target_nodes_by_request,
+        max_migrations=max_migrations,
     )
     final_eval = _evaluate_active_assignment_map(
         session=session,
@@ -941,6 +1037,8 @@ def _solve_rebalance_assignments(
         assignments=final_assignments,
         priorities=priorities,
         tuning=tuning,
+        allowed_target_nodes_by_request=allowed_target_nodes_by_request,
+        max_migrations=max_migrations,
     )
     if not final_eval.feasible:
         raise ValueError("No feasible active rebalance exists for the current request cohort")
@@ -1059,11 +1157,18 @@ def rebalance_active_assignments(
         session=session,
         requests=ordered_requests,
     )
+    migration_policy = scheduling_policy.get_migration_policy(session=session)
     strategy = get_placement_strategy(session)
     priorities = get_node_priorities(session)
     tuning = _get_placement_tuning(session=session)
 
     baseline_nodes = [item.model_copy(deep=True) for item in working_nodes]
+    allowed_target_nodes_by_request = _build_active_rebalance_allowed_target_nodes(
+        ordered_requests=ordered_requests,
+        baseline_nodes=baseline_nodes,
+        policy=migration_policy,
+        now=_utc_now(),
+    )
     final_assignments = _solve_rebalance_assignments(
         session=session,
         ordered_requests=ordered_requests,
@@ -1071,6 +1176,8 @@ def rebalance_active_assignments(
         strategy=strategy,
         priorities=priorities,
         tuning=tuning,
+        allowed_target_nodes_by_request=allowed_target_nodes_by_request,
+        max_migrations=migration_policy.max_per_rebalance,
     )
 
     selections: dict[uuid.UUID, CurrentPlacementSelection] = {}

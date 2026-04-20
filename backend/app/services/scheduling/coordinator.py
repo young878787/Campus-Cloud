@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import time
 import uuid
@@ -48,6 +49,17 @@ def _normalize_datetime(value: datetime | None) -> datetime | None:
 
 def _resource_type_for_request(request: VMRequest) -> str:
     return scheduling_policy.resource_type_for_request(request)
+
+
+def _should_pin_request_for_auto_migration(
+    *,
+    request: VMRequest,
+    detected_runtime_pin: bool = False,
+) -> bool:
+    return scheduling_support.should_pin_request_for_auto_migration(
+        request=request,
+        detected_runtime_pin=detected_runtime_pin,
+    )
 
 
 def _get_migration_policy(*, session: Session) -> _MigrationPolicy:
@@ -151,14 +163,21 @@ def _adopt_existing_resource(
         "Adopted existing %s resource VMID %s for request %s",
         resource_type, vmid, request.id,
     )
-    # Detect if resource should be pinned
+    detected_runtime_pin = False
     try:
-        pinned = _detect_migration_pinned(node=actual_node, vmid=vmid, resource_type=resource_type)
-        if pinned and not request.migration_pinned:
-            request.migration_pinned = True
-            session.add(request)
+        detected_runtime_pin = _detect_migration_pinned(
+            node=actual_node,
+            vmid=vmid,
+            resource_type=resource_type,
+        )
     except Exception:
         logger.debug("Failed to detect migration pinning for VMID %s", vmid, exc_info=True)
+    if _should_pin_request_for_auto_migration(
+        request=request,
+        detected_runtime_pin=detected_runtime_pin,
+    ) and not request.migration_pinned:
+        request.migration_pinned = True
+        session.add(request)
     return vmid, actual_node, placement_strategy_used, started
 
 
@@ -295,17 +314,20 @@ def _provision_new_resource(
             details=f"Provisioned {request_resource_type} for request {request_id} on {actual_node}",
             commit=False,
         )
-        # Detect if resource should be pinned
+        detected_runtime_pin = False
         try:
-            pinned = _detect_migration_pinned(
+            detected_runtime_pin = _detect_migration_pinned(
                 node=actual_node, vmid=new_vmid,
                 resource_type="lxc" if request_resource_type == "lxc" else "qemu",
             )
-            if pinned and not request_migration_pinned:
-                req.migration_pinned = True
-                finish_session.add(req)
         except Exception:
             logger.debug("Failed to detect migration pinning for VMID %s", new_vmid, exc_info=True)
+        if _should_pin_request_for_auto_migration(
+            request=req,
+            detected_runtime_pin=detected_runtime_pin,
+        ) and not request_migration_pinned:
+            req.migration_pinned = True
+            finish_session.add(req)
         finish_session.commit()
 
     logger.info(
@@ -595,6 +617,26 @@ def _refresh_actual_node(
             f"does not match request hostname '{expected_hostname}'"
         )
     actual_node = str(resource["node"])
+    detected_runtime_pin = False
+    try:
+        detected_runtime_pin = _detect_migration_pinned(
+            node=actual_node,
+            vmid=int(request.vmid),
+            resource_type=_resource_type_for_request(request),
+        )
+    except Exception:
+        logger.debug(
+            "Failed to refresh migration pinning for request %s (VMID %s)",
+            request.id,
+            request.vmid,
+            exc_info=True,
+        )
+    if _should_pin_request_for_auto_migration(
+        request=db_request,
+        detected_runtime_pin=detected_runtime_pin,
+    ) and not db_request.migration_pinned:
+        db_request.migration_pinned = True
+        session.add(db_request)
     vm_request_repo.update_vm_request_provisioning(
         session=session,
         db_request=db_request,
@@ -683,6 +725,54 @@ def _effective_request_migration_state(
     )
 
 
+def _record_migration_gate_result(
+    *,
+    session: Session,
+    request: VMRequest,
+    current_node: str,
+    desired_node: str,
+    reason: str,
+    now: datetime,
+    job: VMMigrationJob | None = None,
+    available_at: datetime | None = None,
+) -> None:
+    deferred = reason.startswith("Migration deferred")
+    job_status = (
+        VMMigrationJobStatus.pending if deferred else VMMigrationJobStatus.blocked
+    )
+    request_status = (
+        VMMigrationStatus.pending if deferred else VMMigrationStatus.blocked
+    )
+    if job is not None:
+        vm_migration_job_repo.update_job_status(
+            session=session,
+            job=job,
+            status=job_status,
+            last_error=reason,
+            source_node=current_node,
+            target_node=desired_node,
+            vmid=request.vmid,
+            finished_at=None if deferred else now,
+            available_at=available_at,
+            commit=False,
+        )
+    vm_request_repo.update_vm_request_provisioning(
+        session=session,
+        db_request=request,
+        vmid=request.vmid,
+        assigned_node=desired_node,
+        desired_node=desired_node,
+        actual_node=current_node,
+        placement_strategy_used=request.placement_strategy_used,
+        migration_status=request_status,
+        migration_error=reason,
+        rebalance_epoch=request.rebalance_epoch,
+        last_rebalanced_at=request.last_rebalanced_at,
+        last_migrated_at=request.last_migrated_at,
+        commit=False,
+    )
+
+
 def _migrate_request_to_desired_node(
     *,
     session: Session,
@@ -698,143 +788,49 @@ def _migrate_request_to_desired_node(
         return current_node, False
     if request.vmid is None:
         raise NotFoundError(f"Request {request.id} has no provisioned VMID")
-    if not policy.enabled:
-        defer_reason = "Migration deferred because automatic migration is disabled by system policy."
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.pending,
-                last_error=defer_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                available_at=now + timedelta(seconds=SCHEDULER_POLL_SECONDS),
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
-            desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.pending,
-            migration_error=defer_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
-        )
-        return current_node, False
-    if getattr(request, 'migration_pinned', False):
-        block_reason = (
-            "Migration blocked because this resource is pinned to its current node "
-            "(hardware passthrough or local mount detected)."
-        )
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.blocked,
-                last_error=block_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                finished_at=now,
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
-            desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.blocked,
-            migration_error=block_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
-        )
-        logger.info(
-            "Skipped pinned request %s VMID %s from %s to %s",
-            request.id, request.vmid, current_node, desired_node,
-        )
-        return current_node, False
     if policy.max_per_rebalance <= migrations_used:
         defer_reason = (
             "Migration deferred because this rebalance window reached the migration budget."
         )
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.pending,
-                last_error=defer_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                available_at=now + timedelta(seconds=SCHEDULER_POLL_SECONDS),
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
+        _record_migration_gate_result(
             session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
+            request=request,
+            current_node=current_node,
             desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.pending,
-            migration_error=defer_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
+            reason=defer_reason,
+            now=now,
+            job=job,
+            available_at=now + timedelta(seconds=SCHEDULER_POLL_SECONDS),
         )
         return current_node, False
-    last_migrated_at = _normalize_datetime(request.last_migrated_at)
-    if (
-        last_migrated_at is not None
-        and policy.min_interval_minutes > 0
-        and now - last_migrated_at < timedelta(minutes=policy.min_interval_minutes)
-    ):
-        defer_reason = (
-            "Migration deferred because this request was migrated too recently."
-        )
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.pending,
-                last_error=defer_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                available_at=last_migrated_at + timedelta(minutes=policy.min_interval_minutes),
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
+    precheck_reason = scheduling_support.migration_precheck_reason_for_request(
+        request=request,
+        current_node=current_node,
+        target_node=desired_node,
+        policy=policy,
+        now=now,
+    )
+    if precheck_reason:
+        available_at = None
+        last_migrated_at = _normalize_datetime(request.last_migrated_at)
+        if precheck_reason.startswith("Migration deferred because automatic migration is disabled"):
+            available_at = now + timedelta(seconds=SCHEDULER_POLL_SECONDS)
+        elif (
+            precheck_reason.startswith("Migration deferred because this request was migrated too recently.")
+            and last_migrated_at is not None
+        ):
+            available_at = last_migrated_at + timedelta(minutes=policy.min_interval_minutes)
+        _record_migration_gate_result(
             session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
+            request=request,
+            current_node=current_node,
             desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.pending,
-            migration_error=defer_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
+            reason=precheck_reason,
+            now=now,
+            job=job,
+            available_at=available_at,
         )
         return current_node, False
-
     resource_type = _resource_type_for_request(request)
     current_status = proxmox_service.get_status(
         current_node,
@@ -842,92 +838,6 @@ def _migrate_request_to_desired_node(
         resource_type,
     )
     online = str(current_status.get("status") or "").lower() == "running"
-
-    if resource_type == "lxc" and online and not policy.lxc_live_enabled:
-        block_reason = (
-            "Migration blocked because LXC live migration is disabled. "
-            "The container must be stopped before migrating, or enable "
-            "migration_lxc_live_enabled in system settings."
-        )
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.blocked,
-                last_error=block_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                finished_at=now,
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
-            desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.blocked,
-            migration_error=block_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
-        )
-        logger.warning(
-            "Blocked LXC live migration for request %s VMID %s from %s to %s",
-            request.id,
-            request.vmid,
-            current_node,
-            desired_node,
-        )
-        return current_node, False
-
-    block_reason = _migration_block_reason(
-        source_node=current_node,
-        target_node=desired_node,
-        vmid=request.vmid,
-        resource_type=resource_type,
-    )
-    if block_reason:
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.blocked,
-                last_error=block_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                finished_at=now,
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
-            desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.blocked,
-            migration_error=block_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
-        )
-        logger.warning(
-            "Blocked migration for request %s VMID %s from %s to %s: %s",
-            request.id,
-            request.vmid,
-            current_node,
-            desired_node,
-            block_reason,
-        )
-        return current_node, False
     started_at = _utc_now()
     if job is not None:
         vm_migration_job_repo.update_job_status(
@@ -1061,37 +971,31 @@ def _migrate_request_to_desired_node(
     return new_actual_node, new_actual_node == desired_node
 
 
-def _process_pending_migration_jobs(
+def _process_claimed_migration_job(
     *,
-    session: Session,
+    job_id: uuid.UUID,
+    session_bind,
     now: datetime,
     policy: _MigrationPolicy,
-    active_requests: list[VMRequest],
-) -> int:
-    request_ids = [request.id for request in active_requests]
-    claimed_jobs = vm_migration_job_repo.claim_jobs_for_requests(
-        session=session,
-        request_ids=request_ids,
-        worker_id=_migration_worker_id(),
-        now=now,
-        limit=policy.worker_concurrency,
-        claim_timeout_seconds=policy.claim_timeout_seconds,
-    )
-    if not claimed_jobs:
-        return 0
-    session.commit()
+    active_request_ids: set[uuid.UUID],
+    migrations_used: int,
+) -> bool:
+    with Session(session_bind) as worker_session:
+        job = vm_migration_job_repo.get_job_by_id(
+            session=worker_session,
+            job_id=job_id,
+        )
+        if job is None:
+            return False
 
-    migrations_used = 0
-    active_request_map = {request.id: request for request in active_requests}
-    for job in claimed_jobs:
         request = vm_request_repo.get_vm_request_by_id(
-            session=session,
+            session=worker_session,
             request_id=job.request_id,
             for_update=True,
         )
         if request is None:
             deleted_jobs = vm_migration_job_repo.delete_jobs_for_request(
-                session=session,
+                session=worker_session,
                 request_id=job.request_id,
                 commit=False,
             )
@@ -1100,29 +1004,30 @@ def _process_pending_migration_jobs(
                 deleted_jobs,
                 job.request_id,
             )
-            session.commit()
-            continue
-        if request.id not in active_request_map:
+            worker_session.commit()
+            return False
+
+        if request.id not in active_request_ids:
             vm_migration_job_repo.update_job_status(
-                session=session,
+                session=worker_session,
                 job=job,
                 status=VMMigrationJobStatus.cancelled,
                 last_error="Migration queue entry was cancelled because the request is no longer active.",
                 finished_at=now,
                 commit=False,
             )
-            session.commit()
-            continue
+            worker_session.commit()
+            return False
 
         try:
             actual_node, _ = _refresh_actual_node(
-                session=session,
+                session=worker_session,
                 request=request,
             )
         except NotFoundError:
             stale_vmid = request.vmid
             vm_migration_job_repo.update_job_status(
-                session=session,
+                session=worker_session,
                 job=job,
                 status=VMMigrationJobStatus.failed,
                 last_error=(
@@ -1134,17 +1039,17 @@ def _process_pending_migration_jobs(
                 commit=False,
             )
             vm_request_repo.clear_vm_request_provisioning(
-                session=session,
+                session=worker_session,
                 db_request=request,
                 commit=False,
             )
-            session.commit()
-            continue
+            worker_session.commit()
+            return False
 
         desired_node = str(request.desired_node or request.assigned_node or "")
         if not desired_node or desired_node == actual_node:
             vm_migration_job_repo.update_job_status(
-                session=session,
+                session=worker_session,
                 job=job,
                 status=VMMigrationJobStatus.completed,
                 last_error=None,
@@ -1156,7 +1061,7 @@ def _process_pending_migration_jobs(
                 commit=False,
             )
             vm_request_repo.update_vm_request_provisioning(
-                session=session,
+                session=worker_session,
                 db_request=request,
                 vmid=request.vmid,
                 assigned_node=desired_node or actual_node,
@@ -1170,12 +1075,12 @@ def _process_pending_migration_jobs(
                 last_migrated_at=request.last_migrated_at,
                 commit=False,
             )
-            session.commit()
-            continue
+            worker_session.commit()
+            return False
 
         try:
             _, migrated = _migrate_request_to_desired_node(
-                session=session,
+                session=worker_session,
                 request=request,
                 current_node=actual_node,
                 now=now,
@@ -1183,10 +1088,27 @@ def _process_pending_migration_jobs(
                 migrations_used=migrations_used,
                 job=job,
             )
-            if migrated:
-                migrations_used += 1
-            session.commit()
+            worker_session.commit()
+            return migrated
         except Exception as exc:
+            worker_session.rollback()
+            retry_session = worker_session
+            request_id = request.id
+            job = vm_migration_job_repo.get_job_by_id(
+                session=retry_session,
+                job_id=job_id,
+            )
+            request = vm_request_repo.get_vm_request_by_id(
+                session=retry_session,
+                request_id=request_id,
+                for_update=True,
+            )
+            if job is None or request is None:
+                logger.exception(
+                    "Failed to process migration job %s and could not reload state",
+                    job_id,
+                )
+                return False
             exceeded_retry_limit = int(job.attempt_count or 0) >= policy.retry_limit > 0
             new_status = (
                 VMMigrationJobStatus.failed
@@ -1194,7 +1116,7 @@ def _process_pending_migration_jobs(
                 else VMMigrationJobStatus.pending
             )
             vm_migration_job_repo.update_job_status(
-                session=session,
+                session=retry_session,
                 job=job,
                 status=new_status,
                 last_error=str(exc)[:500],
@@ -1214,7 +1136,7 @@ def _process_pending_migration_jobs(
                 commit=False,
             )
             vm_request_repo.update_vm_request_provisioning(
-                session=session,
+                session=retry_session,
                 db_request=request,
                 vmid=request.vmid,
                 assigned_node=desired_node,
@@ -1237,9 +1159,81 @@ def _process_pending_migration_jobs(
                 job.id,
                 request.id,
             )
-            session.commit()
+            retry_session.commit()
+            return False
 
-    return migrations_used
+
+def _process_pending_migration_jobs(
+    *,
+    session: Session,
+    now: datetime,
+    policy: _MigrationPolicy,
+    active_requests: list[VMRequest],
+) -> int:
+    request_ids = [request.id for request in active_requests]
+    claimed_jobs = vm_migration_job_repo.claim_jobs_for_requests(
+        session=session,
+        request_ids=request_ids,
+        worker_id=_migration_worker_id(),
+        now=now,
+        limit=policy.worker_concurrency,
+        claim_timeout_seconds=policy.claim_timeout_seconds,
+    )
+    if not claimed_jobs:
+        return 0
+    session.commit()
+    active_request_ids = {request.id for request in active_requests}
+    session_bind = session.get_bind()
+    migration_budget = max(int(policy.max_per_rebalance or 0), 0)
+    job_specs = [
+        {
+            "job_id": job.id,
+            "session_bind": session_bind,
+            "migrations_used": 0 if index < migration_budget else migration_budget,
+        }
+        for index, job in enumerate(claimed_jobs)
+    ]
+
+    if len(job_specs) == 1 or policy.worker_concurrency <= 1:
+        migrated_count = sum(
+            1
+            for spec in job_specs
+            if _process_claimed_migration_job(
+                job_id=spec["job_id"],
+                session_bind=spec["session_bind"],
+                now=now,
+                policy=policy,
+                active_request_ids=active_request_ids,
+                migrations_used=spec["migrations_used"],
+            )
+        )
+        session.expire_all()
+        return migrated_count
+
+    migrated_count = 0
+    with ThreadPoolExecutor(
+        max_workers=min(policy.worker_concurrency, len(job_specs))
+    ) as executor:
+        futures = [
+            executor.submit(
+                _process_claimed_migration_job,
+                job_id=spec["job_id"],
+                session_bind=spec["session_bind"],
+                now=now,
+                policy=policy,
+                active_request_ids=active_request_ids,
+                migrations_used=spec["migrations_used"],
+            )
+            for spec in job_specs
+        ]
+        for future in as_completed(futures):
+            try:
+                if future.result():
+                    migrated_count += 1
+            except Exception:
+                logger.exception("Unexpected error while processing claimed migration job")
+    session.expire_all()
+    return migrated_count
 
 
 def _ensure_request_running(
@@ -1358,9 +1352,11 @@ def _ensure_request_running(
 
 def _rebalance_active_window(now: datetime) -> int:
     with Session(engine) as session:
+        policy = _get_migration_policy(session=session)
         due_requests = vm_request_repo.list_due_for_rebalance_vm_requests(
             session=session,
             at_time=now,
+            interval_minutes=policy.active_rebalance_interval_minutes,
         )
         if not due_requests:
             return 0
