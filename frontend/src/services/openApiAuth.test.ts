@@ -11,8 +11,7 @@ import {
 
 function createJwt(payload: Record<string, unknown>) {
   const encode = (value: Record<string, unknown>) => {
-    return Buffer.from(JSON.stringify(value), "utf-8")
-      .toString("base64url")
+    return Buffer.from(JSON.stringify(value), "utf-8").toString("base64url")
   }
 
   return `${encode({ alg: "HS256", typ: "JWT" })}.${encode(payload)}.signature`
@@ -26,11 +25,12 @@ describe("openApiAuth", () => {
   it("bypasses auth headers for refresh and login endpoints", async () => {
     const getAccessTokenSpy = vi.spyOn(AuthSessionService, "getAccessToken")
 
-    expect(
-      shouldBypassOpenApiToken("/api/v1/login/refresh-token"),
-    ).toBe(true)
+    expect(shouldBypassOpenApiToken("/api/v1/login/refresh-token")).toBe(true)
     await expect(
-      resolveOpenApiToken({ method: "POST", url: "/api/v1/login/refresh-token" }),
+      resolveOpenApiToken({
+        method: "POST",
+        url: "/api/v1/login/refresh-token",
+      }),
     ).resolves.toBe("")
     expect(getAccessTokenSpy).not.toHaveBeenCalled()
   })

@@ -72,6 +72,25 @@
       "deleting": "Deleting..."
     }
   },
+  "batch": {
+    "selected": "{{count}} selected",
+    "clearSelection": "Clear",
+    "success": "{{count}} resources {{action}} successfully",
+    "partial": "{{succeeded}} succeeded, {{failed}} failed for {{action}}",
+    "actions": {
+      "start": "started",
+      "stop": "stopped",
+      "shutdown": "shut down",
+      "reboot": "rebooted",
+      "reset": "reset",
+      "delete": "deleted"
+    },
+    "deleteConfirm": {
+      "title": "Delete {{count}} resources?",
+      "description": "This will permanently delete {{count}} selected resources. Running resources will be force-stopped first. This action cannot be undone.",
+      "confirm": "Delete {{count}} resources"
+    }
+  },
   "console": {
     "terminal": {
       "title": "{{name}} Terminal",

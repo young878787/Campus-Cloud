@@ -19,7 +19,7 @@ const isLoggedIn = () => {
 
 const useAuth = (options?: {
   /** Return true to prevent automatic navigation to "/" after login */
-  onLoginSuccess?: () => Promise<boolean | void> | boolean | void
+  onLoginSuccess?: () => Promise<boolean | undefined> | boolean | undefined
 }) => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()

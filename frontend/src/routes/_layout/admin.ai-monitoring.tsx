@@ -40,10 +40,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { requireAdminUser } from "@/features/auth/guards"
 import { queryKeys } from "@/lib/queryKeys"
 import {
-  AiAdminMonitoringService,
   type AIProxyCallRecord,
   type AITemplateCallRecord,
   type AIUserUsageSummary,
+  AiAdminMonitoringService,
 } from "@/services/aiMonitoring"
 
 export const Route = createFileRoute("/_layout/admin/ai-monitoring")({
@@ -123,12 +123,16 @@ function StatCard({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardDescription className="text-sm font-medium">{label}</CardDescription>
+        <CardDescription className="text-sm font-medium">
+          {label}
+        </CardDescription>
         <Icon className={`h-4 w-4 ${color ?? "text-muted-foreground"}`} />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
-        {sub ? <p className="mt-1 text-xs text-muted-foreground">{sub}</p> : null}
+        {sub ? (
+          <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
+        ) : null}
       </CardContent>
     </Card>
   )
@@ -640,7 +644,11 @@ function AdminAiMonitoringPage() {
             variant={preset === p ? "default" : "outline"}
             onClick={() => setPreset(p)}
           >
-            {p === "7d" ? "過去 7 天" : p === "30d" ? "過去 30 天" : "過去 90 天"}
+            {p === "7d"
+              ? "過去 7 天"
+              : p === "30d"
+                ? "過去 30 天"
+                : "過去 90 天"}
           </Button>
         ))}
         <Button
@@ -714,17 +722,13 @@ function AdminAiMonitoringPage() {
         <StatCard
           icon={FileText}
           label="Template Tokens（輸入）"
-          value={
-            stats ? formatTokens(stats.template_total_input_tokens) : "-"
-          }
+          value={stats ? formatTokens(stats.template_total_input_tokens) : "-"}
           color="text-purple-400"
         />
         <StatCard
           icon={FileText}
           label="Template Tokens（輸出）"
-          value={
-            stats ? formatTokens(stats.template_total_output_tokens) : "-"
-          }
+          value={stats ? formatTokens(stats.template_total_output_tokens) : "-"}
           color="text-purple-300"
         />
         <Card>
@@ -765,7 +769,9 @@ function AdminAiMonitoringPage() {
           {start_date && end_date ? (
             <ProxyCallsTab startDate={start_date} endDate={end_date} />
           ) : (
-            <div className="text-sm text-muted-foreground">請選擇日期範圍。</div>
+            <div className="text-sm text-muted-foreground">
+              請選擇日期範圍。
+            </div>
           )}
         </TabsContent>
 
@@ -773,7 +779,9 @@ function AdminAiMonitoringPage() {
           {start_date && end_date ? (
             <TemplateCallsTab startDate={start_date} endDate={end_date} />
           ) : (
-            <div className="text-sm text-muted-foreground">請選擇日期範圍。</div>
+            <div className="text-sm text-muted-foreground">
+              請選擇日期範圍。
+            </div>
           )}
         </TabsContent>
 
@@ -781,7 +789,9 @@ function AdminAiMonitoringPage() {
           {start_date && end_date ? (
             <UsersUsageTab startDate={start_date} endDate={end_date} />
           ) : (
-            <div className="text-sm text-muted-foreground">請選擇日期範圍。</div>
+            <div className="text-sm text-muted-foreground">
+              請選擇日期範圍。
+            </div>
           )}
         </TabsContent>
       </Tabs>

@@ -1,12 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import {
-  AlertTriangle,
-  Info,
-  Plug,
-  Plus,
-  Shield,
-  Trash2,
-} from "lucide-react"
+import { AlertTriangle, Info, Plug, Plus, Shield, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -146,7 +139,9 @@ export function ConnectionDialog({
     enabled: isInbound && isAdmin,
     staleTime: 30_000,
   })
-  const isGatewayConfigured = isAdmin ? gatewayConfig?.is_configured ?? false : false
+  const isGatewayConfigured = isAdmin
+    ? (gatewayConfig?.is_configured ?? false)
+    : false
   const gatewaySetupMessage = isAdmin
     ? "Gateway VM 尚未設定，請先至「Gateway VM 管理」設定後再使用此功能。"
     : "此功能需要管理員先完成 Gateway VM 設定。"
@@ -404,7 +399,11 @@ export function ConnectionDialog({
                         <button
                           type="button"
                           onClick={() =>
-                            setPortPairs(portPairs.filter((currentPair) => currentPair.id !== pair.id))
+                            setPortPairs(
+                              portPairs.filter(
+                                (currentPair) => currentPair.id !== pair.id,
+                              ),
+                            )
                           }
                           className="p-1 hover:text-red-400 text-muted-foreground transition-colors"
                         >
@@ -423,10 +422,7 @@ export function ConnectionDialog({
               <button
                 type="button"
                 onClick={() =>
-                  setPortPairs([
-                    ...portPairs,
-                    createPortPair(0, 0, "tcp"),
-                  ])
+                  setPortPairs([...portPairs, createPortPair(0, 0, "tcp")])
                 }
                 className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
               >
@@ -488,7 +484,11 @@ export function ConnectionDialog({
                       <button
                         type="button"
                         onClick={() =>
-                          setPorts(ports.filter((currentPort) => currentPort.id !== port.id))
+                          setPorts(
+                            ports.filter(
+                              (currentPort) => currentPort.id !== port.id,
+                            ),
+                          )
                         }
                         className="p-1 hover:text-red-400 text-muted-foreground transition-colors"
                       >

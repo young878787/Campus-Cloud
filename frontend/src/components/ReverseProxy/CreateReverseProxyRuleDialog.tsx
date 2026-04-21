@@ -4,11 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { type ApiError, type ResourcePublic, ResourcesService } from "@/client"
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -31,8 +27,8 @@ import { Switch } from "@/components/ui/switch"
 import useAuth from "@/hooks/useAuth"
 import {
   type ManagedReverseProxyRule,
-  type ReverseProxySetupContext,
   ReverseProxyApiService,
+  type ReverseProxySetupContext,
 } from "@/services/reverseProxy"
 
 type Props = {
@@ -61,9 +57,7 @@ function findZoneByDomain(
   const zones = setupContext?.zones ?? []
   return [...zones]
     .sort((left, right) => right.name.length - left.name.length)
-    .find(
-      (zone) => domain === zone.name || domain.endsWith(`.${zone.name}`),
-    )
+    .find((zone) => domain === zone.name || domain.endsWith(`.${zone.name}`))
 }
 
 function extractHostnamePrefix(domain: string, zoneName: string) {
@@ -153,7 +147,10 @@ export function CreateReverseProxyRuleDialog({
     },
     onError: (error: unknown) => {
       toast.error(
-        errorMessage(error, isEditMode ? "更新網域規則失敗" : "建立網域規則失敗"),
+        errorMessage(
+          error,
+          isEditMode ? "更新網域規則失敗" : "建立網域規則失敗",
+        ),
       )
     },
   })
@@ -174,7 +171,9 @@ export function CreateReverseProxyRuleDialog({
       setSelectedVmid(String(rule.vmid))
       setSelectedZoneId(matchedZone?.id ?? "")
       setHostnamePrefix(
-        matchedZone ? extractHostnamePrefix(rule.domain, matchedZone.name) : rule.domain,
+        matchedZone
+          ? extractHostnamePrefix(rule.domain, matchedZone.name)
+          : rule.domain,
       )
       setEnableHttps(rule.enable_https)
       setInternalPort(matchedCommonPort?.value ?? "80")
@@ -247,7 +246,9 @@ export function CreateReverseProxyRuleDialog({
             {isEditMode ? "編輯網域規則" : "新增網域"}
           </DialogTitle>
           <DialogDescription>
-            反向代理網址只能綁定到 Cloudflare 中已存在的 Zone。儲存後，系統會自動把 DNS record 指向預設目標並同步 Gateway 路由。
+            反向代理網址只能綁定到 Cloudflare 中已存在的
+            Zone。儲存後，系統會自動把 DNS record 指向預設目標並同步 Gateway
+            路由。
           </DialogDescription>
         </DialogHeader>
 
@@ -269,7 +270,9 @@ export function CreateReverseProxyRuleDialog({
               </div>
               <p className="mt-1 text-muted-foreground">
                 建立或更新網域時，Cloudflare 會自動建立/更新成指向
-                <span className="ml-1 font-mono text-foreground">{automationTarget}</span>
+                <span className="ml-1 font-mono text-foreground">
+                  {automationTarget}
+                </span>
               </p>
             </div>
           )}
@@ -296,7 +299,9 @@ export function CreateReverseProxyRuleDialog({
               </SelectContent>
             </Select>
             {resourcesQuery.isLoading && (
-              <p className="text-xs text-muted-foreground">正在載入你的 VM 列表...</p>
+              <p className="text-xs text-muted-foreground">
+                正在載入你的 VM 列表...
+              </p>
             )}
             {!resourcesQuery.isLoading && resources.length === 0 && (
               <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -327,7 +332,9 @@ export function CreateReverseProxyRuleDialog({
               <Select
                 value={selectedZoneId}
                 onValueChange={setSelectedZoneId}
-                disabled={setupBlocked || (setupContext?.zones.length ?? 0) === 0}
+                disabled={
+                  setupBlocked || (setupContext?.zones.length ?? 0) === 0
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="選擇網域後綴" />
@@ -346,7 +353,8 @@ export function CreateReverseProxyRuleDialog({
           <div className="space-y-2">
             <Label>你的服務跑在哪個 Port？</Label>
             <p className="text-xs text-muted-foreground">
-              如果你不確定，通常網頁伺服器用 80，Node.js 用 3000，Python 用 5000。
+              如果你不確定，通常網頁伺服器用 80，Node.js 用 3000，Python 用
+              5000。
             </p>
             {!useCustomPort ? (
               <Select
@@ -390,9 +398,12 @@ export function CreateReverseProxyRuleDialog({
             <div className="flex items-center gap-3">
               <Lock className="h-4 w-4 text-emerald-500" />
               <div>
-                <div className="text-sm font-medium text-foreground">啟用安全連線 (HTTPS)</div>
+                <div className="text-sm font-medium text-foreground">
+                  啟用安全連線 (HTTPS)
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  會使用 Gateway 上的 Traefik 與 Cloudflare DNS Challenge 自動處理憑證。
+                  會使用 Gateway 上的 Traefik 與 Cloudflare DNS Challenge
+                  自動處理憑證。
                 </div>
               </div>
             </div>

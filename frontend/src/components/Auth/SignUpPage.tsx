@@ -165,7 +165,7 @@ export function SignUpPage() {
           </div>
 
           <div className="text-center text-sm">
-            {t("auth:signup.hasAccount")} {" "}
+            {t("auth:signup.hasAccount")}{" "}
             <RouterLink to="/login" className="underline underline-offset-4">
               {t("auth:signup.loginLink")}
             </RouterLink>

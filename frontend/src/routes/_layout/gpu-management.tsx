@@ -47,9 +47,9 @@ import {
 import useAuth from "@/hooks/useAuth"
 import { queryKeys } from "@/lib/queryKeys"
 import {
-  GpuService,
   type GPUMappingDetail,
   type GPUUsageInfo,
+  GpuService,
 } from "@/services/gpu"
 
 export const Route = createFileRoute("/_layout/gpu-management")({
@@ -188,7 +188,8 @@ function GPUManagementPage() {
             <div className="text-2xl font-bold">{totalSlots}</div>
             <p className="text-xs text-muted-foreground">
               {mappings.length} 個映射，
-              {mappings.reduce((s, m) => s + m.physical_gpu_count, 0)} 張實體 GPU
+              {mappings.reduce((s, m) => s + m.physical_gpu_count, 0)} 張實體
+              GPU
             </p>
           </CardContent>
         </Card>
@@ -276,9 +277,7 @@ function GPUManagementPage() {
                     <TableHead className="w-25">狀態</TableHead>
                     <TableHead>使用的 VM</TableHead>
                     {isAdmin && (
-                      <TableHead className="w-20 text-right">
-                        操作
-                      </TableHead>
+                      <TableHead className="w-20 text-right">操作</TableHead>
                     )}
                   </TableRow>
                 </TableHeader>
@@ -305,23 +304,39 @@ function GPUManagementPage() {
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {mapping.has_mdev ? (
-                              <Badge variant="secondary" className="text-xs">vGPU</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                vGPU
+                              </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-xs">Passthrough</Badge>
+                              <Badge variant="outline" className="text-xs">
+                                Passthrough
+                              </Badge>
                             )}
                             {mapping.is_sriov && (
-                              <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-600 dark:text-blue-400">SR-IOV</Badge>
+                              <Badge
+                                variant="outline"
+                                className="text-xs border-blue-500/30 text-blue-600 dark:text-blue-400"
+                              >
+                                SR-IOV
+                              </Badge>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
                           {mapping.total_vram_mb > 0 ? (
                             <div className="text-sm">
-                              <span className="font-medium">{formatVram(mapping.used_vram_mb)}</span>
-                              <span className="text-muted-foreground"> / {formatVram(mapping.total_vram_mb)}</span>
+                              <span className="font-medium">
+                                {formatVram(mapping.used_vram_mb)}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {" "}
+                                / {formatVram(mapping.total_vram_mb)}
+                              </span>
                             </div>
                           ) : (
-                            <span className="text-sm text-muted-foreground">—</span>
+                            <span className="text-sm text-muted-foreground">
+                              —
+                            </span>
                           )}
                         </TableCell>
                         <TableCell>

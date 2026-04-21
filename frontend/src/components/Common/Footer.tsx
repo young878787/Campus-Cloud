@@ -23,7 +23,10 @@ export function Footer({
   const currentYear = new Date().getFullYear()
 
   return (
-    <footer className={cn("border-t border-border/20 px-6 py-7.5", className)} {...props}>
+    <footer
+      className={cn("border-t border-border/20 px-6 py-7.5", className)}
+      {...props}
+    >
       <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
         <p className="text-muted-foreground text-sm">
           Campus Cloud - {currentYear}

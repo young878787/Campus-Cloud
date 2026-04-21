@@ -67,6 +67,9 @@ class VMRequestCreate(BaseModel):
     username: str | None = None
     gpu_mapping_id: str | None = None
 
+    service_template_slug: str | None = None
+    service_template_script_path: str | None = None
+
 
 class VMRequestReview(BaseModel):
     status: Literal["approved", "rejected"]
@@ -97,6 +100,9 @@ class VMRequestPublic(BaseModel):
     disk_size: int | None = None
     username: str | None = None
     gpu_mapping_id: str | None = None
+
+    service_template_slug: str | None = None
+    service_template_script_path: str | None = None
 
     status: VMRequestStatus
     reviewer_id: uuid.UUID | None = None

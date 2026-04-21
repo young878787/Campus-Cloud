@@ -17,14 +17,16 @@ import {
   Wifi,
   WifiOff,
 } from "lucide-react"
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react"
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
 import { toast } from "sonner"
 
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -347,7 +349,12 @@ function AdminDomainsPage() {
     if (!PRIORITY_TYPES.has(recordForm.type) && recordForm.priority !== "") {
       setRecordForm((current) => ({ ...current, priority: "" }))
     }
-  }, [recordForm.priority, recordForm.proxied, recordForm.type, recordSheetOpen])
+  }, [
+    recordForm.priority,
+    recordForm.proxied,
+    recordForm.type,
+    recordSheetOpen,
+  ])
 
   const selectedZone = useMemo<CloudflareZonePublic | null>(() => {
     if (zoneDetailsQuery.data) {
@@ -416,7 +423,7 @@ function AdminDomainsPage() {
     mutationFn: (payload: CloudflareDNSRecordMutation) =>
       CloudflareApiService.createDnsRecord(selectedZoneId ?? "", payload),
     onSuccess: (record) => {
-      toast.success(`已新增 ${record.type} record`) 
+      toast.success(`已新增 ${record.type} record`)
       setRecordSheetOpen(false)
       setEditingRecord(null)
       queryClient.invalidateQueries({
@@ -442,7 +449,7 @@ function AdminDomainsPage() {
         payload,
       ),
     onSuccess: (record) => {
-      toast.success(`已更新 ${record.type} record`) 
+      toast.success(`已更新 ${record.type} record`)
       setRecordSheetOpen(false)
       setEditingRecord(null)
       queryClient.invalidateQueries({
@@ -475,7 +482,8 @@ function AdminDomainsPage() {
   const records = dnsRecordsQuery.data?.items ?? []
   const zones = zonesQuery.data?.items ?? []
   const totalZones = zonesQuery.data?.page_info.total_count ?? zones.length
-  const totalRecords = dnsRecordsQuery.data?.page_info.total_count ?? records.length
+  const totalRecords =
+    dnsRecordsQuery.data?.page_info.total_count ?? records.length
 
   function openCreateRecord() {
     setRecordEditorMode("create")
@@ -514,7 +522,7 @@ function AdminDomainsPage() {
     }
 
     if (PRIORITY_TYPES.has(type) && recordForm.priority.trim() === "") {
-      toast.error(`${type} record 需要 priority`) 
+      toast.error(`${type} record 需要 priority`)
       return null
     }
 
@@ -570,12 +578,17 @@ function AdminDomainsPage() {
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">網域管理</h1>
             <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-              用同一個工作台完成 Cloudflare 供應商連線、Zone 檢視，以及 DNS record 的新增、調整與刪除。
+              用同一個工作台完成 Cloudflare 供應商連線、Zone 檢視，以及 DNS
+              record 的新增、調整與刪除。
             </p>
           </div>
         </div>
         <Button asChild variant="outline" className="gap-2">
-          <a href="https://dash.cloudflare.com/" target="_blank" rel="noreferrer">
+          <a
+            href="https://dash.cloudflare.com/"
+            target="_blank"
+            rel="noreferrer"
+          >
             <ExternalLink className="h-4 w-4" />
             開啟 Cloudflare Dashboard
           </a>
@@ -624,7 +637,8 @@ function AdminDomainsPage() {
                 Cloudflare 供應商設定
               </CardTitle>
               <CardDescription>
-                建議使用 API Token。若只想管理 DNS，至少需要 Zone:Read 與 DNS:Edit 權限；若要新增 Zone，再補上 Zone:Edit。
+                建議使用 API Token。若只想管理 DNS，至少需要 Zone:Read 與
+                DNS:Edit 權限；若要新增 Zone，再補上 Zone:Edit。
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -645,7 +659,9 @@ function AdminDomainsPage() {
               </Alert>
 
               <div className="space-y-2">
-                <Label htmlFor="cloudflare-account-id">Cloudflare account_id</Label>
+                <Label htmlFor="cloudflare-account-id">
+                  Cloudflare account_id
+                </Label>
                 <Input
                   id="cloudflare-account-id"
                   value={accountIdInput}
@@ -674,11 +690,14 @@ function AdminDomainsPage() {
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">反向代理預設 DNS 指向</p>
                     <Badge variant="outline">
-                      {configQuery.data?.has_default_dns_target ? "已設定" : "未設定"}
+                      {configQuery.data?.has_default_dns_target
+                        ? "已設定"
+                        : "未設定"}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    當使用者在反向代理頁建立網址時，系統會自動在 Cloudflare 建立 A 或 CNAME record，並指向這裡設定的目標。
+                    當使用者在反向代理頁建立網址時，系統會自動在 Cloudflare 建立
+                    A 或 CNAME record，並指向這裡設定的目標。
                   </p>
                 </div>
 
@@ -707,7 +726,9 @@ function AdminDomainsPage() {
                     <Input
                       id="default-dns-target-value"
                       value={defaultDnsTargetValue}
-                      onChange={(event) => setDefaultDnsTargetValue(event.target.value)}
+                      onChange={(event) =>
+                        setDefaultDnsTargetValue(event.target.value)
+                      }
                       placeholder={
                         defaultDnsTargetType === "A"
                           ? "203.0.113.10"
@@ -764,12 +785,19 @@ function AdminDomainsPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => queryClient.invalidateQueries({ queryKey: ["cloudflare-zones"] })}
+                  onClick={() =>
+                    queryClient.invalidateQueries({
+                      queryKey: ["cloudflare-zones"],
+                    })
+                  }
                   disabled={!isConfigured || zonesQuery.isFetching}
                   className="gap-2"
                 >
                   <RefreshCw
-                    className={cn("h-4 w-4", zonesQuery.isFetching && "animate-spin")}
+                    className={cn(
+                      "h-4 w-4",
+                      zonesQuery.isFetching && "animate-spin",
+                    )}
                   />
                   重新整理
                 </Button>
@@ -813,10 +841,7 @@ function AdminDomainsPage() {
               ) : zonesQuery.isLoading ? (
                 <div className="space-y-3">
                   {ZONE_SKELETON_KEYS.map((key) => (
-                    <Skeleton
-                      key={key}
-                      className="h-20 rounded-2xl"
-                    />
+                    <Skeleton key={key} className="h-20 rounded-2xl" />
                   ))}
                 </div>
               ) : zones.length === 0 ? (
@@ -824,7 +849,10 @@ function AdminDomainsPage() {
                   title="目前沒有可用 Zone"
                   description="可以直接建立新的 Zone，或確認 API Token 是否對應到正確的 Cloudflare 帳號。"
                   action={
-                    <Button onClick={() => setZoneDialogOpen(true)} className="gap-2">
+                    <Button
+                      onClick={() => setZoneDialogOpen(true)}
+                      className="gap-2"
+                    >
                       <Plus className="h-4 w-4" />
                       建立第一個 Zone
                     </Button>
@@ -855,10 +883,15 @@ function AdminDomainsPage() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 space-y-1">
                             <div className="flex items-center gap-2">
-                              <p className="truncate font-medium">{zone.name}</p>
+                              <p className="truncate font-medium">
+                                {zone.name}
+                              </p>
                               <Badge
                                 variant="outline"
-                                className={cn("capitalize", getZoneStatusClass(zone.status))}
+                                className={cn(
+                                  "capitalize",
+                                  getZoneStatusClass(zone.status),
+                                )}
                               >
                                 {zone.status}
                               </Badge>
@@ -894,7 +927,10 @@ function AdminDomainsPage() {
                   {selectedZone && (
                     <Badge
                       variant="outline"
-                      className={cn("capitalize", getZoneStatusClass(selectedZone.status))}
+                      className={cn(
+                        "capitalize",
+                        getZoneStatusClass(selectedZone.status),
+                      )}
                     >
                       {selectedZone.status}
                     </Badge>
@@ -948,12 +984,17 @@ function AdminDomainsPage() {
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         value={recordSearchInput}
-                        onChange={(event) => setRecordSearchInput(event.target.value)}
+                        onChange={(event) =>
+                          setRecordSearchInput(event.target.value)
+                        }
                         placeholder="搜尋 record name"
                         className="pl-9"
                       />
                     </div>
-                    <Select value={recordTypeFilter} onValueChange={setRecordTypeFilter}>
+                    <Select
+                      value={recordTypeFilter}
+                      onValueChange={setRecordTypeFilter}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="全部類型" />
                       </SelectTrigger>
@@ -989,10 +1030,7 @@ function AdminDomainsPage() {
                   {dnsRecordsQuery.isLoading ? (
                     <div className="space-y-3">
                       {RECORD_SKELETON_KEYS.map((key) => (
-                        <Skeleton
-                          key={key}
-                          className="h-12 rounded-xl"
-                        />
+                        <Skeleton key={key} className="h-12 rounded-xl" />
                       ))}
                     </div>
                   ) : records.length === 0 ? (
@@ -1031,7 +1069,9 @@ function AdminDomainsPage() {
                             <TableCell className="max-w-88 truncate text-muted-foreground">
                               {record.content}
                             </TableCell>
-                            <TableCell>{record.ttl === 1 ? "Auto" : record.ttl}</TableCell>
+                            <TableCell>
+                              {record.ttl === 1 ? "Auto" : record.ttl}
+                            </TableCell>
                             <TableCell>
                               <Badge
                                 variant="outline"
@@ -1041,7 +1081,11 @@ function AdminDomainsPage() {
                                     : "border-border/70 bg-muted/30 text-muted-foreground",
                                 )}
                               >
-                                {record.proxied ? "Proxied" : record.proxiable ? "DNS only" : "N/A"}
+                                {record.proxied
+                                  ? "Proxied"
+                                  : record.proxiable
+                                    ? "DNS only"
+                                    : "N/A"}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-muted-foreground">
@@ -1080,7 +1124,9 @@ function AdminDomainsPage() {
                       <AlertTriangle className="h-4 w-4" />
                       <AlertTitle>Zone 尚未完全啟用</AlertTitle>
                       <AlertDescription>
-                        這個 Zone 目前狀態為 {selectedZone.status}。請確認網域的 nameserver 是否已改指向 Cloudflare，並等待 Cloudflare 完成偵測與接管。
+                        這個 Zone 目前狀態為 {selectedZone.status}。請確認網域的
+                        nameserver 是否已改指向 Cloudflare，並等待 Cloudflare
+                        完成偵測與接管。
                       </AlertDescription>
                     </Alert>
                   )}
@@ -1116,16 +1162,23 @@ function AdminDomainsPage() {
                     <CardHeader>
                       <CardTitle className="text-lg">Nameservers</CardTitle>
                       <CardDescription>
-                        將你的網域註冊商 nameservers 指向這裡，Cloudflare 才能完成接管。
+                        將你的網域註冊商 nameservers 指向這裡，Cloudflare
+                        才能完成接管。
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
                       {selectedZone.name_servers.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Cloudflare 尚未回傳 nameservers。</p>
+                        <p className="text-sm text-muted-foreground">
+                          Cloudflare 尚未回傳 nameservers。
+                        </p>
                       ) : (
                         <div className="flex flex-wrap gap-2">
                           {selectedZone.name_servers.map((nameServer) => (
-                            <Badge key={nameServer} variant="outline" className="px-3 py-1 text-sm">
+                            <Badge
+                              key={nameServer}
+                              variant="outline"
+                              className="px-3 py-1 text-sm"
+                            >
                               {nameServer}
                             </Badge>
                           ))}
@@ -1145,7 +1198,8 @@ function AdminDomainsPage() {
           <DialogHeader>
             <DialogTitle>建立新的 Cloudflare Zone</DialogTitle>
             <DialogDescription>
-              支援先建立 Zone，再讓 Cloudflare 自動匯入既有 DNS records。若你已在供應商設定存好 account_id，這裡會自動帶入。
+              支援先建立 Zone，再讓 Cloudflare 自動匯入既有 DNS
+              records。若你已在供應商設定存好 account_id，這裡會自動帶入。
             </DialogDescription>
           </DialogHeader>
 
@@ -1174,10 +1228,14 @@ function AdminDomainsPage() {
               <div className="space-y-1">
                 <p className="text-sm font-medium">Jump Start</p>
                 <p className="text-xs text-muted-foreground">
-                  讓 Cloudflare 嘗試掃描既有 DNS records，通常適合從其他 DNS 供應商遷移時使用。
+                  讓 Cloudflare 嘗試掃描既有 DNS records，通常適合從其他 DNS
+                  供應商遷移時使用。
                 </p>
               </div>
-              <Switch checked={zoneJumpStart} onCheckedChange={setZoneJumpStart} />
+              <Switch
+                checked={zoneJumpStart}
+                onCheckedChange={setZoneJumpStart}
+              />
             </div>
           </div>
 
@@ -1205,7 +1263,9 @@ function AdminDomainsPage() {
         <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
           <SheetHeader>
             <SheetTitle>
-              {recordEditorMode === "create" ? "新增 DNS Record" : "編輯 DNS Record"}
+              {recordEditorMode === "create"
+                ? "新增 DNS Record"
+                : "編輯 DNS Record"}
             </SheetTitle>
             <SheetDescription>
               {selectedZone
@@ -1259,7 +1319,10 @@ function AdminDomainsPage() {
               <Input
                 value={recordForm.name}
                 onChange={(event) =>
-                  setRecordForm((current) => ({ ...current, name: event.target.value }))
+                  setRecordForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
                 }
                 placeholder="例如 app 或 example.com"
               />
@@ -1313,7 +1376,10 @@ function AdminDomainsPage() {
                   <Switch
                     checked={recordForm.proxied}
                     onCheckedChange={(checked) =>
-                      setRecordForm((current) => ({ ...current, proxied: checked }))
+                      setRecordForm((current) => ({
+                        ...current,
+                        proxied: checked,
+                      }))
                     }
                     disabled={!PROXIABLE_TYPES.has(recordForm.type)}
                   />
@@ -1341,7 +1407,11 @@ function AdminDomainsPage() {
             <Button variant="outline" onClick={() => setRecordSheetOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleSaveRecord} disabled={recordMutationPending} className="gap-2">
+            <Button
+              onClick={handleSaveRecord}
+              disabled={recordMutationPending}
+              className="gap-2"
+            >
               {recordMutationPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : recordEditorMode === "create" ? (

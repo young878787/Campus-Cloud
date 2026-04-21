@@ -26,8 +26,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FirewallService } from "@/services/firewall"
 import { CloudflareApiService } from "@/services/cloudflare"
+import { FirewallService } from "@/services/firewall"
 import {
   GatewayApiService,
   type GatewayService,
@@ -614,7 +614,8 @@ function ConnectionPanel() {
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               套用後會將 Gateway VM 上的 Traefik 切換為 Cloudflare DNS
-              Challenge，並保留 127.0.0.1:8080 的 runtime API 供 Campus Cloud 後端查詢。
+              Challenge，並保留 127.0.0.1:8080 的 runtime API 供 Campus Cloud
+              後端查詢。
             </p>
             {cloudflareConfig?.last_verified_at && (
               <p className="text-xs text-muted-foreground">
@@ -655,7 +656,8 @@ function ConnectionPanel() {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
             <div>
               <p className="text-sm text-foreground/90">
-                讀取 Gateway VM 上實際安裝版本，並與平台安裝腳本或套件來源的目標版本比較。
+                讀取 Gateway VM
+                上實際安裝版本，並與平台安裝腳本或套件來源的目標版本比較。
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 若顯示可更新，通常代表重新執行安裝腳本或升級套件後可與平台維持一致。
@@ -678,7 +680,9 @@ function ConnectionPanel() {
           </div>
 
           {!config?.is_configured ? (
-            <p className="text-sm text-muted-foreground">請先完成 Gateway VM 連線設定。</p>
+            <p className="text-sm text-muted-foreground">
+              請先完成 Gateway VM 連線設定。
+            </p>
           ) : serviceVersionsLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -686,16 +690,18 @@ function ConnectionPanel() {
           ) : serviceVersions?.items?.length ? (
             <div className="grid gap-3 md:grid-cols-2">
               {serviceVersions.items.map((item) => {
-                const statusText = item.update_available === null
-                  ? "狀態未知"
-                  : item.update_available
-                    ? "可更新"
-                    : "已最新"
-                const statusClass = item.update_available === null
-                  ? "text-muted-foreground"
-                  : item.update_available
-                    ? "text-amber-500"
-                    : "text-emerald-500"
+                const statusText =
+                  item.update_available === null
+                    ? "狀態未知"
+                    : item.update_available
+                      ? "可更新"
+                      : "已最新"
+                const statusClass =
+                  item.update_available === null
+                    ? "text-muted-foreground"
+                    : item.update_available
+                      ? "text-amber-500"
+                      : "text-emerald-500"
 
                 return (
                   <div
@@ -725,7 +731,9 @@ function ConnectionPanel() {
                       </div>
                       <div>
                         來源：
-                        <span className="ml-1 text-foreground">{item.source}</span>
+                        <span className="ml-1 text-foreground">
+                          {item.source}
+                        </span>
                       </div>
                       {item.detection_error && (
                         <div className="text-amber-500">
@@ -743,7 +751,8 @@ function ConnectionPanel() {
 
           {serviceVersions?.checked_at && (
             <p className="text-xs text-muted-foreground">
-              最近檢查：{new Date(serviceVersions.checked_at).toLocaleString("zh-TW")}
+              最近檢查：
+              {new Date(serviceVersions.checked_at).toLocaleString("zh-TW")}
             </p>
           )}
         </CardContent>
@@ -824,7 +833,9 @@ function ConnectionPanel() {
                   填入 IP 並測試連線
                 </p>
                 <p className="text-muted-foreground mt-0.5">
-                  在上方連線設定填入 Gateway VM IP，點擊「測試連線」確認成功；若要讓 Traefik 用 Cloudflare DNS Challenge 申請憑證，再套用一次上方憑證設定。
+                  在上方連線設定填入 Gateway VM
+                  IP，點擊「測試連線」確認成功；若要讓 Traefik 用 Cloudflare DNS
+                  Challenge 申請憑證，再套用一次上方憑證設定。
                 </p>
               </div>
             </li>

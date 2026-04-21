@@ -7,7 +7,9 @@ function extractErrorMessage(err: unknown): string {
   }
 
   const apiError = err as ApiError
-  const body = apiError.body as { detail?: string | Array<{ msg?: string }> } | undefined
+  const body = apiError.body as
+    | { detail?: string | Array<{ msg?: string }> }
+    | undefined
   const errDetail = body?.detail
   if (Array.isArray(errDetail) && errDetail.length > 0) {
     return errDetail[0]?.msg ?? "Something went wrong."

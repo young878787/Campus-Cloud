@@ -52,6 +52,9 @@ from .cloudflare import (
 )
 from .common import Message, NewPassword, Token, TokenPayload
 from .resource import (
+    BatchActionRequest,
+    BatchActionResponse,
+    BatchActionResultItem,
     CurrentStatsResponse,
     DirectSpecUpdateRequest,
     LXCCreateRequest,
@@ -87,6 +90,11 @@ from .user import (
     UsersPublic,
     UserUpdate,
     UserUpdateMe,
+)
+from .deletion_request import (
+    DeletionRequestCreated,
+    DeletionRequestPublic,
+    DeletionRequestsPublic,
 )
 from .vm_request import (
     VMRequestAvailabilityDay,
@@ -155,6 +163,10 @@ __all__ = [
     "Token",
     "TokenPayload",
     "NewPassword",
+    # Deletion Request
+    "DeletionRequestCreated",
+    "DeletionRequestPublic",
+    "DeletionRequestsPublic",
     # AI API
     "AIAPIRequestCreate",
     "AIAPIRequestReview",
@@ -181,6 +193,10 @@ __all__ = [
     "UpdatePassword",
     "UserPublic",
     "UsersPublic",
+    # Batch Operations
+    "BatchActionRequest",
+    "BatchActionResponse",
+    "BatchActionResultItem",
     # Resource / Proxmox
     "NodeSchema",
     "VMSchema",

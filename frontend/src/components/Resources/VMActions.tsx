@@ -127,9 +127,17 @@ export function VMActions({
     mutationFn: () =>
       ResourcesService.deleteResource({ vmid, force: isRunning }),
     onSuccess: () => {
-      showSuccessToast(t("messages:vm.deleted", { name }))
+      // 後端已改為 background task，立即回 202 + DeletionRequestCreated
+      showSuccessToast(
+        t("messages:vm.deleteQueued", {
+          name,
+          defaultValue: `已將 ${name} 加入刪除佇列`,
+        }),
+      )
       queryClient.invalidateQueries({ queryKey: queryKeys.resources.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.resources.my })
+      queryClient.invalidateQueries({ queryKey: ["deleting-resources"] })
+      queryClient.invalidateQueries({ queryKey: ["jobs"] })
       setDeleteDialogOpen(false)
     },
     onError: (error: Error) => {
@@ -181,7 +189,11 @@ export function VMActions({
             <span className="sr-only">{t("resources:actions.openMenu")}</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuContent
+          align="end"
+          className="w-48"
+          onClick={(e) => e.stopPropagation()}
+        >
           <DropdownMenuLabel>
             {t("resources:actions.powerControl")}
           </DropdownMenuLabel>

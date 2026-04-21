@@ -8,8 +8,8 @@
  *   Row 4: Detection info section (AI-managed, read-only)
  */
 
-import { useCallback } from "react"
 import { GripVertical, Shield, Trash2 } from "lucide-react"
+import { useCallback } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

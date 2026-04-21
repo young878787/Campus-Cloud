@@ -41,8 +41,9 @@ import useAuth from "@/hooks/useAuth"
 import useCustomToast from "@/hooks/useCustomToast"
 import { queryKeys } from "@/lib/queryKeys"
 import { toVmRequestCreateRequestBody } from "@/lib/resourcePayloads"
+import { pickMatchingOsTemplate } from "@/lib/serviceTemplates"
 import { cn } from "@/lib/utils"
-import { GpuService, type GPUSummary } from "@/services/gpu"
+import { type GPUSummary, GpuService } from "@/services/gpu"
 import { VmRequestsApi } from "@/services/vmRequests"
 import { handleError } from "@/utils"
 import { AiChatPanel, type AiPlanResult } from "./AiChatPanel"
@@ -122,6 +123,7 @@ export function ApplicationRequestPage() {
   const [resourceType, setResourceType] = useState<"lxc" | "vm">("lxc")
   const [serviceTemplateName, setServiceTemplateName] = useState("")
   const [serviceTemplateSlug, setServiceTemplateSlug] = useState("")
+  const [serviceTemplateScriptPath, setServiceTemplateScriptPath] = useState("")
   const aiColumnRef = useRef<HTMLElement | null>(null)
   const [desktopPanelFrame, setDesktopPanelFrame] =
     useState<DesktopPanelFrame | null>(null)
@@ -385,8 +387,14 @@ export function ApplicationRequestPage() {
         },
       }
 
+      const enrichedData = {
+        ...data,
+        service_template_slug: serviceTemplateSlug || undefined,
+        service_template_script_path: serviceTemplateScriptPath || undefined,
+      }
+
       return VmRequestsApi.create({
-        requestBody: toVmRequestCreateRequestBody(data, payloadOptions),
+        requestBody: toVmRequestCreateRequestBody(enrichedData, payloadOptions),
       })
     },
     onSuccess: () => {
@@ -421,6 +429,7 @@ export function ApplicationRequestPage() {
         if (prefill.service_template_slug) {
           setServiceTemplateSlug(prefill.service_template_slug)
           setServiceTemplateName(prefill.service_template_slug)
+          setServiceTemplateScriptPath(`ct/${prefill.service_template_slug}.sh`)
         }
       } else {
         if (prefill.disk_gb) updateFormValue("disk_size", prefill.disk_gb)
@@ -457,13 +466,13 @@ export function ApplicationRequestPage() {
     (template: FastTemplate) => {
       setServiceTemplateName(template.name || "")
       setServiceTemplateSlug(template.slug || "")
+      const method = template.install_methods?.[0]
+      setServiceTemplateScriptPath(
+        method?.script || (template.slug ? `ct/${template.slug}.sh` : ""),
+      )
       setResourceType("lxc")
       updateFormValue("resource_type", "lxc")
-      if (template.name) {
-        updateFormValue("hostname", normalizeHostname(template.name))
-      }
       // 帶入模板的預設資源值
-      const method = template.install_methods?.[0]
       if (method?.resources) {
         if (method.resources.cpu) updateFormValue("cores", method.resources.cpu)
         if (method.resources.ram)
@@ -471,9 +480,15 @@ export function ApplicationRequestPage() {
         if (method.resources.hdd)
           updateFormValue("rootfs_size", Math.max(method.resources.hdd, 8))
       }
+      // 自動挑選符合模板要求 OS / version 的 ostemplate volid
+      const volids = (lxcTemplates ?? []).map((t) => t.volid)
+      const picked = pickMatchingOsTemplate(volids, method?.resources)
+      if (picked) {
+        updateFormValue("ostemplate", picked)
+      }
       setShowTemplateSelector(false)
     },
-    [updateFormValue],
+    [lxcTemplates, updateFormValue],
   )
 
   const onSubmit = useCallback(
@@ -696,7 +711,11 @@ export function ApplicationRequestPage() {
                         control={form.control}
                         name="ostemplate"
                         render={({ field }) => (
-                          <FormItem>
+                          <FormItem
+                            className={
+                              serviceTemplateSlug ? "hidden" : undefined
+                            }
+                          >
                             <FormLabel>
                               {t("resources:form.osTemplate")}{" "}
                               <span className="text-destructive">*</span>
@@ -766,6 +785,7 @@ export function ApplicationRequestPage() {
                               onClick={() => {
                                 setServiceTemplateName("")
                                 setServiceTemplateSlug("")
+                                setServiceTemplateScriptPath("")
                               }}
                             >
                               <X className="h-3.5 w-3.5" />
@@ -1257,14 +1277,25 @@ export function ApplicationRequestPage() {
                                       disabled={gpu.available_count <= 0}
                                     >
                                       <div className="flex items-center gap-2">
-                                        <span>{gpu.description || gpu.mapping_id}</span>
+                                        <span>
+                                          {gpu.description || gpu.mapping_id}
+                                        </span>
                                         {gpu.has_mdev && (
-                                          <span className="text-xs text-blue-500">vGPU</span>
+                                          <span className="text-xs text-blue-500">
+                                            vGPU
+                                          </span>
                                         )}
                                         {gpu.total_vram_mb > 0 && (
                                           <span className="text-xs text-muted-foreground">
-                                            ({gpu.total_vram_mb >= 1024 ? `${(gpu.total_vram_mb / 1024).toFixed(0)} GB` : `${gpu.total_vram_mb} MB`}
-                                            {gpu.has_mdev && gpu.used_vram_mb > 0 ? `, 已分配 ${gpu.used_vram_mb >= 1024 ? `${(gpu.used_vram_mb / 1024).toFixed(0)} GB` : `${gpu.used_vram_mb} MB`}` : ""})
+                                            (
+                                            {gpu.total_vram_mb >= 1024
+                                              ? `${(gpu.total_vram_mb / 1024).toFixed(0)} GB`
+                                              : `${gpu.total_vram_mb} MB`}
+                                            {gpu.has_mdev &&
+                                            gpu.used_vram_mb > 0
+                                              ? `, 已分配 ${gpu.used_vram_mb >= 1024 ? `${(gpu.used_vram_mb / 1024).toFixed(0)} GB` : `${gpu.used_vram_mb} MB`}`
+                                              : ""}
+                                            )
                                           </span>
                                         )}
                                         {!gpu.total_vram_mb && gpu.vram && (
@@ -1273,7 +1304,8 @@ export function ApplicationRequestPage() {
                                           </span>
                                         )}
                                         <span className="text-xs text-muted-foreground">
-                                          [{gpu.available_count}/{gpu.device_count} 可用]
+                                          [{gpu.available_count}/
+                                          {gpu.device_count} 可用]
                                         </span>
                                         {gpu.available_count <= 0 && (
                                           <span className="text-xs text-destructive">

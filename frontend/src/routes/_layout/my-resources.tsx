@@ -1,5 +1,6 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import type { RowSelectionState } from "@tanstack/react-table"
 import { Download, Monitor, RefreshCw } from "lucide-react"
 import { Suspense, useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -7,6 +8,7 @@ import { useTranslation } from "react-i18next"
 import { OpenAPI, ResourcesService } from "@/client"
 import { DataTable } from "@/components/Common/DataTable"
 import PendingItems from "@/components/Pending/PendingItems"
+import { BatchActionBar } from "@/components/Resources/BatchActionBar"
 import { createColumns } from "@/components/Resources/columns"
 import { TerminalConsoleDialog } from "@/components/Terminal"
 import { Button } from "@/components/ui/button"
@@ -33,8 +35,12 @@ export const Route = createFileRoute("/_layout/my-resources")({
 
 function MyResourcesTableContent({
   onOpenConsole,
+  rowSelection,
+  onRowSelectionChange,
 }: {
   onOpenConsole: (vmid: number, name: string, type: string) => void
+  rowSelection: RowSelectionState
+  onRowSelectionChange: (selection: RowSelectionState) => void
 }) {
   const { t } = useTranslation(["resources"])
   const navigate = useNavigate()
@@ -48,7 +54,7 @@ function MyResourcesTableContent({
   )
 
   const columns = useMemo(
-    () => createColumns(t, onOpenConsole),
+    () => createColumns(t, onOpenConsole, { enableSelection: true }),
     [t, onOpenConsole],
   )
 
@@ -73,18 +79,30 @@ function MyResourcesTableContent({
       columns={columns}
       data={resources}
       onRowClick={(row) => handleRowClick(row.vmid)}
+      enableRowSelection
+      rowSelection={rowSelection}
+      onRowSelectionChange={onRowSelectionChange}
+      getRowId={(row) => String(row.vmid)}
     />
   )
 }
 
 function MyResourcesTable({
   onOpenConsole,
+  rowSelection,
+  onRowSelectionChange,
 }: {
   onOpenConsole: (vmid: number, name: string, type: string) => void
+  rowSelection: RowSelectionState
+  onRowSelectionChange: (selection: RowSelectionState) => void
 }) {
   return (
     <Suspense fallback={<PendingItems />}>
-      <MyResourcesTableContent onOpenConsole={onOpenConsole} />
+      <MyResourcesTableContent
+        onOpenConsole={onOpenConsole}
+        rowSelection={rowSelection}
+        onRowSelectionChange={onRowSelectionChange}
+      />
     </Suspense>
   )
 }
@@ -155,7 +173,11 @@ function DownloadDesktopClientButton() {
 
   return (
     <div className="flex flex-col gap-2">
-      <Button variant="outline" onClick={handleDownload} disabled={isDownloading}>
+      <Button
+        variant="outline"
+        onClick={handleDownload}
+        disabled={isDownloading}
+      >
         <Download className="mr-2 h-4 w-4" />
         {isDownloading ? "下載中..." : "下載連線工具"}
       </Button>
@@ -175,6 +197,15 @@ function MyResources() {
     name: string
     type: string
   } | null>(null)
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+
+  const selectedVmids = useMemo(
+    () =>
+      Object.keys(rowSelection)
+        .filter((k) => rowSelection[k])
+        .map(Number),
+    [rowSelection],
+  )
 
   const handleOpenConsole = (vmid: number, name: string, type: string) => {
     setSelectedVM({ vmid, name, type })
@@ -199,7 +230,15 @@ function MyResources() {
           <RefreshButton />
         </div>
       </div>
-      <MyResourcesTable onOpenConsole={handleOpenConsole} />
+      <BatchActionBar
+        selectedVmids={selectedVmids}
+        onClearSelection={() => setRowSelection({})}
+      />
+      <MyResourcesTable
+        onOpenConsole={handleOpenConsole}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
+      />
       <VNCConsoleDialog
         vmid={selectedVM?.type === "qemu" ? selectedVM.vmid : null}
         vmName={selectedVM?.name}

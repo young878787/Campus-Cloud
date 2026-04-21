@@ -1,1 +1,9 @@
-from app.domain.pve_scheduling.tasks import *  # noqa: F401,F403
+from __future__ import annotations
+
+import asyncio
+
+from app.domain.scheduling.models import ScheduledTask
+
+
+async def run_sync_task(task: ScheduledTask) -> object:
+    return await asyncio.to_thread(task.handler)

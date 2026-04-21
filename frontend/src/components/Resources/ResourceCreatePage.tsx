@@ -38,6 +38,7 @@ import {
   toLxcCreateRequestBody,
   toVmCreateRequestBody,
 } from "@/lib/resourcePayloads"
+import { pickMatchingOsTemplate } from "@/lib/serviceTemplates"
 import { handleError } from "@/utils"
 
 function normalizeHostname(value: string) {
@@ -183,12 +184,21 @@ export function ResourceCreatePage() {
 
       if (data.resource_type === "lxc") {
         return LxcService.createLxc({
-          requestBody: toLxcCreateRequestBody(data, payloadOptions),
+          requestBody: toLxcCreateRequestBody(
+            {
+              ...data,
+              service_template_slug: serviceTemplateSlug || undefined,
+            },
+            payloadOptions,
+          ),
         })
       }
 
       return VmService.createVm({
-        requestBody: toVmCreateRequestBody(data, payloadOptions),
+        requestBody: toVmCreateRequestBody(
+          { ...data, service_template_slug: serviceTemplateSlug || undefined },
+          payloadOptions,
+        ),
       })
     },
     onSuccess: (data) => {
@@ -218,12 +228,33 @@ export function ResourceCreatePage() {
       setServiceTemplateSlug(template.slug || "")
       setResourceType("lxc")
       updateFormValue("resource_type", "lxc")
-      if (template.name) {
-        updateFormValue("hostname", normalizeHostname(template.name))
+
+      const method = template.install_methods?.[0]
+      // 帶入模板的預設資源值，但保留使用者已輸入的容器名稱
+      if (method?.resources) {
+        if (method.resources.cpu) updateFormValue("cores", method.resources.cpu)
+        if (method.resources.ram)
+          updateFormValue("memory", method.resources.ram)
+        if (method.resources.hdd)
+          updateFormValue("rootfs_size", Math.max(method.resources.hdd, 8))
       }
+
+      // 自動挑選一個符合模板要求 OS / version 的 ostemplate volid
+      const volids = (lxcTemplates ?? []).map((t) => t.volid)
+      const picked = pickMatchingOsTemplate(volids, method?.resources)
+      if (picked) {
+        updateFormValue("ostemplate", picked)
+      }
+      if (method?.resources?.os) {
+        const osLabel = method.resources.version
+          ? `${method.resources.os} ${method.resources.version}`
+          : String(method.resources.os)
+        updateFormValue("os_info", osLabel)
+      }
+
       setShowTemplateSelector(false)
     },
-    [updateFormValue],
+    [lxcTemplates, updateFormValue],
   )
 
   const onSubmit = (data: FormData) => {
@@ -313,7 +344,9 @@ export function ResourceCreatePage() {
                     control={form.control}
                     name="ostemplate"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem
+                        className={serviceTemplateSlug ? "hidden" : undefined}
+                      >
                         <FormLabel>
                           {t("resources:form.osTemplate")}{" "}
                           <span className="text-destructive">*</span>

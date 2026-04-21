@@ -32,7 +32,6 @@ from app.schemas.firewall import (
 from app.models import AuditAction
 from app.services.network import firewall_service, nat_service, reverse_proxy_service
 from app.services.user import audit_service
-from app.services.network.firewall_service import _BLOCK_LOCAL_COMMENT
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +243,6 @@ def list_rules(
                 ),
             )
             for i, r in enumerate(rules)
-            if r.get("comment") != _BLOCK_LOCAL_COMMENT
         ]
     except ProxmoxError as e:
         raise HTTPException(status_code=500, detail=str(e))

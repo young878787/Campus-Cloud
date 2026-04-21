@@ -2,8 +2,8 @@
  * ChatPanel - Chat interface for refining rubric with AI
  */
 
-import { useCallback, useRef, useState } from "react"
 import { Bot, Send, Sparkles, User } from "lucide-react"
+import { useCallback, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"

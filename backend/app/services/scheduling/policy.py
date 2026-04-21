@@ -10,6 +10,8 @@ from app.models import VMRequest
 from app.repositories import proxmox_config as proxmox_config_repo
 
 SCHEDULER_POLL_SECONDS = 60
+ACTIVE_REBALANCE_INTERVAL_MINUTES = 15
+_WORKER_INSTANCE_ID = f"scheduler-{uuid.uuid4()}"
 
 
 @dataclass(frozen=True)
@@ -17,11 +19,12 @@ class MigrationPolicy:
     enabled: bool
     max_per_rebalance: int
     min_interval_minutes: int
-    retry_limit: int
-    worker_concurrency: int
-    claim_timeout_seconds: int
-    retry_backoff_seconds: int
+    retry_limit: int = 3
+    worker_concurrency: int = 2
+    claim_timeout_seconds: int = 300
+    retry_backoff_seconds: int = 120
     lxc_live_enabled: bool = False
+    active_rebalance_interval_minutes: int = ACTIVE_REBALANCE_INTERVAL_MINUTES
 
 
 def utc_now() -> datetime:
@@ -72,7 +75,7 @@ def get_migration_policy(*, session: Session) -> MigrationPolicy:
 
 
 def migration_worker_id() -> str:
-    return f"scheduler-{uuid.uuid4()}"
+    return _WORKER_INSTANCE_ID
 
 
 def next_retry_at(

@@ -2,8 +2,8 @@ import type { ColumnDef } from "@tanstack/react-table"
 import type { TFunction } from "i18next"
 
 import type { VMRequestPublic } from "@/client"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 function formatTemplateLabel(request: VMRequestPublic) {
   if (request.resource_type === "lxc") {
@@ -103,7 +103,9 @@ export const createMyRequestColumns = (
       header: "作業系統 / 模板",
       cell: ({ row }) => (
         <div className="min-w-[180px] max-w-[220px] overflow-hidden">
-          <div className="font-medium truncate">{formatTemplateLabel(row.original)}</div>
+          <div className="font-medium truncate">
+            {formatTemplateLabel(row.original)}
+          </div>
           <div className="mt-1 text-xs text-muted-foreground truncate">
             {row.original.os_info?.trim() || "未填寫作業系統資訊"}
           </div>

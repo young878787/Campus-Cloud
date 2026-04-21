@@ -1,5 +1,7 @@
 import {
+  Activity,
   ArrowRightLeft,
+  BarChart3,
   Bot,
   ChevronLeft,
   ChevronRight,
@@ -17,6 +19,7 @@ import {
   Shield,
   Users,
   UsersRound,
+  Wifi,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -52,11 +55,18 @@ export function AppSidebar() {
 
   const aiItems: Item[] = [{ icon: Bot, title: "AI API", path: "/ai-api" }]
 
+  const jobsItem: Item = {
+    icon: Activity,
+    title: "背景任務",
+    path: "/jobs",
+  }
+
   const studentItems: Item[] = [
     ...overviewItems,
     ...resourceItems,
     { icon: FileText, title: t("sidebar.applications"), path: "/applications" },
     ...aiItems,
+    jobsItem,
   ]
 
   const teacherItems: Item[] = [
@@ -65,6 +75,7 @@ export function AppSidebar() {
     { icon: FileText, title: t("sidebar.applications"), path: "/applications" },
     ...aiItems,
     { icon: UsersRound, title: "Groups", path: "/groups" },
+    jobsItem,
   ]
 
   const adminItems: Item[] = [
@@ -78,14 +89,11 @@ export function AppSidebar() {
     { icon: UsersRound, title: "Groups", path: "/groups" },
     { icon: Users, title: t("sidebar.admin"), path: "/admin" },
     { icon: Settings2, title: "System Settings", path: "/admin/configuration" },
-    {
-      icon: ArrowRightLeft,
-      title: "Migration Jobs",
-      path: "/admin/migration-jobs",
-    },
     { icon: Cloud, title: "網域管理", path: "/admin/domains" },
     { icon: Network, title: "Gateway VM", path: "/admin/gateway" },
+    { icon: Wifi, title: "IP 管理", path: "/admin/ip-management" },
     { icon: ScrollText, title: "Audit Logs", path: "/admin/audit-logs" },
+    jobsItem,
   ]
 
   const items: Item[] = !currentUser

@@ -226,7 +226,9 @@ function Login() {
             </svg>
           </div>
           <h2 className="text-xl font-bold">
-            {t("auth:deviceApprovalSuccess.title", { defaultValue: "授權成功" })}
+            {t("auth:deviceApprovalSuccess.title", {
+              defaultValue: "授權成功",
+            })}
           </h2>
           <p className="text-muted-foreground">
             {t("auth:deviceApprovalSuccess.description", {
@@ -238,7 +240,9 @@ function Login() {
             className="mt-4 text-sm text-muted-foreground underline"
             onClick={() => navigate({ to: "/" })}
           >
-            {t("auth:deviceApprovalSuccess.goHome", { defaultValue: "前往主頁" })}
+            {t("auth:deviceApprovalSuccess.goHome", {
+              defaultValue: "前往主頁",
+            })}
           </button>
         </div>
       </AuthLayout>

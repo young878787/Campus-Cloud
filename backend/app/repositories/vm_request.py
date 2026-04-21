@@ -1,14 +1,14 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, func, select
 
 from app.models import VMMigrationStatus, VMRequest, VMRequestStatus
-from app.schemas import VMRequestCreate
 from app.repositories import resource as resource_repo
-from app.services.proxmox.provisioning_service import to_punycode_hostname
+from app.schemas import VMRequestCreate
+from app.utils.hostname import to_punycode_hostname
 
 
 def create_vm_request(
@@ -44,6 +44,8 @@ def create_vm_request(
         disk_size=vm_request_in.disk_size,
         username=vm_request_in.username,
         gpu_mapping_id=vm_request_in.gpu_mapping_id,
+        service_template_slug=vm_request_in.service_template_slug,
+        service_template_script_path=vm_request_in.service_template_script_path,
         status=VMRequestStatus.pending,
         migration_status=VMMigrationStatus.idle,
         created_at=datetime.now(timezone.utc),
@@ -338,7 +340,9 @@ def list_due_for_rebalance_vm_requests(
     *,
     session: Session,
     at_time: datetime,
+    interval_minutes: int = 15,
 ) -> list[VMRequest]:
+    rebalance_before = at_time - timedelta(minutes=max(int(interval_minutes or 0), 0))
     statement = (
         select(VMRequest)
         .where(
@@ -349,6 +353,7 @@ def list_due_for_rebalance_vm_requests(
             (
                 VMRequest.last_rebalanced_at.is_(None)
                 | (VMRequest.last_rebalanced_at < VMRequest.start_at)
+                | (VMRequest.last_rebalanced_at <= rebalance_before)
             ),
         )
         .options(selectinload(VMRequest.user))  # type: ignore[arg-type]

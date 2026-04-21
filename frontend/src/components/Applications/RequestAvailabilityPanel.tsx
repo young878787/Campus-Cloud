@@ -328,8 +328,11 @@ export function RequestAvailabilityPanel(props: Props) {
                           const endTime = new Date(slot.start_at).getTime()
                           if (endTime <= startTime) return true
                           return (
-                            getSelectableRange(data, rangeStartAt, slot.start_at)
-                              .length > 0
+                            getSelectableRange(
+                              data,
+                              rangeStartAt,
+                              slot.start_at,
+                            ).length > 0
                           )
                         })()
                       : selectable

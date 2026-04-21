@@ -279,7 +279,9 @@ function CredentialRow({
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5">
-                  <div className="truncate font-medium">{item.api_key_name}</div>
+                  <div className="truncate font-medium">
+                    {item.api_key_name}
+                  </div>
                   <Button
                     id={`rename-btn-${item.id}`}
                     size="sm"
@@ -307,7 +309,9 @@ function CredentialRow({
               <span className={expired ? "font-medium text-destructive" : ""}>
                 到期：{formatExpiry(item.expires_at)}
               </span>
-              {item.revoked_at ? <span>失效：{formatTime(item.revoked_at)}</span> : null}
+              {item.revoked_at ? (
+                <span>失效：{formatTime(item.revoked_at)}</span>
+              ) : null}
             </div>
           </div>
 
@@ -317,7 +321,9 @@ function CredentialRow({
                 <Link2 className="h-3.5 w-3.5" />
                 Base URL
               </div>
-              <div className="truncate font-mono text-foreground">{item.base_url}</div>
+              <div className="truncate font-mono text-foreground">
+                {item.base_url}
+              </div>
             </div>
             <div className="min-w-0">
               <div className="mb-1 flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -402,12 +408,16 @@ function RequestRow({ item }: { item: AiApiRequestPublic }) {
           </span>
         </div>
 
-        <p className="line-clamp-2 text-sm text-muted-foreground">{item.purpose}</p>
+        <p className="line-clamp-2 text-sm text-muted-foreground">
+          {item.purpose}
+        </p>
 
         <div className="space-y-1 text-xs text-muted-foreground lg:text-right">
           <div>申請：{formatTime(item.created_at)}</div>
           <div>審核：{formatTime(item.reviewed_at)}</div>
-          {item.review_comment ? <div className="truncate">備註：{item.review_comment}</div> : null}
+          {item.review_comment ? (
+            <div className="truncate">備註：{item.review_comment}</div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -418,7 +428,10 @@ function RequestRow({ item }: { item: AiApiRequestPublic }) {
 
 type UsageDatePreset = "7d" | "30d" | "90d"
 
-function getUsageDates(preset: UsageDatePreset): { start: string; end: string } {
+function getUsageDates(preset: UsageDatePreset): {
+  start: string
+  end: string
+} {
   const now = new Date()
   const end = now.toISOString().split("T")[0]!
   const start = new Date(now)
@@ -464,11 +477,7 @@ function UsageStatCard({
   )
 }
 
-function MyUsageTab({
-  credentials,
-}: {
-  credentials: AiApiCredentialPublic[]
-}) {
+function MyUsageTab({ credentials }: { credentials: AiApiCredentialPublic[] }) {
   const [preset, setPreset] = useState<UsageDatePreset>("30d")
   const { start, end } = useMemo(() => getUsageDates(preset), [preset])
 
@@ -541,7 +550,9 @@ function MyUsageTab({
           proxyQuery.isLoading ? (
             <div className="text-sm text-muted-foreground">載入中…</div>
           ) : proxyQuery.isError ? (
-            <div className="text-sm text-destructive">無法取得 Proxy 用量資料。</div>
+            <div className="text-sm text-destructive">
+              無法取得 Proxy 用量資料。
+            </div>
           ) : proxy ? (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-3">
@@ -604,7 +615,9 @@ function MyUsageTab({
         {templateQuery.isLoading ? (
           <div className="text-sm text-muted-foreground">載入中…</div>
         ) : templateQuery.isError ? (
-          <div className="text-sm text-destructive">無法取得 Template 用量資料。</div>
+          <div className="text-sm text-destructive">
+            無法取得 Template 用量資料。
+          </div>
         ) : tpl ? (
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
@@ -625,25 +638,23 @@ function MyUsageTab({
                   按呼叫類型
                 </div>
                 <div className="divide-y rounded-lg border">
-                  {Object.entries(tpl.by_call_type).map(
-                    ([callType, stats]) => (
-                      <div
-                        key={callType}
-                        className="grid grid-cols-[minmax(0,1fr)_80px_80px_80px] items-center gap-4 px-4 py-2.5 text-sm"
-                      >
-                        <span className="truncate text-xs">{callType}</span>
-                        <span className="text-right text-muted-foreground">
-                          {stats.calls} 次
-                        </span>
-                        <span className="text-right text-muted-foreground">
-                          ↑ {formatTokens(stats.input_tokens)}
-                        </span>
-                        <span className="text-right text-muted-foreground">
-                          ↓ {formatTokens(stats.output_tokens)}
-                        </span>
-                      </div>
-                    ),
-                  )}
+                  {Object.entries(tpl.by_call_type).map(([callType, stats]) => (
+                    <div
+                      key={callType}
+                      className="grid grid-cols-[minmax(0,1fr)_80px_80px_80px] items-center gap-4 px-4 py-2.5 text-sm"
+                    >
+                      <span className="truncate text-xs">{callType}</span>
+                      <span className="text-right text-muted-foreground">
+                        {stats.calls} 次
+                      </span>
+                      <span className="text-right text-muted-foreground">
+                        ↑ {formatTokens(stats.input_tokens)}
+                      </span>
+                      <span className="text-right text-muted-foreground">
+                        ↓ {formatTokens(stats.output_tokens)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -708,7 +719,9 @@ function AiApiPage() {
           <h1 className="text-2xl font-bold tracking-tight">
             AI API 金鑰申請與管理
           </h1>
-          <p className="max-w-3xl text-sm text-muted-foreground">申請、管理與查詢 AI API 金鑰。</p>
+          <p className="max-w-3xl text-sm text-muted-foreground">
+            申請、管理與查詢 AI API 金鑰。
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -731,10 +744,7 @@ function AiApiPage() {
         </TabsList>
 
         <TabsContent value="request" className="space-y-5">
-          <Panel
-            title="送出新申請"
-            description="填寫用途後送審。"
-          >
+          <Panel title="送出新申請" description="填寫用途後送審。">
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <label htmlFor="api-key-name" className="text-sm font-medium">
@@ -785,7 +795,9 @@ function AiApiPage() {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-xs text-muted-foreground">用途需至少 10 字。</div>
+                <div className="text-xs text-muted-foreground">
+                  用途需至少 10 字。
+                </div>
                 <LoadingButton
                   onClick={() => createMutation.mutate()}
                   loading={createMutation.isPending}
@@ -827,10 +839,7 @@ function AiApiPage() {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-5">
-          <Panel
-            title="申請紀錄"
-            description="近期申請狀態。"
-          >
+          <Panel title="申請紀錄" description="近期申請狀態。">
             {requests.length ? (
               <div>
                 {requests.map((item) => (

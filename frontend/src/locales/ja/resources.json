@@ -72,6 +72,25 @@
       "deleting": "削除中..."
     }
   },
+  "batch": {
+    "selected": "{{count}} 件選択中",
+    "clearSelection": "選択解除",
+    "success": "{{count}} 件のリソースを{{action}}しました",
+    "partial": "{{succeeded}} 件成功、{{failed}} 件失敗（{{action}}）",
+    "actions": {
+      "start": "起動",
+      "stop": "停止",
+      "shutdown": "シャットダウン",
+      "reboot": "再起動",
+      "reset": "リセット",
+      "delete": "削除"
+    },
+    "deleteConfirm": {
+      "title": "{{count}} 件のリソースを削除しますか？",
+      "description": "選択された {{count}} 件のリソースを完全に削除します。実行中のリソースは先に強制停止されます。この操作は元に戻せません。",
+      "confirm": "{{count}} 件を削除"
+    }
+  },
   "console": {
     "terminal": {
       "title": "{{name}} ターミナル",

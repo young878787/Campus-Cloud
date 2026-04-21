@@ -20,6 +20,56 @@ type ResourceOverview = ClientTypes.VmSchema & {
 
 const validationError = { 422: "Validation Error" } as const
 
+export type BatchActionResultItem = {
+  vmid: number
+  success: boolean
+  message: string
+}
+
+export type BatchActionResponse = {
+  total: number
+  succeeded: number
+  failed: number
+  results: BatchActionResultItem[]
+}
+
+export type DeletionRequestStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled"
+
+export type DeletionRequestPublic = {
+  id: string
+  user_id: number
+  user_email: string | null
+  user_full_name: string | null
+  vmid: number
+  name: string | null
+  node: string | null
+  resource_type: string | null
+  purge: boolean
+  force: boolean
+  status: DeletionRequestStatus
+  error_message: string | null
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+}
+
+export type DeletionRequestsPublic = {
+  data: DeletionRequestPublic[]
+  count: number
+}
+
+export type DeletionRequestCreated = {
+  id: string
+  vmid: number
+  status: DeletionRequestStatus
+  message: string
+}
+
 export class AiTemplateRecommendationService {
   public static chat(data: { requestBody: ClientTypes.ChatRequest }) {
     return __request<ClientTypes.ChatResponse>(OpenAPI, {
@@ -277,6 +327,15 @@ export class VmRequestsService {
       errors: validationError,
     })
   }
+
+  public static cancelVmRequest(data: { requestId: string }) {
+    return __request<ClientTypes.VmRequestPublic>(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/vm-requests/{requestId}/cancel",
+      path: { requestId: data.requestId },
+      errors: validationError,
+    })
+  }
 }
 
 export class VmService {
@@ -406,7 +465,7 @@ export class ResourcesService {
     purge?: boolean
     force?: boolean
   }) {
-    return __request<unknown>(OpenAPI, {
+    return __request<DeletionRequestCreated>(OpenAPI, {
       method: "DELETE",
       url: "/api/v1/resources/{vmid}",
       path: { vmid: data.vmid },
@@ -423,6 +482,18 @@ export class ResourcesService {
       method: "GET",
       url: "/api/v1/resources/{vmid}/ssh-key",
       path: { vmid: data.vmid },
+      errors: validationError,
+    })
+  }
+
+  public static batchAction(data: {
+    requestBody: { vmids: number[]; action: string }
+  }) {
+    return __request<BatchActionResponse>(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/resources/batch",
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: validationError,
     })
   }
@@ -564,6 +635,43 @@ export class ScriptDeployService {
       method: "POST",
       url: "/api/v1/script-deploy/register/{taskId}",
       path: { taskId: data.taskId },
+      errors: validationError,
+    })
+  }
+}
+
+export class DeletionRequestsService {
+  public static listMyDeletionRequests(
+    data: { skip?: number; limit?: number } = {},
+  ) {
+    return __request<DeletionRequestsPublic>(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/deletion-requests/my",
+      query: data,
+      errors: validationError,
+    })
+  }
+
+  public static listAllDeletionRequests(
+    data: {
+      status?: DeletionRequestStatus | null
+      skip?: number
+      limit?: number
+    } = {},
+  ) {
+    return __request<DeletionRequestsPublic>(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/deletion-requests/",
+      query: data,
+      errors: validationError,
+    })
+  }
+
+  public static cancelDeletionRequest(data: { requestId: string }) {
+    return __request<DeletionRequestPublic>(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/deletion-requests/{requestId}/cancel",
+      path: { requestId: data.requestId },
       errors: validationError,
     })
   }

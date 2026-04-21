@@ -2,7 +2,7 @@
  * RubricStats - Statistics panel for rubric analysis
  */
 
-import { CheckCircle, Clock, AlertTriangle } from "lucide-react"
+import { AlertTriangle, CheckCircle, Clock } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -48,7 +48,8 @@ export function RubricStats({
           </span>
         </div>
         <p className="text-xs text-yellow-600 dark:text-yellow-500">
-          部分可偵測 ({total > 0 ? Math.round((partialCount / total) * 100) : 0}%)
+          部分可偵測 ({total > 0 ? Math.round((partialCount / total) * 100) : 0}
+          %)
         </p>
       </div>
       <div className="rounded-xl bg-red-50 p-3 text-center dark:bg-red-900/20">
@@ -59,7 +60,8 @@ export function RubricStats({
           </span>
         </div>
         <p className="text-xs text-red-600 dark:text-red-500">
-          需人工評閱 ({total > 0 ? Math.round((manualCount / total) * 100) : 0}%)
+          需人工評閱 ({total > 0 ? Math.round((manualCount / total) * 100) : 0}
+          %)
         </p>
       </div>
     </div>

@@ -36,10 +36,22 @@ def start_batch_job(
     回傳 job_id 供前端輪詢。
     """
     from app.exceptions import BadRequestError
+    from app.services.network import ip_management_service
 
     member_rows = group_repo.get_member_rows(session=session, group_id=group_id)
     if not member_rows:
         raise BadRequestError("群組沒有成員，無法執行批量建立")
+
+    # 防護：子網必須已設定
+    ip_management_service.ensure_subnet_configured(session)
+
+    # 檢查可用 IP 是否足夠
+    stats = ip_management_service.get_ip_stats(session)
+    if stats["available"] < len(member_rows):
+        raise BadRequestError(
+            f"可用 IP 不足：需要 {len(member_rows)} 個，"
+            f"但僅剩 {stats['available']} 個可用"
+        )
 
     member_user_ids = [row.user_id for row in member_rows]
 

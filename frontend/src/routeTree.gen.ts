@@ -20,6 +20,7 @@ import { Route as LayoutReverseProxyRouteImport } from './routes/_layout/reverse
 import { Route as LayoutResourcesCreateRouteImport } from './routes/_layout/resources-create'
 import { Route as LayoutResourcesRouteImport } from './routes/_layout/resources'
 import { Route as LayoutMyResourcesRouteImport } from './routes/_layout/my-resources'
+import { Route as LayoutJobsRouteImport } from './routes/_layout/jobs'
 import { Route as LayoutGroupsRouteImport } from './routes/_layout/groups'
 import { Route as LayoutGpuManagementRouteImport } from './routes/_layout/gpu-management'
 import { Route as LayoutFirewallRouteImport } from './routes/_layout/firewall'
@@ -36,8 +37,10 @@ import { Route as LayoutMyResourcesVmidRouteImport } from './routes/_layout/my-r
 import { Route as LayoutGroupsGroupIdRouteImport } from './routes/_layout/groups_.$groupId'
 import { Route as LayoutApprovalsRequestIdRouteImport } from './routes/_layout/approvals_.$requestId'
 import { Route as LayoutAdminMigrationJobsRouteImport } from './routes/_layout/admin.migration-jobs'
+import { Route as LayoutAdminIpManagementRouteImport } from './routes/_layout/admin.ip-management'
 import { Route as LayoutAdminGatewayRouteImport } from './routes/_layout/admin.gateway'
 import { Route as LayoutAdminDomainsRouteImport } from './routes/_layout/admin.domains'
+import { Route as LayoutAdminDeployLogsRouteImport } from './routes/_layout/admin.deploy-logs'
 import { Route as LayoutAdminConfigurationRouteImport } from './routes/_layout/admin.configuration'
 import { Route as LayoutAdminAuditLogsRouteImport } from './routes/_layout/admin.audit-logs'
 import { Route as LayoutAdminAiMonitoringRouteImport } from './routes/_layout/admin.ai-monitoring'
@@ -95,6 +98,11 @@ const LayoutResourcesRoute = LayoutResourcesRouteImport.update({
 const LayoutMyResourcesRoute = LayoutMyResourcesRouteImport.update({
   id: '/my-resources',
   path: '/my-resources',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutJobsRoute = LayoutJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutGroupsRoute = LayoutGroupsRouteImport.update({
@@ -180,6 +188,11 @@ const LayoutAdminMigrationJobsRoute =
     path: '/migration-jobs',
     getParentRoute: () => LayoutAdminRoute,
   } as any)
+const LayoutAdminIpManagementRoute = LayoutAdminIpManagementRouteImport.update({
+  id: '/ip-management',
+  path: '/ip-management',
+  getParentRoute: () => LayoutAdminRoute,
+} as any)
 const LayoutAdminGatewayRoute = LayoutAdminGatewayRouteImport.update({
   id: '/gateway',
   path: '/gateway',
@@ -188,6 +201,11 @@ const LayoutAdminGatewayRoute = LayoutAdminGatewayRouteImport.update({
 const LayoutAdminDomainsRoute = LayoutAdminDomainsRouteImport.update({
   id: '/domains',
   path: '/domains',
+  getParentRoute: () => LayoutAdminRoute,
+} as any)
+const LayoutAdminDeployLogsRoute = LayoutAdminDeployLogsRouteImport.update({
+  id: '/deploy-logs',
+  path: '/deploy-logs',
   getParentRoute: () => LayoutAdminRoute,
 } as any)
 const LayoutAdminConfigurationRoute =
@@ -228,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/firewall': typeof LayoutFirewallRoute
   '/gpu-management': typeof LayoutGpuManagementRoute
   '/groups': typeof LayoutGroupsRoute
+  '/jobs': typeof LayoutJobsRoute
   '/my-resources': typeof LayoutMyResourcesRoute
   '/resources': typeof LayoutResourcesRoute
   '/resources-create': typeof LayoutResourcesCreateRoute
@@ -237,8 +256,10 @@ export interface FileRoutesByFullPath {
   '/admin/ai-monitoring': typeof LayoutAdminAiMonitoringRoute
   '/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
   '/admin/configuration': typeof LayoutAdminConfigurationRoute
+  '/admin/deploy-logs': typeof LayoutAdminDeployLogsRoute
   '/admin/domains': typeof LayoutAdminDomainsRoute
   '/admin/gateway': typeof LayoutAdminGatewayRoute
+  '/admin/ip-management': typeof LayoutAdminIpManagementRoute
   '/admin/migration-jobs': typeof LayoutAdminMigrationJobsRoute
   '/approvals/$requestId': typeof LayoutApprovalsRequestIdRoute
   '/groups/$groupId': typeof LayoutGroupsGroupIdRoute
@@ -260,6 +281,7 @@ export interface FileRoutesByTo {
   '/firewall': typeof LayoutFirewallRoute
   '/gpu-management': typeof LayoutGpuManagementRoute
   '/groups': typeof LayoutGroupsRoute
+  '/jobs': typeof LayoutJobsRoute
   '/my-resources': typeof LayoutMyResourcesRoute
   '/resources': typeof LayoutResourcesRoute
   '/resources-create': typeof LayoutResourcesCreateRoute
@@ -270,8 +292,10 @@ export interface FileRoutesByTo {
   '/admin/ai-monitoring': typeof LayoutAdminAiMonitoringRoute
   '/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
   '/admin/configuration': typeof LayoutAdminConfigurationRoute
+  '/admin/deploy-logs': typeof LayoutAdminDeployLogsRoute
   '/admin/domains': typeof LayoutAdminDomainsRoute
   '/admin/gateway': typeof LayoutAdminGatewayRoute
+  '/admin/ip-management': typeof LayoutAdminIpManagementRoute
   '/admin/migration-jobs': typeof LayoutAdminMigrationJobsRoute
   '/approvals/$requestId': typeof LayoutApprovalsRequestIdRoute
   '/groups/$groupId': typeof LayoutGroupsGroupIdRoute
@@ -296,6 +320,7 @@ export interface FileRoutesById {
   '/_layout/firewall': typeof LayoutFirewallRoute
   '/_layout/gpu-management': typeof LayoutGpuManagementRoute
   '/_layout/groups': typeof LayoutGroupsRoute
+  '/_layout/jobs': typeof LayoutJobsRoute
   '/_layout/my-resources': typeof LayoutMyResourcesRoute
   '/_layout/resources': typeof LayoutResourcesRoute
   '/_layout/resources-create': typeof LayoutResourcesCreateRoute
@@ -306,8 +331,10 @@ export interface FileRoutesById {
   '/_layout/admin/ai-monitoring': typeof LayoutAdminAiMonitoringRoute
   '/_layout/admin/audit-logs': typeof LayoutAdminAuditLogsRoute
   '/_layout/admin/configuration': typeof LayoutAdminConfigurationRoute
+  '/_layout/admin/deploy-logs': typeof LayoutAdminDeployLogsRoute
   '/_layout/admin/domains': typeof LayoutAdminDomainsRoute
   '/_layout/admin/gateway': typeof LayoutAdminGatewayRoute
+  '/_layout/admin/ip-management': typeof LayoutAdminIpManagementRoute
   '/_layout/admin/migration-jobs': typeof LayoutAdminMigrationJobsRoute
   '/_layout/approvals_/$requestId': typeof LayoutApprovalsRequestIdRoute
   '/_layout/groups_/$groupId': typeof LayoutGroupsGroupIdRoute
@@ -333,6 +360,7 @@ export interface FileRouteTypes {
     | '/firewall'
     | '/gpu-management'
     | '/groups'
+    | '/jobs'
     | '/my-resources'
     | '/resources'
     | '/resources-create'
@@ -342,8 +370,10 @@ export interface FileRouteTypes {
     | '/admin/ai-monitoring'
     | '/admin/audit-logs'
     | '/admin/configuration'
+    | '/admin/deploy-logs'
     | '/admin/domains'
     | '/admin/gateway'
+    | '/admin/ip-management'
     | '/admin/migration-jobs'
     | '/approvals/$requestId'
     | '/groups/$groupId'
@@ -365,6 +395,7 @@ export interface FileRouteTypes {
     | '/firewall'
     | '/gpu-management'
     | '/groups'
+    | '/jobs'
     | '/my-resources'
     | '/resources'
     | '/resources-create'
@@ -375,8 +406,10 @@ export interface FileRouteTypes {
     | '/admin/ai-monitoring'
     | '/admin/audit-logs'
     | '/admin/configuration'
+    | '/admin/deploy-logs'
     | '/admin/domains'
     | '/admin/gateway'
+    | '/admin/ip-management'
     | '/admin/migration-jobs'
     | '/approvals/$requestId'
     | '/groups/$groupId'
@@ -400,6 +433,7 @@ export interface FileRouteTypes {
     | '/_layout/firewall'
     | '/_layout/gpu-management'
     | '/_layout/groups'
+    | '/_layout/jobs'
     | '/_layout/my-resources'
     | '/_layout/resources'
     | '/_layout/resources-create'
@@ -410,8 +444,10 @@ export interface FileRouteTypes {
     | '/_layout/admin/ai-monitoring'
     | '/_layout/admin/audit-logs'
     | '/_layout/admin/configuration'
+    | '/_layout/admin/deploy-logs'
     | '/_layout/admin/domains'
     | '/_layout/admin/gateway'
+    | '/_layout/admin/ip-management'
     | '/_layout/admin/migration-jobs'
     | '/_layout/approvals_/$requestId'
     | '/_layout/groups_/$groupId'
@@ -505,6 +541,13 @@ declare module '@tanstack/react-router' {
       path: '/my-resources'
       fullPath: '/my-resources'
       preLoaderRoute: typeof LayoutMyResourcesRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/jobs': {
+      id: '/_layout/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof LayoutJobsRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/groups': {
@@ -619,6 +662,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminMigrationJobsRouteImport
       parentRoute: typeof LayoutAdminRoute
     }
+    '/_layout/admin/ip-management': {
+      id: '/_layout/admin/ip-management'
+      path: '/ip-management'
+      fullPath: '/admin/ip-management'
+      preLoaderRoute: typeof LayoutAdminIpManagementRouteImport
+      parentRoute: typeof LayoutAdminRoute
+    }
     '/_layout/admin/gateway': {
       id: '/_layout/admin/gateway'
       path: '/gateway'
@@ -631,6 +681,13 @@ declare module '@tanstack/react-router' {
       path: '/domains'
       fullPath: '/admin/domains'
       preLoaderRoute: typeof LayoutAdminDomainsRouteImport
+      parentRoute: typeof LayoutAdminRoute
+    }
+    '/_layout/admin/deploy-logs': {
+      id: '/_layout/admin/deploy-logs'
+      path: '/deploy-logs'
+      fullPath: '/admin/deploy-logs'
+      preLoaderRoute: typeof LayoutAdminDeployLogsRouteImport
       parentRoute: typeof LayoutAdminRoute
     }
     '/_layout/admin/configuration': {
@@ -669,8 +726,10 @@ interface LayoutAdminRouteChildren {
   LayoutAdminAiMonitoringRoute: typeof LayoutAdminAiMonitoringRoute
   LayoutAdminAuditLogsRoute: typeof LayoutAdminAuditLogsRoute
   LayoutAdminConfigurationRoute: typeof LayoutAdminConfigurationRoute
+  LayoutAdminDeployLogsRoute: typeof LayoutAdminDeployLogsRoute
   LayoutAdminDomainsRoute: typeof LayoutAdminDomainsRoute
   LayoutAdminGatewayRoute: typeof LayoutAdminGatewayRoute
+  LayoutAdminIpManagementRoute: typeof LayoutAdminIpManagementRoute
   LayoutAdminMigrationJobsRoute: typeof LayoutAdminMigrationJobsRoute
   LayoutAdminIndexRoute: typeof LayoutAdminIndexRoute
 }
@@ -680,8 +739,10 @@ const LayoutAdminRouteChildren: LayoutAdminRouteChildren = {
   LayoutAdminAiMonitoringRoute: LayoutAdminAiMonitoringRoute,
   LayoutAdminAuditLogsRoute: LayoutAdminAuditLogsRoute,
   LayoutAdminConfigurationRoute: LayoutAdminConfigurationRoute,
+  LayoutAdminDeployLogsRoute: LayoutAdminDeployLogsRoute,
   LayoutAdminDomainsRoute: LayoutAdminDomainsRoute,
   LayoutAdminGatewayRoute: LayoutAdminGatewayRoute,
+  LayoutAdminIpManagementRoute: LayoutAdminIpManagementRoute,
   LayoutAdminMigrationJobsRoute: LayoutAdminMigrationJobsRoute,
   LayoutAdminIndexRoute: LayoutAdminIndexRoute,
 }
@@ -701,6 +762,7 @@ interface LayoutRouteChildren {
   LayoutFirewallRoute: typeof LayoutFirewallRoute
   LayoutGpuManagementRoute: typeof LayoutGpuManagementRoute
   LayoutGroupsRoute: typeof LayoutGroupsRoute
+  LayoutJobsRoute: typeof LayoutJobsRoute
   LayoutMyResourcesRoute: typeof LayoutMyResourcesRoute
   LayoutResourcesRoute: typeof LayoutResourcesRoute
   LayoutResourcesCreateRoute: typeof LayoutResourcesCreateRoute
@@ -724,6 +786,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutFirewallRoute: LayoutFirewallRoute,
   LayoutGpuManagementRoute: LayoutGpuManagementRoute,
   LayoutGroupsRoute: LayoutGroupsRoute,
+  LayoutJobsRoute: LayoutJobsRoute,
   LayoutMyResourcesRoute: LayoutMyResourcesRoute,
   LayoutResourcesRoute: LayoutResourcesRoute,
   LayoutResourcesCreateRoute: LayoutResourcesCreateRoute,

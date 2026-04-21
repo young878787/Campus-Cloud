@@ -1,1 +1,10 @@
-from app.domain.pve_scheduling.models import *  # noqa: F401,F403
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Callable
+
+
+@dataclass(frozen=True)
+class ScheduledTask:
+    name: str
+    handler: Callable[[], object]

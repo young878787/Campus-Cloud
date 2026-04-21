@@ -1,7 +1,4 @@
-import {
-  createFileRoute,
-  redirect,
-} from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import { AppLayout } from "@/components/Layout/AppLayout"
 import { isLoggedIn } from "@/hooks/useAuth"
 

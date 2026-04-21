@@ -15,7 +15,7 @@ import uuid
 from sqlmodel import Session
 
 from app.core.authorizers import can_bypass_resource_ownership
-from app.infrastructure.proxmox import get_proxmox_api, get_proxmox_settings
+from app.infrastructure.proxmox import get_proxmox_api
 from app.exceptions import BadRequestError, NotFoundError, ProxmoxError
 from app.models.user import User
 from app.repositories import firewall_layout as layout_repo
@@ -38,8 +38,9 @@ _DEFAULT_GATEWAY_Y = 300.0
 # campus-cloud 管理規則的 comment 前綴
 _CC_PREFIX = "campus-cloud:"
 _GATEWAY_COMMENT = f"{_CC_PREFIX}gateway:default"
-_BLOCK_LOCAL_COMMENT = f"{_CC_PREFIX}block-local-subnet"
+_BLOCK_EXTRA_PREFIX = f"{_CC_PREFIX}block-extra:"
 _INTERNET_INBOUND_PREFIX = f"{_CC_PREFIX}gateway->"
+_GATEWAY_FULL_ACCESS_COMMENT = f"{_CC_PREFIX}gateway:full-access"
 
 
 def _from_punycode_hostname(hostname: str) -> str:
@@ -65,6 +66,97 @@ def _firewall_api(node: str, vmid: int, resource_type: ResourceType):
     if resource_type == "qemu":
         return proxmox.nodes(node).qemu(vmid).firewall
     return proxmox.nodes(node).lxc(vmid).firewall
+
+
+def _upsert_marker_rule(
+    node: str,
+    vmid: int,
+    resource_type: ResourceType,
+    *,
+    dest: str,
+    comment: str,
+) -> str:
+    """冪等地建立/更新一條 out-DROP 規則，以 comment 為唯一標記。
+
+    新規則永遠插入到規則清單最後（bottom），避免覆蓋上方的 ACCEPT 規則。
+
+    回傳 'created' / 'updated' / 'skipped'。
+    """
+    try:
+        rules = _firewall_api(node, vmid, resource_type).rules.get() or []
+    except Exception:
+        rules = []
+    existing = next(
+        (r for r in rules if (r.get("comment") or "").strip() == comment), None
+    )
+    if existing is None:
+        # 插入到最末位（pos = 目前規則數）
+        _firewall_api(node, vmid, resource_type).rules.post(
+            type="out", action="DROP", dest=dest, enable=1, comment=comment,
+            pos=len(rules),
+        )
+        return "created"
+    if (existing.get("dest") or "") != dest:
+        _firewall_api(node, vmid, resource_type).rules(existing.get("pos")).put(
+            type="out", action="DROP", dest=dest, enable=1, comment=comment,
+        )
+        return "updated"
+    # dest 一致，但若不是最末位，移動到底部以避免被上方規則覆蓋
+    try:
+        cur_pos = int(existing.get("pos"))
+        last_pos = len(rules) - 1
+        if cur_pos < last_pos:
+            _firewall_api(node, vmid, resource_type).rules(cur_pos).put(
+                moveto=last_pos,
+            )
+            return "updated"
+    except Exception:
+        pass
+    return "skipped"
+
+
+def _extra_block_comment(dest: str) -> str:
+    """為單條額外封鎖規則產生穩定 comment（含 dest 雜湊）。"""
+    import hashlib  # noqa: PLC0415
+    digest = hashlib.sha1(dest.encode("utf-8")).hexdigest()[:8]
+    return f"{_BLOCK_EXTRA_PREFIX}{digest}"
+
+
+def _apply_extra_block_rules(
+    node: str,
+    vmid: int,
+    resource_type: ResourceType,
+    targets: list[str],
+) -> dict[str, list]:
+    """為單一 VM/LXC 同步 extra block 規則：upsert 目標清單 + 清除孤兒。"""
+    stats: dict[str, list] = {"created": [], "updated": [], "skipped": [], "deleted": [], "errors": []}
+    desired = {_extra_block_comment(t): t for t in targets}
+    try:
+        rules = _firewall_api(node, vmid, resource_type).rules.get() or []
+    except Exception as e:
+        stats["errors"].append({"vmid": vmid, "error": f"list rules failed: {e}"})
+        return stats
+
+    # 清除不在 desired 內、但帶有 block-extra 前綴的孤兒規則
+    for r in rules:
+        comment = (r.get("comment") or "").strip()
+        if comment.startswith(_BLOCK_EXTRA_PREFIX) and comment not in desired:
+            try:
+                _firewall_api(node, vmid, resource_type).rules(r.get("pos")).delete()
+                stats["deleted"].append(comment)
+            except Exception as e:
+                stats["errors"].append({"vmid": vmid, "error": f"delete orphan {comment}: {e}"})
+
+    # upsert desired 規則
+    for comment, dest in desired.items():
+        try:
+            action = _upsert_marker_rule(
+                node, vmid, resource_type, dest=dest, comment=comment,
+            )
+            stats[action].append(dest)
+        except Exception as e:
+            stats["errors"].append({"vmid": vmid, "dest": dest, "error": str(e)})
+    return stats
 
 
 def get_vm_firewall_rules(node: str, vmid: int, resource_type: ResourceType) -> list[dict]:
@@ -140,13 +232,57 @@ def ensure_firewall_enabled(node: str, vmid: int, resource_type: ResourceType) -
         logger.error(f"VM {vmid}: 確認防火牆啟用失敗: {e}")
 
 
+def sync_block_local_subnet_rules() -> dict:
+    """掃描所有 pool 內 VM/LXC，同步管理員設定的額外封鎖網段規則（含孤兒清理）。
+
+    回傳 {"extra_blocks": {...}} 統計。
+    """
+    from app.core.db import engine  # noqa: PLC0415
+    from app.infrastructure.proxmox.operations import list_all_resources  # noqa: PLC0415
+    from app.services.network import ip_management_service  # noqa: PLC0415
+
+    with Session(engine) as s:
+        subnet_config = ip_management_service.get_subnet_config(s)
+        extra_blocks = ip_management_service.get_extra_blocked_subnets(subnet_config)
+    if not extra_blocks:
+        return {"noop": True, "reason": "未設定任何額外封鎖網段"}
+
+    extra_aggregate: dict[str, list] = {
+        "created": [], "updated": [], "skipped": [], "deleted": [], "errors": [],
+    }
+
+    for r in list_all_resources():
+        vmid = int(r["vmid"])
+        node = r.get("node")
+        rtype = "lxc" if r.get("type") == "lxc" else "qemu"
+        if not node:
+            continue
+        try:
+            sub = _apply_extra_block_rules(node, vmid, rtype, extra_blocks)
+            for k in extra_aggregate:
+                extra_aggregate[k].extend(sub.get(k, []))
+        except Exception as e:
+            extra_aggregate["errors"].append({"vmid": vmid, "error": str(e)})
+
+    logger.info(
+        "block-extra 同步 -> targets=%s: created=%d updated=%d skipped=%d deleted=%d errors=%d",
+        extra_blocks,
+        len(extra_aggregate["created"]), len(extra_aggregate["updated"]),
+        len(extra_aggregate["skipped"]), len(extra_aggregate["deleted"]),
+        len(extra_aggregate["errors"]),
+    )
+    return {
+        "extra_blocks": {"targets": extra_blocks, **extra_aggregate},
+    }
+
+
 def setup_default_rules(node: str, vmid: int, resource_type: ResourceType) -> None:
     """VM 建立後設定預設防火牆規則：
     - 啟用防火牆
     - policy_in=DROP（預設拒絕入站）
     - policy_out=ACCEPT（允許出站）
-    - 若設定 local_subnet，新增出站 DROP 規則封鎖同網段（pos=0）
-    - 新增預設出站 ACCEPT 規則作為往網關的 topology 標記（排在 DROP 之後）
+    - 套用管理員設定的額外封鎖網段（來自 IP 管理設定）
+    - 新增預設出站 ACCEPT 規則作為往網關的 topology 標記
     """
     try:
         # 啟用防火牆並設定預設策略
@@ -158,18 +294,25 @@ def setup_default_rules(node: str, vmid: int, resource_type: ResourceType) -> No
         )
         logger.info(f"VM {vmid}: 設定防火牆預設策略 in=DROP, out=ACCEPT")
 
-        local_subnet = get_proxmox_settings().local_subnet
-        if local_subnet:
-            # 先插入出站 DROP 規則封鎖同網段（pos=0，優先評估）
-            drop_rule = {
-                "type": "out",
-                "action": "DROP",
-                "dest": local_subnet,
-                "enable": 1,
-                "comment": _BLOCK_LOCAL_COMMENT,
-            }
-            _firewall_api(node, vmid, resource_type).rules.post(**drop_rule)
-            logger.info(f"VM {vmid}: 已新增出站 DROP 規則，封鎖本地網段 {local_subnet}")
+        # 套用管理員設定的額外封鎖網段（多筆）
+        try:
+            from app.core.db import engine  # noqa: PLC0415
+            from app.services.network import ip_management_service  # noqa: PLC0415
+
+            with Session(engine) as s:
+                subnet_config = ip_management_service.get_subnet_config(s)
+                extra_blocks = ip_management_service.get_extra_blocked_subnets(subnet_config)
+            if extra_blocks:
+                sub = _apply_extra_block_rules(node, vmid, resource_type, extra_blocks)
+                logger.info(
+                    f"VM {vmid}: extra-block 規則 created={len(sub['created'])} "
+                    f"updated={len(sub['updated'])} deleted={len(sub['deleted'])} "
+                    f"errors={len(sub['errors'])}"
+                )
+        except Exception as e:
+            logger.warning(
+                f"VM {vmid}: 套用額外封鎖網段規則失敗 (非致命): {e}"
+            )
 
         # 新增預設出站規則（作為圖形介面的「往網關」連線標記，排在 DROP 之後）
         gateway_rule = {
@@ -180,6 +323,32 @@ def setup_default_rules(node: str, vmid: int, resource_type: ResourceType) -> No
         }
         _firewall_api(node, vmid, resource_type).rules.post(**gateway_rule)
         logger.info(f"VM {vmid}: 已新增預設出站規則（往網關）")
+
+        # 新增 Gateway VM → VM 全埠 ACCEPT 規則（1-65535 TCP+UDP）
+        try:
+            from app.services.network import ip_management_service  # noqa: PLC0415
+            from app.core.db import engine  # noqa: PLC0415
+
+            with Session(engine) as s:
+                subnet_config = ip_management_service.get_subnet_config(s)
+            if subnet_config and subnet_config.gateway_vm_ip:
+                gw_ip = subnet_config.gateway_vm_ip
+                for proto in ("tcp", "udp"):
+                    gw_access_rule = {
+                        "type": "in",
+                        "action": "ACCEPT",
+                        "source": gw_ip,
+                        "dport": "1:65535",
+                        "proto": proto,
+                        "enable": 1,
+                        "comment": _GATEWAY_FULL_ACCESS_COMMENT,
+                    }
+                    _firewall_api(node, vmid, resource_type).rules.post(**gw_access_rule)
+                logger.info(
+                    f"VM {vmid}: 已新增 Gateway VM ({gw_ip}) → VM 全埠 ACCEPT 規則"
+                )
+        except Exception as gw_err:
+            logger.warning(f"VM {vmid}: 新增 Gateway 全埠規則失敗（非致命）: {gw_err}")
 
     except Exception as e:
         logger.error(f"VM {vmid}: 設定防火牆預設規則失敗: {e}")

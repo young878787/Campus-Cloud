@@ -1,9 +1,6 @@
-import {
-  createFileRoute,
-  redirect,
-} from "@tanstack/react-router"
-import { isLoggedIn } from "@/hooks/useAuth"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import { SignUpPage } from "@/components/Auth/SignUpPage"
+import { isLoggedIn } from "@/hooks/useAuth"
 
 export const Route = createFileRoute("/signup")({
   component: SignUpPage,

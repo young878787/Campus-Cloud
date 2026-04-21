@@ -1,12 +1,16 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query"
 import {
+  BookOpen,
   Calendar,
   Check,
   Copy,
   Cpu,
   Download,
+  ExternalLink,
   Eye,
   EyeOff,
+  Globe,
+  Info,
   KeyRound,
   MemoryStick,
   Network,
@@ -27,6 +31,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard"
+import { getServiceTemplateBySlug } from "@/lib/serviceTemplates"
 import { decodeName } from "@/lib/utils"
 
 interface OverviewTabProps {
@@ -70,9 +75,147 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
   }
 
   const statusBadge = getStatusBadge(resource.status as string)
+  const serviceTemplate = getServiceTemplateBySlug(
+    resource.service_template_slug,
+  )
+  const currentLang = (
+    typeof navigator !== "undefined" ? navigator.language : "en"
+  ).toLowerCase()
+  const tplDescription =
+    (currentLang.startsWith("zh") && serviceTemplate?.description_zh) ||
+    (currentLang.startsWith("ja") && serviceTemplate?.description_ja) ||
+    serviceTemplate?.description ||
+    ""
 
   return (
     <div className="space-y-6">
+      {serviceTemplate && (
+        <Card className="border-2 border-primary/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-start gap-3">
+              {serviceTemplate.logo ? (
+                <img
+                  src={serviceTemplate.logo}
+                  alt={serviceTemplate.name || ""}
+                  className="h-10 w-10 rounded object-contain bg-white"
+                  onError={(e) => {
+                    ;(e.currentTarget as HTMLImageElement).style.display =
+                      "none"
+                  }}
+                />
+              ) : (
+                <Package className="h-10 w-10 text-primary" />
+              )}
+              <div className="flex-1 min-w-0">
+                <CardTitle className="flex items-center gap-2">
+                  {serviceTemplate.name || resource.service_template_slug}
+                  {serviceTemplate.interface_port ? (
+                    <Badge variant="secondary">
+                      :{serviceTemplate.interface_port}
+                    </Badge>
+                  ) : null}
+                </CardTitle>
+                {tplDescription ? (
+                  <CardDescription className="mt-1">
+                    {tplDescription}
+                  </CardDescription>
+                ) : null}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {serviceTemplate.documentation ? (
+                <Button asChild size="sm" variant="outline">
+                  <a
+                    href={serviceTemplate.documentation}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Documentation
+                    <ExternalLink className="ml-1 h-3 w-3" />
+                  </a>
+                </Button>
+              ) : null}
+              {serviceTemplate.website ? (
+                <Button asChild size="sm" variant="outline">
+                  <a
+                    href={serviceTemplate.website}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Globe className="mr-2 h-4 w-4" />
+                    Website
+                    <ExternalLink className="ml-1 h-3 w-3" />
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+
+            {serviceTemplate.default_credentials &&
+            (serviceTemplate.default_credentials.username ||
+              serviceTemplate.default_credentials.password) ? (
+              <div className="rounded-md border bg-muted/40 p-3 space-y-1">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                  <KeyRound className="h-3 w-3" />
+                  Default credentials
+                </div>
+                {serviceTemplate.default_credentials.username ? (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Username: </span>
+                    <code className="font-mono">
+                      {serviceTemplate.default_credentials.username}
+                    </code>
+                  </div>
+                ) : null}
+                {serviceTemplate.default_credentials.password ? (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Password: </span>
+                    <code className="font-mono">
+                      {serviceTemplate.default_credentials.password}
+                    </code>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {Array.isArray(serviceTemplate.notes) &&
+            serviceTemplate.notes.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Notes
+                </div>
+                <ul className="space-y-1 text-sm list-disc pl-5">
+                  {serviceTemplate.notes.map(
+                    (
+                      n:
+                        | { text?: string; text_zh?: string; text_ja?: string }
+                        | string,
+                      i: number,
+                    ) => {
+                      let text: string | undefined
+                      if (typeof n === "string") {
+                        text = n
+                      } else {
+                        text =
+                          (currentLang.startsWith("zh") && n?.text_zh) ||
+                          (currentLang.startsWith("ja") && n?.text_ja) ||
+                          n?.text ||
+                          undefined
+                      }
+                      if (!text) return null
+                      return <li key={i}>{text}</li>
+                    },
+                  )}
+                </ul>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Basic Information */}
       <Card className="border-2">
         <CardHeader className="pb-3">
@@ -283,9 +426,7 @@ export default function OverviewTab({ vmid }: OverviewTabProps) {
                       ) : (
                         <Eye className="h-3 w-3" />
                       )}
-                      {showPrivateKey
-                        ? t("overview.hide")
-                        : t("overview.show")}
+                      {showPrivateKey ? t("overview.hide") : t("overview.show")}
                     </Button>
                     <Button
                       variant="ghost"

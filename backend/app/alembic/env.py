@@ -1,8 +1,15 @@
 import os
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+# Ensure the backend package root is on sys.path so "app" is importable
+_backend_dir = str(Path(__file__).resolve().parents[2])
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

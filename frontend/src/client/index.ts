@@ -11,6 +11,7 @@ export { request } from "./core/request"
 export {
 	AuditLogsService,
 	AiTemplateRecommendationService,
+	DeletionRequestsService,
 	GroupsService,
 	LoginService,
 	LxcService,
@@ -21,6 +22,14 @@ export {
 	UsersService,
 	VmRequestsService,
 	VmService,
+} from "./compat"
+export type {
+	BatchActionResponse,
+	BatchActionResultItem,
+	DeletionRequestCreated,
+	DeletionRequestPublic,
+	DeletionRequestsPublic,
+	DeletionRequestStatus,
 } from "./compat"
 
 export {

@@ -36,6 +36,8 @@ type SharedResourceFormInput = {
   username?: string
   gpu_mapping_id?: string
   expiry_date?: string
+  service_template_slug?: string
+  service_template_script_path?: string
 }
 
 type ApplicationRequestFormInput = SharedResourceFormInput & {
@@ -54,6 +56,8 @@ export type VmRequestCreateRequestBody = Omit<
   start_at?: string
   end_at?: string
   gpu_mapping_id?: string
+  service_template_slug?: string
+  service_template_script_path?: string
 }
 
 type NormalizedLxcPayload = {
@@ -68,6 +72,7 @@ type NormalizedLxcPayload = {
   environment_type: string
   os_info?: string | null
   expiry_date?: string | null
+  service_template_slug?: string | null
 }
 
 type NormalizedVmPayload = {
@@ -83,6 +88,7 @@ type NormalizedVmPayload = {
   environment_type: string
   os_info?: string | null
   expiry_date?: string | null
+  service_template_slug?: string | null
 }
 
 type NormalizedResourcePayload = NormalizedLxcPayload | NormalizedVmPayload
@@ -105,6 +111,7 @@ function getNormalizedResourcePayload(
   const storage = values.storage?.trim() || "local-lvm"
   const os_info = trimToNull(values.os_info)
   const expiry_date = trimToNull(values.expiry_date)
+  const service_template_slug = trimToNull(values.service_template_slug)
 
   if (values.resource_type === "lxc") {
     if (!values.ostemplate || !values.rootfs_size) {
@@ -123,6 +130,7 @@ function getNormalizedResourcePayload(
       environment_type: options.lxcEnvironmentType,
       os_info,
       expiry_date,
+      service_template_slug,
     }
   }
 
@@ -144,6 +152,7 @@ function getNormalizedResourcePayload(
     environment_type: options.vmEnvironmentType,
     os_info,
     expiry_date,
+    service_template_slug,
   }
 }
 
@@ -198,6 +207,7 @@ export function toLxcCreateRequestBody(
     expiry_date: payload.expiry_date,
     start: true,
     unprivileged: true,
+    service_template_slug: payload.service_template_slug,
   }
 }
 
@@ -223,6 +233,7 @@ export function toVmCreateRequestBody(
     os_info: payload.os_info,
     expiry_date: payload.expiry_date,
     start: true,
+    service_template_slug: payload.service_template_slug,
   }
 }
 
@@ -246,6 +257,10 @@ export function toVmRequestCreateRequestBody(
     start_at: window.start_at,
     end_at: window.end_at,
     gpu_mapping_id: trimToUndefined(values.gpu_mapping_id),
+    service_template_slug: trimToUndefined(values.service_template_slug),
+    service_template_script_path: trimToUndefined(
+      values.service_template_script_path,
+    ),
   }
 
   if (payload.resource_type === "lxc") {

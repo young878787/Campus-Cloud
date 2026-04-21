@@ -91,15 +91,6 @@
       "icon": "layout"
     },
     {
-      "name": "Files & Downloads",
-      "id": 11,
-      "sort_order": 11.0,
-      "description": "Manage file sharing and downloading solutions efficiently.",
-      "description_zh": "有效管理檔案共用和下載解決方案。",
-      "description_ja": "ファイル共有とダウンロードソリューションを効率的に管理します。",
-      "icon": "download"
-    },
-    {
       "name": "Documents & Notes",
       "id": 12,
       "sort_order": 12.0,
@@ -107,60 +98,6 @@
       "description_zh": "組織和管理文件和筆記工具。",
       "description_ja": "ドキュメントとメモ取りツールを整理して管理します。",
       "icon": "file-text"
-    },
-    {
-      "name": "Media & Streaming",
-      "id": 13,
-      "sort_order": 13.0,
-      "description": "Stream and manage media effortlessly across devices.",
-      "description_zh": "在不同裝置間輕鬆串流和管理媒體。",
-      "description_ja": "デバイス間でメディアを簡単にストリーミングおよび管理します。",
-      "icon": "play"
-    },
-    {
-      "name": "*Arr Suite",
-      "id": 14,
-      "sort_order": 14.0,
-      "description": "Automated media management with the popular *Arr suite tools.",
-      "description_zh": "使用流行的 *Arr 套件工具進行自動化媒體管理。",
-      "description_ja": "人気の*Arrスイートツールを使用した自動化メディア管理。",
-      "icon": "tv"
-    },
-    {
-      "name": "NVR & Cameras",
-      "id": 15,
-      "sort_order": 15.0,
-      "description": "Manage network video recorders and camera setups.",
-      "description_zh": "管理網絡影片錄像機和攝像機設定。",
-      "description_ja": "ネットワークビデオレコーダーとカメラセットアップを管理します。",
-      "icon": "camera"
-    },
-    {
-      "name": "IoT & Smart Home",
-      "id": 16,
-      "sort_order": 16.0,
-      "description": "Control and automate IoT devices and smart home systems.",
-      "description_zh": "控制和自動化物聯網裝置和智慧家居系統。",
-      "description_ja": "IoT デバイススマートホームシステムを制御および自動化します。",
-      "icon": "home"
-    },
-    {
-      "name": "ZigBee, Z-Wave & Matter",
-      "id": 17,
-      "sort_order": 17.0,
-      "description": "Solutions for ZigBee, Z-Wave, and Matter-based device management.",
-      "description_zh": "ZigBee、Z-Wave 和 Matter 型裝置管理的解決方案。",
-      "description_ja": "ZigBee、Z-Wave、Matter ベースのデバイス管理ソリューション。",
-      "icon": "radio"
-    },
-    {
-      "name": "MQTT & Messaging",
-      "id": 18,
-      "sort_order": 18.0,
-      "description": "Set up reliable messaging and MQTT-based communication systems.",
-      "description_zh": "設定可靠的訊息傳遞和基於 MQTT 的通訊系統。",
-      "description_ja": "信頼性の高いメッセージング MQTT ベースの通信システムをセットアップします。",
-      "icon": "message-circle"
     },
     {
       "name": "Automation & Scheduling",
@@ -188,33 +125,6 @@
       "description_zh": "部署和配置網頁伺服器和代理解決方案。",
       "description_ja": "Web サーバーとプロキシソリューションをデプロイおよび構成します。",
       "icon": "globe"
-    },
-    {
-      "name": "Bots & ChatOps",
-      "id": 22,
-      "sort_order": 22.0,
-      "description": "Enhance collaboration with bots and ChatOps integrations.",
-      "description_zh": "透過機器人和 ChatOps 整合增強協作。",
-      "description_ja": "ボットと ChatOps 統合によってコラボレーションを強化します。",
-      "icon": "bot"
-    },
-    {
-      "name": "Finance & Budgeting",
-      "id": 23,
-      "sort_order": 23.0,
-      "description": "Track expenses and manage budgets efficiently.",
-      "description_zh": "有效地追蹤支出和管理預算。",
-      "description_ja": "経費追跡と予算管理を効率的に行います。",
-      "icon": "dollar-sign"
-    },
-    {
-      "name": "Gaming & Leisure",
-      "id": 24,
-      "sort_order": 24.0,
-      "description": "Scripts for gaming servers and leisure-related tools.",
-      "description_zh": "遊戲伺服器和娛樂相關工具的腳本。",
-      "description_ja": "ゲームサーバーとレジャー関連ツール用のスクリプト。",
-      "icon": "gamepad-2"
     },
     {
       "name": "Business & ERP",

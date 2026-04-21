@@ -20,8 +20,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import type { ApiError } from "@/client"
 import { ResourcesService } from "@/client"
-import { Button } from "@/components/ui/button"
 import { TerminalConsoleDialog } from "@/components/Terminal"
+import { Button } from "@/components/ui/button"
 import { VNCConsoleDialog } from "@/components/VNC"
 import { FirewallService } from "@/services/firewall"
 import { ConnectionDialog } from "./ConnectionDialog"
@@ -566,7 +566,15 @@ function FirewallTopologyInner() {
   }
 
   return (
-    <div className="relative w-full h-full firewall-canvas rounded-xl overflow-hidden" style={{ background: "rgba(15,103,217,0.15)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.6)" }}>
+    <div
+      className="relative w-full h-full firewall-canvas rounded-xl overflow-hidden"
+      style={{
+        background: "rgba(15,103,217,0.15)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        border: "1px solid rgba(255,255,255,0.6)",
+      }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

@@ -111,17 +111,17 @@ function Approvals() {
       >
         <div className="w-full overflow-x-auto">
           <TabsList className="min-w-max">
-          <TabsTrigger value="pending">
-            {t("approvals:filters.pending")}
-            <PendingCountBadge />
-          </TabsTrigger>
-          <TabsTrigger value="approved">
-            {t("approvals:filters.approved")}
-          </TabsTrigger>
-          <TabsTrigger value="rejected">
-            {t("approvals:filters.rejected")}
-          </TabsTrigger>
-          <TabsTrigger value="all">{t("approvals:filters.all")}</TabsTrigger>
+            <TabsTrigger value="pending">
+              {t("approvals:filters.pending")}
+              <PendingCountBadge />
+            </TabsTrigger>
+            <TabsTrigger value="approved">
+              {t("approvals:filters.approved")}
+            </TabsTrigger>
+            <TabsTrigger value="rejected">
+              {t("approvals:filters.rejected")}
+            </TabsTrigger>
+            <TabsTrigger value="all">{t("approvals:filters.all")}</TabsTrigger>
           </TabsList>
         </div>
       </Tabs>

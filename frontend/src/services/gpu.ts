@@ -80,7 +80,9 @@ export const GpuService = {
     })
   },
 
-  createMapping(body: GPUMappingCreate): CancelablePromise<{ message: string }> {
+  createMapping(
+    body: GPUMappingCreate,
+  ): CancelablePromise<{ message: string }> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/gpu/mappings",

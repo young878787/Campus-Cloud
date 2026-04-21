@@ -31,6 +31,10 @@ class Resource(SQLModel, table=True):
     template_id: int | None = Field(
         default=None, description="使用的模板ID（如果是從模板創建）"
     )
+    service_template_slug: str | None = Field(
+        default=None,
+        description="服務模板 slug（對應前端 src/json 內的模板，例如 'jellyfin'）",
+    )
     ssh_private_key_encrypted: str | None = Field(
         default=None, description="Fernet 加密後的 SSH 私鑰（PEM 格式）"
     )

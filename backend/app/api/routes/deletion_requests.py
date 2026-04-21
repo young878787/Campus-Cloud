@@ -1,0 +1,79 @@
+"""Deletion request REST endpoints."""
+
+import uuid
+
+from fastapi import APIRouter, HTTPException
+
+from app.api.deps import AdminUser, CurrentUser, SessionDep
+from app.models.deletion_request import DeletionRequestStatus
+from app.schemas.deletion_request import (
+    DeletionRequestPublic,
+    DeletionRequestsPublic,
+)
+from app.services.resource import deletion_service
+
+router = APIRouter(prefix="/deletion-requests", tags=["deletion-requests"])
+
+
+@router.get("/my", response_model=DeletionRequestsPublic)
+def list_my_deletion_requests(
+    session: SessionDep,
+    current_user: CurrentUser,
+    skip: int = 0,
+    limit: int = 100,
+):
+    rows, total = deletion_service.list_for_user(
+        session=session, user_id=current_user.id, skip=skip, limit=limit
+    )
+    return DeletionRequestsPublic(
+        data=[
+            DeletionRequestPublic(
+                **deletion_service.to_public_with_user(session=session, req=r)
+            )
+            for r in rows
+        ],
+        count=total,
+    )
+
+
+@router.get("/", response_model=DeletionRequestsPublic)
+def list_all_deletion_requests(
+    session: SessionDep,
+    _admin: AdminUser,
+    status: DeletionRequestStatus | None = None,
+    skip: int = 0,
+    limit: int = 100,
+):
+    rows, total = deletion_service.list_all(
+        session=session, status=status, skip=skip, limit=limit
+    )
+    return DeletionRequestsPublic(
+        data=[
+            DeletionRequestPublic(
+                **deletion_service.to_public_with_user(session=session, req=r)
+            )
+            for r in rows
+        ],
+        count=total,
+    )
+
+
+@router.post("/{request_id}/cancel", response_model=DeletionRequestPublic)
+def cancel_deletion_request(
+    request_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
+    try:
+        req = deletion_service.cancel_deletion_request(
+            session=session,
+            request_id=request_id,
+            user_id=current_user.id,
+            is_admin=current_user.is_superuser,
+        )
+    except Exception as e:
+        # AppError 由 global handler 處理；這裡僅做型別上的相容
+        raise e
+    return DeletionRequestPublic(
+        **deletion_service.to_public_with_user(session=session, req=req)
+    )

@@ -7,8 +7,12 @@ and usage tracking by cross-referencing VM configurations.
 import logging
 import re
 
+from sqlmodel import Session, select
+
+from app.core.db import engine
 from app.exceptions import NotFoundError, ProxmoxError
 from app.infrastructure.proxmox import get_proxmox_api
+from app.models import Resource
 from app.schemas.gpu import (
     GPUDeviceMap,
     GPUMappingDetail,
@@ -17,6 +21,17 @@ from app.schemas.gpu import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _get_managed_vmids() -> set[int]:
+    """Return the set of VMIDs that are tracked in the Campus Cloud DB."""
+    try:
+        with Session(engine) as session:
+            rows = session.exec(select(Resource.vmid)).all()
+            return {int(v) for v in rows if v is not None}
+    except Exception as e:
+        logger.error("Failed to load managed VMIDs from DB: %s", e)
+        return set()
 
 
 def _parse_map_entry(entry: str) -> GPUDeviceMap:
@@ -200,6 +215,7 @@ def list_gpu_mappings() -> list[GPUMappingDetail]:
 
     # Get all VM configs to find GPU usage
     usage_map = _build_usage_map()
+    managed_vmids = _get_managed_vmids()
 
     results: list[GPUMappingDetail] = []
     for mapping in raw_mappings:
@@ -219,9 +235,14 @@ def list_gpu_mappings() -> list[GPUMappingDetail]:
         available_count = max(0, device_count - used_count)
         has_mdev = any(m.is_mdev for m in maps)
 
+        # Compute VRAM totals based on the FULL usage list (so counts stay correct
+        # regardless of whether VMs are Campus Cloud-managed or external).
         total_vram_mb, used_vram_mb = _resolve_vram_for_mapping(
             maps, has_mdev, physical_gpu_count, description, mapping_id, used_by,
         )
+
+        # Only expose Campus Cloud-managed VMs in the UI list.
+        visible_used_by = [u for u in used_by if u.vmid in managed_vmids]
 
         results.append(
             GPUMappingDetail(
@@ -236,7 +257,7 @@ def list_gpu_mappings() -> list[GPUMappingDetail]:
                 has_mdev=has_mdev,
                 total_vram_mb=total_vram_mb,
                 used_vram_mb=used_vram_mb,
-                used_by=used_by,
+                used_by=visible_used_by,
             )
         )
 
@@ -269,6 +290,9 @@ def get_gpu_mapping(mapping_id: str) -> GPUMappingDetail:
         maps, has_mdev, physical_gpu_count, description, mapping_id, used_by,
     )
 
+    managed_vmids = _get_managed_vmids()
+    visible_used_by = [u for u in used_by if u.vmid in managed_vmids]
+
     return GPUMappingDetail(
         id=mapping_id,
         description=description,
@@ -281,7 +305,7 @@ def get_gpu_mapping(mapping_id: str) -> GPUMappingDetail:
         has_mdev=has_mdev,
         total_vram_mb=total_vram_mb,
         used_vram_mb=used_vram_mb,
-        used_by=used_by,
+        used_by=visible_used_by,
     )
 
 

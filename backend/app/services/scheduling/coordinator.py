@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import time
 import uuid
@@ -23,6 +24,7 @@ from app.models import (
 from app.repositories import resource as resource_repo
 from app.repositories import vm_migration_job as vm_migration_job_repo
 from app.repositories import vm_request as vm_request_repo
+from app.services.network import ip_management_service
 from app.services.proxmox import provisioning_service, proxmox_service
 from app.services.scheduling import policy as scheduling_policy
 from app.services.scheduling import support as scheduling_support
@@ -47,6 +49,17 @@ def _normalize_datetime(value: datetime | None) -> datetime | None:
 
 def _resource_type_for_request(request: VMRequest) -> str:
     return scheduling_policy.resource_type_for_request(request)
+
+
+def _should_pin_request_for_auto_migration(
+    *,
+    request: VMRequest,
+    detected_runtime_pin: bool = False,
+) -> bool:
+    return scheduling_support.should_pin_request_for_auto_migration(
+        request=request,
+        detected_runtime_pin=detected_runtime_pin,
+    )
 
 
 def _get_migration_policy(*, session: Session) -> _MigrationPolicy:
@@ -109,6 +122,7 @@ def _adopt_existing_resource(
             os_info=request.os_info,
             expiry_date=request.expiry_date,
             template_id=request.template_id,
+            service_template_slug=getattr(request, "service_template_slug", None),
             commit=False,
         )
     vm_request_repo.update_vm_request_provisioning(
@@ -149,14 +163,21 @@ def _adopt_existing_resource(
         "Adopted existing %s resource VMID %s for request %s",
         resource_type, vmid, request.id,
     )
-    # Detect if resource should be pinned
+    detected_runtime_pin = False
     try:
-        pinned = _detect_migration_pinned(node=actual_node, vmid=vmid, resource_type=resource_type)
-        if pinned and not request.migration_pinned:
-            request.migration_pinned = True
-            session.add(request)
+        detected_runtime_pin = _detect_migration_pinned(
+            node=actual_node,
+            vmid=vmid,
+            resource_type=resource_type,
+        )
     except Exception:
         logger.debug("Failed to detect migration pinning for VMID %s", vmid, exc_info=True)
+    if _should_pin_request_for_auto_migration(
+        request=request,
+        detected_runtime_pin=detected_runtime_pin,
+    ) and not request.migration_pinned:
+        request.migration_pinned = True
+        session.add(request)
     return vmid, actual_node, placement_strategy_used, started
 
 
@@ -178,6 +199,11 @@ def _provision_new_resource(
     resource_type = _resource_type_for_request(request)
     desired_node = str(request.desired_node or request.assigned_node or "")
 
+    # Service template deployment path: community-scripts creates the LXC
+    # itself, so skip normal clone-based provisioning.
+    if resource_type == "lxc" and request.service_template_slug:
+        return _provision_via_service_template(session=session, request=request)
+
     # --- Phase 1: mark as provisioning + plan (short txn) -----------------
     request.status = VMRequestStatus.provisioning
     session.add(request)
@@ -191,9 +217,16 @@ def _provision_new_resource(
         )
     except Exception:
         # Plan failed — revert to approved so scheduler can retry.
-        request.status = VMRequestStatus.approved
-        session.add(request)
-        session.commit()
+        # IP allocated during plan_provision is already flushed to session;
+        # rollback first, then revert status cleanly.
+        session.rollback()
+        request = vm_request_repo.get_vm_request_by_id(
+            session=session, request_id=request.id, for_update=True,
+        )
+        if request:
+            request.status = VMRequestStatus.approved
+            session.add(request)
+            session.commit()
         raise
 
     request_id = request.id
@@ -204,6 +237,7 @@ def _provision_new_resource(
     request_template_id = request.template_id
     request_resource_type = request.resource_type
     request_migration_pinned = request.migration_pinned
+    request_service_template_slug = getattr(request, "service_template_slug", None)
 
     # Close session so clone runs outside any transaction.
     session.commit()
@@ -212,8 +246,15 @@ def _provision_new_resource(
     try:
         new_vmid, actual_node = provisioning_service.execute_provision(plan)
     except Exception:
-        # Clone failed — revert to approved.
+        # Clone failed — revert to approved and release allocated IP.
         with Session(engine) as rollback_session:
+            # Release IP allocated during planning
+            try:
+                ip_management_service.release_ip(rollback_session, plan["vmid"])
+                rollback_session.commit()
+            except Exception:
+                logger.warning("Failed to release IP for VMID %s during rollback", plan["vmid"])
+
             req = vm_request_repo.get_vm_request_by_id(
                 session=rollback_session, request_id=request_id, for_update=True,
             )
@@ -243,6 +284,7 @@ def _provision_new_resource(
             template_id=request_template_id,
             ssh_private_key_encrypted=plan.get("ssh_private_key_encrypted"),
             ssh_public_key=plan.get("ssh_public_key"),
+            service_template_slug=request_service_template_slug,
             commit=False,
         )
         vm_request_repo.update_vm_request_provisioning(
@@ -272,17 +314,20 @@ def _provision_new_resource(
             details=f"Provisioned {request_resource_type} for request {request_id} on {actual_node}",
             commit=False,
         )
-        # Detect if resource should be pinned
+        detected_runtime_pin = False
         try:
-            pinned = _detect_migration_pinned(
+            detected_runtime_pin = _detect_migration_pinned(
                 node=actual_node, vmid=new_vmid,
                 resource_type="lxc" if request_resource_type == "lxc" else "qemu",
             )
-            if pinned and not request_migration_pinned:
-                req.migration_pinned = True
-                finish_session.add(req)
         except Exception:
             logger.debug("Failed to detect migration pinning for VMID %s", new_vmid, exc_info=True)
+        if _should_pin_request_for_auto_migration(
+            request=req,
+            detected_runtime_pin=detected_runtime_pin,
+        ) and not request_migration_pinned:
+            req.migration_pinned = True
+            finish_session.add(req)
         finish_session.commit()
 
     logger.info(
@@ -290,6 +335,250 @@ def _provision_new_resource(
         request_id, new_vmid, actual_node,
     )
     return new_vmid, actual_node, plan["placement_strategy"]
+
+
+def _provision_via_service_template(
+    *,
+    session: Session,
+    request: VMRequest,
+) -> tuple[int, str, str | None]:
+    """Provision LXC by running a community-scripts template (e.g. docker/nginx).
+
+    The community script creates the container itself; we just trigger it
+    synchronously via SSH then record the resulting vmid/node in our DB.
+    """
+    from app.core.security import decrypt_value
+    from app.models import IpAllocation
+    from app.services.network import script_deploy_service
+
+    request_id = request.id
+    request_user_id = request.user_id
+    request_env_type = request.environment_type
+    request_os_info = request.os_info
+    request_expiry_date = request.expiry_date
+    template_slug = str(request.service_template_slug or "")
+    script_path = request.service_template_script_path or f"ct/{template_slug}.sh"
+    hostname = request.hostname
+    cores = int(request.cores or 2)
+    memory = int(request.memory or 2048)
+    disk = int(request.rootfs_size or 8)
+
+    # Generate SSH key pair so the platform can manage the container after deploy
+    from app.core.security import encrypt_value
+    from app.infrastructure.ssh.client import generate_ed25519_keypair
+    private_key_pem, public_key = generate_ed25519_keypair()
+    encrypted_private_key = encrypt_value(private_key_pem)
+
+    try:
+        password_plain = decrypt_value(request.password)
+    except Exception as exc:
+        logger.error("Failed to decrypt password for request %s: %s", request_id, exc)
+        raise
+
+    # Mark provisioning and close txn before the long-running SSH deploy.
+    request.status = VMRequestStatus.provisioning
+    session.add(request)
+    session.commit()
+    logger.info(
+        "Marked request %s as provisioning (service template %s)",
+        request_id, template_slug,
+    )
+
+    # ── 預先分配 IP（必要：服務模板需要靜態 IP，不允許 silent fallback 到 DHCP）──
+    # 使用 proxmox_service.next_vmid() 取得候選 CTID，分配 IP 後傳給 community-scripts。
+    # 若部署後實際建立的 VMID 與候選不同，稍後會更新 IpAllocation.vmid 對應。
+    from app.services.network import ip_management_service
+    with Session(engine) as prep_session:
+        try:
+            net_cfg = ip_management_service.get_network_config_for_vm(prep_session)
+        except Exception as exc:
+            logger.error(
+                "子網未設定或讀取失敗，服務模板部署中止（不使用 DHCP fallback）: %s",
+                exc,
+            )
+            with Session(engine) as rb:
+                req = vm_request_repo.get_vm_request_by_id(
+                    session=rb, request_id=request_id, for_update=True,
+                )
+                if req and req.status == VMRequestStatus.provisioning:
+                    req.status = VMRequestStatus.approved
+                    rb.add(req)
+                    rb.commit()
+            raise RuntimeError(
+                f"無法取得 IP 管理子網設定，請先到「網路 → IP 管理」設定子網：{exc}"
+            ) from exc
+
+        candidate_vmid = proxmox_service.next_vmid()
+        try:
+            allocated_ip = ip_management_service.allocate_ip(
+                prep_session, candidate_vmid, "lxc",
+            )
+            prep_session.commit()
+        except Exception as exc:
+            prep_session.rollback()
+            logger.error(
+                "為候選 VMID %s 預留 IP 失敗（不使用 DHCP fallback）: %s",
+                candidate_vmid, exc,
+            )
+            with Session(engine) as rb:
+                req = vm_request_repo.get_vm_request_by_id(
+                    session=rb, request_id=request_id, for_update=True,
+                )
+                if req and req.status == VMRequestStatus.provisioning:
+                    req.status = VMRequestStatus.approved
+                    rb.add(req)
+                    rb.commit()
+            raise RuntimeError(f"無法分配靜態 IP：{exc}") from exc
+
+        logger.info(
+            "已為候選 VMID %s 預留 IP %s (服務模板 %s)",
+            candidate_vmid, allocated_ip, template_slug,
+        )
+        deploy_net = {
+            "ip_cidr": f"{allocated_ip}/{net_cfg['prefix_len']}",
+            "gateway": net_cfg.get("gateway"),
+            "bridge": net_cfg.get("bridge_name"),
+            "nameserver": net_cfg.get("dns_servers"),
+        }
+
+    try:
+        new_vmid, _task = script_deploy_service.deploy_for_vm_request_sync(
+            user_id=str(request_user_id),
+            template_slug=template_slug,
+            script_path=script_path,
+            hostname=hostname,
+            password=password_plain,
+            cpu=cores,
+            ram=memory,
+            disk=disk,
+            unprivileged=True,
+            ssh=True,
+            environment_type=request_env_type,
+            os_info=request_os_info,
+            net_config=deploy_net,
+            ssh_public_key=public_key,
+            request_id=str(request.id),
+            candidate_vmid=candidate_vmid,
+        )
+    except Exception as exc:
+        logger.error(
+            "Script deploy failed for request %s (%s): %s",
+            request_id, template_slug, exc,
+        )
+        # 回收已預留的 IP
+        if candidate_vmid is not None:
+            try:
+                from app.services.network import ip_management_service
+                with Session(engine) as rb_ip:
+                    ip_management_service.release_ip(rb_ip, candidate_vmid)
+                    rb_ip.commit()
+                logger.info("已釋放部署失敗的預留 IP（候選 VMID %s）", candidate_vmid)
+            except Exception as release_exc:
+                logger.warning("釋放預留 IP 失敗: %s", release_exc)
+        with Session(engine) as rb:
+            req = vm_request_repo.get_vm_request_by_id(
+                session=rb, request_id=request_id, for_update=True,
+            )
+            if req and req.status == VMRequestStatus.provisioning:
+                req.status = VMRequestStatus.approved
+                rb.add(req)
+                rb.commit()
+        raise
+
+    try:
+        info = proxmox_service.find_resource(new_vmid)
+        actual_node = str(info.get("node") or "")
+    except Exception:
+        actual_node = ""
+
+    # 若實際建立的 VMID 與候選不同，更新 IpAllocation 讓 vmid 指向真實容器
+    if candidate_vmid is not None and new_vmid != candidate_vmid:
+        update_ok = False
+        try:
+            # 先驗證 new_vmid 在 PVE 確實存在再重新指派
+            proxmox_service.find_resource(new_vmid)
+            with Session(engine) as fix_session:
+                alloc = fix_session.exec(
+                    select(IpAllocation).where(IpAllocation.vmid == candidate_vmid)
+                ).first()
+                if alloc is not None:
+                    alloc.vmid = new_vmid
+                    alloc.description = f"VMID {new_vmid}"
+                    fix_session.add(alloc)
+                    fix_session.commit()
+                    update_ok = True
+                    logger.info(
+                        "已將 IpAllocation 從候選 VMID %s 更新為實際 VMID %s",
+                        candidate_vmid, new_vmid,
+                    )
+                else:
+                    update_ok = True  # 沒有可遷的紀錄，視為已完成
+        except Exception as exc:
+            logger.warning("更新 IpAllocation.vmid 失敗: %s", exc)
+
+        if not update_ok:
+            # 為避免 IP 洩漏，強制把候選 VMID 上的 IP 釋放
+            try:
+                from app.services.network import ip_management_service
+                with Session(engine) as orphan_rb:
+                    ip_management_service.release_ip(orphan_rb, candidate_vmid)
+                    orphan_rb.commit()
+                logger.info("已強制釋放孤立 IP（候選 VMID %s）", candidate_vmid)
+            except Exception as release_exc:
+                logger.error("孤立 IP 釋放失敗（候選 VMID %s）: %s", candidate_vmid, release_exc)
+
+    with Session(engine) as finish_session:
+        req = vm_request_repo.get_vm_request_by_id(
+            session=finish_session, request_id=request_id, for_update=True,
+        )
+        if req is None:
+            raise NotFoundError(f"Request {request_id} no longer exists")
+
+        resource_repo.create_resource(
+            session=finish_session,
+            vmid=new_vmid,
+            user_id=request_user_id,
+            environment_type=request_env_type,
+            os_info=request_os_info,
+            expiry_date=request_expiry_date,
+            ssh_private_key_encrypted=encrypted_private_key,
+            ssh_public_key=public_key,
+            service_template_slug=template_slug or None,
+            commit=False,
+        )
+        vm_request_repo.update_vm_request_provisioning(
+            session=finish_session,
+            db_request=req,
+            vmid=new_vmid,
+            assigned_node=actual_node or None,
+            desired_node=actual_node or None,
+            actual_node=actual_node or None,
+            placement_strategy_used="service_template",
+            migration_status=VMMigrationStatus.completed,
+            migration_error=None,
+            commit=False,
+        )
+        req.status = VMRequestStatus.running
+        finish_session.add(req)
+
+        audit_service.log_action(
+            session=finish_session,
+            user_id=None,
+            vmid=new_vmid,
+            action="script_deploy",
+            details=(
+                f"Deployed service template {template_slug} for request "
+                f"{request_id} on {actual_node or 'unknown'}"
+            ),
+            commit=False,
+        )
+        finish_session.commit()
+
+    logger.info(
+        "Service template deployed: request %s → VMID %s (%s) on %s",
+        request_id, new_vmid, template_slug, actual_node,
+    )
+    return new_vmid, actual_node, "service_template"
 
 
 def _mark_request_runtime_error(
@@ -328,6 +617,26 @@ def _refresh_actual_node(
             f"does not match request hostname '{expected_hostname}'"
         )
     actual_node = str(resource["node"])
+    detected_runtime_pin = False
+    try:
+        detected_runtime_pin = _detect_migration_pinned(
+            node=actual_node,
+            vmid=int(request.vmid),
+            resource_type=_resource_type_for_request(request),
+        )
+    except Exception:
+        logger.debug(
+            "Failed to refresh migration pinning for request %s (VMID %s)",
+            request.id,
+            request.vmid,
+            exc_info=True,
+        )
+    if _should_pin_request_for_auto_migration(
+        request=db_request,
+        detected_runtime_pin=detected_runtime_pin,
+    ) and not db_request.migration_pinned:
+        db_request.migration_pinned = True
+        session.add(db_request)
     vm_request_repo.update_vm_request_provisioning(
         session=session,
         db_request=db_request,
@@ -416,6 +725,54 @@ def _effective_request_migration_state(
     )
 
 
+def _record_migration_gate_result(
+    *,
+    session: Session,
+    request: VMRequest,
+    current_node: str,
+    desired_node: str,
+    reason: str,
+    now: datetime,
+    job: VMMigrationJob | None = None,
+    available_at: datetime | None = None,
+) -> None:
+    deferred = reason.startswith("Migration deferred")
+    job_status = (
+        VMMigrationJobStatus.pending if deferred else VMMigrationJobStatus.blocked
+    )
+    request_status = (
+        VMMigrationStatus.pending if deferred else VMMigrationStatus.blocked
+    )
+    if job is not None:
+        vm_migration_job_repo.update_job_status(
+            session=session,
+            job=job,
+            status=job_status,
+            last_error=reason,
+            source_node=current_node,
+            target_node=desired_node,
+            vmid=request.vmid,
+            finished_at=None if deferred else now,
+            available_at=available_at,
+            commit=False,
+        )
+    vm_request_repo.update_vm_request_provisioning(
+        session=session,
+        db_request=request,
+        vmid=request.vmid,
+        assigned_node=desired_node,
+        desired_node=desired_node,
+        actual_node=current_node,
+        placement_strategy_used=request.placement_strategy_used,
+        migration_status=request_status,
+        migration_error=reason,
+        rebalance_epoch=request.rebalance_epoch,
+        last_rebalanced_at=request.last_rebalanced_at,
+        last_migrated_at=request.last_migrated_at,
+        commit=False,
+    )
+
+
 def _migrate_request_to_desired_node(
     *,
     session: Session,
@@ -431,143 +788,49 @@ def _migrate_request_to_desired_node(
         return current_node, False
     if request.vmid is None:
         raise NotFoundError(f"Request {request.id} has no provisioned VMID")
-    if not policy.enabled:
-        defer_reason = "Migration deferred because automatic migration is disabled by system policy."
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.pending,
-                last_error=defer_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                available_at=now + timedelta(seconds=SCHEDULER_POLL_SECONDS),
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
-            desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.pending,
-            migration_error=defer_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
-        )
-        return current_node, False
-    if getattr(request, 'migration_pinned', False):
-        block_reason = (
-            "Migration blocked because this resource is pinned to its current node "
-            "(hardware passthrough or local mount detected)."
-        )
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.blocked,
-                last_error=block_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                finished_at=now,
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
-            desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.blocked,
-            migration_error=block_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
-        )
-        logger.info(
-            "Skipped pinned request %s VMID %s from %s to %s",
-            request.id, request.vmid, current_node, desired_node,
-        )
-        return current_node, False
     if policy.max_per_rebalance <= migrations_used:
         defer_reason = (
             "Migration deferred because this rebalance window reached the migration budget."
         )
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.pending,
-                last_error=defer_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                available_at=now + timedelta(seconds=SCHEDULER_POLL_SECONDS),
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
+        _record_migration_gate_result(
             session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
+            request=request,
+            current_node=current_node,
             desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.pending,
-            migration_error=defer_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
+            reason=defer_reason,
+            now=now,
+            job=job,
+            available_at=now + timedelta(seconds=SCHEDULER_POLL_SECONDS),
         )
         return current_node, False
-    last_migrated_at = _normalize_datetime(request.last_migrated_at)
-    if (
-        last_migrated_at is not None
-        and policy.min_interval_minutes > 0
-        and now - last_migrated_at < timedelta(minutes=policy.min_interval_minutes)
-    ):
-        defer_reason = (
-            "Migration deferred because this request was migrated too recently."
-        )
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.pending,
-                last_error=defer_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                available_at=last_migrated_at + timedelta(minutes=policy.min_interval_minutes),
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
+    precheck_reason = scheduling_support.migration_precheck_reason_for_request(
+        request=request,
+        current_node=current_node,
+        target_node=desired_node,
+        policy=policy,
+        now=now,
+    )
+    if precheck_reason:
+        available_at = None
+        last_migrated_at = _normalize_datetime(request.last_migrated_at)
+        if precheck_reason.startswith("Migration deferred because automatic migration is disabled"):
+            available_at = now + timedelta(seconds=SCHEDULER_POLL_SECONDS)
+        elif (
+            precheck_reason.startswith("Migration deferred because this request was migrated too recently.")
+            and last_migrated_at is not None
+        ):
+            available_at = last_migrated_at + timedelta(minutes=policy.min_interval_minutes)
+        _record_migration_gate_result(
             session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
+            request=request,
+            current_node=current_node,
             desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.pending,
-            migration_error=defer_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
+            reason=precheck_reason,
+            now=now,
+            job=job,
+            available_at=available_at,
         )
         return current_node, False
-
     resource_type = _resource_type_for_request(request)
     current_status = proxmox_service.get_status(
         current_node,
@@ -575,92 +838,6 @@ def _migrate_request_to_desired_node(
         resource_type,
     )
     online = str(current_status.get("status") or "").lower() == "running"
-
-    if resource_type == "lxc" and online and not policy.lxc_live_enabled:
-        block_reason = (
-            "Migration blocked because LXC live migration is disabled. "
-            "The container must be stopped before migrating, or enable "
-            "migration_lxc_live_enabled in system settings."
-        )
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.blocked,
-                last_error=block_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                finished_at=now,
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
-            desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.blocked,
-            migration_error=block_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
-        )
-        logger.warning(
-            "Blocked LXC live migration for request %s VMID %s from %s to %s",
-            request.id,
-            request.vmid,
-            current_node,
-            desired_node,
-        )
-        return current_node, False
-
-    block_reason = _migration_block_reason(
-        source_node=current_node,
-        target_node=desired_node,
-        vmid=request.vmid,
-        resource_type=resource_type,
-    )
-    if block_reason:
-        if job is not None:
-            vm_migration_job_repo.update_job_status(
-                session=session,
-                job=job,
-                status=VMMigrationJobStatus.blocked,
-                last_error=block_reason,
-                source_node=current_node,
-                target_node=desired_node,
-                vmid=request.vmid,
-                finished_at=now,
-                commit=False,
-            )
-        vm_request_repo.update_vm_request_provisioning(
-            session=session,
-            db_request=request,
-            vmid=request.vmid,
-            assigned_node=desired_node,
-            desired_node=desired_node,
-            actual_node=current_node,
-            placement_strategy_used=request.placement_strategy_used,
-            migration_status=VMMigrationStatus.blocked,
-            migration_error=block_reason,
-            rebalance_epoch=request.rebalance_epoch,
-            last_rebalanced_at=request.last_rebalanced_at,
-            last_migrated_at=request.last_migrated_at,
-            commit=False,
-        )
-        logger.warning(
-            "Blocked migration for request %s VMID %s from %s to %s: %s",
-            request.id,
-            request.vmid,
-            current_node,
-            desired_node,
-            block_reason,
-        )
-        return current_node, False
     started_at = _utc_now()
     if job is not None:
         vm_migration_job_repo.update_job_status(
@@ -794,37 +971,31 @@ def _migrate_request_to_desired_node(
     return new_actual_node, new_actual_node == desired_node
 
 
-def _process_pending_migration_jobs(
+def _process_claimed_migration_job(
     *,
-    session: Session,
+    job_id: uuid.UUID,
+    session_bind,
     now: datetime,
     policy: _MigrationPolicy,
-    active_requests: list[VMRequest],
-) -> int:
-    request_ids = [request.id for request in active_requests]
-    claimed_jobs = vm_migration_job_repo.claim_jobs_for_requests(
-        session=session,
-        request_ids=request_ids,
-        worker_id=_migration_worker_id(),
-        now=now,
-        limit=policy.worker_concurrency,
-        claim_timeout_seconds=policy.claim_timeout_seconds,
-    )
-    if not claimed_jobs:
-        return 0
-    session.commit()
+    active_request_ids: set[uuid.UUID],
+    migrations_used: int,
+) -> bool:
+    with Session(session_bind) as worker_session:
+        job = vm_migration_job_repo.get_job_by_id(
+            session=worker_session,
+            job_id=job_id,
+        )
+        if job is None:
+            return False
 
-    migrations_used = 0
-    active_request_map = {request.id: request for request in active_requests}
-    for job in claimed_jobs:
         request = vm_request_repo.get_vm_request_by_id(
-            session=session,
+            session=worker_session,
             request_id=job.request_id,
             for_update=True,
         )
         if request is None:
             deleted_jobs = vm_migration_job_repo.delete_jobs_for_request(
-                session=session,
+                session=worker_session,
                 request_id=job.request_id,
                 commit=False,
             )
@@ -833,29 +1004,30 @@ def _process_pending_migration_jobs(
                 deleted_jobs,
                 job.request_id,
             )
-            session.commit()
-            continue
-        if request.id not in active_request_map:
+            worker_session.commit()
+            return False
+
+        if request.id not in active_request_ids:
             vm_migration_job_repo.update_job_status(
-                session=session,
+                session=worker_session,
                 job=job,
                 status=VMMigrationJobStatus.cancelled,
                 last_error="Migration queue entry was cancelled because the request is no longer active.",
                 finished_at=now,
                 commit=False,
             )
-            session.commit()
-            continue
+            worker_session.commit()
+            return False
 
         try:
             actual_node, _ = _refresh_actual_node(
-                session=session,
+                session=worker_session,
                 request=request,
             )
         except NotFoundError:
             stale_vmid = request.vmid
             vm_migration_job_repo.update_job_status(
-                session=session,
+                session=worker_session,
                 job=job,
                 status=VMMigrationJobStatus.failed,
                 last_error=(
@@ -867,17 +1039,17 @@ def _process_pending_migration_jobs(
                 commit=False,
             )
             vm_request_repo.clear_vm_request_provisioning(
-                session=session,
+                session=worker_session,
                 db_request=request,
                 commit=False,
             )
-            session.commit()
-            continue
+            worker_session.commit()
+            return False
 
         desired_node = str(request.desired_node or request.assigned_node or "")
         if not desired_node or desired_node == actual_node:
             vm_migration_job_repo.update_job_status(
-                session=session,
+                session=worker_session,
                 job=job,
                 status=VMMigrationJobStatus.completed,
                 last_error=None,
@@ -889,7 +1061,7 @@ def _process_pending_migration_jobs(
                 commit=False,
             )
             vm_request_repo.update_vm_request_provisioning(
-                session=session,
+                session=worker_session,
                 db_request=request,
                 vmid=request.vmid,
                 assigned_node=desired_node or actual_node,
@@ -903,12 +1075,12 @@ def _process_pending_migration_jobs(
                 last_migrated_at=request.last_migrated_at,
                 commit=False,
             )
-            session.commit()
-            continue
+            worker_session.commit()
+            return False
 
         try:
             _, migrated = _migrate_request_to_desired_node(
-                session=session,
+                session=worker_session,
                 request=request,
                 current_node=actual_node,
                 now=now,
@@ -916,10 +1088,27 @@ def _process_pending_migration_jobs(
                 migrations_used=migrations_used,
                 job=job,
             )
-            if migrated:
-                migrations_used += 1
-            session.commit()
+            worker_session.commit()
+            return migrated
         except Exception as exc:
+            worker_session.rollback()
+            retry_session = worker_session
+            request_id = request.id
+            job = vm_migration_job_repo.get_job_by_id(
+                session=retry_session,
+                job_id=job_id,
+            )
+            request = vm_request_repo.get_vm_request_by_id(
+                session=retry_session,
+                request_id=request_id,
+                for_update=True,
+            )
+            if job is None or request is None:
+                logger.exception(
+                    "Failed to process migration job %s and could not reload state",
+                    job_id,
+                )
+                return False
             exceeded_retry_limit = int(job.attempt_count or 0) >= policy.retry_limit > 0
             new_status = (
                 VMMigrationJobStatus.failed
@@ -927,7 +1116,7 @@ def _process_pending_migration_jobs(
                 else VMMigrationJobStatus.pending
             )
             vm_migration_job_repo.update_job_status(
-                session=session,
+                session=retry_session,
                 job=job,
                 status=new_status,
                 last_error=str(exc)[:500],
@@ -947,7 +1136,7 @@ def _process_pending_migration_jobs(
                 commit=False,
             )
             vm_request_repo.update_vm_request_provisioning(
-                session=session,
+                session=retry_session,
                 db_request=request,
                 vmid=request.vmid,
                 assigned_node=desired_node,
@@ -970,9 +1159,81 @@ def _process_pending_migration_jobs(
                 job.id,
                 request.id,
             )
-            session.commit()
+            retry_session.commit()
+            return False
 
-    return migrations_used
+
+def _process_pending_migration_jobs(
+    *,
+    session: Session,
+    now: datetime,
+    policy: _MigrationPolicy,
+    active_requests: list[VMRequest],
+) -> int:
+    request_ids = [request.id for request in active_requests]
+    claimed_jobs = vm_migration_job_repo.claim_jobs_for_requests(
+        session=session,
+        request_ids=request_ids,
+        worker_id=_migration_worker_id(),
+        now=now,
+        limit=policy.worker_concurrency,
+        claim_timeout_seconds=policy.claim_timeout_seconds,
+    )
+    if not claimed_jobs:
+        return 0
+    session.commit()
+    active_request_ids = {request.id for request in active_requests}
+    session_bind = session.get_bind()
+    migration_budget = max(int(policy.max_per_rebalance or 0), 0)
+    job_specs = [
+        {
+            "job_id": job.id,
+            "session_bind": session_bind,
+            "migrations_used": 0 if index < migration_budget else migration_budget,
+        }
+        for index, job in enumerate(claimed_jobs)
+    ]
+
+    if len(job_specs) == 1 or policy.worker_concurrency <= 1:
+        migrated_count = sum(
+            1
+            for spec in job_specs
+            if _process_claimed_migration_job(
+                job_id=spec["job_id"],
+                session_bind=spec["session_bind"],
+                now=now,
+                policy=policy,
+                active_request_ids=active_request_ids,
+                migrations_used=spec["migrations_used"],
+            )
+        )
+        session.expire_all()
+        return migrated_count
+
+    migrated_count = 0
+    with ThreadPoolExecutor(
+        max_workers=min(policy.worker_concurrency, len(job_specs))
+    ) as executor:
+        futures = [
+            executor.submit(
+                _process_claimed_migration_job,
+                job_id=spec["job_id"],
+                session_bind=spec["session_bind"],
+                now=now,
+                policy=policy,
+                active_request_ids=active_request_ids,
+                migrations_used=spec["migrations_used"],
+            )
+            for spec in job_specs
+        ]
+        for future in as_completed(futures):
+            try:
+                if future.result():
+                    migrated_count += 1
+            except Exception:
+                logger.exception("Unexpected error while processing claimed migration job")
+    session.expire_all()
+    return migrated_count
 
 
 def _ensure_request_running(
@@ -1091,9 +1352,11 @@ def _ensure_request_running(
 
 def _rebalance_active_window(now: datetime) -> int:
     with Session(engine) as session:
+        policy = _get_migration_policy(session=session)
         due_requests = vm_request_repo.list_due_for_rebalance_vm_requests(
             session=session,
             at_time=now,
+            interval_minutes=policy.active_rebalance_interval_minutes,
         )
         if not due_requests:
             return 0
@@ -1382,6 +1645,20 @@ async def run_scheduler(stop_event: asyncio.Event) -> None:
         tasks=[
             ScheduledTask(name="process_due_request_starts", handler=process_due_request_starts),
             ScheduledTask(name="process_due_request_stops", handler=process_due_request_stops),
+            ScheduledTask(name="process_pending_deletions", handler=process_pending_deletions_task),
         ],
     )
     logger.info("VM request scheduler stopped")
+
+
+def process_pending_deletions_task() -> int:
+    """Scheduler tick：處理一筆 pending DeletionRequest（每 tick 最多一筆，避免長阻塞）。"""
+    from app.services.resource import deletion_service  # noqa: PLC0415 — 避免 import cycle
+
+    try:
+        with Session(engine) as session:
+            deletion_service.process_pending_deletions(session)
+        return 0
+    except Exception:
+        logger.exception("process_pending_deletions_task failed")
+        return 0

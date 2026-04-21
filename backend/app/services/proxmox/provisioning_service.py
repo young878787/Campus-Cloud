@@ -6,10 +6,13 @@ from urllib.parse import quote
 
 from sqlmodel import Session
 
-from app.infrastructure.proxmox import get_proxmox_settings
-from app.infrastructure.ssh.client import generate_ed25519_keypair
+from app.ai.pve_advisor import recommendation_service as advisor_service
 from app.core.security import decrypt_value, encrypt_value
 from app.exceptions import ProxmoxError
+from app.infrastructure.proxmox import get_proxmox_settings
+from app.infrastructure.ssh.client import generate_ed25519_keypair
+from app.repositories import resource as resource_repo
+from app.repositories import vm_request as vm_request_repo
 from app.schemas import (
     LXCCreateRequest,
     LXCCreateResponse,
@@ -18,14 +21,15 @@ from app.schemas import (
     VMCreateResponse,
     VMTemplateSchema,
 )
-from app.ai.pve_advisor import recommendation_service as advisor_service
-from app.repositories import resource as resource_repo
-from app.repositories import vm_request as vm_request_repo
-from app.services.network import firewall_service
-from app.services.network import tunnel_proxy_service
+from app.services.network import (
+    firewall_service,
+    ip_management_service,
+    tunnel_proxy_service,
+)
 from app.services.proxmox import gpu_service, proxmox_service
 from app.services.user import audit_service
 from app.services.vm import vm_request_placement_service
+from app.utils.hostname import to_punycode_hostname
 
 logger = logging.getLogger(__name__)
 
@@ -49,40 +53,6 @@ def should_start_now(db_request) -> bool:
     return start_at <= _utc_now()
 
 
-def to_punycode_hostname(hostname: str) -> str:
-    """將 Unicode hostname 轉換為 Punycode（ACE 格式）傳給 PVE。"""
-    if not isinstance(hostname, str):
-        logger.error(
-            "Expected str for hostname, got %s: %r", type(hostname).__name__, hostname
-        )
-        raise TypeError(f"hostname must be str, got {type(hostname).__name__!r}: {hostname!r}")
-
-    result_labels = []
-    for label in hostname.split("."):
-        if not label:
-            raise ValueError("Hostname labels must not be empty")
-        try:
-            label.encode("ascii")
-            ace = label  # 純 ASCII，無需轉換
-        except UnicodeEncodeError:
-            # 使用 punycode codec 編碼非 ASCII 字元
-            try:
-                ace = "xn--" + label.encode("punycode").decode("ascii")
-            except Exception as e:
-                raise ValueError(f"Cannot encode hostname label '{label}' to Punycode: {e}") from e
-
-        if len(ace) > 63:
-            raise ValueError(
-                f"Encoded hostname label '{label}' exceeds 63 characters after Punycode conversion"
-            )
-        result_labels.append(ace)
-
-    encoded_hostname = ".".join(result_labels)
-    if len(encoded_hostname) > 253:
-        raise ValueError(
-            "Encoded hostname exceeds 253 characters after Punycode conversion"
-        )
-    return encoded_hostname
 def _cleanup_failed_resource(node: str, vmid: int, resource_type: str) -> None:
     """Best-effort cleanup for a partially provisioned resource."""
     try:
@@ -272,11 +242,20 @@ def create_lxc(
         disk_gb=int(lxc_data.rootfs_size or 8),
         required_content="rootdir",
     )
+    # 取得網路配置並分配 IP
+    net_cfg = ip_management_service.get_network_config_for_vm(session)
+    allocated_ip = ip_management_service.allocate_ip(session, vmid, "lxc")
+
     created = False
     try:
         # Generate SSH key pair for platform access
         private_key_pem, public_key = generate_ed25519_keypair()
 
+        net0_parts = (
+            f"name=eth0,bridge={net_cfg['bridge_name']},"
+            f"ip={allocated_ip}/{net_cfg['prefix_len']},"
+            f"gw={net_cfg['gateway']},firewall=1"
+        )
         config = {
             "vmid": vmid,
             "hostname": to_punycode_hostname(lxc_data.hostname),
@@ -286,13 +265,15 @@ def create_lxc(
             "swap": 512,
             "rootfs": f"{target_storage}:{lxc_data.rootfs_size}",
             "password": lxc_data.password,
-            "net0": "name=eth0,bridge=vmbr0,ip=dhcp,firewall=1",
+            "net0": net0_parts,
             "unprivileged": int(lxc_data.unprivileged),
             "start": int(lxc_data.start),
             "pool": get_proxmox_settings().pool_name,
             "features": "nesting=1",
             "ssh-public-keys": public_key,
         }
+        if net_cfg.get("dns_servers"):
+            config["nameserver"] = net_cfg["dns_servers"]
 
         result = proxmox_service.create_lxc(target_node, **config)
         created = True
@@ -308,6 +289,7 @@ def create_lxc(
             expiry_date=lxc_data.expiry_date,
             ssh_private_key_encrypted=encrypt_value(private_key_pem),
             ssh_public_key=public_key,
+            service_template_slug=lxc_data.service_template_slug,
             commit=False,
         )
 
@@ -344,7 +326,25 @@ def create_lxc(
         )
     except Exception as e:
         session.rollback()
+        # 釋放已分配的 IP
+        try:
+            with Session(session.get_bind()) as cleanup_session:
+                ip_management_service.release_ip(cleanup_session, vmid)
+                cleanup_session.commit()
+        except Exception:
+            logger.warning("Failed to release IP for LXC %d during cleanup", vmid)
         if created:
+            try:
+                rules = firewall_service.get_vm_firewall_rules(target_node, vmid, "lxc")
+                for r in sorted(rules, key=lambda x: x.get("pos", 0), reverse=True):
+                    pos = r.get("pos")
+                    if pos is not None:
+                        try:
+                            firewall_service.delete_rule_by_pos(target_node, vmid, "lxc", int(pos))
+                        except Exception:
+                            pass
+            except Exception:
+                pass
             _cleanup_failed_resource(target_node, vmid, "lxc")
         logger.error(f"Failed to create LXC container: {e}")
         raise ProxmoxError(f"Failed to create LXC container: {e}")
@@ -363,6 +363,11 @@ def create_vm(
         disk_gb=int(vm_data.disk_size or 20),
         required_content="images",
     )
+
+    # 取得網路配置並分配 IP
+    net_cfg = ip_management_service.get_network_config_for_vm(session)
+    allocated_ip = ip_management_service.allocate_ip(session, new_vmid, "vm")
+
     created = False
     try:
         # Generate SSH key pair for platform access
@@ -386,10 +391,26 @@ def create_vm(
             "cipassword": vm_data.password,
             "sshkeys": quote(public_key, safe=""),
             "ciupgrade": 0,
+            "net0": f"virtio,bridge={net_cfg['bridge_name']},firewall=1",
+            "ipconfig0": f"ip={allocated_ip}/{net_cfg['prefix_len']},gw={net_cfg['gateway']}",
         }
-        gpu_mapping_id = getattr(vm_data, "gpu_mapping_id", None)
-        if gpu_mapping_id:
-            config_updates["hostpci0"] = f"mapping={gpu_mapping_id}"
+        if net_cfg.get("dns_servers"):
+            config_updates["nameserver"] = net_cfg["dns_servers"]
+        if vm_data.gpu_mapping_id:
+            from app.services.proxmox import gpu_service
+            try:
+                gpu_detail = gpu_service.get_gpu_mapping(vm_data.gpu_mapping_id)
+                if gpu_detail.available_count <= 0:
+                    raise ProxmoxError(
+                        f"GPU {vm_data.gpu_mapping_id} 已無可用插槽 "
+                        f"(used={gpu_detail.used_count}/{gpu_detail.device_count})"
+                    )
+            except ProxmoxError:
+                raise
+            except Exception as e:
+                logger.error("GPU 可用性檢查失敗 (%s): %s", vm_data.gpu_mapping_id, e)
+                raise ProxmoxError(f"無法驗證 GPU '{vm_data.gpu_mapping_id}'：{e}")
+            config_updates["hostpci0"] = f"mapping={vm_data.gpu_mapping_id}"
         proxmox_service.update_config(target_node, new_vmid, "qemu", **config_updates)
 
         if vm_data.disk_size:
@@ -412,6 +433,7 @@ def create_vm(
             template_id=vm_data.template_id,
             ssh_private_key_encrypted=encrypt_value(private_key_pem),
             ssh_public_key=public_key,
+            service_template_slug=vm_data.service_template_slug,
             commit=False,
         )
 
@@ -448,7 +470,25 @@ def create_vm(
         )
     except Exception as e:
         session.rollback()
+        # 釋放已分配的 IP
+        try:
+            with Session(session.get_bind()) as cleanup_session:
+                ip_management_service.release_ip(cleanup_session, new_vmid)
+                cleanup_session.commit()
+        except Exception:
+            logger.warning("Failed to release IP for VM %d during cleanup", new_vmid)
         if created:
+            try:
+                rules = firewall_service.get_vm_firewall_rules(target_node, new_vmid, "qemu")
+                for r in sorted(rules, key=lambda x: x.get("pos", 0), reverse=True):
+                    pos = r.get("pos")
+                    if pos is not None:
+                        try:
+                            firewall_service.delete_rule_by_pos(target_node, new_vmid, "qemu", int(pos))
+                        except Exception:
+                            pass
+            except Exception:
+                pass
             _cleanup_failed_resource(target_node, new_vmid, "qemu")
         logger.error(f"Failed to create VM: {e}")
         raise ProxmoxError(f"Failed to create VM: {e}")
@@ -482,6 +522,11 @@ def plan_provision(*, session: Session, db_request) -> dict:
     # Generate SSH key pair for platform access
     private_key_pem, public_key = generate_ed25519_keypair()
 
+    # 取得網路配置並分配 IP（需在 session 中完成）
+    net_cfg = ip_management_service.get_network_config_for_vm(session)
+    purpose = "lxc" if db_request.resource_type == "lxc" else "vm"
+    allocated_ip = ip_management_service.allocate_ip(session, new_vmid, purpose)
+
     plan: dict = {
         "vmid": new_vmid,
         "target_node": target_node,
@@ -499,6 +544,8 @@ def plan_provision(*, session: Session, db_request) -> dict:
         "storage": db_request.storage,
         "ssh_private_key_encrypted": encrypt_value(private_key_pem),
         "ssh_public_key": public_key,
+        "allocated_ip": allocated_ip,
+        "net_cfg": net_cfg,
     }
 
     if db_request.resource_type == "lxc":
@@ -556,9 +603,23 @@ def execute_provision(plan: dict) -> tuple[int, str]:
     pool_name = get_proxmox_settings().pool_name
     created = False
     actual_node = target_node
+    net_cfg = plan.get("net_cfg", {})
+    allocated_ip = plan.get("allocated_ip")
 
     try:
         if resource_type == "lxc":
+            if not allocated_ip or not net_cfg or not net_cfg.get("bridge_name"):
+                raise ProxmoxError(
+                    f"網路設定不完整，無法建立 LXC VMID={new_vmid}（"
+                    f"allocated_ip={allocated_ip!r}, net_cfg={net_cfg!r}）。"
+                    "請確認 IP 管理子網設定。"
+                )
+            net0_parts = (
+                f"name=eth0,bridge={net_cfg['bridge_name']},"
+                f"ip={allocated_ip}/{net_cfg['prefix_len']},"
+                f"gw={net_cfg['gateway']},firewall=1"
+            )
+
             config = {
                 "vmid": new_vmid,
                 "hostname": plan["hostname"],
@@ -568,13 +629,15 @@ def execute_provision(plan: dict) -> tuple[int, str]:
                 "swap": 512,
                 "rootfs": f"{plan['target_storage']}:{plan['rootfs_size']}",
                 "password": plan["password"],
-                "net0": "name=eth0,bridge=vmbr0,ip=dhcp,firewall=1",
+                "net0": net0_parts,
                 "unprivileged": int(plan["unprivileged"]),
                 "start": int(plan["start_immediately"]),
                 "pool": pool_name,
                 "features": "nesting=1",
                 "ssh-public-keys": plan.get("ssh_public_key", ""),
             }
+            if net_cfg.get("dns_servers"):
+                config["nameserver"] = net_cfg["dns_servers"]
             proxmox_service.create_lxc(target_node, **config)
             created = True
             firewall_service.setup_default_rules(target_node, new_vmid, "lxc")
@@ -625,7 +688,31 @@ def execute_provision(plan: dict) -> tuple[int, str]:
                 "sshkeys": quote(plan.get("ssh_public_key", ""), safe=""),
                 "ciupgrade": 0,
             }
+            if allocated_ip and net_cfg and net_cfg.get("bridge_name"):
+                config_updates["net0"] = f"virtio,bridge={net_cfg['bridge_name']},firewall=1"
+                config_updates["ipconfig0"] = f"ip={allocated_ip}/{net_cfg['prefix_len']},gw={net_cfg['gateway']}"
+                if net_cfg.get("dns_servers"):
+                    config_updates["nameserver"] = net_cfg["dns_servers"]
+            else:
+                raise ProxmoxError(
+                    f"網路設定不完整，無法建立 VM VMID={new_vmid}。"
+                    "請確認 IP 管理子網設定。"
+                )
             if plan.get("gpu_mapping_id"):
+                # Validate GPU availability before assigning
+                from app.services.proxmox import gpu_service
+                try:
+                    gpu_detail = gpu_service.get_gpu_mapping(plan["gpu_mapping_id"])
+                    if gpu_detail.available_count <= 0:
+                        raise ProxmoxError(
+                            f"GPU {plan['gpu_mapping_id']} 已無可用插槽 "
+                            f"(used={gpu_detail.used_count}/{gpu_detail.device_count})"
+                        )
+                except ProxmoxError:
+                    raise
+                except Exception as e:
+                    logger.error("GPU 可用性檢查失敗 (%s): %s", plan["gpu_mapping_id"], e)
+                    raise ProxmoxError(f"無法驗證 GPU '{plan['gpu_mapping_id']}'：{e}")
                 config_updates["hostpci0"] = f"mapping={plan['gpu_mapping_id']}"
             proxmox_service.update_config(actual_node, new_vmid, "qemu", **config_updates)
 
@@ -639,6 +726,18 @@ def execute_provision(plan: dict) -> tuple[int, str]:
                 proxmox_service.control(actual_node, new_vmid, "qemu", "start")
     except Exception:
         if created:
+            # Best-effort: drop any firewall rules created earlier on this VMID
+            try:
+                rules = firewall_service.get_vm_firewall_rules(actual_node, new_vmid, resource_type)
+                for rule in sorted(rules, key=lambda r: r.get("pos", 0), reverse=True):
+                    pos = rule.get("pos")
+                    if pos is not None:
+                        try:
+                            firewall_service.delete_rule_by_pos(actual_node, new_vmid, resource_type, int(pos))
+                        except Exception:
+                            pass
+            except Exception:
+                logger.debug("Firewall cleanup skipped for VMID %s", new_vmid)
             _cleanup_failed_resource(actual_node, new_vmid, resource_type)
         raise
 
@@ -669,6 +768,7 @@ def provision_from_request(*, session: Session, db_request) -> tuple[int, str | 
         template_id=getattr(db_request, "template_id", None),
         ssh_private_key_encrypted=plan.get("ssh_private_key_encrypted"),
         ssh_public_key=plan.get("ssh_public_key"),
+        service_template_slug=getattr(db_request, "service_template_slug", None),
         commit=False,
     )
     return new_vmid, actual_node, plan["placement_strategy"]

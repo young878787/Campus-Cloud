@@ -202,10 +202,25 @@
   /* App shell — full-page gradient (light mode only) */
   .app-layout {
     background:
-      radial-gradient(ellipse 120% 100% at 105% -5%, #CDE1FF 0%, #CDE1FF 30%, transparent 70%),
-      radial-gradient(ellipse 101% 138% at -5% 105%, #FEFFED 0%, #FEFFED 30%, transparent 70%),
-      radial-gradient(ellipse 120% 100% at 105% 105%, #EDFFF6 0%, #EDFFF6 30%, transparent 70%),
-      #E8F0FD;
+      radial-gradient(
+        ellipse 120% 100% at 105% -5%,
+        #cde1ff 0%,
+        #cde1ff 30%,
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 101% 138% at -5% 105%,
+        #feffed 0%,
+        #feffed 30%,
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 120% 100% at 105% 105%,
+        #edfff6 0%,
+        #edfff6 30%,
+        transparent 70%
+      ),
+      #e8f0fd;
   }
 
   .dark .app-layout {
@@ -255,16 +270,21 @@
 
   /* 展開狀態：gap 和 container 加上左側偏移量 */
   [data-slot="sidebar"][data-state="expanded"] > [data-slot="sidebar-gap"],
-  [data-slot="sidebar"][data-state="expanded"] > [data-slot="sidebar-container"] {
-    width: calc(var(--sidebar-width) + var(--sidebar-left-offset)) !important;
+  [data-slot="sidebar"][data-state="expanded"]
+    > [data-slot="sidebar-container"] {
+    width: calc(var(--sidebar-width) + var(--sidebar-left-offset));
   }
 
   /* 收合成 icon 狀態：icon 寬度加上左側偏移量與右側 padding */
   [data-slot="sidebar"][data-collapsible="icon"] > [data-slot="sidebar-gap"],
-  [data-slot="sidebar"][data-collapsible="icon"] > [data-slot="sidebar-container"] {
-    width: calc(var(--sidebar-width-icon) + var(--sidebar-left-offset) + 0.5rem) !important;
+  [data-slot="sidebar"][data-collapsible="icon"]
+    > [data-slot="sidebar-container"] {
+    width: calc(
+      var(--sidebar-width-icon) +
+      var(--sidebar-left-offset) +
+      0.5rem
+    );
   }
-
 
   [data-slot="sidebar-inner"] {
     border-radius: 12px;
@@ -416,25 +436,25 @@
 
 .firewall-canvas,
 .firewall-canvas .dark {
-  --muted-foreground: #435A95;
-  --foreground: #435A95;
+  --muted-foreground: #435a95;
+  --foreground: #435a95;
 }
 
 .react-flow__controls {
-  background-color: #fff !important;
+  background-color: #fff;
 }
 
 .react-flow__controls-button {
-  background-color: #fff !important;
-  border-bottom-color: rgba(255, 255, 255, 0.2) !important;
+  background-color: #fff;
+  border-bottom-color: rgba(255, 255, 255, 0.2);
 }
 
 .react-flow__controls-button:hover {
-  background-color: #bec9e6 !important;
+  background-color: #bec9e6;
 }
 
 .react-flow__controls-button svg {
-  fill: #435A95 !important;
+  fill: #435a95;
 }
 
 @keyframes page-loading {

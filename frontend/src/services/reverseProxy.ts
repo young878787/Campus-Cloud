@@ -101,9 +101,7 @@ export const ReverseProxyApiService = {
     })
   },
 
-  deleteRule(data: {
-    ruleId: string
-  }): CancelablePromise<{ message: string }> {
+  deleteRule(data: { ruleId: string }): CancelablePromise<{ message: string }> {
     return __request(OpenAPI, {
       method: "DELETE",
       url: "/api/v1/reverse-proxy/rules/{rule_id}",

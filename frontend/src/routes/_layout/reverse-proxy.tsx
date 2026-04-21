@@ -196,8 +196,8 @@ function EmptyState({
       </h3>
       <p className="mt-2 max-w-md text-sm text-muted-foreground">
         網域設定可以讓別人透過一個好記的網址（例如
-        app.example.edu.tw）直接訪問你 VM
-        裡跑的網站或服務，不需要記 IP 和 Port。
+        app.example.edu.tw）直接訪問你 VM 裡跑的網站或服務，不需要記 IP 和
+        Port。
       </p>
       <Button className="mt-6" size="lg" onClick={onAdd} disabled={disabled}>
         <Plus className="mr-2 h-4 w-4" />
@@ -235,14 +235,13 @@ function HowItWorksSection() {
                 <div className="text-2xl">1</div>
                 <p className="mt-2 font-medium text-foreground">設定網域</p>
                 <p className="mt-1">
-                  輸入主機名前綴、選擇 Cloudflare Zone，並指定要綁定的 VM 和 Port。
+                  輸入主機名前綴、選擇 Cloudflare Zone，並指定要綁定的 VM 和
+                  Port。
                 </p>
               </div>
               <div className="rounded-xl bg-muted/50 p-4">
                 <div className="text-2xl">2</div>
-                <p className="mt-2 font-medium text-foreground">
-                  系統自動設定
-                </p>
+                <p className="mt-2 font-medium text-foreground">系統自動設定</p>
                 <p className="mt-1">
                   平台會自動幫你設定好路由規則，如果開啟 HTTPS
                   還會自動申請免費的 SSL 憑證。
@@ -252,8 +251,8 @@ function HowItWorksSection() {
                 <div className="text-2xl">3</div>
                 <p className="mt-2 font-medium text-foreground">直接訪問</p>
                 <p className="mt-1">
-                  設定完成後，任何人都可以透過這個網址直接訪問你 VM
-                  裡跑的網站或 API。
+                  設定完成後，任何人都可以透過這個網址直接訪問你 VM 裡跑的網站或
+                  API。
                 </p>
               </div>
             </div>
@@ -268,7 +267,8 @@ function HowItWorksSection() {
                   Flask 預設 5000、Nginx 預設 80）
                 </li>
                 <li>
-                  管理員需要先在 Cloudflare 網域管理設定預設 A/CNAME 指向與可用 Zone
+                  管理員需要先在 Cloudflare 網域管理設定預設 A/CNAME 指向與可用
+                  Zone
                 </li>
               </ul>
             </div>
@@ -294,7 +294,8 @@ function ReverseProxyPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [editingRule, setEditingRule] = useState<ManagedReverseProxyRule | null>(null)
+  const [editingRule, setEditingRule] =
+    useState<ManagedReverseProxyRule | null>(null)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
 
   const isAdmin = isAdminUser(user)
@@ -339,10 +340,14 @@ function ReverseProxyPage() {
     },
   })
 
-  const setupContext = setupContextQuery.data as ReverseProxySetupContext | undefined
-  const actionsDisabled = setupContext?.enabled === false || setupContextQuery.isError
+  const setupContext = setupContextQuery.data as
+    | ReverseProxySetupContext
+    | undefined
+  const actionsDisabled =
+    setupContext?.enabled === false || setupContextQuery.isError
   const automationTarget =
-    setupContext?.default_dns_target_type && setupContext.default_dns_target_value
+    setupContext?.default_dns_target_type &&
+    setupContext.default_dns_target_value
       ? `${setupContext.default_dns_target_type} ${setupContext.default_dns_target_value}`
       : null
   const rules = (rulesQuery.data ?? []) as ManagedReverseProxyRule[]
@@ -381,11 +386,7 @@ function ReverseProxyPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={refreshAll}
-                  >
+                  <Button variant="outline" size="icon" onClick={refreshAll}>
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
@@ -679,9 +680,7 @@ function AdminRuntimePanel() {
             </div>
             <div>
               Services:{" "}
-              <span className="font-medium text-foreground">
-                {tcpServices}
-              </span>
+              <span className="font-medium text-foreground">{tcpServices}</span>
             </div>
           </div>
         </div>
@@ -696,9 +695,7 @@ function AdminRuntimePanel() {
             </div>
             <div>
               Services:{" "}
-              <span className="font-medium text-foreground">
-                {udpServices}
-              </span>
+              <span className="font-medium text-foreground">{udpServices}</span>
             </div>
           </div>
         </div>
@@ -711,10 +708,8 @@ function AdminRuntimePanel() {
           </div>
           <div className="flex flex-wrap gap-2">
             {entrypoints.map((ep) => {
-              const name =
-                typeof ep.name === "string" ? ep.name : "unknown"
-              const addr =
-                typeof ep.address === "string" ? ep.address : ":?"
+              const name = typeof ep.name === "string" ? ep.name : "unknown"
+              const addr = typeof ep.address === "string" ? ep.address : ":?"
               return (
                 <Badge
                   key={`${name}-${addr}`}

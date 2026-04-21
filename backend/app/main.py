@@ -10,6 +10,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.api.main import api_router
 from app.api.websocket import vnc_proxy
+from app.api.websocket.jobs import jobs_ws_proxy
 from app.api.websocket.terminal import terminal_proxy
 from app.core.config import settings
 from app.core.request_context import RequestContextMiddleware
@@ -153,3 +154,8 @@ async def websocket_vnc_proxy(
 @app.websocket("/ws/terminal/{vmid}")
 async def websocket_terminal_proxy(websocket: WebSocket, vmid: int, token: str = ""):
     await terminal_proxy(websocket, vmid, token=token)
+
+
+@app.websocket("/ws/jobs")
+async def websocket_jobs_proxy(websocket: WebSocket, token: str = ""):
+    await jobs_ws_proxy(websocket, token=token)
