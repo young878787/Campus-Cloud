@@ -16,6 +16,7 @@ type ResourceOverview = ClientTypes.VmSchema & {
   os_info?: string | null
   expiry_date?: string | null
   ssh_public_key?: string | null
+  service_template_slug?: string | null
 }
 
 const validationError = { 422: "Validation Error" } as const

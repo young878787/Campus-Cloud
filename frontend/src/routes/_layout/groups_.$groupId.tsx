@@ -8,6 +8,7 @@ import {
 import { createFileRoute, Link } from "@tanstack/react-router"
 import {
   ArrowLeft,
+  Brain,
   CheckCircle2,
   Circle,
   Loader2,
@@ -19,6 +20,7 @@ import {
   ServerCog,
   Upload,
   UserMinus,
+  Users,
   XCircle,
 } from "lucide-react"
 import { Suspense, useRef, useState } from "react"
@@ -64,6 +66,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { requireGroupManagerUser } from "@/features/auth/guards"
 import { GroupFeatureService } from "@/features/groups/api"
 import { groupDetailQueryOptions } from "@/features/groups/queryOptions"
+import { AiJudgeContent } from "@/features/ai-judge/components/AiJudgeContent"
+import { AiPveMessageContent } from "@/features/ai-pve-log/components/AiPveMessageContent"
 import useAuth from "@/hooks/useAuth"
 import useCustomToast from "@/hooks/useCustomToast"
 import { queryKeys } from "@/lib/queryKeys"
@@ -1000,6 +1004,8 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
   const canOpenAdminResourceDetail =
     currentUser?.role === "admin" || currentUser?.is_superuser || false
 
+  const [activeView, setActiveView] = useState<"members" | "ai-judge" | "ai-pve-message">("members")
+
   const { data: group } = useSuspenseQuery(groupDetailQueryOptions(groupId))
   const members = (group.members ?? []) as GroupMemberWithRuntimeStats[]
 
@@ -1017,12 +1023,13 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      {/* 頂部 Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Link
               to="/groups"
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -1032,13 +1039,9 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
             <p className="text-muted-foreground">{group.description}</p>
           )}
         </div>
+        
+        {/* 右上角動作按鈕 */}
         <div className="flex items-center gap-2">
-          <Link to="/groups/$groupId/ai-pve-message" params={{ groupId }}>
-            <Button variant="outline" size="sm">
-              <MessageSquare className="mr-1 h-4 w-4" />
-              AI-PVE 訊息
-            </Button>
-          </Link>
           <ImportCsvDialog groupId={groupId} />
           <AddMembersDialog groupId={groupId} />
           {members.length > 0 && (
@@ -1050,110 +1053,181 @@ function GroupDetailContent({ groupId }: { groupId: string }) {
         </div>
       </div>
 
-      <div>
-        <h2 className="text-lg font-semibold mb-3">
-          成員列表（{members.length} 人）
-        </h2>
-        {!canOpenAdminResourceDetail && (
-          <p className="mb-3 text-xs text-muted-foreground">
-            教師檢視模式：僅提供 VM
-            狀態與即時資源摘要，不會直接導向管理員資源詳情頁。
-          </p>
-        )}
-        {members.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            尚無成員，點擊「加入成員」開始新增
-          </p>
-        ) : (
-          <>
-            {/* 統計 bar */}
-            {(() => {
-              const lxcMembers = members.filter(
-                (m) => m.vm_type === "lxc" && m.vmid,
-              )
-              const vmMembers = members.filter(
-                (m) => m.vm_type === "qemu" && m.vmid,
-              )
-              const lxcRunning = lxcMembers.filter(
-                (m) => m.vm_status === "running",
-              ).length
-              const vmRunning = vmMembers.filter(
-                (m) => m.vm_status === "running",
-              ).length
-              return (
-                <div className="flex items-center gap-4 mb-3 text-sm">
-                  <span className="text-muted-foreground">
-                    LXC{" "}
-                    <span className="font-semibold text-foreground">
-                      {lxcRunning}/{lxcMembers.length}
-                    </span>
-                  </span>
-                  <span className="text-muted-foreground">
-                    VM{" "}
-                    <span className="font-semibold text-foreground">
-                      {vmRunning}/{vmMembers.length}
-                    </span>
-                  </span>
+      {/* 主體兩欄式佈局 */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        
+        {/* 左側整合功能側邊欄 */}
+        <div className="w-full lg:w-56 shrink-0 flex flex-col gap-4">
+          <div className="rounded-xl border bg-card p-4 shadow-sm backdrop-blur-sm bg-background/50 flex flex-col gap-2 lg:sticky lg:top-6">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-1 ml-1 tracking-wide">
+              功能導航
+            </h3>
+            <Button
+              variant={activeView === "members" ? "secondary" : "ghost"}
+              className="w-full justify-start transition-all"
+              onClick={() => setActiveView("members")}
+            >
+              <Users className="mr-2 h-4 w-4 text-primary" />
+              群組資源大廳
+            </Button>
+            
+            <div className="my-1 h-px bg-border/50" />
+            
+            <h3 className="text-sm font-semibold text-muted-foreground mb-1 ml-1 tracking-wide mt-2">
+              系統整合
+            </h3>
+            <Button
+              variant={activeView === "ai-judge" ? "secondary" : "ghost"}
+              className="w-full justify-start transition-all hover:bg-accent hover:text-accent-foreground border-border/50"
+              onClick={() => setActiveView("ai-judge")}
+            >
+              <Brain className="mr-2 h-4 w-4 text-blue-500" />
+              AI 情境分析
+            </Button>
+            <Button
+              variant={activeView === "ai-pve-message" ? "secondary" : "ghost"}
+              className="w-full justify-start transition-all hover:bg-accent hover:text-accent-foreground border-border/50"
+              onClick={() => setActiveView("ai-pve-message")}
+            >
+              <MessageSquare className="mr-2 h-4 w-4 text-green-500" />
+              AI PVE 訊息
+            </Button>
+          </div>
+        </div>
+
+        {/* 內容區塊 */}
+        <div className="flex-1 min-w-0 flex flex-col gap-6">
+          {activeView === "ai-judge" && <AiJudgeContent groupId={groupId} />}
+          {activeView === "ai-pve-message" && <AiPveMessageContent groupId={groupId} />}
+          {activeView === "members" && (
+            <>
+              {/* 橫排 1-20 週區塊 */}
+              <div className="rounded-xl border bg-card p-4 shadow-sm backdrop-blur-sm bg-background/50">
+                 <div className="flex items-center gap-2 overflow-x-auto pb-2 scroll-smooth">
+                  {Array.from({ length: 20 }, (_, i) => i + 1).map((week) => (
+                    <button
+                      key={week}
+                      className="shrink-0 rounded-full px-5 py-1.5 text-sm font-medium transition-all
+                                 border border-border/40 bg-muted/20 text-muted-foreground
+                                 hover:bg-primary/10 hover:text-primary hover:border-primary/40
+                                 active:scale-95"
+                    >
+                      第 {week} 週
+                    </button>
+                  ))}
                 </div>
-              )
-            })()}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>姓名</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>VMID</TableHead>
-                  <TableHead>VM 狀態 / 即時資源</TableHead>
-                  <TableHead>加入時間</TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((member) => (
-                  <TableRow key={member.user_id}>
-                    <TableCell>{member.full_name ?? "-"}</TableCell>
-                    <TableCell>{member.email}</TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">
-                      {member.vmid ?? "-"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <VmStatusBadge
-                          vmid={member.vmid}
-                          status={member.vm_status}
-                          detailView={
-                            canOpenAdminResourceDetail
-                              ? "admin"
-                              : currentUser?.id === member.user_id
-                                ? "my"
-                                : null
-                          }
-                        />
-                        <VmRuntimeIndicators member={member} />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {member.added_at
-                        ? new Date(member.added_at).toLocaleDateString("zh-TW")
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => removeMutation.mutate(member.user_id)}
-                        disabled={removeMutation.isPending}
-                      >
-                        <UserMinus className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </>
-        )}
+              </div>
+
+              {/* 表格區塊 */}
+              <div className="rounded-xl border bg-card p-5 shadow-sm">
+            <h2 className="text-lg font-semibold mb-1">
+              成員列表（{members.length} 人）
+            </h2>
+            {!canOpenAdminResourceDetail && (
+              <p className="mb-4 text-xs text-muted-foreground">
+                教師檢視模式：僅提供 VM 狀態與即時資源摘要，不會直接導向管理員資源詳情頁。
+              </p>
+            )}
+            {members.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-4">
+                尚無成員，點擊「加入成員」開始新增
+              </p>
+            ) : (
+              <div className="mt-4">
+                {/* 統計 bar */}
+                {(() => {
+                  const lxcMembers = members.filter(
+                    (m) => m.vm_type === "lxc" && m.vmid,
+                  )
+                  const vmMembers = members.filter(
+                    (m) => m.vm_type === "qemu" && m.vmid,
+                  )
+                  const lxcRunning = lxcMembers.filter(
+                    (m) => m.vm_status === "running",
+                  ).length
+                  const vmRunning = vmMembers.filter(
+                    (m) => m.vm_status === "running",
+                  ).length
+                  return (
+                    <div className="flex items-center gap-4 mb-3 text-sm px-1">
+                      <span className="text-muted-foreground">
+                        LXC{" "}
+                        <span className="font-semibold text-foreground">
+                          {lxcRunning}/{lxcMembers.length}
+                        </span>
+                      </span>
+                      <span className="text-muted-foreground">
+                        VM{" "}
+                        <span className="font-semibold text-foreground">
+                          {vmRunning}/{vmMembers.length}
+                        </span>
+                      </span>
+                    </div>
+                  )
+                })()}
+                <div className="overflow-hidden rounded-md border">
+                  <Table>
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead>姓名</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>VMID</TableHead>
+                        <TableHead>VM 狀態 / 即時資源</TableHead>
+                        <TableHead>加入時間</TableHead>
+                        <TableHead className="w-12" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {members.map((member) => (
+                        <TableRow key={member.user_id}>
+                          <TableCell className="font-medium">{member.full_name ?? "-"}</TableCell>
+                          <TableCell className="text-muted-foreground">{member.email}</TableCell>
+                          <TableCell className="font-mono text-sm text-muted-foreground">
+                            {member.vmid ?? "-"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <VmStatusBadge
+                                vmid={member.vmid}
+                                status={member.vm_status}
+                                detailView={
+                                  canOpenAdminResourceDetail
+                                    ? "admin"
+                                    : currentUser?.id === member.user_id
+                                      ? "my"
+                                      : null
+                                }
+                              />
+                              <VmRuntimeIndicators member={member} />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {member.added_at
+                              ? new Date(member.added_at).toLocaleDateString("zh-TW")
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => removeMutation.mutate(member.user_id)}
+                              disabled={removeMutation.isPending}
+                            >
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

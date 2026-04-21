@@ -73,7 +73,16 @@ export const Route = createFileRoute("/login")({
 
 async function approveDeviceCode(deviceCode: string): Promise<boolean> {
   try {
-    const token = localStorage.getItem("access_token")
+    const resolvedToken =
+      typeof OpenAPI.TOKEN === "function"
+        ? await (
+            OpenAPI.TOKEN as (options: { method: string; url: string }) => Promise<string>
+          )({
+            method: "POST",
+            url: "/api/v1/desktop-client/auth/approve",
+          })
+        : (OpenAPI.TOKEN as string | undefined)
+    const token = resolvedToken || localStorage.getItem("access_token")
     if (!token) {
       console.warn("[approveDeviceCode] no access_token in localStorage")
       return false

@@ -87,45 +87,60 @@ async def chat_completions(
                 input_tokens = 0
                 output_tokens = 0
                 start_time = time.time()
+                _status = "success"
+                _error_message = None
 
-                async for (
-                    chunk_str
-                ) in ai_gateway_service.proxy_to_vllm_chat_completion_stream(
-                    user=user,
-                    request_data=request_data,
-                ):
-                    # 嘗試從 chunk 中擷取 usage（vLLM 在最後一個 data chunk 含 usage）
-                    if (
-                        chunk_str.startswith("data: ")
-                        and chunk_str.strip() != "data: [DONE]"
-                    ):
-                        try:
-                            chunk_data = json.loads(chunk_str[6:])
-                            usage = chunk_data.get("usage")
-                            if usage:
-                                input_tokens = int(usage.get("prompt_tokens") or 0)
-                                output_tokens = int(usage.get("completion_tokens") or 0)
-                        except (json.JSONDecodeError, ValueError):
-                            pass
-
-                    yield chunk_str
-
-                # 串流結束後記錄 usage
-                duration_ms = int((time.time() - start_time) * 1000)
                 try:
-                    ai_gateway_service.record_usage(
-                        session=session,
-                        user_id=user.id,
-                        credential_id=credential.id,
-                        model_name=model_name,
-                        request_type="chat_completion",
-                        input_tokens=input_tokens,
-                        output_tokens=output_tokens,
-                        request_duration_ms=duration_ms,
-                        status="success",
-                    )
-                except Exception as rec_err:
-                    logger.error("Failed to record stream usage: %s", rec_err)
+                    async for (
+                        chunk_str
+                    ) in ai_gateway_service.proxy_to_vllm_chat_completion_stream(
+                        user=user,
+                        request_data=request_data,
+                    ):
+                        # 嘗試從 chunk 中擷取 usage（vLLM 在最後一個 data chunk 含 usage）
+                        if (
+                            chunk_str.startswith("data: ")
+                            and chunk_str.strip() != "data: [DONE]"
+                        ):
+                            try:
+                                chunk_data = json.loads(chunk_str[6:])
+                                usage = chunk_data.get("usage")
+                                if usage:
+                                    input_tokens = int(usage.get("prompt_tokens") or 0)
+                                    output_tokens = int(usage.get("completion_tokens") or 0)
+                            except (json.JSONDecodeError, ValueError):
+                                pass
+
+                        yield chunk_str
+
+                except Exception as stream_err:
+                    # 捕捉串流中途發生的錯誤（vLLM 掛掉、連線中斷等）
+                    # 注意：外層 try/except (HTTPStatusError/RequestError) 在串流模式下
+                    # 無法攔截此處的例外，因為 generator body 由 Starlette 執行。
+                    _status = "error"
+                    _error_message = f"Stream error: {str(stream_err)[:500]}"
+                    raise
+
+                finally:
+                    # 使用 finally 確保無論正常結束、例外或客戶端斷線
+                    # (GeneratorExit 不被 except Exception 捕捉，但 finally 保證執行)
+                    # 都能寫入使用紀錄。
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    try:
+                        ai_gateway_service.record_usage(
+                            session=session,
+                            user_id=user.id,
+                            credential_id=credential.id,
+                            model_name=model_name,
+                            request_type="chat_completion",
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            request_duration_ms=duration_ms,
+                            status=_status,
+                            error_message=_error_message,
+                        )
+                    except Exception as rec_err:
+                        logger.error("Failed to record stream usage: %s", rec_err)
 
             return StreamingResponse(
                 _stream_with_logging(),

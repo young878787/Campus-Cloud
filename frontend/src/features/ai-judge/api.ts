@@ -105,7 +105,12 @@ export const AiJudgeService = {
     const rawToken = OpenAPI.TOKEN
     const token =
       typeof rawToken === "function"
-        ? await (rawToken as (o: unknown) => Promise<string>)({})
+        ? await (
+            rawToken as (o: { method: string; url: string }) => Promise<string>
+          )({
+            method: "POST",
+            url: "/api/v1/rubric/download-excel",
+          })
         : rawToken
 
     const base = OpenAPI.BASE || ""

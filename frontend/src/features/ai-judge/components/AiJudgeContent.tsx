@@ -1,26 +1,15 @@
-/**
- * AI Judge Page - AI-powered rubric analysis and refinement
- */
-
-import { createFileRoute, Link } from "@tanstack/react-router"
-import {
-  ArrowLeft,
-  Download,
-  FileSpreadsheet,
-  Plus,
-  Sparkles,
-} from "lucide-react"
 import { useCallback, useState } from "react"
+import { Download, FileSpreadsheet, Plus, Sparkles } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   AiJudgeService,
-  type ChatMessage,
   downloadBlob,
+  rubricToContext,
+  type ChatMessage,
   type RubricAnalysis,
   type RubricItem,
-  rubricToContext,
 } from "@/features/ai-judge/api"
 import {
   ChatPanel,
@@ -28,23 +17,12 @@ import {
   RubricStats,
   RubricUploader,
 } from "@/features/ai-judge/components"
-import { requireGroupManagerUser } from "@/features/auth/guards"
 import useCustomToast from "@/hooks/useCustomToast"
 
-// ─── Route ────────────────────────────────────────────────────────────────────
-
-export const Route = createFileRoute("/_layout/groups_/$groupId_/ai-judge")({
-  component: AiJudgePage,
-  beforeLoad: () => requireGroupManagerUser(),
-  head: () => ({
-    meta: [{ title: "AI 情境評估助手 - Campus Cloud" }],
-  }),
-})
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-function AiJudgePage() {
-  const { groupId } = Route.useParams()
+/**
+ * AI Judge Content Block - extracted from Page
+ */
+export function AiJudgeContent({ groupId: _groupId }: { groupId: string }) {
   const { showSuccessToast, showErrorToast } = useCustomToast()
 
   // State
@@ -191,20 +169,11 @@ function AiJudgePage() {
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/groups/$groupId"
-            params={{ groupId }}
-            className="text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">AI 情境評估助手</h1>
-            <p className="text-sm text-muted-foreground">
-              上傳評估表，查看 AI 偵測判斷並調整評估項目
-            </p>
-          </div>
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">AI 情境分析</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            上傳評估表，查看 AI 偵測判斷並調整評估項目
+          </p>
         </div>
         {analysis && (
           <Button onClick={handleExport} disabled={isExporting}>
@@ -222,10 +191,11 @@ function AiJudgePage() {
           </Button>
         )}
       </div>
+
       {/* Main content */}
       {!analysis ? (
         /* Upload section */
-        <Card>
+        (<Card className="shadow-sm border-border/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5" />
@@ -235,18 +205,18 @@ function AiJudgePage() {
           <CardContent>
             <RubricUploader onUpload={handleUpload} isLoading={isUploading} />
           </CardContent>
-        </Card>
+        </Card>)
       ) : (
         /* Analysis results */
-        <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+        (<div className="grid gap-6 xl:grid-cols-[1fr_400px]">
           {/* Left: Rubric items */}
           <div className="space-y-4">
             {/* Stats */}
-            <Card>
+            <Card className="shadow-sm border-border/50">
               <CardContent className="pt-6">
                 <RubricStats {...stats} />
                 {analysis.summary && (
-                  <p className="mt-4 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+                  <p className="mt-4 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground shadow-inner">
                     {analysis.summary}
                   </p>
                 )}
@@ -254,7 +224,7 @@ function AiJudgePage() {
             </Card>
 
             {/* Items */}
-            <Card>
+            <Card className="shadow-sm border-border/50">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>評估項目 ({items.length})</CardTitle>
@@ -281,9 +251,9 @@ function AiJudgePage() {
             </Card>
           </div>
           {/* Right: Chat panel */}
-          <Card className="flex h-[calc(100vh-200px)] flex-col lg:sticky lg:top-6">
-            <CardHeader className="border-b">
-              <CardTitle className="flex items-center gap-2">
+          <Card className="flex h-[calc(100vh-250px)] min-h-[500px] flex-col xl:sticky xl:top-6 shadow-sm border-border/50 flex-shrink-0">
+            <CardHeader className="border-b bg-muted/10 py-4">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <Sparkles className="h-5 w-5 text-primary" />
                 AI 對話助手
               </CardTitle>
@@ -297,7 +267,7 @@ function AiJudgePage() {
               />
             </CardContent>
           </Card>
-        </div>
+        </div>)
       )}
     </div>
   )
