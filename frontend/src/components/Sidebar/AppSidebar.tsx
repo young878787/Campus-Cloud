@@ -1,7 +1,5 @@
 import {
   Activity,
-  ArrowRightLeft,
-  BarChart3,
   Bot,
   ChevronLeft,
   ChevronRight,

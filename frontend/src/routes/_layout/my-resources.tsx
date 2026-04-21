@@ -132,7 +132,19 @@ function DownloadDesktopClientButton() {
     setErrorMessage(null)
 
     try {
-      const token = localStorage.getItem("access_token")
+      const resolvedToken =
+        typeof OpenAPI.TOKEN === "function"
+          ? await (
+              OpenAPI.TOKEN as (options: {
+                method: string
+                url: string
+              }) => Promise<string>
+            )({
+              method: "GET",
+              url: "/api/v1/desktop-client/download",
+            })
+          : (OpenAPI.TOKEN as string | undefined)
+      const token = resolvedToken || localStorage.getItem("access_token")
       if (!token) {
         throw new Error("尚未登入，請重新登入後再試。")
       }

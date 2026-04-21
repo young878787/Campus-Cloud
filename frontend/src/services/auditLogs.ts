@@ -131,9 +131,16 @@ export const AuditLogsAPI = {
     const baseUrl = OpenAPI.BASE
     const token =
       typeof OpenAPI.TOKEN === "function"
-        ? // @ts-expect-error - OpenAPI.TOKEN is loosely typed
-          (OpenAPI.TOKEN({}) as Promise<string> | string)
-        : (OpenAPI.TOKEN as unknown as string | undefined)
+        ? (
+            OpenAPI.TOKEN as (options: {
+              method: string
+              url: string
+            }) => Promise<string> | string
+          )({
+            method: "GET",
+            url: "/api/v1/audit-logs/export",
+          })
+        : (OpenAPI.TOKEN as string | undefined)
 
     const headers: Record<string, string> = {}
     const buildHeaders = async () => {

@@ -44,6 +44,7 @@ const KIND_LABEL: Record<JobKind, string> = {
   script_deploy: "部署",
   vm_request: "開機申請",
   spec_change: "規格變更",
+  deletion: "刪除",
 }
 
 function fmtTime(iso: string) {

@@ -7,6 +7,7 @@ export type JobKind =
   | "script_deploy"
   | "vm_request"
   | "spec_change"
+  | "deletion"
 
 export type JobStatus =
   | "pending"

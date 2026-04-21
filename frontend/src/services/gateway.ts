@@ -168,7 +168,15 @@ export const GatewayApiService = {
   ): Promise<string> {
     const token =
       typeof OpenAPI.TOKEN === "function"
-        ? await (OpenAPI.TOKEN as (options: object) => Promise<string>)({})
+        ? await (
+            OpenAPI.TOKEN as (options: {
+              method: string
+              url: string
+            }) => Promise<string>
+          )({
+            method: "GET",
+            url: `/api/v1/gateway/services/${service}/logs`,
+          })
         : (OpenAPI.TOKEN as string)
     const resp = await fetch(
       `${OpenAPI.BASE}/api/v1/gateway/services/${service}/logs?lines=${lines}`,

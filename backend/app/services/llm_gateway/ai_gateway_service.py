@@ -599,6 +599,7 @@ async def proxy_to_vllm_chat_completion_stream(
     流式回應的 usage 資訊已包含在 vLLM 传輸的各個 chunk 中（若模型支援）。
     """
     request_data["stream"] = True
+    request_data.setdefault("stream_options", {})["include_usage"] = True
 
     url = f"{ai_api_settings.resolved_vllm_base_url}/v1/chat/completions"
     headers = {
