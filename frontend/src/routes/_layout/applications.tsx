@@ -50,6 +50,20 @@ function RequestsTableContent() {
     onError: (err) => handleError.call(showErrorToast, err as ApiError),
   })
 
+  const retryMutation = useMutation({
+    mutationFn: (requestId: string) => VmRequestsApi.retry({ requestId }),
+    onSuccess: () => {
+      showSuccessToast(
+        t("applications:actions.retrySuccess", {
+          defaultValue: "已重新觸發背景部署",
+        }),
+      )
+      queryClient.invalidateQueries({ queryKey: queryKeys.vmRequests.all })
+      queryClient.invalidateQueries({ queryKey: ["pending-resources"] })
+    },
+    onError: (err) => handleError.call(showErrorToast, err as ApiError),
+  })
+
   const columns = useMemo(
     () =>
       createMyRequestColumns(t, {
@@ -63,8 +77,12 @@ function RequestsTableContent() {
           if (!shouldCancel) return
           cancelMutation.mutate(request.id)
         },
+        retryingRequestId: retryMutation.variables ?? null,
+        onRetryRequest: (request: VMRequestPublic) => {
+          retryMutation.mutate(request.id)
+        },
       }),
-    [cancelMutation, t],
+    [cancelMutation, retryMutation, t],
   )
 
   if (data.data.length === 0) {

@@ -1,4 +1,4 @@
-import type { CancelablePromise, VMRequestPublic } from "@/client"
+import type { CancelablePromise, VmRequestPublic } from "@/client"
 import { OpenAPI } from "@/client"
 import { request as __request } from "@/client/core/request"
 import type { VmRequestCreateRequestBody } from "@/lib/resourcePayloads"
@@ -6,7 +6,7 @@ import type { VmRequestCreateRequestBody } from "@/lib/resourcePayloads"
 export const VmRequestsApi = {
   create(data: {
     requestBody: VmRequestCreateRequestBody
-  }): CancelablePromise<VMRequestPublic> {
+  }): CancelablePromise<VmRequestPublic> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/vm-requests/",
@@ -16,10 +16,19 @@ export const VmRequestsApi = {
     })
   },
 
-  cancel(data: { requestId: string }): CancelablePromise<VMRequestPublic> {
+  cancel(data: { requestId: string }): CancelablePromise<VmRequestPublic> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/vm-requests/{request_id}/cancel",
+      path: { request_id: data.requestId },
+      errors: { 422: "Validation Error" },
+    })
+  },
+
+  retry(data: { requestId: string }): CancelablePromise<VmRequestPublic> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/vm-requests/{request_id}/retry",
       path: { request_id: data.requestId },
       errors: { 422: "Validation Error" },
     })

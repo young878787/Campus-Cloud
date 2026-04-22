@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.request_context import RequestContextMiddleware
 from app.exceptions import AppError
 from app.infrastructure.redis import close_redis, init_redis
+from app.infrastructure.worker import init_background_runner, shutdown_background_runner
 from app.services.scheduling import vm_request_schedule_service
 
 
@@ -83,6 +84,7 @@ class SecurityHeadersMiddleware:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_redis()
+    init_background_runner()
     stop_event = asyncio.Event()
     scheduler_task = asyncio.create_task(
         vm_request_schedule_service.run_scheduler(stop_event)
@@ -96,6 +98,7 @@ async def lifespan(app: FastAPI):
             await scheduler_task
         except asyncio.CancelledError:
             pass
+        await shutdown_background_runner()
         await close_redis()
 
 

@@ -444,6 +444,10 @@ export function VMRequestReviewPage({ requestId }: { requestId: string }) {
       queryClient.invalidateQueries({
         queryKey: queryKeys.vmRequests.reviewContext(request.id),
       })
+      // Approving a request whose start window is already open triggers
+      // background provisioning immediately on the backend; refresh the
+      // creating-placeholder list so /resources shows the in-progress VM.
+      queryClient.invalidateQueries({ queryKey: ["pending-resources"] })
       navigate({ to: "/approvals" })
     },
     onError: handleError.bind(showErrorToast),

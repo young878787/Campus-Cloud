@@ -1,61 +1,26 @@
-import type { ApiRequestOptions } from "./ApiRequestOptions"
+/**
+ * Compatibility shim for @hey-api/openapi-ts v0.94+
+ * Restores the legacy OpenAPI configuration singleton used by hand-written service files.
+ */
 
-type Resolver<T> = (
-  options: ApiRequestOptions<unknown>,
-) => Promise<T | undefined> | T | undefined
-
-type RequestPreparer = (
-  options: ApiRequestOptions<unknown>,
-) => Promise<void> | void
-
-type Headers = Record<string, string>
-
-class Interceptors<T> {
-  #items = new Map<number, T>()
-  #nextId = 0
-
-  public use(interceptor: T): number {
-    const id = this.#nextId
-    this.#items.set(id, interceptor)
-    this.#nextId += 1
-    return id
-  }
-
-  public eject(id: number): void {
-    this.#items.delete(id)
-  }
-}
+import type { ApiRequestOptions } from './ApiRequestOptions'
 
 export type OpenAPIConfig = {
   BASE: string
-  VERSION: string
   WITH_CREDENTIALS: boolean
-  CREDENTIALS: "include" | "omit" | "same-origin"
-  TOKEN?: string | Resolver<string>
-  USERNAME?: string | Resolver<string>
-  PASSWORD?: string | Resolver<string>
-  HEADERS?: Headers | Resolver<Headers>
+  CREDENTIALS: 'include' | 'omit' | 'same-origin'
+  TOKEN?: string | ((options: ApiRequestOptions) => Promise<string>)
+  USERNAME?: string
+  PASSWORD?: string
+  HEADERS?:
+    | Record<string, string>
+    | ((options: ApiRequestOptions) => Promise<Record<string, string>>)
   ENCODE_PATH?: (path: string) => string
-  PREPARE_REQUEST?: RequestPreparer
-  interceptors: {
-    request: Interceptors<unknown>
-    response: Interceptors<unknown>
-  }
+  PREPARE_REQUEST?: (options: ApiRequestOptions) => Promise<void>
 }
 
 export const OpenAPI: OpenAPIConfig = {
-  BASE: "",
-  VERSION: "1.0.0",
+  BASE: '',
   WITH_CREDENTIALS: false,
-  CREDENTIALS: "include",
-  TOKEN: undefined,
-  USERNAME: undefined,
-  PASSWORD: undefined,
-  HEADERS: undefined,
-  ENCODE_PATH: undefined,
-  PREPARE_REQUEST: undefined,
-  interceptors: {
-    request: new Interceptors<unknown>(),
-    response: new Interceptors<unknown>(),
-  },
+  CREDENTIALS: 'include',
 }

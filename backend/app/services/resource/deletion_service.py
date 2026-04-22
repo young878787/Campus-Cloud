@@ -82,18 +82,42 @@ def cancel_deletion_request(
     user_id: uuid.UUID,
     is_admin: bool,
 ) -> DeletionRequest:
+    """Cancel a pending or in-flight deletion request.
+
+    - ``pending``: simply mark cancelled.
+    - ``running``: best-effort cancel the underlying background task and
+      mark the request cancelled. Note that if the worker thread is in
+      the middle of a Proxmox API call the call will run to completion;
+      the cancel only prevents further retries / follow-up work.
+    - terminal (completed/failed/cancelled): rejected with 409.
+    """
+    from app.infrastructure.worker import cancel as _cancel_bg_task  # noqa: PLC0415
+
     req = session.get(DeletionRequest, request_id)
     if req is None:
         raise AppError(404, "Deletion request not found")
     if not is_admin and req.user_id != user_id:
         raise AppError(403, "Not allowed to cancel this deletion request")
-    if req.status != DeletionRequestStatus.pending:
+    if req.status not in (DeletionRequestStatus.pending, DeletionRequestStatus.running):
         raise AppError(
             409,
             f"Cannot cancel deletion request in status={req.status.value}",
         )
+
+    was_running = req.status == DeletionRequestStatus.running
+    if was_running:
+        # Best-effort: cancel the asyncio task; effective if it's still
+        # waiting for the semaphore or sleeping between retries.
+        cancelled_in_runner = _cancel_bg_task(str(req.id))
+        logger.info(
+            "Best-effort cancel for running deletion request %s: runner_cancelled=%s",
+            req.id, cancelled_in_runner,
+        )
+
     req.status = DeletionRequestStatus.cancelled
     req.completed_at = _utc_now()
+    if was_running:
+        req.error_message = "Cancelled by user while running"
     session.add(req)
     session.commit()
     session.refresh(req)
@@ -163,91 +187,275 @@ def list_active_for_vmids(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Scheduler tick
+# Execution
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def process_pending_deletions(session: Session) -> None:
-    """Scheduler tick：處理一輪 pending DeletionRequest。
+def _execute_deletion(session: Session, req: DeletionRequest) -> None:
+    """Execute one DeletionRequest end-to-end (claim → delete → finalize).
 
-    每個 tick 一次處理一筆，避免單一 tick 阻塞太久（刪除可能需要 30+ 秒）。
+    Caller has already loaded the row; this function transitions
+    pending → running → completed and commits at each transition.
+
+    On failure: rolls back the session and **re-raises** so the caller's
+    retry loop can decide whether to retry or finalize as ``failed``.
+    Status stays ``running`` between retry attempts; the caller is
+    responsible for flipping to ``failed`` after retries are exhausted.
     """
-    next_req = session.exec(
-        select(DeletionRequest)
-        .where(DeletionRequest.status == DeletionRequestStatus.pending)
-        .order_by(DeletionRequest.created_at.asc())  # type: ignore[union-attr]
-        .limit(1)
-    ).first()
-
-    if next_req is None:
+    if req.status == DeletionRequestStatus.cancelled:
+        logger.info("Deletion request %s already cancelled; skipping", req.id)
         return
+    if req.status in (
+        DeletionRequestStatus.completed,
+        DeletionRequestStatus.failed,
+    ):
+        logger.debug(
+            "Deletion request %s in terminal status=%s; skipping",
+            req.id, req.status.value,
+        )
+        return
+    if req.status == DeletionRequestStatus.pending:
+        req.status = DeletionRequestStatus.running
+        req.started_at = _utc_now()
+        session.add(req)
+        session.commit()
+        session.refresh(req)
+    # else: already running → retry path; reuse existing started_at
 
-    # 標記 running
-    next_req.status = DeletionRequestStatus.running
-    next_req.started_at = _utc_now()
-    session.add(next_req)
-    session.commit()
-    session.refresh(next_req)
-
-    # 重新查 resource_info（可能已被別人改）
     resource = session.exec(
-        select(Resource).where(Resource.vmid == next_req.vmid)
+        select(Resource).where(Resource.vmid == req.vmid)
     ).first()
     if resource is None:
-        next_req.status = DeletionRequestStatus.failed
-        next_req.error_message = f"Resource vmid={next_req.vmid} not found at execute time"
-        next_req.completed_at = _utc_now()
-        session.add(next_req)
+        req.status = DeletionRequestStatus.failed
+        req.error_message = f"Resource vmid={req.vmid} not found at execute time"
+        req.completed_at = _utc_now()
+        session.add(req)
         session.commit()
         logger.warning(
             "Deletion request %s skipped: resource vmid=%s no longer exists",
-            next_req.id, next_req.vmid,
+            req.id, req.vmid,
         )
         return
 
+    # The Resource model only stores user/business metadata (env type, owner,
+    # SSH keys, etc.). Live Proxmox info (node / type / status) must come from
+    # the DeletionRequest snapshot (captured at request time) and a live
+    # status query.
+    node = req.node
+    resource_type = req.resource_type
+    if not node or not resource_type:
+        req.status = DeletionRequestStatus.failed
+        req.error_message = (
+            f"Deletion request {req.id} missing node/resource_type snapshot"
+        )
+        req.completed_at = _utc_now()
+        session.add(req)
+        session.commit()
+        logger.error(
+            "Deletion request %s aborted: snapshot missing node=%s type=%s",
+            req.id, node, resource_type,
+        )
+        return
+
+    try:
+        from app.services.proxmox import proxmox_service  # noqa: PLC0415
+
+        live_status = proxmox_service.get_status(node, req.vmid, resource_type).get(
+            "status", ""
+        )
+    except Exception as exc:
+        logger.warning(
+            "Deletion request %s: failed to fetch live status for vmid=%s on node=%s: %s",
+            req.id, req.vmid, node, exc,
+        )
+        live_status = ""
+
     resource_info = {
-        "vmid": resource.vmid,
-        "node": resource.node,
-        "type": resource.type,
-        "name": resource.name,
-        "status": resource.status,
+        "vmid": req.vmid,
+        "node": node,
+        "type": resource_type,
+        "name": req.name,
+        "status": live_status,
     }
 
     try:
         resource_service.delete(
             session=session,
-            vmid=next_req.vmid,
+            vmid=req.vmid,
             resource_info=resource_info,
-            user_id=next_req.user_id,
-            purge=next_req.purge,
-            force=next_req.force,
+            user_id=req.user_id,
+            purge=req.purge,
+            force=req.force,
         )
-        # resource_service.delete 已 commit 了 resource_repo.delete_resource 等。
-        # 重新從 DB 撈本筆 deletion request 標記 completed（resource_service.delete 可能
-        # 在中間 commit 過，物件已 detached）。
-        fresh = session.get(DeletionRequest, next_req.id)
-        if fresh is not None:
-            fresh.status = DeletionRequestStatus.completed
-            fresh.completed_at = _utc_now()
-            session.add(fresh)
-            session.commit()
-        logger.info("Deletion request %s completed (vmid=%s)", next_req.id, next_req.vmid)
-    except Exception as exc:
-        logger.exception(
-            "Deletion request %s failed (vmid=%s): %s",
-            next_req.id, next_req.vmid, exc,
-        )
+        # Re-check whether the user cancelled while we were running.
+        fresh = session.get(DeletionRequest, req.id)
+        if fresh is None:
+            return
+        if fresh.status == DeletionRequestStatus.cancelled:
+            logger.info(
+                "Deletion request %s was cancelled during execution; "
+                "deletion still completed on Proxmox",
+                req.id,
+            )
+            return
+        fresh.status = DeletionRequestStatus.completed
+        fresh.completed_at = _utc_now()
+        session.add(fresh)
+        session.commit()
+        logger.info("Deletion request %s completed (vmid=%s)", req.id, req.vmid)
+    except Exception:
         try:
             session.rollback()
         except Exception:
             pass
-        fresh = session.get(DeletionRequest, next_req.id)
-        if fresh is not None:
-            fresh.status = DeletionRequestStatus.failed
-            fresh.error_message = str(exc)[:2000]
-            fresh.completed_at = _utc_now()
-            session.add(fresh)
-            session.commit()
+        # Surface the error to the caller's retry loop. We deliberately do
+        # NOT mark the row as ``failed`` here so the row stays ``running``
+        # between retry attempts — the wrapper finalizes on exhaustion.
+        raise
+
+
+def process_one_request(
+    request_id: uuid.UUID,
+    *,
+    max_retries: int = 2,
+    retry_delay: float = 10.0,
+    retry_backoff: float = 2.0,
+) -> None:
+    """Background entrypoint: process a single DeletionRequest by id.
+
+    Opens its own DB session per attempt so it's safe to run as a
+    fire-and-forget task. On failure, retries up to ``max_retries`` times
+    with exponential backoff. Only after all attempts fail does the
+    request transition to ``failed``. Cancelled requests are honoured
+    immediately at the start of each attempt.
+    """
+    import time  # noqa: PLC0415 — keep import local
+
+    from app.core.db import engine  # noqa: PLC0415 — keep import local to avoid cycles
+
+    delay = max(0.0, retry_delay)
+    last_exc: Exception | None = None
+
+    for attempt in range(1, max_retries + 2):
+        # Honour cancellation between retries.
+        with Session(engine) as session:
+            req = session.get(DeletionRequest, request_id)
+            if req is None:
+                logger.warning(
+                    "process_one_request: DeletionRequest %s not found", request_id
+                )
+                return
+            if req.status in (
+                DeletionRequestStatus.cancelled,
+                DeletionRequestStatus.completed,
+                DeletionRequestStatus.failed,
+            ):
+                logger.info(
+                    "process_one_request: %s already in terminal status=%s; aborting",
+                    request_id, req.status.value,
+                )
+                return
+
+            try:
+                _execute_deletion(session, req)
+                return  # success
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    "Deletion request %s attempt %d/%d failed: %s",
+                    request_id, attempt, max_retries + 1, exc,
+                )
+
+        if attempt > max_retries:
+            break
+        time.sleep(delay)
+        delay = min(delay * retry_backoff, 300.0)
+
+    # All attempts exhausted — finalize as failed (unless cancelled meanwhile).
+    with Session(engine) as session:
+        req = session.get(DeletionRequest, request_id)
+        if req is None:
+            return
+        if req.status == DeletionRequestStatus.cancelled:
+            return
+        if req.status in (
+            DeletionRequestStatus.completed,
+            DeletionRequestStatus.failed,
+        ):
+            return
+        req.status = DeletionRequestStatus.failed
+        req.error_message = (
+            (str(last_exc)[:2000]) if last_exc is not None else "Deletion failed"
+        )
+        req.completed_at = _utc_now()
+        session.add(req)
+        session.commit()
+        logger.error(
+            "Deletion request %s permanently failed after %d attempt(s): %s",
+            request_id, max_retries + 1, last_exc,
+        )
+
+
+def retry_failed_request(
+    *,
+    session: Session,
+    request_id: uuid.UUID,
+    user_id: uuid.UUID,
+    is_admin: bool,
+) -> DeletionRequest:
+    """Manually re-queue a failed DeletionRequest for another attempt.
+
+    Resets status to ``pending`` and clears ``error_message`` /
+    ``completed_at`` so the standard pipeline (background task or
+    scheduler tick) picks it up again.
+    """
+    req = session.get(DeletionRequest, request_id)
+    if req is None:
+        raise AppError(404, "Deletion request not found")
+    if not is_admin and req.user_id != user_id:
+        raise AppError(403, "Not allowed to retry this deletion request")
+    if req.status != DeletionRequestStatus.failed:
+        raise AppError(
+            409,
+            f"Only failed deletion requests can be retried (current={req.status.value})",
+        )
+    req.status = DeletionRequestStatus.pending
+    req.error_message = None
+    req.started_at = None
+    req.completed_at = None
+    session.add(req)
+    session.commit()
+    session.refresh(req)
+    logger.info("Re-queued failed deletion request %s for retry", req.id)
+    return req
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Scheduler tick (safety net — picks up requests dropped by background path)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def process_pending_deletions(session: Session) -> None:
+    """Scheduler tick: process pending DeletionRequests as a safety net.
+
+    Most deletions are kicked off via background task right after the API call.
+    This tick exists to recover from server restarts or background-task failures.
+    Processes up to a small batch per tick to avoid blocking the scheduler loop.
+    """
+    pending = session.exec(
+        select(DeletionRequest)
+        .where(DeletionRequest.status == DeletionRequestStatus.pending)
+        .order_by(DeletionRequest.created_at.asc())  # type: ignore[union-attr]
+        .limit(5)
+    ).all()
+
+    for req in pending:
+        try:
+            _execute_deletion(session, req)
+        except Exception:
+            logger.exception(
+                "process_pending_deletions: unhandled error for request %s", req.id
+            )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

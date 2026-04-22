@@ -17,6 +17,7 @@ from app.exceptions import (
     NotFoundError,
     ProvisioningError,
 )
+from app.infrastructure.worker import submit_sync
 from app.models import VMMigrationStatus, VMRequest, VMRequestStatus
 from app.schemas import (
     VMRequestCreate,
@@ -267,14 +268,18 @@ def create(
     )
     session.commit()
 
-    # For immediate + auto-approved, trigger provisioning right away.
+    # For immediate + auto-approved, trigger provisioning right away in the
+    # background so the HTTP request returns immediately (a VM clone can take
+    # 30+ seconds and must not block the request handler).
     if auto_approved and mode == "immediate":
-        try:
-            vm_request_schedule_service.process_single_request_start(db_request.id)
-        except Exception:
-            logger.exception(
-                "Immediate provisioning trigger failed for request %s", db_request.id
-            )
+        submit_sync(
+            vm_request_schedule_service.process_single_request_start,
+            db_request.id,
+            name=f"provision_vm_request:{db_request.id}",
+            task_id=f"vm_request:{db_request.id}",
+            max_retries=1,
+            retry_delay=15.0,
+        )
 
     logger.info(f"User {user.email} submitted VM request {db_request.id}")
     return _to_public(db_request, user_override=user)
@@ -629,6 +634,26 @@ def review(
     refreshed = vm_request_repo.get_vm_request_by_id(
         session=session, request_id=db_request.id
     )
+    # If the approved request's start window is already open, kick off
+    # provisioning in the background so we don't wait for the next scheduler
+    # tick (which can be up to SCHEDULER_POLL_SECONDS away).
+    if (
+        refreshed is not None
+        and refreshed.status == VMRequestStatus.approved
+        and refreshed.start_at is not None
+    ):
+        start_at = refreshed.start_at
+        if start_at.tzinfo is None:
+            start_at = start_at.replace(tzinfo=UTC)
+        if start_at <= _utc_now():
+            submit_sync(
+                vm_request_schedule_service.process_single_request_start,
+                refreshed.id,
+                name=f"provision_vm_request:{refreshed.id}",
+                task_id=f"vm_request:{refreshed.id}",
+                max_retries=1,
+                retry_delay=15.0,
+            )
     return _to_public(refreshed)
 
 
@@ -638,6 +663,20 @@ def cancel(
     request_id: uuid.UUID,
     current_user,
 ) -> VMRequestPublic:
+    """Cancel a VM request.
+
+    - ``pending``: standard flow.
+    - ``approved`` (not yet provisioning): cancel before scheduler picks it up.
+    - ``provisioning``: best-effort cancel the in-flight background task.
+      If the worker is mid-Proxmox-clone the clone may still complete; the
+      scheduler reconciliation will then mark the request running. We
+      surface 409 in that case rather than silently lying about the state.
+    """
+    from app.infrastructure.worker import (  # noqa: PLC0415
+        cancel as _cancel_bg_task,
+        is_active as _is_bg_task_active,
+    )
+
     db_request = vm_request_repo.get_vm_request_by_id(
         session=session,
         request_id=request_id,
@@ -648,8 +687,25 @@ def cancel(
 
     require_vm_request_cancel(current_user, db_request.user_id)
 
-    if db_request.status != VMRequestStatus.pending:
-        raise BadRequestError("Only pending requests can be cancelled")
+    cancellable = (
+        VMRequestStatus.pending,
+        VMRequestStatus.approved,
+        VMRequestStatus.provisioning,
+    )
+    if db_request.status not in cancellable:
+        raise BadRequestError(
+            f"Cannot cancel VM request in status={db_request.status.value}"
+        )
+
+    if db_request.status == VMRequestStatus.provisioning:
+        bg_task_id = f"vm_request:{db_request.id}"
+        cancelled_in_runner = _cancel_bg_task(bg_task_id)
+        if not cancelled_in_runner and _is_bg_task_active(bg_task_id):
+            # Active but cancel returned False — race. Be honest about it.
+            raise BadRequestError(
+                "Provisioning is in progress and could not be cancelled cleanly; "
+                "please retry in a few seconds"
+            )
 
     vm_request_repo.update_vm_request_status(
         session=session,
@@ -684,3 +740,38 @@ def cancel(
         request_id=request_id,
     )
     return _to_public(refreshed)
+
+
+def retry(
+    *,
+    session: Session,
+    request_id: uuid.UUID,
+    current_user,
+) -> VMRequestPublic:
+    """Re-fire provisioning for an approved VM request.
+
+    Useful when the previous attempt failed (status reverted to ``approved``)
+    and the user doesn't want to wait for the next scheduler tick.
+    """
+    db_request = vm_request_repo.get_vm_request_by_id(
+        session=session, request_id=request_id, for_update=True,
+    )
+    if not db_request:
+        raise NotFoundError("Request not found")
+
+    require_vm_request_cancel(current_user, db_request.user_id)
+
+    if db_request.status != VMRequestStatus.approved:
+        raise BadRequestError(
+            f"Only approved VM requests can be retried (current={db_request.status.value})"
+        )
+
+    submit_sync(
+        vm_request_schedule_service.process_single_request_start,
+        db_request.id,
+        name=f"provision_vm_request:{db_request.id}",
+        task_id=f"vm_request:{db_request.id}",
+        max_retries=1,
+        retry_delay=15.0,
+    )
+    return _to_public(db_request)

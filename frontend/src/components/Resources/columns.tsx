@@ -162,7 +162,13 @@ function DeletingStatusBadge({ meta }: { meta: DeletingMeta }) {
 function DeletingActions({ meta }: { meta: DeletingMeta }) {
   const { showSuccessToast, showErrorToast } = useCustomToast()
   const cancel = useCancelDeletionRequest()
-  const canCancel = meta.status === "pending"
+  const canCancel = meta.status === "pending" || meta.status === "running"
+  const cancelTitle =
+    meta.status === "pending"
+      ? "取消刪除"
+      : meta.status === "running"
+        ? "嘗試取消（盡力而為，若 Proxmox 操作已開始可能仍會完成）"
+        : "刪除已結束，無法取消"
 
   return (
     <div className="flex items-center gap-1">
@@ -177,7 +183,7 @@ function DeletingActions({ meta }: { meta: DeletingMeta }) {
             onError: (err: Error) => showErrorToast(err.message),
           })
         }}
-        title={canCancel ? "取消刪除" : "刪除已開始執行，無法取消"}
+        title={cancelTitle}
       >
         <XCircle className="h-4 w-4 mr-1" />
         取消刪除

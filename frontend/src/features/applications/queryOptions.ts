@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query"
 
-import { type VMRequestStatus, VmRequestsService } from "@/client"
+import { type VmRequestStatus, VmRequestsService } from "@/client"
 import { queryKeys } from "@/lib/queryKeys"
 
 export function myVmRequestsQueryOptions() {
@@ -10,7 +10,7 @@ export function myVmRequestsQueryOptions() {
   })
 }
 
-export function adminVmRequestsQueryOptions(status?: VMRequestStatus | null) {
+export function adminVmRequestsQueryOptions(status?: VmRequestStatus | null) {
   return queryOptions({
     queryKey: queryKeys.vmRequests.adminList(status || "all"),
     queryFn: () =>

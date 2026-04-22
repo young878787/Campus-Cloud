@@ -258,6 +258,258 @@ export type AiapiRequestsPublic = {
 };
 
 /**
+ * AIMonitoringStats
+ *
+ * Admin 全局 AI 統計
+ */
+export type AiMonitoringStats = {
+    /**
+     * Proxy Total Calls
+     */
+    proxy_total_calls: number;
+    /**
+     * Proxy Total Input Tokens
+     */
+    proxy_total_input_tokens: number;
+    /**
+     * Proxy Total Output Tokens
+     */
+    proxy_total_output_tokens: number;
+    /**
+     * Template Total Calls
+     */
+    template_total_calls: number;
+    /**
+     * Template Total Input Tokens
+     */
+    template_total_input_tokens: number;
+    /**
+     * Template Total Output Tokens
+     */
+    template_total_output_tokens: number;
+    /**
+     * Active Users
+     */
+    active_users: number;
+    /**
+     * Models Used
+     */
+    models_used: Array<string>;
+};
+
+/**
+ * AIProxyCallRecord
+ *
+ * 單筆 Proxy 呼叫紀錄
+ */
+export type AiProxyCallRecord = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * User Email
+     */
+    user_email?: string | null;
+    /**
+     * User Full Name
+     */
+    user_full_name?: string | null;
+    /**
+     * Credential Id
+     */
+    credential_id: string;
+    /**
+     * Model Name
+     */
+    model_name: string;
+    /**
+     * Request Type
+     */
+    request_type: string;
+    /**
+     * Input Tokens
+     */
+    input_tokens: number;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Request Duration Ms
+     */
+    request_duration_ms?: number | null;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Error Message
+     */
+    error_message?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * AIProxyCallsResponse
+ *
+ * Proxy 呼叫清單回應
+ */
+export type AiProxyCallsResponse = {
+    /**
+     * Data
+     */
+    data: Array<AiProxyCallRecord>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * AITemplateCallRecord
+ *
+ * 單筆 Template 呼叫紀錄
+ */
+export type AiTemplateCallRecord = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * User Email
+     */
+    user_email?: string | null;
+    /**
+     * User Full Name
+     */
+    user_full_name?: string | null;
+    /**
+     * Call Type
+     */
+    call_type: string;
+    /**
+     * Model Name
+     */
+    model_name: string;
+    /**
+     * Preset
+     */
+    preset?: string | null;
+    /**
+     * Input Tokens
+     */
+    input_tokens: number;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Request Duration Ms
+     */
+    request_duration_ms?: number | null;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Error Message
+     */
+    error_message?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * AITemplateCallsResponse
+ *
+ * Template 呼叫清單回應
+ */
+export type AiTemplateCallsResponse = {
+    /**
+     * Data
+     */
+    data: Array<AiTemplateCallRecord>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * AIUserUsageSummary
+ *
+ * 單一使用者的 AI 用量彙總
+ */
+export type AiUserUsageSummary = {
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * User Email
+     */
+    user_email?: string | null;
+    /**
+     * User Full Name
+     */
+    user_full_name?: string | null;
+    /**
+     * Proxy Calls
+     */
+    proxy_calls: number;
+    /**
+     * Proxy Input Tokens
+     */
+    proxy_input_tokens: number;
+    /**
+     * Proxy Output Tokens
+     */
+    proxy_output_tokens: number;
+    /**
+     * Template Calls
+     */
+    template_calls: number;
+    /**
+     * Template Input Tokens
+     */
+    template_input_tokens: number;
+    /**
+     * Template Output Tokens
+     */
+    template_output_tokens: number;
+};
+
+/**
+ * AIUsersUsageResponse
+ *
+ * 使用者用量彙總回應
+ */
+export type AiUsersUsageResponse = {
+    /**
+     * Data
+     */
+    data: Array<AiUserUsageSummary>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * AiMetrics
  */
 export type AiMetrics = {
@@ -409,6 +661,70 @@ export type AuditUserOption = {
      * Full Name
      */
     full_name?: string | null;
+};
+
+/**
+ * BatchActionRequest
+ *
+ * 批次操作請求
+ */
+export type BatchActionRequest = {
+    /**
+     * Vmids
+     *
+     * VM IDs to operate on
+     */
+    vmids: Array<number>;
+    /**
+     * Action
+     *
+     * Action: start, stop, shutdown, reboot, reset, delete
+     */
+    action: string;
+};
+
+/**
+ * BatchActionResponse
+ *
+ * 批次操作回應
+ */
+export type BatchActionResponse = {
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Succeeded
+     */
+    succeeded: number;
+    /**
+     * Failed
+     */
+    failed: number;
+    /**
+     * Results
+     */
+    results: Array<BatchActionResultItem>;
+};
+
+/**
+ * BatchActionResultItem
+ *
+ * 單一 VM 的批次操作結果
+ */
+export type BatchActionResultItem = {
+    /**
+     * Vmid
+     */
+    vmid: number;
+    /**
+     * Success
+     */
+    success: boolean;
+    /**
+     * Message
+     */
+    message: string;
 };
 
 /**
@@ -804,58 +1120,6 @@ export type ChatMessageOutput = {
 };
 
 /**
- * ChatRequest
- */
-export type ChatRequest = {
-    /**
-     * Messages
-     *
-     * List of previous chat messages.
-     */
-    messages: Array<AppAiTemplateRecommendationSchemasChatMessage>;
-    /**
-     * Top K
-     */
-    top_k?: number;
-    /**
-     * Device Nodes
-     */
-    device_nodes?: Array<DeviceNode>;
-};
-
-/**
- * ChatResponse
- */
-export type ChatResponse = {
-    /**
-     * Reply
-     *
-     * AI text reply.
-     */
-    reply: string;
-    /**
-     * Prompt Tokens
-     */
-    prompt_tokens?: number;
-    /**
-     * Completion Tokens
-     */
-    completion_tokens?: number;
-    /**
-     * Total Tokens
-     */
-    total_tokens?: number;
-    /**
-     * Elapsed Seconds
-     */
-    elapsed_seconds?: number;
-    /**
-     * Tokens Per Second
-     */
-    tokens_per_second?: number;
-};
-
-/**
  * CloudflareConfigPublic
  */
 export type CloudflareConfigPublic = {
@@ -1176,6 +1440,32 @@ export type CloudflareZonesPublic = {
 };
 
 /**
+ * ClusterInfo
+ */
+export type ClusterInfo = {
+    /**
+     * Cluster Name
+     */
+    cluster_name?: string | null;
+    /**
+     * Is Cluster
+     */
+    is_cluster: boolean;
+    /**
+     * Node Count
+     */
+    node_count: number;
+    /**
+     * Quorate
+     */
+    quorate: boolean;
+    /**
+     * Cluster Version
+     */
+    cluster_version?: number | null;
+};
+
+/**
  * ClusterPreviewResult
  *
  * 偵測叢集節點的預覽結果（不儲存）
@@ -1395,6 +1685,109 @@ export type CurrentStatsResponse = {
      * Status
      */
     status: string;
+};
+
+/**
+ * DeletionRequestCreated
+ *
+ * Response when accepting a delete request (HTTP 202).
+ */
+export type DeletionRequestCreated = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Vmid
+     */
+    vmid: number;
+    status: DeletionRequestStatus;
+    /**
+     * Message
+     */
+    message?: string;
+};
+
+/**
+ * DeletionRequestPublic
+ */
+export type DeletionRequestPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Vmid
+     */
+    vmid: number;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Node
+     */
+    node?: string | null;
+    /**
+     * Resource Type
+     */
+    resource_type?: string | null;
+    /**
+     * Purge
+     */
+    purge: boolean;
+    /**
+     * Force
+     */
+    force: boolean;
+    status: DeletionRequestStatus;
+    /**
+     * Error Message
+     */
+    error_message?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Started At
+     */
+    started_at?: string | null;
+    /**
+     * Completed At
+     */
+    completed_at?: string | null;
+    /**
+     * User Email
+     */
+    user_email?: string | null;
+    /**
+     * User Full Name
+     */
+    user_full_name?: string | null;
+};
+
+/**
+ * DeletionRequestStatus
+ */
+export type DeletionRequestStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+/**
+ * DeletionRequestsPublic
+ */
+export type DeletionRequestsPublic = {
+    /**
+     * Data
+     */
+    data: Array<DeletionRequestPublic>;
+    /**
+     * Count
+     */
+    count: number;
 };
 
 /**
@@ -1669,6 +2062,298 @@ export type FirewallRuleUpdate = {
      * Comment
      */
     comment?: string | null;
+};
+
+/**
+ * GPUDeviceMap
+ *
+ * A single node-level mapping entry for a GPU resource mapping.
+ */
+export type GpuDeviceMap = {
+    /**
+     * Node
+     */
+    node: string;
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Id
+     */
+    id?: string;
+    /**
+     * Subsystem Id
+     */
+    subsystem_id?: string | null;
+    /**
+     * Iommu Group
+     */
+    iommu_group?: number | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Is Mdev
+     */
+    is_mdev?: boolean;
+};
+
+/**
+ * GPUMappingCreate
+ *
+ * Create a new PCI resource mapping.
+ */
+export type GpuMappingCreate = {
+    /**
+     * Id
+     *
+     * Mapping name
+     */
+    id: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Map
+     *
+     * List of map entries, e.g. 'node=pve1,path=0000:01:00.0'
+     */
+    map: Array<string>;
+};
+
+/**
+ * GPUMappingDetail
+ *
+ * Detail view with usage information.
+ */
+export type GpuMappingDetail = {
+    /**
+     * Id
+     *
+     * Mapping logical ID (name)
+     */
+    id: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Maps
+     */
+    maps?: Array<GpuDeviceMap>;
+    /**
+     * Physical Gpu Count
+     *
+     * Estimated physical GPU count (by unique PCI bus)
+     */
+    physical_gpu_count?: number;
+    /**
+     * Device Count
+     *
+     * Total assignable device/VF slots
+     */
+    device_count?: number;
+    /**
+     * Used Count
+     */
+    used_count?: number;
+    /**
+     * Available Count
+     */
+    available_count?: number;
+    /**
+     * Is Sriov
+     *
+     * True if SR-IOV detected (multiple devices on same PCI bus)
+     */
+    is_sriov?: boolean;
+    /**
+     * Has Mdev
+     *
+     * True if any device uses mediated devices
+     */
+    has_mdev?: boolean;
+    /**
+     * Total Vram Mb
+     *
+     * Total physical VRAM in MB
+     */
+    total_vram_mb?: number;
+    /**
+     * Used Vram Mb
+     *
+     * Allocated VRAM in MB (sum of assigned vGPU/passthrough)
+     */
+    used_vram_mb?: number;
+    /**
+     * Used By
+     */
+    used_by?: Array<GpuUsageInfo>;
+};
+
+/**
+ * GPUMappingsPublic
+ *
+ * List of GPU mappings.
+ */
+export type GpuMappingsPublic = {
+    /**
+     * Data
+     */
+    data: Array<GpuMappingDetail>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * GPUOptionContext
+ */
+export type GpuOptionContext = {
+    /**
+     * Mapping Id
+     */
+    mapping_id: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Model
+     */
+    model?: string;
+    /**
+     * Vram
+     */
+    vram?: string;
+    /**
+     * Node
+     */
+    node?: string;
+    /**
+     * Available Count
+     */
+    available_count?: number;
+    /**
+     * Device Count
+     */
+    device_count?: number;
+    /**
+     * Used Count
+     */
+    used_count?: number;
+    /**
+     * Total Vram Mb
+     */
+    total_vram_mb?: number;
+    /**
+     * Used Vram Mb
+     */
+    used_vram_mb?: number;
+    /**
+     * Has Mdev
+     */
+    has_mdev?: boolean;
+    /**
+     * Is Sriov
+     */
+    is_sriov?: boolean;
+};
+
+/**
+ * GPUSummary
+ *
+ * A simplified GPU option for the application form selector.
+ */
+export type GpuSummary = {
+    /**
+     * Mapping Id
+     */
+    mapping_id: string;
+    /**
+     * Description
+     */
+    description?: string;
+    /**
+     * Model
+     */
+    model?: string;
+    /**
+     * Vram
+     */
+    vram?: string;
+    /**
+     * Node
+     */
+    node?: string;
+    /**
+     * Physical Gpu Count
+     */
+    physical_gpu_count?: number;
+    /**
+     * Device Count
+     */
+    device_count?: number;
+    /**
+     * Used Count
+     */
+    used_count?: number;
+    /**
+     * Available Count
+     */
+    available_count?: number;
+    /**
+     * Is Sriov
+     */
+    is_sriov?: boolean;
+    /**
+     * Has Mdev
+     */
+    has_mdev?: boolean;
+    /**
+     * Total Vram Mb
+     */
+    total_vram_mb?: number;
+    /**
+     * Used Vram Mb
+     */
+    used_vram_mb?: number;
+};
+
+/**
+ * GPUUsageInfo
+ *
+ * Information about a VM using a GPU mapping.
+ */
+export type GpuUsageInfo = {
+    /**
+     * Vmid
+     */
+    vmid: number;
+    /**
+     * Vm Name
+     */
+    vm_name?: string;
+    /**
+     * Node
+     */
+    node?: string;
+    /**
+     * Status
+     */
+    status?: string;
+    /**
+     * Mdev Type
+     */
+    mdev_type?: string;
+    /**
+     * Allocated Vram Mb
+     */
+    allocated_vram_mb?: number;
 };
 
 /**
@@ -1947,6 +2632,169 @@ export type HttpValidationError = {
      * Detail
      */
     detail?: Array<ValidationError>;
+};
+
+/**
+ * IpAllocationListResponse
+ *
+ * IP 分配列表回傳
+ */
+export type IpAllocationListResponse = {
+    /**
+     * Allocations
+     */
+    allocations: Array<IpAllocationPublic>;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * IpAllocationPublic
+ *
+ * IP 分配記錄公開格式
+ */
+export type IpAllocationPublic = {
+    /**
+     * Ip Address
+     */
+    ip_address: string;
+    /**
+     * Purpose
+     */
+    purpose: string;
+    /**
+     * Vmid
+     */
+    vmid: number | null;
+    /**
+     * Description
+     */
+    description: string | null;
+    /**
+     * Allocated At
+     */
+    allocated_at: string;
+};
+
+/**
+ * JobDetail
+ *
+ * Job 詳細資訊，包含 kind 特定的額外欄位（如腳本輸出、規格 diff 等）。
+ */
+export type JobDetail = {
+    item: JobItem;
+    /**
+     * Output
+     *
+     * 完整文字輸出（script_deploy 的 stdout/stderr；migration 的 last_error）
+     */
+    output?: string | null;
+    /**
+     * Error
+     */
+    error?: string | null;
+    /**
+     * Extra
+     *
+     * kind 特定附加資訊（如 spec_change diff、vm_request 規格、migration 時間戳記）
+     */
+    extra?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * JobItem
+ *
+ * 統一的 Job 顯示模型。
+ */
+export type JobItem = {
+    /**
+     * Id
+     *
+     * 複合 ID，格式：<kind>:<source_id>
+     */
+    id: string;
+    kind: JobKind;
+    /**
+     * Title
+     */
+    title: string;
+    status: JobStatus;
+    /**
+     * Progress
+     *
+     * 0-100, 若不可估算則為 null
+     */
+    progress?: number | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * User Id
+     */
+    user_id?: string | null;
+    /**
+     * User Email
+     */
+    user_email?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Completed At
+     */
+    completed_at?: string | null;
+    /**
+     * Detail Url
+     *
+     * 前端可點擊跳轉的相對路徑（例：/jobs?focus=migration:xxx）
+     */
+    detail_url?: string | null;
+    /**
+     * Meta
+     */
+    meta?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * JobKind
+ */
+export type JobKind = 'migration' | 'script_deploy' | 'vm_request' | 'spec_change' | 'deletion';
+
+/**
+ * JobStatus
+ *
+ * 正規化狀態。各來源的原始狀態會 map 到此枚舉。
+ */
+export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'blocked' | 'cancelled';
+
+/**
+ * JobsListResponse
+ */
+export type JobsListResponse = {
+    /**
+     * Items
+     */
+    items: Array<JobItem>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Active Count
+     */
+    active_count: number;
 };
 
 /**
@@ -2325,6 +3173,32 @@ export type NatRulePublic = {
 };
 
 /**
+ * NetworkInterface
+ */
+export type NetworkInterface = {
+    /**
+     * Vmid
+     */
+    vmid: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Inet
+     */
+    inet?: string | null;
+    /**
+     * Inet6
+     */
+    inet6?: string | null;
+    /**
+     * Hwaddr
+     */
+    hwaddr?: string | null;
+};
+
+/**
  * NewPassword
  *
  * 重設密碼請求
@@ -2338,6 +3212,56 @@ export type NewPassword = {
      * New Password
      */
     new_password: string;
+};
+
+/**
+ * NodeInfo
+ */
+export type NodeInfo = {
+    /**
+     * Node
+     */
+    node: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Cpu Usage
+     */
+    cpu_usage: number;
+    /**
+     * Cpu Cores
+     */
+    cpu_cores: number;
+    /**
+     * Mem Used Bytes
+     */
+    mem_used_bytes: number;
+    /**
+     * Mem Total Bytes
+     */
+    mem_total_bytes: number;
+    /**
+     * Mem Used Pct
+     */
+    mem_used_pct: number;
+    /**
+     * Disk Used Bytes
+     */
+    disk_used_bytes: number;
+    /**
+     * Disk Total Bytes
+     */
+    disk_total_bytes: number;
+    /**
+     * Disk Used Pct
+     */
+    disk_used_pct: number;
+    /**
+     * Uptime Seconds
+     */
+    uptime_seconds?: number | null;
 };
 
 /**
@@ -3181,6 +4105,36 @@ export type RateLimitStatusResponse = {
 };
 
 /**
+ * RecommendationFormContext
+ */
+export type RecommendationFormContext = {
+    /**
+     * Resource Type
+     */
+    resource_type?: 'lxc' | 'vm' | null;
+    /**
+     * Mode
+     */
+    mode?: 'immediate' | 'scheduled' | null;
+    /**
+     * Start At
+     */
+    start_at?: string | null;
+    /**
+     * End At
+     */
+    end_at?: string | null;
+    /**
+     * Selected Gpu Mapping Id
+     */
+    selected_gpu_mapping_id?: string | null;
+    /**
+     * Gpu Options
+     */
+    gpu_options?: Array<GpuOptionContext>;
+};
+
+/**
  * RecommendedMachine
  */
 export type RecommendedMachine = {
@@ -3210,6 +4164,78 @@ export type RefreshTokenRequest = {
      * Refresh Token
      */
     refresh_token: string;
+};
+
+/**
+ * ResourceConfig
+ */
+export type ResourceConfig = {
+    /**
+     * Vmid
+     */
+    vmid: number;
+    /**
+     * Node
+     */
+    node: string;
+    /**
+     * Resource Type
+     */
+    resource_type: string;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Cpu Cores
+     */
+    cpu_cores?: number | null;
+    /**
+     * Cpu Type
+     */
+    cpu_type?: string | null;
+    /**
+     * Memory Mb
+     */
+    memory_mb?: number | null;
+    /**
+     * Disk Info
+     */
+    disk_info?: string | null;
+    /**
+     * Disk Size Gb
+     */
+    disk_size_gb?: number | null;
+    /**
+     * Os Type
+     */
+    os_type?: string | null;
+    /**
+     * Net0
+     */
+    net0?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Tags
+     */
+    tags?: string | null;
+    /**
+     * Onboot
+     */
+    onboot?: boolean;
+    /**
+     * Protection
+     */
+    protection?: boolean;
+    /**
+     * Raw
+     */
+    raw?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -3282,6 +4308,154 @@ export type ResourcePublic = {
      * Uptime
      */
     uptime?: number | null;
+};
+
+/**
+ * ResourceStatus
+ */
+export type ResourceStatus = {
+    /**
+     * Vmid
+     */
+    vmid: number;
+    /**
+     * Node
+     */
+    node: string;
+    /**
+     * Resource Type
+     */
+    resource_type: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Cpu Usage
+     */
+    cpu_usage: number;
+    /**
+     * Cpu Cores
+     */
+    cpu_cores: number;
+    /**
+     * Mem Used Bytes
+     */
+    mem_used_bytes: number;
+    /**
+     * Mem Total Bytes
+     */
+    mem_total_bytes: number;
+    /**
+     * Mem Used Pct
+     */
+    mem_used_pct: number;
+    /**
+     * Disk Read Bytes
+     */
+    disk_read_bytes: number;
+    /**
+     * Disk Write Bytes
+     */
+    disk_write_bytes: number;
+    /**
+     * Disk Total Bytes
+     */
+    disk_total_bytes: number;
+    /**
+     * Net In Bytes
+     */
+    net_in_bytes: number;
+    /**
+     * Net Out Bytes
+     */
+    net_out_bytes: number;
+    /**
+     * Uptime Seconds
+     */
+    uptime_seconds?: number | null;
+    /**
+     * Pid
+     */
+    pid?: number | null;
+};
+
+/**
+ * ResourceSummary
+ */
+export type ResourceSummary = {
+    /**
+     * Vmid
+     */
+    vmid: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Resource Type
+     */
+    resource_type: string;
+    /**
+     * Node
+     */
+    node: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Pool
+     */
+    pool?: string | null;
+    /**
+     * Cpu Usage
+     */
+    cpu_usage: number;
+    /**
+     * Cpu Cores
+     */
+    cpu_cores: number;
+    /**
+     * Mem Used Bytes
+     */
+    mem_used_bytes: number;
+    /**
+     * Mem Total Bytes
+     */
+    mem_total_bytes: number;
+    /**
+     * Mem Used Pct
+     */
+    mem_used_pct: number;
+    /**
+     * Disk Used Bytes
+     */
+    disk_used_bytes: number;
+    /**
+     * Disk Total Bytes
+     */
+    disk_total_bytes: number;
+    /**
+     * Disk Used Pct
+     */
+    disk_used_pct: number;
+    /**
+     * Net In Bytes
+     */
+    net_in_bytes: number;
+    /**
+     * Net Out Bytes
+     */
+    net_out_bytes: number;
+    /**
+     * Uptime Seconds
+     */
+    uptime_seconds?: number | null;
+    /**
+     * Is Template
+     */
+    is_template: boolean;
 };
 
 /**
@@ -3543,6 +4717,162 @@ export type SshKeyResponse = {
      * Ssh Private Key
      */
     ssh_private_key?: string | null;
+};
+
+/**
+ * ScriptDeployLogDetail
+ *
+ * 部署日誌詳細內容（含完整 output 與 error）
+ */
+export type ScriptDeployLogDetail = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Task Id
+     */
+    task_id: string;
+    /**
+     * User Id
+     */
+    user_id?: string | null;
+    /**
+     * Vmid
+     */
+    vmid?: number | null;
+    /**
+     * Template Slug
+     */
+    template_slug: string;
+    /**
+     * Template Name
+     */
+    template_name?: string | null;
+    /**
+     * Hostname
+     */
+    hostname?: string | null;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Progress
+     */
+    progress?: string | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Completed At
+     */
+    completed_at?: string | null;
+    /**
+     * Script Path
+     */
+    script_path?: string | null;
+    /**
+     * Error
+     */
+    error?: string | null;
+    /**
+     * Output
+     */
+    output?: string | null;
+};
+
+/**
+ * ScriptDeployLogList
+ *
+ * 部署日誌列表回應
+ */
+export type ScriptDeployLogList = {
+    /**
+     * Items
+     */
+    items: Array<ScriptDeployLogListItem>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Limit
+     */
+    limit: number;
+    /**
+     * Offset
+     */
+    offset: number;
+};
+
+/**
+ * ScriptDeployLogListItem
+ *
+ * 部署日誌列表項
+ */
+export type ScriptDeployLogListItem = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Task Id
+     */
+    task_id: string;
+    /**
+     * User Id
+     */
+    user_id?: string | null;
+    /**
+     * Vmid
+     */
+    vmid?: number | null;
+    /**
+     * Template Slug
+     */
+    template_slug: string;
+    /**
+     * Template Name
+     */
+    template_name?: string | null;
+    /**
+     * Hostname
+     */
+    hostname?: string | null;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Progress
+     */
+    progress?: string | null;
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Completed At
+     */
+    completed_at?: string | null;
 };
 
 /**
@@ -3950,6 +5280,168 @@ export type SpecChangeRequestsPublic = {
 export type SpecChangeType = 'cpu' | 'memory' | 'disk' | 'combined';
 
 /**
+ * StorageInfo
+ */
+export type StorageInfo = {
+    /**
+     * Node
+     */
+    node: string;
+    /**
+     * Storage
+     */
+    storage: string;
+    /**
+     * Storage Type
+     */
+    storage_type: string;
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Avail Bytes
+     */
+    avail_bytes: number;
+    /**
+     * Used Bytes
+     */
+    used_bytes: number;
+    /**
+     * Total Bytes
+     */
+    total_bytes: number;
+    /**
+     * Used Pct
+     */
+    used_pct: number;
+    /**
+     * Active
+     */
+    active: boolean;
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Shared
+     */
+    shared: boolean;
+};
+
+/**
+ * SubnetConfigCreate
+ *
+ * 設定/更新子網配置
+ */
+export type SubnetConfigCreate = {
+    /**
+     * Cidr
+     */
+    cidr: string;
+    /**
+     * Gateway
+     */
+    gateway: string;
+    /**
+     * Bridge Name
+     */
+    bridge_name: string;
+    /**
+     * Gateway Vm Ip
+     */
+    gateway_vm_ip: string;
+    /**
+     * Dns Servers
+     */
+    dns_servers?: string | null;
+    /**
+     * Extra Blocked Subnets
+     */
+    extra_blocked_subnets?: Array<string>;
+};
+
+/**
+ * SubnetConfigPublic
+ *
+ * 子網配置公開回傳格式
+ */
+export type SubnetConfigPublic = {
+    /**
+     * Cidr
+     */
+    cidr: string;
+    /**
+     * Gateway
+     */
+    gateway: string;
+    /**
+     * Bridge Name
+     */
+    bridge_name: string;
+    /**
+     * Gateway Vm Ip
+     */
+    gateway_vm_ip: string;
+    /**
+     * Dns Servers
+     */
+    dns_servers: string | null;
+    /**
+     * Extra Blocked Subnets
+     */
+    extra_blocked_subnets?: Array<string>;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Total Ips
+     */
+    total_ips: number;
+    /**
+     * Used Ips
+     */
+    used_ips: number;
+    /**
+     * Available Ips
+     */
+    available_ips: number;
+};
+
+/**
+ * SubnetStatusResponse
+ *
+ * 子網狀態摘要
+ */
+export type SubnetStatusResponse = {
+    /**
+     * Configured
+     */
+    configured: boolean;
+    /**
+     * Cidr
+     */
+    cidr?: string | null;
+    /**
+     * Bridge Name
+     */
+    bridge_name?: string | null;
+    /**
+     * Total Ips
+     */
+    total_ips?: number;
+    /**
+     * Used Ips
+     */
+    used_ips?: number;
+    /**
+     * Available Ips
+     */
+    available_ips?: number;
+};
+
+/**
  * SyncNowResult
  *
  * 同步節點與 Storage 結果
@@ -3971,6 +5463,73 @@ export type SyncNowResult = {
      * Error
      */
     error?: string | null;
+};
+
+/**
+ * SystemSnapshot
+ */
+export type SystemSnapshot = {
+    /**
+     * Collected At
+     */
+    collected_at: string;
+    /**
+     * Collection Duration Seconds
+     */
+    collection_duration_seconds: number;
+    cluster: ClusterInfo;
+    /**
+     * Nodes
+     */
+    nodes: Array<NodeInfo>;
+    /**
+     * Storages
+     */
+    storages: Array<StorageInfo>;
+    /**
+     * Resources
+     */
+    resources: Array<ResourceSummary>;
+    /**
+     * Resource Statuses
+     */
+    resource_statuses: Array<ResourceStatus>;
+    /**
+     * Resource Configs
+     */
+    resource_configs: Array<ResourceConfig>;
+    /**
+     * Network Interfaces
+     */
+    network_interfaces: Array<NetworkInterface>;
+    /**
+     * Errors
+     */
+    errors?: Array<string>;
+    /**
+     * Total Nodes
+     */
+    total_nodes: number;
+    /**
+     * Online Nodes
+     */
+    online_nodes: number;
+    /**
+     * Total Vms
+     */
+    total_vms: number;
+    /**
+     * Total Lxc
+     */
+    total_lxc: number;
+    /**
+     * Running Vms
+     */
+    running_vms: number;
+    /**
+     * Running Lxc
+     */
+    running_lxc: number;
 };
 
 /**
@@ -4035,6 +5594,22 @@ export type Token = {
      * Token Type
      */
     token_type?: string;
+};
+
+/**
+ * ToolCallRecord
+ */
+export type ToolCallRecord = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Args
+     */
+    args?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -4140,7 +5715,7 @@ export type UpdatePassword = {
 /**
  * UsageByModel
  *
- * 按模型分组的使用量
+ * 按模型分組的使用量
  */
 export type UsageByModel = {
     /**
@@ -4148,17 +5723,13 @@ export type UsageByModel = {
      */
     requests: number;
     /**
-     * Tokens
+     * Input Tokens
      */
-    tokens: number;
+    input_tokens: number;
     /**
-     * Prompt Tokens
+     * Output Tokens
      */
-    prompt_tokens: number;
-    /**
-     * Completion Tokens
-     */
-    completion_tokens: number;
+    output_tokens: number;
 };
 
 /**
@@ -4184,7 +5755,7 @@ export type UsageInfo = {
 /**
  * UsageStatsResponse
  *
- * 使用量统计响应
+ * Proxy 使用量統計回應
  */
 export type UsageStatsResponse = {
     /**
@@ -4192,17 +5763,13 @@ export type UsageStatsResponse = {
      */
     total_requests: number;
     /**
-     * Total Tokens
+     * Total Input Tokens
      */
-    total_tokens: number;
+    total_input_tokens: number;
     /**
-     * Total Prompt Tokens
+     * Total Output Tokens
      */
-    total_prompt_tokens: number;
-    /**
-     * Total Completion Tokens
-     */
-    total_completion_tokens: number;
+    total_output_tokens: number;
     /**
      * By Model
      */
@@ -4840,6 +6407,10 @@ export type VmRequestCreate = {
      */
     username?: string | null;
     /**
+     * Gpu Mapping Id
+     */
+    gpu_mapping_id?: string | null;
+    /**
      * Service Template Slug
      */
     service_template_slug?: string | null;
@@ -4933,6 +6504,18 @@ export type VmRequestPublic = {
      * Username
      */
     username?: string | null;
+    /**
+     * Gpu Mapping Id
+     */
+    gpu_mapping_id?: string | null;
+    /**
+     * Service Template Slug
+     */
+    service_template_slug?: string | null;
+    /**
+     * Service Template Script Path
+     */
+    service_template_script_path?: string | null;
     status: VmRequestStatus;
     /**
      * Reviewer Id
@@ -5284,82 +6867,6 @@ export type VmRequestsPublic = {
 };
 
 /**
- * VMSchema
- *
- * 虛擬機資訊
- */
-export type VmSchema = {
-    /**
-     * Vmid
-     */
-    vmid: number;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Status
-     */
-    status: string;
-    /**
-     * Node
-     */
-    node: string;
-    /**
-     * Type
-     */
-    type: string;
-    /**
-     * Cpu
-     */
-    cpu?: number | null;
-    /**
-     * Maxcpu
-     */
-    maxcpu?: number | null;
-    /**
-     * Mem
-     */
-    mem?: number | null;
-    /**
-     * Maxmem
-     */
-    maxmem?: number | null;
-    /**
-     * Uptime
-     */
-    uptime?: number | null;
-    /**
-     * Netin
-     */
-    netin?: number | null;
-    /**
-     * Diskread
-     */
-    diskread?: number | null;
-    /**
-     * Diskwrite
-     */
-    diskwrite?: number | null;
-    /**
-     * Disk
-     */
-    disk?: number | null;
-    /**
-     * Template
-     */
-    template?: number | null;
-    /**
-     * Memhost
-     */
-    memhost?: number | null;
-    /**
-     * Maxdisk
-     */
-    maxdisk?: number | null;
-};
-
-/**
  * VMTemplateSchema
  *
  * VM template 資訊
@@ -5436,6 +6943,34 @@ export type ValidationError = {
 };
 
 /**
+ * ChatRequest
+ */
+export type AppAiPveLogSchemasChatRequest = {
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
+ * ChatResponse
+ */
+export type AppAiPveLogSchemasChatResponse = {
+    /**
+     * Reply
+     */
+    reply: string;
+    /**
+     * Tools Called
+     */
+    tools_called?: Array<ToolCallRecord>;
+    /**
+     * Error
+     */
+    error?: string | null;
+};
+
+/**
  * ChatMessage
  */
 export type AppAiTemplateRecommendationSchemasChatMessage = {
@@ -5451,6 +6986,59 @@ export type AppAiTemplateRecommendationSchemasChatMessage = {
      * Content of the message.
      */
     content: string;
+};
+
+/**
+ * ChatRequest
+ */
+export type AppAiTemplateRecommendationSchemasChatRequest = {
+    /**
+     * Messages
+     *
+     * List of previous chat messages.
+     */
+    messages: Array<AppAiTemplateRecommendationSchemasChatMessage>;
+    /**
+     * Top K
+     */
+    top_k?: number;
+    /**
+     * Device Nodes
+     */
+    device_nodes?: Array<DeviceNode>;
+    form_context?: RecommendationFormContext | null;
+};
+
+/**
+ * ChatResponse
+ */
+export type AppAiTemplateRecommendationSchemasChatResponse = {
+    /**
+     * Reply
+     *
+     * AI text reply.
+     */
+    reply: string;
+    /**
+     * Prompt Tokens
+     */
+    prompt_tokens?: number;
+    /**
+     * Completion Tokens
+     */
+    completion_tokens?: number;
+    /**
+     * Total Tokens
+     */
+    total_tokens?: number;
+    /**
+     * Elapsed Seconds
+     */
+    elapsed_seconds?: number;
+    /**
+     * Tokens Per Second
+     */
+    tokens_per_second?: number;
 };
 
 /**
@@ -6041,6 +7629,31 @@ export type ResourcesListMyResourcesResponses = {
 
 export type ResourcesListMyResourcesResponse = ResourcesListMyResourcesResponses[keyof ResourcesListMyResourcesResponses];
 
+export type ResourcesBatchActionData = {
+    body: BatchActionRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/resources/batch';
+};
+
+export type ResourcesBatchActionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ResourcesBatchActionError = ResourcesBatchActionErrors[keyof ResourcesBatchActionErrors];
+
+export type ResourcesBatchActionResponses = {
+    /**
+     * Successful Response
+     */
+    200: BatchActionResponse;
+};
+
+export type ResourcesBatchActionResponse = ResourcesBatchActionResponses[keyof ResourcesBatchActionResponses];
+
 export type ResourcesDeleteResourceData = {
     body?: never;
     path: {
@@ -6075,8 +7688,10 @@ export type ResourcesDeleteResourceResponses = {
     /**
      * Successful Response
      */
-    200: unknown;
+    202: DeletionRequestCreated;
 };
+
+export type ResourcesDeleteResourceResponse = ResourcesDeleteResourceResponses[keyof ResourcesDeleteResourceResponses];
 
 export type ResourcesGetResourceData = {
     body?: never;
@@ -6103,7 +7718,7 @@ export type ResourcesGetResourceResponses = {
     /**
      * Successful Response
      */
-    200: VmSchema;
+    200: ResourcePublic;
 };
 
 export type ResourcesGetResourceResponse = ResourcesGetResourceResponses[keyof ResourcesGetResourceResponses];
@@ -6857,6 +8472,36 @@ export type VmRequestsCancelVmRequestResponses = {
 
 export type VmRequestsCancelVmRequestResponse = VmRequestsCancelVmRequestResponses[keyof VmRequestsCancelVmRequestResponses];
 
+export type VmRequestsRetryVmRequestData = {
+    body?: never;
+    path: {
+        /**
+         * Request Id
+         */
+        request_id: string;
+    };
+    query?: never;
+    url: '/api/v1/vm-requests/{request_id}/retry';
+};
+
+export type VmRequestsRetryVmRequestErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type VmRequestsRetryVmRequestError = VmRequestsRetryVmRequestErrors[keyof VmRequestsRetryVmRequestErrors];
+
+export type VmRequestsRetryVmRequestResponses = {
+    /**
+     * Successful Response
+     */
+    200: VmRequestPublic;
+};
+
+export type VmRequestsRetryVmRequestResponse = VmRequestsRetryVmRequestResponses[keyof VmRequestsRetryVmRequestResponses];
+
 export type VmRequestsGetVmRequestReviewContextData = {
     body?: never;
     path: {
@@ -6955,6 +8600,138 @@ export type VmRequestsReviewVmRequestResponses = {
 };
 
 export type VmRequestsReviewVmRequestResponse = VmRequestsReviewVmRequestResponses[keyof VmRequestsReviewVmRequestResponses];
+
+export type DeletionRequestsListMyDeletionRequestsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/deletion-requests/my';
+};
+
+export type DeletionRequestsListMyDeletionRequestsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletionRequestsListMyDeletionRequestsError = DeletionRequestsListMyDeletionRequestsErrors[keyof DeletionRequestsListMyDeletionRequestsErrors];
+
+export type DeletionRequestsListMyDeletionRequestsResponses = {
+    /**
+     * Successful Response
+     */
+    200: DeletionRequestsPublic;
+};
+
+export type DeletionRequestsListMyDeletionRequestsResponse = DeletionRequestsListMyDeletionRequestsResponses[keyof DeletionRequestsListMyDeletionRequestsResponses];
+
+export type DeletionRequestsListAllDeletionRequestsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Status
+         */
+        status?: DeletionRequestStatus | null;
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/deletion-requests/';
+};
+
+export type DeletionRequestsListAllDeletionRequestsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletionRequestsListAllDeletionRequestsError = DeletionRequestsListAllDeletionRequestsErrors[keyof DeletionRequestsListAllDeletionRequestsErrors];
+
+export type DeletionRequestsListAllDeletionRequestsResponses = {
+    /**
+     * Successful Response
+     */
+    200: DeletionRequestsPublic;
+};
+
+export type DeletionRequestsListAllDeletionRequestsResponse = DeletionRequestsListAllDeletionRequestsResponses[keyof DeletionRequestsListAllDeletionRequestsResponses];
+
+export type DeletionRequestsCancelDeletionRequestData = {
+    body?: never;
+    path: {
+        /**
+         * Request Id
+         */
+        request_id: string;
+    };
+    query?: never;
+    url: '/api/v1/deletion-requests/{request_id}/cancel';
+};
+
+export type DeletionRequestsCancelDeletionRequestErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletionRequestsCancelDeletionRequestError = DeletionRequestsCancelDeletionRequestErrors[keyof DeletionRequestsCancelDeletionRequestErrors];
+
+export type DeletionRequestsCancelDeletionRequestResponses = {
+    /**
+     * Successful Response
+     */
+    200: DeletionRequestPublic;
+};
+
+export type DeletionRequestsCancelDeletionRequestResponse = DeletionRequestsCancelDeletionRequestResponses[keyof DeletionRequestsCancelDeletionRequestResponses];
+
+export type DeletionRequestsRetryDeletionRequestData = {
+    body?: never;
+    path: {
+        /**
+         * Request Id
+         */
+        request_id: string;
+    };
+    query?: never;
+    url: '/api/v1/deletion-requests/{request_id}/retry';
+};
+
+export type DeletionRequestsRetryDeletionRequestErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletionRequestsRetryDeletionRequestError = DeletionRequestsRetryDeletionRequestErrors[keyof DeletionRequestsRetryDeletionRequestErrors];
+
+export type DeletionRequestsRetryDeletionRequestResponses = {
+    /**
+     * Successful Response
+     */
+    200: DeletionRequestPublic;
+};
+
+export type DeletionRequestsRetryDeletionRequestResponse = DeletionRequestsRetryDeletionRequestResponses[keyof DeletionRequestsRetryDeletionRequestResponses];
 
 export type MigrationJobsListMigrationJobsData = {
     body?: never;
@@ -7423,6 +9200,194 @@ export type AiApiUpdateMyAiApiCredentialResponses = {
 
 export type AiApiUpdateMyAiApiCredentialResponse = AiApiUpdateMyAiApiCredentialResponses[keyof AiApiUpdateMyAiApiCredentialResponses];
 
+export type AiMonitoringGetStatsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Start Date
+         */
+        start_date?: string | null;
+        /**
+         * End Date
+         */
+        end_date?: string | null;
+    };
+    url: '/api/v1/ai-api/monitoring/stats';
+};
+
+export type AiMonitoringGetStatsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiMonitoringGetStatsError = AiMonitoringGetStatsErrors[keyof AiMonitoringGetStatsErrors];
+
+export type AiMonitoringGetStatsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AiMonitoringStats;
+};
+
+export type AiMonitoringGetStatsResponse = AiMonitoringGetStatsResponses[keyof AiMonitoringGetStatsResponses];
+
+export type AiMonitoringListApiCallsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * User Id
+         */
+        user_id?: string | null;
+        /**
+         * Model Name
+         */
+        model_name?: string | null;
+        /**
+         * Status
+         */
+        status?: string | null;
+        /**
+         * Start Date
+         */
+        start_date?: string | null;
+        /**
+         * End Date
+         */
+        end_date?: string | null;
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/ai-api/monitoring/api-calls';
+};
+
+export type AiMonitoringListApiCallsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiMonitoringListApiCallsError = AiMonitoringListApiCallsErrors[keyof AiMonitoringListApiCallsErrors];
+
+export type AiMonitoringListApiCallsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AiProxyCallsResponse;
+};
+
+export type AiMonitoringListApiCallsResponse = AiMonitoringListApiCallsResponses[keyof AiMonitoringListApiCallsResponses];
+
+export type AiMonitoringListTemplateCallsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * User Id
+         */
+        user_id?: string | null;
+        /**
+         * Call Type
+         */
+        call_type?: string | null;
+        /**
+         * Preset
+         */
+        preset?: string | null;
+        /**
+         * Status
+         */
+        status?: string | null;
+        /**
+         * Start Date
+         */
+        start_date?: string | null;
+        /**
+         * End Date
+         */
+        end_date?: string | null;
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/ai-api/monitoring/template-calls';
+};
+
+export type AiMonitoringListTemplateCallsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiMonitoringListTemplateCallsError = AiMonitoringListTemplateCallsErrors[keyof AiMonitoringListTemplateCallsErrors];
+
+export type AiMonitoringListTemplateCallsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AiTemplateCallsResponse;
+};
+
+export type AiMonitoringListTemplateCallsResponse = AiMonitoringListTemplateCallsResponses[keyof AiMonitoringListTemplateCallsResponses];
+
+export type AiMonitoringListUsersUsageData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Start Date
+         */
+        start_date?: string | null;
+        /**
+         * End Date
+         */
+        end_date?: string | null;
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/ai-api/monitoring/users';
+};
+
+export type AiMonitoringListUsersUsageErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiMonitoringListUsersUsageError = AiMonitoringListUsersUsageErrors[keyof AiMonitoringListUsersUsageErrors];
+
+export type AiMonitoringListUsersUsageResponses = {
+    /**
+     * Successful Response
+     */
+    200: AiUsersUsageResponse;
+};
+
+export type AiMonitoringListUsersUsageResponse = AiMonitoringListUsersUsageResponses[keyof AiMonitoringListUsersUsageResponses];
+
 export type AiProxyChatCompletionsData = {
     body: ChatCompletionRequest;
     headers: {
@@ -7564,33 +9529,243 @@ export type AiProxyGetRateLimitStatusResponses = {
 
 export type AiProxyGetRateLimitStatusResponse = AiProxyGetRateLimitStatusResponses[keyof AiProxyGetRateLimitStatusResponses];
 
-export type AiPveAdvisorRecommendPlacementData = {
-    body: PlacementRequest;
+export type AiPveLogGetSystemSnapshotData = {
+    body?: never;
     path?: never;
     query?: never;
-    url: '/api/v1/ai/pve-advisor/recommend';
+    url: '/api/v1/ai/pve-log/system-snapshot';
 };
 
-export type AiPveAdvisorRecommendPlacementErrors = {
+export type AiPveLogGetSystemSnapshotResponses = {
+    /**
+     * Successful Response
+     */
+    200: SystemSnapshot;
+};
+
+export type AiPveLogGetSystemSnapshotResponse = AiPveLogGetSystemSnapshotResponses[keyof AiPveLogGetSystemSnapshotResponses];
+
+export type AiPveLogGetNodesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/ai/pve-log/nodes';
+};
+
+export type AiPveLogGetNodesResponses = {
+    /**
+     * Response Ai-Pve-Log-Get Nodes
+     *
+     * Successful Response
+     */
+    200: Array<NodeInfo>;
+};
+
+export type AiPveLogGetNodesResponse = AiPveLogGetNodesResponses[keyof AiPveLogGetNodesResponses];
+
+export type AiPveLogGetStoragesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Node
+         */
+        node?: string | null;
+    };
+    url: '/api/v1/ai/pve-log/storages';
+};
+
+export type AiPveLogGetStoragesErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type AiPveAdvisorRecommendPlacementError = AiPveAdvisorRecommendPlacementErrors[keyof AiPveAdvisorRecommendPlacementErrors];
+export type AiPveLogGetStoragesError = AiPveLogGetStoragesErrors[keyof AiPveLogGetStoragesErrors];
 
-export type AiPveAdvisorRecommendPlacementResponses = {
+export type AiPveLogGetStoragesResponses = {
+    /**
+     * Response Ai-Pve-Log-Get Storages
+     *
+     * Successful Response
+     */
+    200: Array<StorageInfo>;
+};
+
+export type AiPveLogGetStoragesResponse = AiPveLogGetStoragesResponses[keyof AiPveLogGetStoragesResponses];
+
+export type AiPveLogGetResourcesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Node
+         */
+        node?: string | null;
+        /**
+         * Resource Type
+         */
+        resource_type?: string | null;
+        /**
+         * Status
+         */
+        status?: string | null;
+    };
+    url: '/api/v1/ai/pve-log/resources';
+};
+
+export type AiPveLogGetResourcesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiPveLogGetResourcesError = AiPveLogGetResourcesErrors[keyof AiPveLogGetResourcesErrors];
+
+export type AiPveLogGetResourcesResponses = {
+    /**
+     * Response Ai-Pve-Log-Get Resources
+     *
+     * Successful Response
+     */
+    200: Array<ResourceSummary>;
+};
+
+export type AiPveLogGetResourcesResponse = AiPveLogGetResourcesResponses[keyof AiPveLogGetResourcesResponses];
+
+export type AiPveLogGetResourceStatusesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Node
+         */
+        node?: string | null;
+        /**
+         * Vmid
+         */
+        vmid?: number | null;
+    };
+    url: '/api/v1/ai/pve-log/resource-statuses';
+};
+
+export type AiPveLogGetResourceStatusesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiPveLogGetResourceStatusesError = AiPveLogGetResourceStatusesErrors[keyof AiPveLogGetResourceStatusesErrors];
+
+export type AiPveLogGetResourceStatusesResponses = {
+    /**
+     * Response Ai-Pve-Log-Get Resource Statuses
+     *
+     * Successful Response
+     */
+    200: Array<ResourceStatus>;
+};
+
+export type AiPveLogGetResourceStatusesResponse = AiPveLogGetResourceStatusesResponses[keyof AiPveLogGetResourceStatusesResponses];
+
+export type AiPveLogGetResourceConfigsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Node
+         */
+        node?: string | null;
+        /**
+         * Vmid
+         */
+        vmid?: number | null;
+    };
+    url: '/api/v1/ai/pve-log/resource-configs';
+};
+
+export type AiPveLogGetResourceConfigsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiPveLogGetResourceConfigsError = AiPveLogGetResourceConfigsErrors[keyof AiPveLogGetResourceConfigsErrors];
+
+export type AiPveLogGetResourceConfigsResponses = {
+    /**
+     * Response Ai-Pve-Log-Get Resource Configs
+     *
+     * Successful Response
+     */
+    200: Array<ResourceConfig>;
+};
+
+export type AiPveLogGetResourceConfigsResponse = AiPveLogGetResourceConfigsResponses[keyof AiPveLogGetResourceConfigsResponses];
+
+export type AiPveLogGetNetworkInterfacesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Vmid
+         */
+        vmid?: number | null;
+    };
+    url: '/api/v1/ai/pve-log/network-interfaces';
+};
+
+export type AiPveLogGetNetworkInterfacesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiPveLogGetNetworkInterfacesError = AiPveLogGetNetworkInterfacesErrors[keyof AiPveLogGetNetworkInterfacesErrors];
+
+export type AiPveLogGetNetworkInterfacesResponses = {
+    /**
+     * Response Ai-Pve-Log-Get Network Interfaces
+     *
+     * Successful Response
+     */
+    200: Array<NetworkInterface>;
+};
+
+export type AiPveLogGetNetworkInterfacesResponse = AiPveLogGetNetworkInterfacesResponses[keyof AiPveLogGetNetworkInterfacesResponses];
+
+export type AiPveLogChatData = {
+    body: AppAiPveLogSchemasChatRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/ai/pve-log/chat';
+};
+
+export type AiPveLogChatErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiPveLogChatError = AiPveLogChatErrors[keyof AiPveLogChatErrors];
+
+export type AiPveLogChatResponses = {
     /**
      * Successful Response
      */
-    200: PlacementAdvisorResponse;
+    200: AppAiPveLogSchemasChatResponse;
 };
 
-export type AiPveAdvisorRecommendPlacementResponse = AiPveAdvisorRecommendPlacementResponses[keyof AiPveAdvisorRecommendPlacementResponses];
+export type AiPveLogChatResponse = AiPveLogChatResponses[keyof AiPveLogChatResponses];
 
 export type AiTemplateRecommendationChatData = {
-    body: ChatRequest;
+    body: AppAiTemplateRecommendationSchemasChatRequest;
     path?: never;
     query?: never;
     url: '/api/v1/ai/template-recommendation/chat';
@@ -7609,13 +9784,13 @@ export type AiTemplateRecommendationChatResponses = {
     /**
      * Successful Response
      */
-    200: ChatResponse;
+    200: AppAiTemplateRecommendationSchemasChatResponse;
 };
 
 export type AiTemplateRecommendationChatResponse = AiTemplateRecommendationChatResponses[keyof AiTemplateRecommendationChatResponses];
 
 export type AiTemplateRecommendationRecommendData = {
-    body: ChatRequest;
+    body: AppAiTemplateRecommendationSchemasChatRequest;
     path?: never;
     query?: never;
     url: '/api/v1/ai/template-recommendation/recommend';
@@ -7642,6 +9817,63 @@ export type AiTemplateRecommendationRecommendResponses = {
 };
 
 export type AiTemplateRecommendationRecommendResponse = AiTemplateRecommendationRecommendResponses[keyof AiTemplateRecommendationRecommendResponses];
+
+export type AiTemplateRecommendationGetMyTemplateUsageData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Start Date
+         */
+        start_date?: string | null;
+        /**
+         * End Date
+         */
+        end_date?: string | null;
+    };
+    url: '/api/v1/ai/template-recommendation/usage/my';
+};
+
+export type AiTemplateRecommendationGetMyTemplateUsageErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiTemplateRecommendationGetMyTemplateUsageError = AiTemplateRecommendationGetMyTemplateUsageErrors[keyof AiTemplateRecommendationGetMyTemplateUsageErrors];
+
+export type AiTemplateRecommendationGetMyTemplateUsageResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type AiPveAdvisorRecommendPlacementData = {
+    body: PlacementRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/ai/pve-advisor/recommend';
+};
+
+export type AiPveAdvisorRecommendPlacementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AiPveAdvisorRecommendPlacementError = AiPveAdvisorRecommendPlacementErrors[keyof AiPveAdvisorRecommendPlacementErrors];
+
+export type AiPveAdvisorRecommendPlacementResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlacementAdvisorResponse;
+};
+
+export type AiPveAdvisorRecommendPlacementResponse = AiPveAdvisorRecommendPlacementResponses[keyof AiPveAdvisorRecommendPlacementResponses];
 
 export type SpecChangeRequestsGetAllSpecChangeRequestsData = {
     body?: never;
@@ -9736,6 +11968,230 @@ export type GatewayControlServiceResponses = {
 
 export type GatewayControlServiceResponse = GatewayControlServiceResponses[keyof GatewayControlServiceResponses];
 
+export type GpuListGpuMappingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/gpu/mappings';
+};
+
+export type GpuListGpuMappingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: GpuMappingsPublic;
+};
+
+export type GpuListGpuMappingsResponse = GpuListGpuMappingsResponses[keyof GpuListGpuMappingsResponses];
+
+export type GpuCreateGpuMappingData = {
+    body: GpuMappingCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/gpu/mappings';
+};
+
+export type GpuCreateGpuMappingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GpuCreateGpuMappingError = GpuCreateGpuMappingErrors[keyof GpuCreateGpuMappingErrors];
+
+export type GpuCreateGpuMappingResponses = {
+    /**
+     * Successful Response
+     */
+    201: unknown;
+};
+
+export type GpuDeleteGpuMappingData = {
+    body?: never;
+    path: {
+        /**
+         * Mapping Id
+         */
+        mapping_id: string;
+    };
+    query?: never;
+    url: '/api/v1/gpu/mappings/{mapping_id}';
+};
+
+export type GpuDeleteGpuMappingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GpuDeleteGpuMappingError = GpuDeleteGpuMappingErrors[keyof GpuDeleteGpuMappingErrors];
+
+export type GpuDeleteGpuMappingResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type GpuGetGpuMappingData = {
+    body?: never;
+    path: {
+        /**
+         * Mapping Id
+         */
+        mapping_id: string;
+    };
+    query?: never;
+    url: '/api/v1/gpu/mappings/{mapping_id}';
+};
+
+export type GpuGetGpuMappingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GpuGetGpuMappingError = GpuGetGpuMappingErrors[keyof GpuGetGpuMappingErrors];
+
+export type GpuGetGpuMappingResponses = {
+    /**
+     * Successful Response
+     */
+    200: GpuMappingDetail;
+};
+
+export type GpuGetGpuMappingResponse = GpuGetGpuMappingResponses[keyof GpuGetGpuMappingResponses];
+
+export type GpuListGpuOptionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Start At
+         */
+        start_at?: string | null;
+        /**
+         * End At
+         */
+        end_at?: string | null;
+    };
+    url: '/api/v1/gpu/options';
+};
+
+export type GpuListGpuOptionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GpuListGpuOptionsError = GpuListGpuOptionsErrors[keyof GpuListGpuOptionsErrors];
+
+export type GpuListGpuOptionsResponses = {
+    /**
+     * Response Gpu-List Gpu Options
+     *
+     * Successful Response
+     */
+    200: Array<GpuSummary>;
+};
+
+export type GpuListGpuOptionsResponse = GpuListGpuOptionsResponses[keyof GpuListGpuOptionsResponses];
+
+export type IpManagementDeleteSubnetConfigData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/ip-management/subnet';
+};
+
+export type IpManagementDeleteSubnetConfigResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type IpManagementDeleteSubnetConfigResponse = IpManagementDeleteSubnetConfigResponses[keyof IpManagementDeleteSubnetConfigResponses];
+
+export type IpManagementGetSubnetConfigData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/ip-management/subnet';
+};
+
+export type IpManagementGetSubnetConfigResponses = {
+    /**
+     * Response Ip-Management-Get Subnet Config
+     *
+     * Successful Response
+     */
+    200: SubnetConfigPublic | null;
+};
+
+export type IpManagementGetSubnetConfigResponse = IpManagementGetSubnetConfigResponses[keyof IpManagementGetSubnetConfigResponses];
+
+export type IpManagementUpsertSubnetConfigData = {
+    body: SubnetConfigCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/ip-management/subnet';
+};
+
+export type IpManagementUpsertSubnetConfigErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IpManagementUpsertSubnetConfigError = IpManagementUpsertSubnetConfigErrors[keyof IpManagementUpsertSubnetConfigErrors];
+
+export type IpManagementUpsertSubnetConfigResponses = {
+    /**
+     * Successful Response
+     */
+    200: SubnetConfigPublic;
+};
+
+export type IpManagementUpsertSubnetConfigResponse = IpManagementUpsertSubnetConfigResponses[keyof IpManagementUpsertSubnetConfigResponses];
+
+export type IpManagementListAllocationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/ip-management/allocations';
+};
+
+export type IpManagementListAllocationsResponses = {
+    /**
+     * Successful Response
+     */
+    200: IpAllocationListResponse;
+};
+
+export type IpManagementListAllocationsResponse = IpManagementListAllocationsResponses[keyof IpManagementListAllocationsResponses];
+
+export type IpManagementGetSubnetStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/ip-management/status';
+};
+
+export type IpManagementGetSubnetStatusResponses = {
+    /**
+     * Successful Response
+     */
+    200: SubnetStatusResponse;
+};
+
+export type IpManagementGetSubnetStatusResponse = IpManagementGetSubnetStatusResponses[keyof IpManagementGetSubnetStatusResponses];
+
 export type ScriptDeployDeployServiceTemplateData = {
     body: ScriptDeployRequest;
     path?: never;
@@ -9791,6 +12247,40 @@ export type ScriptDeployGetDeployStatusResponses = {
 
 export type ScriptDeployGetDeployStatusResponse = ScriptDeployGetDeployStatusResponses[keyof ScriptDeployGetDeployStatusResponses];
 
+export type ScriptDeployCancelDeploymentData = {
+    body?: never;
+    path: {
+        /**
+         * Task Id
+         */
+        task_id: string;
+    };
+    query?: never;
+    url: '/api/v1/script-deploy/cancel/{task_id}';
+};
+
+export type ScriptDeployCancelDeploymentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ScriptDeployCancelDeploymentError = ScriptDeployCancelDeploymentErrors[keyof ScriptDeployCancelDeploymentErrors];
+
+export type ScriptDeployCancelDeploymentResponses = {
+    /**
+     * Response Script-Deploy-Cancel Deployment
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ScriptDeployCancelDeploymentResponse = ScriptDeployCancelDeploymentResponses[keyof ScriptDeployCancelDeploymentResponses];
+
 export type ScriptDeployRegisterDeployedResourceData = {
     body?: never;
     path: {
@@ -9824,6 +12314,198 @@ export type ScriptDeployRegisterDeployedResourceResponses = {
 };
 
 export type ScriptDeployRegisterDeployedResourceResponse = ScriptDeployRegisterDeployedResourceResponses[keyof ScriptDeployRegisterDeployedResourceResponses];
+
+export type ScriptDeployListDeployLogsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Status
+         *
+         * running | completed | failed
+         */
+        status?: string | null;
+        /**
+         * Template Slug
+         */
+        template_slug?: string | null;
+        /**
+         * Vmid
+         */
+        vmid?: number | null;
+    };
+    url: '/api/v1/script-deploy/logs';
+};
+
+export type ScriptDeployListDeployLogsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ScriptDeployListDeployLogsError = ScriptDeployListDeployLogsErrors[keyof ScriptDeployListDeployLogsErrors];
+
+export type ScriptDeployListDeployLogsResponses = {
+    /**
+     * Successful Response
+     */
+    200: ScriptDeployLogList;
+};
+
+export type ScriptDeployListDeployLogsResponse = ScriptDeployListDeployLogsResponses[keyof ScriptDeployListDeployLogsResponses];
+
+export type ScriptDeployGetDeployLogData = {
+    body?: never;
+    path: {
+        /**
+         * Task Id
+         */
+        task_id: string;
+    };
+    query?: never;
+    url: '/api/v1/script-deploy/logs/{task_id}';
+};
+
+export type ScriptDeployGetDeployLogErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ScriptDeployGetDeployLogError = ScriptDeployGetDeployLogErrors[keyof ScriptDeployGetDeployLogErrors];
+
+export type ScriptDeployGetDeployLogResponses = {
+    /**
+     * Successful Response
+     */
+    200: ScriptDeployLogDetail;
+};
+
+export type ScriptDeployGetDeployLogResponse = ScriptDeployGetDeployLogResponses[keyof ScriptDeployGetDeployLogResponses];
+
+export type JobsListUnifiedJobsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Kinds
+         *
+         * 逗號分隔，可選: migration, script_deploy, vm_request, spec_change
+         */
+        kinds?: string | null;
+        /**
+         * Statuses
+         *
+         * 逗號分隔: pending, running, completed, failed, blocked, cancelled
+         */
+        statuses?: string | null;
+        /**
+         * Active Only
+         */
+        active_only?: boolean;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * History Days
+         */
+        history_days?: number;
+    };
+    url: '/api/v1/jobs/';
+};
+
+export type JobsListUnifiedJobsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type JobsListUnifiedJobsError = JobsListUnifiedJobsErrors[keyof JobsListUnifiedJobsErrors];
+
+export type JobsListUnifiedJobsResponses = {
+    /**
+     * Successful Response
+     */
+    200: JobsListResponse;
+};
+
+export type JobsListUnifiedJobsResponse = JobsListUnifiedJobsResponses[keyof JobsListUnifiedJobsResponses];
+
+export type JobsListRecentJobsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/jobs/recent';
+};
+
+export type JobsListRecentJobsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type JobsListRecentJobsError = JobsListRecentJobsErrors[keyof JobsListRecentJobsErrors];
+
+export type JobsListRecentJobsResponses = {
+    /**
+     * Successful Response
+     */
+    200: JobsListResponse;
+};
+
+export type JobsListRecentJobsResponse = JobsListRecentJobsResponses[keyof JobsListRecentJobsResponses];
+
+export type JobsGetJobData = {
+    body?: never;
+    path: {
+        /**
+         * Job Id
+         */
+        job_id: string;
+    };
+    query?: never;
+    url: '/api/v1/jobs/{job_id}';
+};
+
+export type JobsGetJobErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type JobsGetJobError = JobsGetJobErrors[keyof JobsGetJobErrors];
+
+export type JobsGetJobResponses = {
+    /**
+     * Successful Response
+     */
+    200: JobDetail;
+};
+
+export type JobsGetJobResponse = JobsGetJobResponses[keyof JobsGetJobResponses];
 
 export type RubricUploadRubricData = {
     body: BodyRubricUploadRubric;

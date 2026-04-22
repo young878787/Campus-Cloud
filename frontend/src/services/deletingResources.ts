@@ -18,11 +18,11 @@ export const DELETING_STATUSES: ReadonlySet<DeletionRequestStatus> = new Set([
 export interface DeletingMeta {
   request_id: string
   status: DeletionRequestStatus
-  user_id: number
-  user_email: string | null
-  user_full_name: string | null
+  user_id: string
+  user_email: string | null | undefined
+  user_full_name: string | null | undefined
   created_at: string
-  started_at: string | null
+  started_at: string | null | undefined
   purge: boolean
   force: boolean
 }
@@ -80,6 +80,20 @@ export function useCancelDeletionRequest() {
   return useMutation({
     mutationFn: (requestId: string) =>
       DeletionRequestsService.cancelDeletionRequest({ requestId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deleting-resources"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.resources.all })
+      queryClient.invalidateQueries({ queryKey: ["jobs"] })
+    },
+  })
+}
+
+/** 重試已失敗的刪除請求（僅 failed）。 */
+export function useRetryDeletionRequest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (requestId: string) =>
+      DeletionRequestsService.retryDeletionRequest({ requestId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deleting-resources"] })
       queryClient.invalidateQueries({ queryKey: queryKeys.resources.all })
