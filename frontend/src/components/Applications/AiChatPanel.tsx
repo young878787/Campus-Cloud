@@ -33,15 +33,17 @@ import {
   type AiPlanResult,
   AiTemplateRecommendationApi,
   type AiChatMessage as ChatMessage,
-  type RecommendationFormContext,
   type FormPrefill,
+  type RecommendationFormContext,
 } from "@/services/aiTemplateRecommendation"
 
 export type { AiPlanResult } from "@/services/aiTemplateRecommendation"
 
 interface AiChatPanelProps {
+  autoImportPlan?: boolean
   onImportPlan?: (prefill: FormPrefill) => void
   onImportReason?: (reason: string) => void
+  quickStartPrompt?: string
   recommendationContext?: RecommendationFormContext
 }
 
@@ -125,7 +127,9 @@ function formatDateTimeLabel(value?: string) {
 }
 
 export function AiChatPanel({
+  autoImportPlan = false,
   onImportPlan,
+  quickStartPrompt,
   recommendationContext,
 }: AiChatPanelProps) {
   const { t } = useTranslation("applications")
@@ -148,6 +152,7 @@ export function AiChatPanel({
   const loadingRef = useRef<HTMLDivElement>(null)
   const planCardRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const quickStartRunRef = useRef<string | null>(null)
 
   const scrollToElement = useCallback((element: HTMLDivElement | null) => {
     requestAnimationFrame(() => {
@@ -191,6 +196,111 @@ export function AiChatPanel({
       planContextMessage ? [...history, planContextMessage] : history,
     [planContextMessage],
   )
+  const formContextForChat = useMemo(
+    () =>
+      recommendationContext
+        ? {
+            resource_type: recommendationContext.resource_type,
+            mode: recommendationContext.mode,
+            start_at: recommendationContext.start_at,
+            end_at: recommendationContext.end_at,
+            selected_gpu_mapping_id:
+              recommendationContext.selected_gpu_mapping_id,
+          }
+        : undefined,
+    [recommendationContext],
+  )
+
+  useEffect(() => {
+    if (!quickStartPrompt) return
+    if (quickStartRunRef.current === quickStartPrompt) return
+    quickStartRunRef.current = quickStartPrompt
+
+    const userMsg: ChatMessage = { role: "user", content: quickStartPrompt }
+    setMessages([userMsg])
+    setConversationHistory([userMsg])
+    setPlanContextMessage(null)
+    setLatestPlan(null)
+    setPlanInsertionIndex(null)
+    setMetrics(null)
+    setInput("")
+    setIsLoading(true)
+
+    let cancelled = false
+
+    const runQuickStartPlan = async () => {
+      try {
+        const data = await AiTemplateRecommendationApi.recommend({
+          requestBody: {
+            messages: [userMsg],
+            top_k: 5,
+            device_nodes: [],
+            form_context: recommendationContext,
+          },
+        })
+
+        if (cancelled) return
+
+        const summaryText =
+          [
+            data.summary?.trim(),
+            data.final_plan?.application_target?.environment_reason?.trim(),
+          ]
+            .filter(Boolean)
+            .join("\n\n") || "已根據快速入門情境產生推薦方案。"
+
+        const aiMsg: ChatMessage = {
+          role: "assistant",
+          content: `已收到快速入門情境，先幫你整理需求：\n\n${summaryText}`,
+        }
+
+        setMessages([userMsg, aiMsg])
+        setConversationHistory([userMsg, aiMsg])
+        setPlanInsertionIndex(2)
+        setLatestPlan(data)
+        if (data.ai_metrics) setMetrics(data.ai_metrics)
+
+        const planContext = [
+          data.summary?.trim(),
+          data.final_plan?.application_target?.environment_reason?.trim(),
+          data.final_plan?.form_prefill?.reason?.trim(),
+          data.final_plan?.gpu_recommendation?.reason?.trim(),
+        ]
+          .filter(Boolean)
+          .join("\n\n")
+
+        if (planContext) {
+          setPlanContextMessage({
+            role: "assistant",
+            content: `AI 已產生推薦配置，以下是目前方案摘要：\n${planContext}`,
+          })
+        }
+
+        if (autoImportPlan && data.final_plan?.form_prefill && onImportPlan) {
+          onImportPlan(data.final_plan.form_prefill)
+        }
+      } catch (err) {
+        if (cancelled) return
+        setMessages([
+          userMsg,
+          {
+            role: "assistant",
+            content: `[${t("aiChat.planError")}] ${err instanceof Error ? err.message : String(err)}`,
+          },
+        ])
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void runQuickStartPlan()
+
+    return () => {
+      cancelled = true
+    }
+  }, [autoImportPlan, onImportPlan, quickStartPrompt, recommendationContext, t])
 
   const sendChat = async () => {
     const text = input.trim()
@@ -206,16 +316,6 @@ export function AiChatPanel({
 
     try {
       const requestMessages = buildRequestMessages(newHistory)
-      const formContextForChat = recommendationContext
-        ? {
-            resource_type: recommendationContext.resource_type,
-            mode: recommendationContext.mode,
-            start_at: recommendationContext.start_at,
-            end_at: recommendationContext.end_at,
-            selected_gpu_mapping_id:
-              recommendationContext.selected_gpu_mapping_id,
-          }
-        : undefined
       const data = await AiTemplateRecommendationApi.chat({
         requestBody: {
           messages: requestMessages,
@@ -616,7 +716,9 @@ export function AiChatPanel({
                                 時段 / GPU
                               </div>
                               <div className="space-y-1 text-sm font-semibold">
-                                <div className="break-all">{scheduleSummary}</div>
+                                <div className="break-all">
+                                  {scheduleSummary}
+                                </div>
                                 <div className="break-all text-xs text-muted-foreground">
                                   {gpuRecommendation?.selected_gpu_label ||
                                     gpuRecommendation?.selected_gpu_mapping_id ||
@@ -657,7 +759,10 @@ export function AiChatPanel({
                               {gpuRecommendation.candidates?.length ? (
                                 <div className="flex flex-wrap gap-2">
                                   {gpuRecommendation.candidates.map((item) => (
-                                    <Badge key={item.mapping_id} variant="outline">
+                                    <Badge
+                                      key={item.mapping_id}
+                                      variant="outline"
+                                    >
                                       {item.label}
                                     </Badge>
                                   ))}
