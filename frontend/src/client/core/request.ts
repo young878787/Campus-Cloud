@@ -1,343 +1,127 @@
-import axios from "axios"
+/**
+ * Compatibility shim for @hey-api/openapi-ts v0.94+
+ * Provides the legacy `request(OpenAPI, options)` function used by hand-written service files.
+ * Uses the native fetch API to avoid coupling to the generated axios client.
+ */
 
-import { ApiError } from "./ApiError"
-import type { ApiRequestOptions } from "./ApiRequestOptions"
-import type { ApiResult } from "./ApiResult"
-import { CancelablePromise } from "./CancelablePromise"
-import type { OpenAPIConfig } from "./OpenAPI"
+import { ApiError } from './ApiError'
+import type { ApiRequestOptions } from './ApiRequestOptions'
+import type { OpenAPIConfig } from './OpenAPI'
 
-const isDefined = <T>(value: T | null | undefined): value is T => {
-  return value !== undefined && value !== null
-}
-
-const isString = (value: unknown): value is string => {
-  return typeof value === "string"
-}
-
-const isStringWithValue = (value: unknown): value is string => {
-  return isString(value) && value.length > 0
-}
-
-const isBlob = (value: unknown): value is Blob => {
-  return typeof Blob !== "undefined" && value instanceof Blob
-}
-
-const isFile = (value: unknown): value is File => {
-  return typeof File !== "undefined" && value instanceof File
-}
-
-const isFormData = (value: unknown): value is FormData => {
-  return typeof FormData !== "undefined" && value instanceof FormData
-}
-
-const isPlainObject = (
-  value: unknown,
-): value is Record<string, unknown> => {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-const base64 = (value: string): string => {
-  if (typeof globalThis.btoa === "function") {
-    return globalThis.btoa(value)
-  }
-  return value
-}
-
-const resolveValue = async <T>(
-  options: ApiRequestOptions<unknown>,
-  resolver?: T | ((options: ApiRequestOptions<unknown>) => Promise<T> | T),
-): Promise<T | undefined> => {
-  if (typeof resolver === "function") {
-    return await (resolver as (
-      options: ApiRequestOptions<unknown>,
-    ) => Promise<T> | T)(options)
-  }
-  return resolver
-}
-
-const appendQueryPair = (
-  key: string,
-  value: unknown,
-  query: Array<string>,
-): void => {
-  if (!isDefined(value)) {
-    return
-  }
-
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      appendQueryPair(key, item, query)
-    }
-    return
-  }
-
-  if (
-    isPlainObject(value) &&
-    !isBlob(value) &&
-    !isFile(value) &&
-    !isFormData(value) &&
-    !(value instanceof Date)
-  ) {
-    for (const [nestedKey, nestedValue] of Object.entries(value)) {
-      appendQueryPair(`${key}[${nestedKey}]`, nestedValue, query)
-    }
-    return
-  }
-
-  const serializedValue = value instanceof Date ? value.toISOString() : String(value)
-  query.push(`${encodeURIComponent(key)}=${encodeURIComponent(serializedValue)}`)
-}
-
-const getQueryString = (params?: Record<string, unknown>): string => {
-  if (!params) {
-    return ""
-  }
-
-  const query: Array<string> = []
-
-  for (const [key, value] of Object.entries(params)) {
-    appendQueryPair(key, value, query)
-  }
-
-  return query.length > 0 ? `?${query.join("&")}` : ""
-}
-
-const getUrl = (
-  config: OpenAPIConfig,
-  options: ApiRequestOptions<unknown>,
-): string => {
-  const encoder = config.ENCODE_PATH ?? encodeURIComponent
-  const path = options.url.replace(/\{(.*?)\}/g, (_, token: string) => {
-    const value = options.path?.[token]
-    return isDefined(value) ? encoder(String(value)) : ""
+function resolvePath(url: string, path?: Record<string, unknown>): string {
+  if (!path) return url
+  return url.replace(/\{(\w+)\}/g, (_, key) => {
+    return path[key] !== undefined ? encodeURIComponent(String(path[key])) : `{${key}}`
   })
-
-  return `${config.BASE}${path}${getQueryString(options.query)}`
 }
 
-const appendFormValue = (
-  formData: FormData,
-  key: string,
-  value: unknown,
-): void => {
-  if (!isDefined(value)) {
-    return
-  }
-
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      appendFormValue(formData, key, item)
-    }
-    return
-  }
-
-  if (isBlob(value) || isFile(value) || isString(value)) {
-    formData.append(key, value)
-    return
-  }
-
-  formData.append(key, isPlainObject(value) ? JSON.stringify(value) : String(value))
-}
-
-const getFormData = (
-  options: ApiRequestOptions<unknown>,
-): FormData | undefined => {
-  if (!options.formData) {
-    return undefined
-  }
-
-  const formData = new FormData()
-
-  for (const [key, value] of Object.entries(options.formData)) {
-    appendFormValue(formData, key, value)
-  }
-
-  return formData
-}
-
-const getUrlEncodedBody = (
-  values: Record<string, unknown>,
-): URLSearchParams => {
-  const searchParams = new URLSearchParams()
-
-  for (const [key, value] of Object.entries(values)) {
-    if (!isDefined(value)) {
-      continue
+export function request<T>(
+  config: OpenAPIConfig,
+  options: ApiRequestOptions,
+): Promise<T> {
+  return (async () => {
+    // Run PREPARE_REQUEST interceptor (handles token refresh / expiry checks)
+    if (config.PREPARE_REQUEST) {
+      await config.PREPARE_REQUEST(options)
     }
 
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        if (isDefined(item)) {
-          searchParams.append(key, String(item))
+    // Resolve auth token
+    let authToken: string | undefined
+    if (config.TOKEN) {
+      const resolved =
+        typeof config.TOKEN === 'function'
+          ? await config.TOKEN(options)
+          : config.TOKEN
+      if (resolved) authToken = resolved
+    }
+
+    // Build URL with path params
+    const base = (config.BASE ?? '').replace(/\/+$/, '')
+    const resolvedPath = resolvePath(options.url, options.path)
+
+    // Build query string
+    let urlStr = `${base}${resolvedPath}`
+    if (options.query) {
+      const params = new URLSearchParams()
+      for (const [key, value] of Object.entries(options.query)) {
+        if (value === undefined || value === null) continue
+        if (Array.isArray(value)) {
+          for (const item of value) params.append(key, String(item))
+        } else {
+          params.append(key, String(value))
         }
       }
-      continue
+      const qs = params.toString()
+      if (qs) urlStr += `?${qs}`
     }
 
-    searchParams.append(key, String(value))
-  }
+    // Build headers
+    const headers: Record<string, string> = {}
+    if (options.headers) Object.assign(headers, options.headers)
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`
 
-  return searchParams
-}
+    // Build body
+    let body: BodyInit | undefined
+    const mediaType = options.mediaType ?? 'application/json'
 
-const getRequestBody = (
-  options: ApiRequestOptions<unknown>,
-): unknown => {
-  if (options.formData) {
-    if (options.mediaType === "application/x-www-form-urlencoded") {
-      return getUrlEncodedBody(options.formData)
+    if (options.formData !== undefined) {
+      const fd = new FormData()
+      const data = options.formData as Record<string, unknown>
+      for (const [key, value] of Object.entries(data)) {
+        if (value instanceof File || value instanceof Blob) fd.append(key, value)
+        else if (value !== undefined && value !== null) fd.append(key, String(value))
+      }
+      body = fd
+    } else if (options.body !== undefined) {
+      if (mediaType === 'multipart/form-data') {
+        const fd = new FormData()
+        const data = options.body as Record<string, unknown>
+        for (const [key, value] of Object.entries(data)) {
+          if (value instanceof File || value instanceof Blob) fd.append(key, value)
+          else if (value !== undefined && value !== null) fd.append(key, String(value))
+        }
+        body = fd
+      } else {
+        headers['Content-Type'] = mediaType
+        body = JSON.stringify(options.body)
+      }
     }
-    return getFormData(options)
-  }
 
-  if (!isDefined(options.body)) {
-    return undefined
-  }
+    const response = await fetch(urlStr, {
+      method: options.method,
+      headers,
+      body,
+      credentials: config.WITH_CREDENTIALS ? config.CREDENTIALS : 'same-origin',
+    })
 
-  if (
-    options.mediaType === "application/x-www-form-urlencoded" &&
-    isPlainObject(options.body)
-  ) {
-    return getUrlEncodedBody(options.body)
-  }
-
-  return options.body
-}
-
-const normalizeHeaders = (
-  headers?: Record<string, unknown>,
-): Record<string, string> => {
-  const normalized: Record<string, string> = {}
-
-  if (!headers) {
-    return normalized
-  }
-
-  for (const [key, value] of Object.entries(headers)) {
-    if (!isDefined(value)) {
-      continue
-    }
-    normalized[key] = String(value)
-  }
-
-  return normalized
-}
-
-const getHeaders = async (
-  config: OpenAPIConfig,
-  options: ApiRequestOptions<unknown>,
-): Promise<Record<string, string>> => {
-  const [token, username, password, defaultHeaders] = await Promise.all([
-    resolveValue(options, config.TOKEN),
-    resolveValue(options, config.USERNAME),
-    resolveValue(options, config.PASSWORD),
-    resolveValue(options, config.HEADERS),
-  ])
-
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    ...normalizeHeaders(defaultHeaders),
-    ...normalizeHeaders(options.headers),
-  }
-
-  if (isStringWithValue(token)) {
-    headers.Authorization = `Bearer ${token}`
-  } else if (isStringWithValue(username) && isStringWithValue(password)) {
-    headers.Authorization = `Basic ${base64(`${username}:${password}`)}`
-  }
-
-  if (options.mediaType) {
-    headers["Content-Type"] = options.mediaType
-  }
-
-  if (options.formData && options.mediaType !== "application/x-www-form-urlencoded") {
-    delete headers["Content-Type"]
-  }
-
-  return headers
-}
-
-const isSuccessStatus = (status: number): boolean => {
-  return status >= 200 && status < 300
-}
-
-const getResponseBody = <T>(
-  response: { data: unknown; headers: Record<string, unknown> },
-  responseHeader?: string,
-): T => {
-  if (!responseHeader) {
-    return response.data as T
-  }
-
-  return response.headers[responseHeader.toLowerCase()] as T
-}
-
-const catchErrorCodes = (
-  options: ApiRequestOptions<unknown>,
-  result: ApiResult,
-): void => {
-  const errors = options.errors ?? {}
-  const message = errors[result.status]
-
-  if (message) {
-    throw new ApiError(options, result, message)
-  }
-
-  if (!result.ok) {
-    throw new ApiError(options, result, result.statusText || "Request failed")
-  }
-}
-
-export const request = <T>(
-  config: OpenAPIConfig,
-  options: ApiRequestOptions<unknown>,
-): CancelablePromise<T> => {
-  return new CancelablePromise<T>(async (resolve, reject, onCancel) => {
-    const controller = new AbortController()
-    onCancel(() => controller.abort())
-
-    try {
-      await config.PREPARE_REQUEST?.(options)
-
-      const url = getUrl(config, options)
-      const body = getRequestBody(options)
-      const headers = await getHeaders(config, options)
-
-      const response = await axios.request({
-        url,
-        method: options.method,
-        data: body,
-        headers,
-        signal: controller.signal,
-        withCredentials: config.WITH_CREDENTIALS,
-        validateStatus: () => true,
-      })
-
-      const result: ApiResult = {
-        url,
-        ok: isSuccessStatus(response.status),
+    if (!response.ok) {
+      let body: unknown
+      try {
+        body = await response.json()
+      } catch {
+        body = await response.text().catch(() => '')
+      }
+      const message =
+        (body as { detail?: string; message?: string } | null)?.detail ??
+        (body as { detail?: string; message?: string } | null)?.message ??
+        `HTTP ${response.status}`
+      throw new ApiError({
+        url: urlStr,
         status: response.status,
         statusText: response.statusText,
-        body: response.data,
-      }
-
-      catchErrorCodes(options, result)
-      resolve(getResponseBody<T>(response, options.responseHeader))
-    } catch (error) {
-      if (axios.isCancel(error)) {
-        return
-      }
-
-      const axiosError = error instanceof Error ? error : new Error("Request failed")
-      const result: ApiResult = {
-        url: options.url,
-        ok: false,
-        status: 0,
-        statusText: axiosError.message,
-        body: error,
-      }
-
-      reject(new ApiError(options, result, axiosError.message))
+        body,
+        message,
+      })
     }
-  })
+
+    if (response.status === 204) {
+      return undefined as unknown as T
+    }
+
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json')) {
+      return response.json() as Promise<T>
+    }
+    return response.text() as unknown as Promise<T>
+  })()
 }

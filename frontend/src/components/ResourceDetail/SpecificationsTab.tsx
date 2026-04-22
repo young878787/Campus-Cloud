@@ -40,8 +40,8 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
     queryFn: () => ResourcesService.getResourceConfig({ vmid }),
   })
 
-  const [cores, setCores] = useState<number>(config.cores || 1)
-  const [memory, setMemory] = useState<number>(config.memory || 512)
+  const [cores, setCores] = useState<number>(config.cpu_cores || 1)
+  const [memory, setMemory] = useState<number>(config.memory_mb || 512)
   const [reason, setReason] = useState<string>("")
 
   const directUpdateMutation = useMutation({
@@ -72,8 +72,8 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
     if (isAdmin) {
       // Admin: direct update
       directUpdateMutation.mutate({
-        cores: cores !== config.cores ? cores : undefined,
-        memory: memory !== config.memory ? memory : undefined,
+        cores: cores !== config.cpu_cores ? cores : undefined,
+        memory: memory !== config.memory_mb ? memory : undefined,
       })
     } else {
       // User: submit request
@@ -82,7 +82,7 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
         return
       }
 
-      const hasChanges = cores !== config.cores || memory !== config.memory
+      const hasChanges = cores !== config.cpu_cores || memory !== config.memory_mb
       if (!hasChanges) {
         toast.error(t("specifications.noChanges"))
         return
@@ -92,8 +92,8 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
         vmid,
         change_type: "combined",
         reason,
-        requested_cpu: cores !== config.cores ? cores : undefined,
-        requested_memory: memory !== config.memory ? memory : undefined,
+        requested_cpu: cores !== config.cpu_cores ? cores : undefined,
+        requested_memory: memory !== config.memory_mb ? memory : undefined,
       })
     }
   }
@@ -122,7 +122,7 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
                 onChange={(e) => setCores(Number.parseInt(e.target.value, 10))}
               />
               <p className="text-xs text-muted-foreground">
-                {t("specifications.currentValue")}: {config.cores}
+                {t("specifications.currentValue")}: {config.cpu_cores}
               </p>
             </div>
 
@@ -138,7 +138,7 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
                 onChange={(e) => setMemory(Number.parseInt(e.target.value, 10))}
               />
               <p className="text-xs text-muted-foreground">
-                {t("specifications.currentValue")}: {config.memory} MB
+                {t("specifications.currentValue")}: {config.memory_mb} MB
               </p>
             </div>
           </div>

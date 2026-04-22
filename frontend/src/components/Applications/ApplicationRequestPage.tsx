@@ -400,6 +400,10 @@ export function ApplicationRequestPage() {
     onSuccess: () => {
       showSuccessToast(t("messages:success.applicationSubmitted"))
       queryClient.invalidateQueries({ queryKey: queryKeys.vmRequests.all })
+      // Refresh the "creating placeholder" list on /resources so the user
+      // immediately sees the in-progress VM after auto-approve + background
+      // provision kicks in.
+      queryClient.invalidateQueries({ queryKey: ["pending-resources"] })
       navigate({ to: backPath })
     },
     onError: (err) => handleError.call(showErrorToast, err as ApiError),

@@ -3,7 +3,7 @@ import path from "node:path"
 import tailwindcss from "@tailwindcss/vite"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import react from "@vitejs/plugin-react-swc"
-import { defineConfig } from "vite"
+import { defineConfig, loadEnv } from "vite"
 
 function templatesPlugin() {
   return {
@@ -36,24 +36,41 @@ function templatesPlugin() {
   }
 }
 
-export default defineConfig({
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+export default defineConfig(({ mode }) => {
+  // Load VITE_* env vars from .env files (cwd = frontend/)
+  const env = loadEnv(mode, process.cwd(), "")
+  const apiUrl = env.VITE_API_URL || "http://localhost:8000"
+  const wsTarget = apiUrl.replace(/^http/, "ws")
+
+  return {
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
     },
-  },
-  server: {
-    headers: {
-      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+    server: {
+      headers: {
+        "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+      },
+      proxy: {
+        // Backend WebSocket endpoints (VNC, terminal, jobs) — proxy to FastAPI.
+        // REST goes via absolute VITE_API_URL, but WS helpers use
+        // window.location.host (5173), so we need to forward /ws to backend.
+        "/ws": {
+          target: wsTarget,
+          ws: true,
+          changeOrigin: true,
+        },
+      },
     },
-  },
-  plugins: [
-    templatesPlugin(),
-    tanstackRouter({
-      target: "react",
-      autoCodeSplitting: true,
-    }),
-    react(),
-    tailwindcss(),
-  ],
+    plugins: [
+      templatesPlugin(),
+      tanstackRouter({
+        target: "react",
+        autoCodeSplitting: true,
+      }),
+      react(),
+      tailwindcss(),
+    ],
+  }
 })

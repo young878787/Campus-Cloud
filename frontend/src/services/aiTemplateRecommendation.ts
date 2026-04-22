@@ -3,7 +3,10 @@ import {
   type ChatRequest,
   type ChatResponse,
 } from "@/client"
+import type { RecommendationFormContext } from "@/client"
 import type { GPUSummary } from "@/services/gpu"
+
+export type { RecommendationFormContext }
 
 export type AiChatMessage = {
   role: "user" | "assistant" | "system"
@@ -34,12 +37,7 @@ export type FormPrefill = {
   reason?: string
 }
 
-export type RecommendationFormContext = {
-  resource_type?: string
-  mode?: string
-  start_at?: string
-  end_at?: string
-  selected_gpu_mapping_id?: string
+export type RecommendationFormContextWithGpu = RecommendationFormContext & {
   gpu_options?: GPUSummary[]
 }
 

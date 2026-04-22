@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { AiApiCreateAiApiRequestData, AiApiCreateAiApiRequestErrors, AiApiCreateAiApiRequestResponses, AiApiDeleteMyAiApiCredentialData, AiApiDeleteMyAiApiCredentialErrors, AiApiDeleteMyAiApiCredentialResponses, AiApiGetAiApiRequestData, AiApiGetAiApiRequestErrors, AiApiGetAiApiRequestResponses, AiApiListAllAiApiCredentialsData, AiApiListAllAiApiCredentialsErrors, AiApiListAllAiApiCredentialsResponses, AiApiListAllAiApiRequestsData, AiApiListAllAiApiRequestsErrors, AiApiListAllAiApiRequestsResponses, AiApiListMyAiApiCredentialsData, AiApiListMyAiApiCredentialsErrors, AiApiListMyAiApiCredentialsResponses, AiApiListMyAiApiRequestsData, AiApiListMyAiApiRequestsErrors, AiApiListMyAiApiRequestsResponses, AiApiReviewAiApiRequestData, AiApiReviewAiApiRequestErrors, AiApiReviewAiApiRequestResponses, AiApiRotateMyAiApiCredentialData, AiApiRotateMyAiApiCredentialErrors, AiApiRotateMyAiApiCredentialResponses, AiApiUpdateMyAiApiCredentialData, AiApiUpdateMyAiApiCredentialErrors, AiApiUpdateMyAiApiCredentialResponses, AiProxyChatCompletionsData, AiProxyChatCompletionsErrors, AiProxyChatCompletionsResponses, AiProxyGetMyUsageStatsData, AiProxyGetMyUsageStatsErrors, AiProxyGetMyUsageStatsResponses, AiProxyGetRateLimitStatusData, AiProxyGetRateLimitStatusErrors, AiProxyGetRateLimitStatusResponses, AiProxyListModelsData, AiProxyListModelsErrors, AiProxyListModelsResponses, AiPveAdvisorRecommendPlacementData, AiPveAdvisorRecommendPlacementErrors, AiPveAdvisorRecommendPlacementResponses, AiTemplateRecommendationChatData, AiTemplateRecommendationChatErrors, AiTemplateRecommendationChatResponses, AiTemplateRecommendationRecommendData, AiTemplateRecommendationRecommendErrors, AiTemplateRecommendationRecommendResponses, AuditLogsExportAuditLogsData, AuditLogsExportAuditLogsErrors, AuditLogsExportAuditLogsResponses, AuditLogsGetAllAuditLogsData, AuditLogsGetAllAuditLogsErrors, AuditLogsGetAllAuditLogsResponses, AuditLogsGetAuditLogStatsData, AuditLogsGetAuditLogStatsErrors, AuditLogsGetAuditLogStatsResponses, AuditLogsGetMyAuditLogsData, AuditLogsGetMyAuditLogsErrors, AuditLogsGetMyAuditLogsResponses, AuditLogsGetResourceAuditLogsData, AuditLogsGetResourceAuditLogsErrors, AuditLogsGetResourceAuditLogsResponses, AuditLogsListAuditActionsData, AuditLogsListAuditActionsResponses, AuditLogsListAuditUsersData, AuditLogsListAuditUsersResponses, BatchProvisionGetBatchStatusData, BatchProvisionGetBatchStatusErrors, BatchProvisionGetBatchStatusResponses, BatchProvisionListGroupJobsData, BatchProvisionListGroupJobsErrors, BatchProvisionListGroupJobsResponses, BatchProvisionStartBatchProvisionData, BatchProvisionStartBatchProvisionErrors, BatchProvisionStartBatchProvisionResponses, CloudflareCreateDnsRecordData, CloudflareCreateDnsRecordErrors, CloudflareCreateDnsRecordResponses, CloudflareCreateZoneData, CloudflareCreateZoneErrors, CloudflareCreateZoneResponses, CloudflareDeleteDnsRecordData, CloudflareDeleteDnsRecordErrors, CloudflareDeleteDnsRecordResponses, CloudflareGetConfigData, CloudflareGetConfigResponses, CloudflareGetZoneData, CloudflareGetZoneErrors, CloudflareGetZoneResponses, CloudflareListDnsRecordsData, CloudflareListDnsRecordsErrors, CloudflareListDnsRecordsResponses, CloudflareListZonesData, CloudflareListZonesErrors, CloudflareListZonesResponses, CloudflareTestConfigData, CloudflareTestConfigResponses, CloudflareUpdateConfigData, CloudflareUpdateConfigErrors, CloudflareUpdateConfigResponses, CloudflareUpdateDnsRecordData, CloudflareUpdateDnsRecordErrors, CloudflareUpdateDnsRecordResponses, DesktopClientApproveDeviceCodeData, DesktopClientApproveDeviceCodeErrors, DesktopClientApproveDeviceCodeResponses, DesktopClientCreateDeviceCodeData, DesktopClientCreateDeviceCodeResponses, DesktopClientDownloadDesktopClientData, DesktopClientDownloadDesktopClientResponses, DesktopClientPollDeviceCodeData, DesktopClientPollDeviceCodeErrors, DesktopClientPollDeviceCodeResponses, FirewallCreateConnectionData, FirewallCreateConnectionErrors, FirewallCreateConnectionResponses, FirewallCreateRuleData, FirewallCreateRuleErrors, FirewallCreateRuleResponses, FirewallDeleteConnectionData, FirewallDeleteConnectionErrors, FirewallDeleteConnectionResponses, FirewallDeleteNatRuleData, FirewallDeleteNatRuleErrors, FirewallDeleteNatRuleResponses, FirewallDeleteReverseProxyRuleData, FirewallDeleteReverseProxyRuleErrors, FirewallDeleteReverseProxyRuleResponses, FirewallDeleteRuleData, FirewallDeleteRuleErrors, FirewallDeleteRuleResponses, FirewallGetLayoutData, FirewallGetLayoutResponses, FirewallGetOptionsData, FirewallGetOptionsErrors, FirewallGetOptionsResponses, FirewallGetTopologyData, FirewallGetTopologyResponses, FirewallListNatRulesData, FirewallListNatRulesResponses, FirewallListReverseProxyRulesData, FirewallListReverseProxyRulesResponses, FirewallListRulesData, FirewallListRulesErrors, FirewallListRulesResponses, FirewallSaveLayoutData, FirewallSaveLayoutErrors, FirewallSaveLayoutResponses, FirewallSyncNatRulesData, FirewallSyncNatRulesResponses, FirewallSyncReverseProxyRulesData, FirewallSyncReverseProxyRulesResponses, FirewallUpdateRuleData, FirewallUpdateRuleErrors, FirewallUpdateRuleResponses, GatewayControlServiceData, GatewayControlServiceErrors, GatewayControlServiceResponses, GatewayDownloadInstallScriptData, GatewayDownloadInstallScriptResponses, GatewayGenerateKeypairData, GatewayGenerateKeypairResponses, GatewayGetConfigData, GatewayGetConfigResponses, GatewayGetServiceVersionsData, GatewayGetServiceVersionsResponses, GatewayReadConfigData, GatewayReadConfigErrors, GatewayReadConfigResponses, GatewayServiceLogsData, GatewayServiceLogsErrors, GatewayServiceLogsResponses, GatewayServiceStatusData, GatewayServiceStatusErrors, GatewayServiceStatusResponses, GatewaySyncTraefikDnsChallengeData, GatewaySyncTraefikDnsChallengeResponses, GatewayTestConnectionData, GatewayTestConnectionResponses, GatewayUpdateConfigData, GatewayUpdateConfigErrors, GatewayUpdateConfigResponses, GatewayWriteConfigData, GatewayWriteConfigErrors, GatewayWriteConfigResponses, GroupsAddMembersData, GroupsAddMembersErrors, GroupsAddMembersResponses, GroupsCreateGroupData, GroupsCreateGroupErrors, GroupsCreateGroupResponses, GroupsDeleteGroupData, GroupsDeleteGroupErrors, GroupsDeleteGroupResponses, GroupsGetGroupData, GroupsGetGroupErrors, GroupsGetGroupResponses, GroupsImportMembersFromCsvData, GroupsImportMembersFromCsvErrors, GroupsImportMembersFromCsvResponses, GroupsListGroupsData, GroupsListGroupsResponses, GroupsRemoveMemberData, GroupsRemoveMemberErrors, GroupsRemoveMemberResponses, LoginLoginAccessTokenData, LoginLoginAccessTokenErrors, LoginLoginAccessTokenResponses, LoginLoginGoogleData, LoginLoginGoogleErrors, LoginLoginGoogleResponses, LoginRecoverPasswordData, LoginRecoverPasswordErrors, LoginRecoverPasswordHtmlContentData, LoginRecoverPasswordHtmlContentErrors, LoginRecoverPasswordHtmlContentResponses, LoginRecoverPasswordResponses, LoginRefreshTokenData, LoginRefreshTokenErrors, LoginRefreshTokenResponses, LoginResetPasswordData, LoginResetPasswordErrors, LoginResetPasswordResponses, LoginTestTokenData, LoginTestTokenResponses, LxcCreateLxcData, LxcCreateLxcErrors, LxcCreateLxcResponses, LxcGetLxcTerminalData, LxcGetLxcTerminalErrors, LxcGetLxcTerminalResponses, LxcGetTemplatesData, LxcGetTemplatesResponses, MigrationJobsCancelMigrationJobData, MigrationJobsCancelMigrationJobErrors, MigrationJobsCancelMigrationJobResponses, MigrationJobsGetMigrationJobData, MigrationJobsGetMigrationJobErrors, MigrationJobsGetMigrationJobResponses, MigrationJobsGetMigrationStatsData, MigrationJobsGetMigrationStatsResponses, MigrationJobsListMigrationJobsData, MigrationJobsListMigrationJobsErrors, MigrationJobsListMigrationJobsResponses, MigrationJobsRetryMigrationJobData, MigrationJobsRetryMigrationJobErrors, MigrationJobsRetryMigrationJobResponses, PrivateCreateUserData, PrivateCreateUserErrors, PrivateCreateUserResponses, ProxmoxConfigCheckNodesData, ProxmoxConfigCheckNodesResponses, ProxmoxConfigGetClusterStatsData, ProxmoxConfigGetClusterStatsResponses, ProxmoxConfigGetNodesData, ProxmoxConfigGetNodesResponses, ProxmoxConfigGetProxmoxConfigData, ProxmoxConfigGetProxmoxConfigResponses, ProxmoxConfigGetStoragesData, ProxmoxConfigGetStoragesResponses, ProxmoxConfigParseCertData, ProxmoxConfigParseCertErrors, ProxmoxConfigParseCertResponses, ProxmoxConfigPreviewClusterData, ProxmoxConfigPreviewClusterErrors, ProxmoxConfigPreviewClusterResponses, ProxmoxConfigSyncNodesData, ProxmoxConfigSyncNodesErrors, ProxmoxConfigSyncNodesResponses, ProxmoxConfigSyncNowData, ProxmoxConfigSyncNowResponses, ProxmoxConfigTestProxmoxConnectionData, ProxmoxConfigTestProxmoxConnectionResponses, ProxmoxConfigUpdateNodeData, ProxmoxConfigUpdateNodeErrors, ProxmoxConfigUpdateNodeResponses, ProxmoxConfigUpdateProxmoxConfigData, ProxmoxConfigUpdateProxmoxConfigErrors, ProxmoxConfigUpdateProxmoxConfigResponses, ProxmoxConfigUpdateStorageData, ProxmoxConfigUpdateStorageErrors, ProxmoxConfigUpdateStorageResponses, ResourceDetailsCreateSnapshotData, ResourceDetailsCreateSnapshotErrors, ResourceDetailsCreateSnapshotResponses, ResourceDetailsDeleteSnapshotData, ResourceDetailsDeleteSnapshotErrors, ResourceDetailsDeleteSnapshotResponses, ResourceDetailsDirectUpdateSpecData, ResourceDetailsDirectUpdateSpecErrors, ResourceDetailsDirectUpdateSpecResponses, ResourceDetailsGetCurrentStatsData, ResourceDetailsGetCurrentStatsErrors, ResourceDetailsGetCurrentStatsResponses, ResourceDetailsGetRrdStatsData, ResourceDetailsGetRrdStatsErrors, ResourceDetailsGetRrdStatsResponses, ResourceDetailsListSnapshotsData, ResourceDetailsListSnapshotsErrors, ResourceDetailsListSnapshotsResponses, ResourceDetailsRollbackSnapshotData, ResourceDetailsRollbackSnapshotErrors, ResourceDetailsRollbackSnapshotResponses, ResourcesDeleteResourceData, ResourcesDeleteResourceErrors, ResourcesDeleteResourceResponses, ResourcesGetResourceConfigData, ResourcesGetResourceConfigErrors, ResourcesGetResourceConfigResponses, ResourcesGetResourceData, ResourcesGetResourceErrors, ResourcesGetResourceResponses, ResourcesGetSshKeyData, ResourcesGetSshKeyErrors, ResourcesGetSshKeyResponses, ResourcesListMyResourcesData, ResourcesListMyResourcesResponses, ResourcesListNodesData, ResourcesListNodesResponses, ResourcesListResourcesData, ResourcesListResourcesErrors, ResourcesListResourcesResponses, ResourcesRebootResourceData, ResourcesRebootResourceErrors, ResourcesRebootResourceResponses, ResourcesResetResourceData, ResourcesResetResourceErrors, ResourcesResetResourceResponses, ResourcesShutdownResourceData, ResourcesShutdownResourceErrors, ResourcesShutdownResourceResponses, ResourcesStartResourceData, ResourcesStartResourceErrors, ResourcesStartResourceResponses, ResourcesStopResourceData, ResourcesStopResourceErrors, ResourcesStopResourceResponses, ReverseProxyCreateReverseProxyRuleData, ReverseProxyCreateReverseProxyRuleErrors, ReverseProxyCreateReverseProxyRuleResponses, ReverseProxyDeleteReverseProxyRuleData, ReverseProxyDeleteReverseProxyRuleErrors, ReverseProxyDeleteReverseProxyRuleResponses, ReverseProxyGetRuntimeSnapshotData, ReverseProxyGetRuntimeSnapshotResponses, ReverseProxyGetSetupContextData, ReverseProxyGetSetupContextResponses, ReverseProxyListReverseProxyRulesData, ReverseProxyListReverseProxyRulesResponses, ReverseProxySyncReverseProxyRulesData, ReverseProxySyncReverseProxyRulesResponses, ReverseProxyUpdateReverseProxyRuleData, ReverseProxyUpdateReverseProxyRuleErrors, ReverseProxyUpdateReverseProxyRuleResponses, RubricChatData, RubricChatErrors, RubricChatResponses, RubricDownloadExcelData, RubricDownloadExcelErrors, RubricDownloadExcelResponses, RubricHealthCheckData, RubricHealthCheckResponses, RubricUploadRubricData, RubricUploadRubricErrors, RubricUploadRubricResponses, ScriptDeployDeployServiceTemplateData, ScriptDeployDeployServiceTemplateErrors, ScriptDeployDeployServiceTemplateResponses, ScriptDeployGetDeployStatusData, ScriptDeployGetDeployStatusErrors, ScriptDeployGetDeployStatusResponses, ScriptDeployRegisterDeployedResourceData, ScriptDeployRegisterDeployedResourceErrors, ScriptDeployRegisterDeployedResourceResponses, SpecChangeRequestsCreateSpecChangeRequestData, SpecChangeRequestsCreateSpecChangeRequestErrors, SpecChangeRequestsCreateSpecChangeRequestResponses, SpecChangeRequestsGetAllSpecChangeRequestsData, SpecChangeRequestsGetAllSpecChangeRequestsErrors, SpecChangeRequestsGetAllSpecChangeRequestsResponses, SpecChangeRequestsGetMySpecChangeRequestsData, SpecChangeRequestsGetMySpecChangeRequestsErrors, SpecChangeRequestsGetMySpecChangeRequestsResponses, SpecChangeRequestsReviewSpecChangeRequestData, SpecChangeRequestsReviewSpecChangeRequestErrors, SpecChangeRequestsReviewSpecChangeRequestResponses, TunnelGetMyTunnelConfigData, TunnelGetMyTunnelConfigResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeleteUserData, UsersDeleteUserErrors, UsersDeleteUserMeData, UsersDeleteUserMeResponses, UsersDeleteUserResponses, UsersReadUserByIdData, UsersReadUserByIdErrors, UsersReadUserByIdResponses, UsersReadUserMeData, UsersReadUserMeResponses, UsersReadUsersData, UsersReadUsersErrors, UsersReadUsersResponses, UsersRegisterUserData, UsersRegisterUserErrors, UsersRegisterUserResponses, UsersUpdatePasswordMeData, UsersUpdatePasswordMeErrors, UsersUpdatePasswordMeResponses, UsersUpdateUserData, UsersUpdateUserErrors, UsersUpdateUserMeData, UsersUpdateUserMeErrors, UsersUpdateUserMeResponses, UsersUpdateUserResponses, UtilsHealthCheckData, UtilsHealthCheckResponses, UtilsTestEmailData, UtilsTestEmailErrors, UtilsTestEmailResponses, VmCreateVmData, VmCreateVmErrors, VmCreateVmResponses, VmGetVmConsoleData, VmGetVmConsoleErrors, VmGetVmConsoleResponses, VmGetVmTemplatesData, VmGetVmTemplatesResponses, VmRequestsCancelVmRequestData, VmRequestsCancelVmRequestErrors, VmRequestsCancelVmRequestResponses, VmRequestsCreateVmRequestData, VmRequestsCreateVmRequestErrors, VmRequestsCreateVmRequestResponses, VmRequestsGetExistingVmRequestAvailabilityData, VmRequestsGetExistingVmRequestAvailabilityErrors, VmRequestsGetExistingVmRequestAvailabilityResponses, VmRequestsGetVmRequestAvailabilityData, VmRequestsGetVmRequestAvailabilityErrors, VmRequestsGetVmRequestAvailabilityResponses, VmRequestsGetVmRequestData, VmRequestsGetVmRequestErrors, VmRequestsGetVmRequestResponses, VmRequestsGetVmRequestReviewContextData, VmRequestsGetVmRequestReviewContextErrors, VmRequestsGetVmRequestReviewContextResponses, VmRequestsListAllVmRequestsData, VmRequestsListAllVmRequestsErrors, VmRequestsListAllVmRequestsResponses, VmRequestsListMyVmRequestsData, VmRequestsListMyVmRequestsErrors, VmRequestsListMyVmRequestsResponses, VmRequestsReviewVmRequestData, VmRequestsReviewVmRequestErrors, VmRequestsReviewVmRequestResponses } from './types.gen';
+import type { AiApiCreateAiApiRequestData, AiApiCreateAiApiRequestErrors, AiApiCreateAiApiRequestResponses, AiApiDeleteMyAiApiCredentialData, AiApiDeleteMyAiApiCredentialErrors, AiApiDeleteMyAiApiCredentialResponses, AiApiGetAiApiRequestData, AiApiGetAiApiRequestErrors, AiApiGetAiApiRequestResponses, AiApiListAllAiApiCredentialsData, AiApiListAllAiApiCredentialsErrors, AiApiListAllAiApiCredentialsResponses, AiApiListAllAiApiRequestsData, AiApiListAllAiApiRequestsErrors, AiApiListAllAiApiRequestsResponses, AiApiListMyAiApiCredentialsData, AiApiListMyAiApiCredentialsErrors, AiApiListMyAiApiCredentialsResponses, AiApiListMyAiApiRequestsData, AiApiListMyAiApiRequestsErrors, AiApiListMyAiApiRequestsResponses, AiApiReviewAiApiRequestData, AiApiReviewAiApiRequestErrors, AiApiReviewAiApiRequestResponses, AiApiRotateMyAiApiCredentialData, AiApiRotateMyAiApiCredentialErrors, AiApiRotateMyAiApiCredentialResponses, AiApiUpdateMyAiApiCredentialData, AiApiUpdateMyAiApiCredentialErrors, AiApiUpdateMyAiApiCredentialResponses, AiMonitoringGetStatsData, AiMonitoringGetStatsErrors, AiMonitoringGetStatsResponses, AiMonitoringListApiCallsData, AiMonitoringListApiCallsErrors, AiMonitoringListApiCallsResponses, AiMonitoringListTemplateCallsData, AiMonitoringListTemplateCallsErrors, AiMonitoringListTemplateCallsResponses, AiMonitoringListUsersUsageData, AiMonitoringListUsersUsageErrors, AiMonitoringListUsersUsageResponses, AiProxyChatCompletionsData, AiProxyChatCompletionsErrors, AiProxyChatCompletionsResponses, AiProxyGetMyUsageStatsData, AiProxyGetMyUsageStatsErrors, AiProxyGetMyUsageStatsResponses, AiProxyGetRateLimitStatusData, AiProxyGetRateLimitStatusErrors, AiProxyGetRateLimitStatusResponses, AiProxyListModelsData, AiProxyListModelsErrors, AiProxyListModelsResponses, AiPveAdvisorRecommendPlacementData, AiPveAdvisorRecommendPlacementErrors, AiPveAdvisorRecommendPlacementResponses, AiPveLogChatData, AiPveLogChatErrors, AiPveLogChatResponses, AiPveLogGetNetworkInterfacesData, AiPveLogGetNetworkInterfacesErrors, AiPveLogGetNetworkInterfacesResponses, AiPveLogGetNodesData, AiPveLogGetNodesResponses, AiPveLogGetResourceConfigsData, AiPveLogGetResourceConfigsErrors, AiPveLogGetResourceConfigsResponses, AiPveLogGetResourcesData, AiPveLogGetResourcesErrors, AiPveLogGetResourcesResponses, AiPveLogGetResourceStatusesData, AiPveLogGetResourceStatusesErrors, AiPveLogGetResourceStatusesResponses, AiPveLogGetStoragesData, AiPveLogGetStoragesErrors, AiPveLogGetStoragesResponses, AiPveLogGetSystemSnapshotData, AiPveLogGetSystemSnapshotResponses, AiTemplateRecommendationChatData, AiTemplateRecommendationChatErrors, AiTemplateRecommendationChatResponses, AiTemplateRecommendationGetMyTemplateUsageData, AiTemplateRecommendationGetMyTemplateUsageErrors, AiTemplateRecommendationGetMyTemplateUsageResponses, AiTemplateRecommendationRecommendData, AiTemplateRecommendationRecommendErrors, AiTemplateRecommendationRecommendResponses, AuditLogsExportAuditLogsData, AuditLogsExportAuditLogsErrors, AuditLogsExportAuditLogsResponses, AuditLogsGetAllAuditLogsData, AuditLogsGetAllAuditLogsErrors, AuditLogsGetAllAuditLogsResponses, AuditLogsGetAuditLogStatsData, AuditLogsGetAuditLogStatsErrors, AuditLogsGetAuditLogStatsResponses, AuditLogsGetMyAuditLogsData, AuditLogsGetMyAuditLogsErrors, AuditLogsGetMyAuditLogsResponses, AuditLogsGetResourceAuditLogsData, AuditLogsGetResourceAuditLogsErrors, AuditLogsGetResourceAuditLogsResponses, AuditLogsListAuditActionsData, AuditLogsListAuditActionsResponses, AuditLogsListAuditUsersData, AuditLogsListAuditUsersResponses, BatchProvisionGetBatchStatusData, BatchProvisionGetBatchStatusErrors, BatchProvisionGetBatchStatusResponses, BatchProvisionListGroupJobsData, BatchProvisionListGroupJobsErrors, BatchProvisionListGroupJobsResponses, BatchProvisionStartBatchProvisionData, BatchProvisionStartBatchProvisionErrors, BatchProvisionStartBatchProvisionResponses, CloudflareCreateDnsRecordData, CloudflareCreateDnsRecordErrors, CloudflareCreateDnsRecordResponses, CloudflareCreateZoneData, CloudflareCreateZoneErrors, CloudflareCreateZoneResponses, CloudflareDeleteDnsRecordData, CloudflareDeleteDnsRecordErrors, CloudflareDeleteDnsRecordResponses, CloudflareGetConfigData, CloudflareGetConfigResponses, CloudflareGetZoneData, CloudflareGetZoneErrors, CloudflareGetZoneResponses, CloudflareListDnsRecordsData, CloudflareListDnsRecordsErrors, CloudflareListDnsRecordsResponses, CloudflareListZonesData, CloudflareListZonesErrors, CloudflareListZonesResponses, CloudflareTestConfigData, CloudflareTestConfigResponses, CloudflareUpdateConfigData, CloudflareUpdateConfigErrors, CloudflareUpdateConfigResponses, CloudflareUpdateDnsRecordData, CloudflareUpdateDnsRecordErrors, CloudflareUpdateDnsRecordResponses, DeletionRequestsCancelDeletionRequestData, DeletionRequestsCancelDeletionRequestErrors, DeletionRequestsCancelDeletionRequestResponses, DeletionRequestsListAllDeletionRequestsData, DeletionRequestsListAllDeletionRequestsErrors, DeletionRequestsListAllDeletionRequestsResponses, DeletionRequestsListMyDeletionRequestsData, DeletionRequestsListMyDeletionRequestsErrors, DeletionRequestsListMyDeletionRequestsResponses, DeletionRequestsRetryDeletionRequestData, DeletionRequestsRetryDeletionRequestErrors, DeletionRequestsRetryDeletionRequestResponses, DesktopClientApproveDeviceCodeData, DesktopClientApproveDeviceCodeErrors, DesktopClientApproveDeviceCodeResponses, DesktopClientCreateDeviceCodeData, DesktopClientCreateDeviceCodeResponses, DesktopClientDownloadDesktopClientData, DesktopClientDownloadDesktopClientResponses, DesktopClientPollDeviceCodeData, DesktopClientPollDeviceCodeErrors, DesktopClientPollDeviceCodeResponses, FirewallCreateConnectionData, FirewallCreateConnectionErrors, FirewallCreateConnectionResponses, FirewallCreateRuleData, FirewallCreateRuleErrors, FirewallCreateRuleResponses, FirewallDeleteConnectionData, FirewallDeleteConnectionErrors, FirewallDeleteConnectionResponses, FirewallDeleteNatRuleData, FirewallDeleteNatRuleErrors, FirewallDeleteNatRuleResponses, FirewallDeleteReverseProxyRuleData, FirewallDeleteReverseProxyRuleErrors, FirewallDeleteReverseProxyRuleResponses, FirewallDeleteRuleData, FirewallDeleteRuleErrors, FirewallDeleteRuleResponses, FirewallGetLayoutData, FirewallGetLayoutResponses, FirewallGetOptionsData, FirewallGetOptionsErrors, FirewallGetOptionsResponses, FirewallGetTopologyData, FirewallGetTopologyResponses, FirewallListNatRulesData, FirewallListNatRulesResponses, FirewallListReverseProxyRulesData, FirewallListReverseProxyRulesResponses, FirewallListRulesData, FirewallListRulesErrors, FirewallListRulesResponses, FirewallSaveLayoutData, FirewallSaveLayoutErrors, FirewallSaveLayoutResponses, FirewallSyncNatRulesData, FirewallSyncNatRulesResponses, FirewallSyncReverseProxyRulesData, FirewallSyncReverseProxyRulesResponses, FirewallUpdateRuleData, FirewallUpdateRuleErrors, FirewallUpdateRuleResponses, GatewayControlServiceData, GatewayControlServiceErrors, GatewayControlServiceResponses, GatewayDownloadInstallScriptData, GatewayDownloadInstallScriptResponses, GatewayGenerateKeypairData, GatewayGenerateKeypairResponses, GatewayGetConfigData, GatewayGetConfigResponses, GatewayGetServiceVersionsData, GatewayGetServiceVersionsResponses, GatewayReadConfigData, GatewayReadConfigErrors, GatewayReadConfigResponses, GatewayServiceLogsData, GatewayServiceLogsErrors, GatewayServiceLogsResponses, GatewayServiceStatusData, GatewayServiceStatusErrors, GatewayServiceStatusResponses, GatewaySyncTraefikDnsChallengeData, GatewaySyncTraefikDnsChallengeResponses, GatewayTestConnectionData, GatewayTestConnectionResponses, GatewayUpdateConfigData, GatewayUpdateConfigErrors, GatewayUpdateConfigResponses, GatewayWriteConfigData, GatewayWriteConfigErrors, GatewayWriteConfigResponses, GpuCreateGpuMappingData, GpuCreateGpuMappingErrors, GpuCreateGpuMappingResponses, GpuDeleteGpuMappingData, GpuDeleteGpuMappingErrors, GpuDeleteGpuMappingResponses, GpuGetGpuMappingData, GpuGetGpuMappingErrors, GpuGetGpuMappingResponses, GpuListGpuMappingsData, GpuListGpuMappingsResponses, GpuListGpuOptionsData, GpuListGpuOptionsErrors, GpuListGpuOptionsResponses, GroupsAddMembersData, GroupsAddMembersErrors, GroupsAddMembersResponses, GroupsCreateGroupData, GroupsCreateGroupErrors, GroupsCreateGroupResponses, GroupsDeleteGroupData, GroupsDeleteGroupErrors, GroupsDeleteGroupResponses, GroupsGetGroupData, GroupsGetGroupErrors, GroupsGetGroupResponses, GroupsImportMembersFromCsvData, GroupsImportMembersFromCsvErrors, GroupsImportMembersFromCsvResponses, GroupsListGroupsData, GroupsListGroupsResponses, GroupsRemoveMemberData, GroupsRemoveMemberErrors, GroupsRemoveMemberResponses, IpManagementDeleteSubnetConfigData, IpManagementDeleteSubnetConfigResponses, IpManagementGetSubnetConfigData, IpManagementGetSubnetConfigResponses, IpManagementGetSubnetStatusData, IpManagementGetSubnetStatusResponses, IpManagementListAllocationsData, IpManagementListAllocationsResponses, IpManagementUpsertSubnetConfigData, IpManagementUpsertSubnetConfigErrors, IpManagementUpsertSubnetConfigResponses, JobsGetJobData, JobsGetJobErrors, JobsGetJobResponses, JobsListRecentJobsData, JobsListRecentJobsErrors, JobsListRecentJobsResponses, JobsListUnifiedJobsData, JobsListUnifiedJobsErrors, JobsListUnifiedJobsResponses, LoginLoginAccessTokenData, LoginLoginAccessTokenErrors, LoginLoginAccessTokenResponses, LoginLoginGoogleData, LoginLoginGoogleErrors, LoginLoginGoogleResponses, LoginRecoverPasswordData, LoginRecoverPasswordErrors, LoginRecoverPasswordHtmlContentData, LoginRecoverPasswordHtmlContentErrors, LoginRecoverPasswordHtmlContentResponses, LoginRecoverPasswordResponses, LoginRefreshTokenData, LoginRefreshTokenErrors, LoginRefreshTokenResponses, LoginResetPasswordData, LoginResetPasswordErrors, LoginResetPasswordResponses, LoginTestTokenData, LoginTestTokenResponses, LxcCreateLxcData, LxcCreateLxcErrors, LxcCreateLxcResponses, LxcGetLxcTerminalData, LxcGetLxcTerminalErrors, LxcGetLxcTerminalResponses, LxcGetTemplatesData, LxcGetTemplatesResponses, MigrationJobsCancelMigrationJobData, MigrationJobsCancelMigrationJobErrors, MigrationJobsCancelMigrationJobResponses, MigrationJobsGetMigrationJobData, MigrationJobsGetMigrationJobErrors, MigrationJobsGetMigrationJobResponses, MigrationJobsGetMigrationStatsData, MigrationJobsGetMigrationStatsResponses, MigrationJobsListMigrationJobsData, MigrationJobsListMigrationJobsErrors, MigrationJobsListMigrationJobsResponses, MigrationJobsRetryMigrationJobData, MigrationJobsRetryMigrationJobErrors, MigrationJobsRetryMigrationJobResponses, PrivateCreateUserData, PrivateCreateUserErrors, PrivateCreateUserResponses, ProxmoxConfigCheckNodesData, ProxmoxConfigCheckNodesResponses, ProxmoxConfigGetClusterStatsData, ProxmoxConfigGetClusterStatsResponses, ProxmoxConfigGetNodesData, ProxmoxConfigGetNodesResponses, ProxmoxConfigGetProxmoxConfigData, ProxmoxConfigGetProxmoxConfigResponses, ProxmoxConfigGetStoragesData, ProxmoxConfigGetStoragesResponses, ProxmoxConfigParseCertData, ProxmoxConfigParseCertErrors, ProxmoxConfigParseCertResponses, ProxmoxConfigPreviewClusterData, ProxmoxConfigPreviewClusterErrors, ProxmoxConfigPreviewClusterResponses, ProxmoxConfigSyncNodesData, ProxmoxConfigSyncNodesErrors, ProxmoxConfigSyncNodesResponses, ProxmoxConfigSyncNowData, ProxmoxConfigSyncNowResponses, ProxmoxConfigTestProxmoxConnectionData, ProxmoxConfigTestProxmoxConnectionResponses, ProxmoxConfigUpdateNodeData, ProxmoxConfigUpdateNodeErrors, ProxmoxConfigUpdateNodeResponses, ProxmoxConfigUpdateProxmoxConfigData, ProxmoxConfigUpdateProxmoxConfigErrors, ProxmoxConfigUpdateProxmoxConfigResponses, ProxmoxConfigUpdateStorageData, ProxmoxConfigUpdateStorageErrors, ProxmoxConfigUpdateStorageResponses, ResourceDetailsCreateSnapshotData, ResourceDetailsCreateSnapshotErrors, ResourceDetailsCreateSnapshotResponses, ResourceDetailsDeleteSnapshotData, ResourceDetailsDeleteSnapshotErrors, ResourceDetailsDeleteSnapshotResponses, ResourceDetailsDirectUpdateSpecData, ResourceDetailsDirectUpdateSpecErrors, ResourceDetailsDirectUpdateSpecResponses, ResourceDetailsGetCurrentStatsData, ResourceDetailsGetCurrentStatsErrors, ResourceDetailsGetCurrentStatsResponses, ResourceDetailsGetRrdStatsData, ResourceDetailsGetRrdStatsErrors, ResourceDetailsGetRrdStatsResponses, ResourceDetailsListSnapshotsData, ResourceDetailsListSnapshotsErrors, ResourceDetailsListSnapshotsResponses, ResourceDetailsRollbackSnapshotData, ResourceDetailsRollbackSnapshotErrors, ResourceDetailsRollbackSnapshotResponses, ResourcesBatchActionData, ResourcesBatchActionErrors, ResourcesBatchActionResponses, ResourcesDeleteResourceData, ResourcesDeleteResourceErrors, ResourcesDeleteResourceResponses, ResourcesGetResourceConfigData, ResourcesGetResourceConfigErrors, ResourcesGetResourceConfigResponses, ResourcesGetResourceData, ResourcesGetResourceErrors, ResourcesGetResourceResponses, ResourcesGetSshKeyData, ResourcesGetSshKeyErrors, ResourcesGetSshKeyResponses, ResourcesListMyResourcesData, ResourcesListMyResourcesResponses, ResourcesListNodesData, ResourcesListNodesResponses, ResourcesListResourcesData, ResourcesListResourcesErrors, ResourcesListResourcesResponses, ResourcesRebootResourceData, ResourcesRebootResourceErrors, ResourcesRebootResourceResponses, ResourcesResetResourceData, ResourcesResetResourceErrors, ResourcesResetResourceResponses, ResourcesShutdownResourceData, ResourcesShutdownResourceErrors, ResourcesShutdownResourceResponses, ResourcesStartResourceData, ResourcesStartResourceErrors, ResourcesStartResourceResponses, ResourcesStopResourceData, ResourcesStopResourceErrors, ResourcesStopResourceResponses, ReverseProxyCreateReverseProxyRuleData, ReverseProxyCreateReverseProxyRuleErrors, ReverseProxyCreateReverseProxyRuleResponses, ReverseProxyDeleteReverseProxyRuleData, ReverseProxyDeleteReverseProxyRuleErrors, ReverseProxyDeleteReverseProxyRuleResponses, ReverseProxyGetRuntimeSnapshotData, ReverseProxyGetRuntimeSnapshotResponses, ReverseProxyGetSetupContextData, ReverseProxyGetSetupContextResponses, ReverseProxyListReverseProxyRulesData, ReverseProxyListReverseProxyRulesResponses, ReverseProxySyncReverseProxyRulesData, ReverseProxySyncReverseProxyRulesResponses, ReverseProxyUpdateReverseProxyRuleData, ReverseProxyUpdateReverseProxyRuleErrors, ReverseProxyUpdateReverseProxyRuleResponses, RubricChatData, RubricChatErrors, RubricChatResponses, RubricDownloadExcelData, RubricDownloadExcelErrors, RubricDownloadExcelResponses, RubricHealthCheckData, RubricHealthCheckResponses, RubricUploadRubricData, RubricUploadRubricErrors, RubricUploadRubricResponses, ScriptDeployCancelDeploymentData, ScriptDeployCancelDeploymentErrors, ScriptDeployCancelDeploymentResponses, ScriptDeployDeployServiceTemplateData, ScriptDeployDeployServiceTemplateErrors, ScriptDeployDeployServiceTemplateResponses, ScriptDeployGetDeployLogData, ScriptDeployGetDeployLogErrors, ScriptDeployGetDeployLogResponses, ScriptDeployGetDeployStatusData, ScriptDeployGetDeployStatusErrors, ScriptDeployGetDeployStatusResponses, ScriptDeployListDeployLogsData, ScriptDeployListDeployLogsErrors, ScriptDeployListDeployLogsResponses, ScriptDeployRegisterDeployedResourceData, ScriptDeployRegisterDeployedResourceErrors, ScriptDeployRegisterDeployedResourceResponses, SpecChangeRequestsCreateSpecChangeRequestData, SpecChangeRequestsCreateSpecChangeRequestErrors, SpecChangeRequestsCreateSpecChangeRequestResponses, SpecChangeRequestsGetAllSpecChangeRequestsData, SpecChangeRequestsGetAllSpecChangeRequestsErrors, SpecChangeRequestsGetAllSpecChangeRequestsResponses, SpecChangeRequestsGetMySpecChangeRequestsData, SpecChangeRequestsGetMySpecChangeRequestsErrors, SpecChangeRequestsGetMySpecChangeRequestsResponses, SpecChangeRequestsReviewSpecChangeRequestData, SpecChangeRequestsReviewSpecChangeRequestErrors, SpecChangeRequestsReviewSpecChangeRequestResponses, TunnelGetMyTunnelConfigData, TunnelGetMyTunnelConfigResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeleteUserData, UsersDeleteUserErrors, UsersDeleteUserMeData, UsersDeleteUserMeResponses, UsersDeleteUserResponses, UsersReadUserByIdData, UsersReadUserByIdErrors, UsersReadUserByIdResponses, UsersReadUserMeData, UsersReadUserMeResponses, UsersReadUsersData, UsersReadUsersErrors, UsersReadUsersResponses, UsersRegisterUserData, UsersRegisterUserErrors, UsersRegisterUserResponses, UsersUpdatePasswordMeData, UsersUpdatePasswordMeErrors, UsersUpdatePasswordMeResponses, UsersUpdateUserData, UsersUpdateUserErrors, UsersUpdateUserMeData, UsersUpdateUserMeErrors, UsersUpdateUserMeResponses, UsersUpdateUserResponses, UtilsHealthCheckData, UtilsHealthCheckResponses, UtilsTestEmailData, UtilsTestEmailErrors, UtilsTestEmailResponses, VmCreateVmData, VmCreateVmErrors, VmCreateVmResponses, VmGetVmConsoleData, VmGetVmConsoleErrors, VmGetVmConsoleResponses, VmGetVmTemplatesData, VmGetVmTemplatesResponses, VmRequestsCancelVmRequestData, VmRequestsCancelVmRequestErrors, VmRequestsCancelVmRequestResponses, VmRequestsCreateVmRequestData, VmRequestsCreateVmRequestErrors, VmRequestsCreateVmRequestResponses, VmRequestsGetExistingVmRequestAvailabilityData, VmRequestsGetExistingVmRequestAvailabilityErrors, VmRequestsGetExistingVmRequestAvailabilityResponses, VmRequestsGetVmRequestAvailabilityData, VmRequestsGetVmRequestAvailabilityErrors, VmRequestsGetVmRequestAvailabilityResponses, VmRequestsGetVmRequestData, VmRequestsGetVmRequestErrors, VmRequestsGetVmRequestResponses, VmRequestsGetVmRequestReviewContextData, VmRequestsGetVmRequestReviewContextErrors, VmRequestsGetVmRequestReviewContextResponses, VmRequestsListAllVmRequestsData, VmRequestsListAllVmRequestsErrors, VmRequestsListAllVmRequestsResponses, VmRequestsListMyVmRequestsData, VmRequestsListMyVmRequestsErrors, VmRequestsListMyVmRequestsResponses, VmRequestsRetryVmRequestData, VmRequestsRetryVmRequestErrors, VmRequestsRetryVmRequestResponses, VmRequestsReviewVmRequestData, VmRequestsReviewVmRequestErrors, VmRequestsReviewVmRequestResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -324,7 +324,32 @@ export class ResourcesService {
     }
     
     /**
+     * Batch Action
+     *
+     * Batch VM/LXC operations: start, stop, shutdown, reboot, reset, delete.
+     */
+    public static resourcesBatchAction<ThrowOnError extends boolean = false>(options: Options<ResourcesBatchActionData, ThrowOnError>) {
+        return (options.client ?? client).post<ResourcesBatchActionResponses, ResourcesBatchActionErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/resources/batch',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
      * Delete Resource
+     *
+     * 將刪除請求加入佇列，立即 202 回應，並在背景馬上開始執行。
+     *
+     * - 主路徑：API 寫入 DeletionRequest 後，立即 fire-and-forget 一個背景 task
+     * 呼叫 ``deletion_service.process_one_request``，無需等 scheduler tick。
+     * - 兜底：scheduler 每隔 ``SCHEDULER_POLL_SECONDS`` 仍會掃描 pending request，
+     * 涵蓋 server restart / 背景任務失敗的情況。
      */
     public static resourcesDeleteResource<ThrowOnError extends boolean = false>(options: Options<ResourcesDeleteResourceData, ThrowOnError>) {
         return (options.client ?? client).delete<ResourcesDeleteResourceResponses, ResourcesDeleteResourceErrors, ThrowOnError>({
@@ -698,6 +723,20 @@ export class VmRequestsService {
     }
     
     /**
+     * Retry Vm Request
+     *
+     * Re-fire provisioning for an approved VM request whose previous attempt failed.
+     */
+    public static vmRequestsRetryVmRequest<ThrowOnError extends boolean = false>(options: Options<VmRequestsRetryVmRequestData, ThrowOnError>) {
+        return (options.client ?? client).post<VmRequestsRetryVmRequestResponses, VmRequestsRetryVmRequestErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/vm-requests/{request_id}/retry',
+            ...options
+        });
+    }
+    
+    /**
      * Get Vm Request Review Context
      */
     public static vmRequestsGetVmRequestReviewContext<ThrowOnError extends boolean = false>(options: Options<VmRequestsGetVmRequestReviewContextData, ThrowOnError>) {
@@ -734,6 +773,58 @@ export class VmRequestsService {
                 'Content-Type': 'application/json',
                 ...options.headers
             }
+        });
+    }
+}
+
+export class DeletionRequestsService {
+    /**
+     * List My Deletion Requests
+     */
+    public static deletionRequestsListMyDeletionRequests<ThrowOnError extends boolean = false>(options?: Options<DeletionRequestsListMyDeletionRequestsData, ThrowOnError>) {
+        return (options?.client ?? client).get<DeletionRequestsListMyDeletionRequestsResponses, DeletionRequestsListMyDeletionRequestsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/deletion-requests/my',
+            ...options
+        });
+    }
+    
+    /**
+     * List All Deletion Requests
+     */
+    public static deletionRequestsListAllDeletionRequests<ThrowOnError extends boolean = false>(options?: Options<DeletionRequestsListAllDeletionRequestsData, ThrowOnError>) {
+        return (options?.client ?? client).get<DeletionRequestsListAllDeletionRequestsResponses, DeletionRequestsListAllDeletionRequestsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/deletion-requests/',
+            ...options
+        });
+    }
+    
+    /**
+     * Cancel Deletion Request
+     */
+    public static deletionRequestsCancelDeletionRequest<ThrowOnError extends boolean = false>(options: Options<DeletionRequestsCancelDeletionRequestData, ThrowOnError>) {
+        return (options.client ?? client).post<DeletionRequestsCancelDeletionRequestResponses, DeletionRequestsCancelDeletionRequestErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/deletion-requests/{request_id}/cancel',
+            ...options
+        });
+    }
+    
+    /**
+     * Retry Deletion Request
+     *
+     * Re-queue a failed deletion request and immediately fire the background task.
+     */
+    public static deletionRequestsRetryDeletionRequest<ThrowOnError extends boolean = false>(options: Options<DeletionRequestsRetryDeletionRequestData, ThrowOnError>) {
+        return (options.client ?? client).post<DeletionRequestsRetryDeletionRequestResponses, DeletionRequestsRetryDeletionRequestErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/deletion-requests/{request_id}/retry',
+            ...options
         });
     }
 }
@@ -934,11 +1025,69 @@ export class AiApiService {
     }
 }
 
+export class AiMonitoringService {
+    /**
+     * 全局 AI 統計卡片
+     *
+     * 全局 AI 使用統計（Admin only）
+     */
+    public static aiMonitoringGetStats<ThrowOnError extends boolean = false>(options?: Options<AiMonitoringGetStatsData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiMonitoringGetStatsResponses, AiMonitoringGetStatsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai-api/monitoring/stats',
+            ...options
+        });
+    }
+    
+    /**
+     * Proxy 呼叫清單
+     *
+     * 列出所有 Proxy 呼叫紀錄，支援篩選（Admin only）
+     */
+    public static aiMonitoringListApiCalls<ThrowOnError extends boolean = false>(options?: Options<AiMonitoringListApiCallsData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiMonitoringListApiCallsResponses, AiMonitoringListApiCallsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai-api/monitoring/api-calls',
+            ...options
+        });
+    }
+    
+    /**
+     * Template 呼叫清單
+     *
+     * 列出所有 Template 呼叫紀錄，支援篩選（Admin only）
+     */
+    public static aiMonitoringListTemplateCalls<ThrowOnError extends boolean = false>(options?: Options<AiMonitoringListTemplateCallsData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiMonitoringListTemplateCallsResponses, AiMonitoringListTemplateCallsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai-api/monitoring/template-calls',
+            ...options
+        });
+    }
+    
+    /**
+     * 使用者用量彙總
+     *
+     * 每個使用者的 AI 用量彙總（Admin only）
+     */
+    public static aiMonitoringListUsersUsage<ThrowOnError extends boolean = false>(options?: Options<AiMonitoringListUsersUsageData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiMonitoringListUsersUsageResponses, AiMonitoringListUsersUsageErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai-api/monitoring/users',
+            ...options
+        });
+    }
+}
+
 export class AiProxyService {
     /**
-     * 聊天补全
+     * 聊天補全
      *
-     * OpenAI 兼容的聊天补全接口，支持流式和非流式响应
+     * OpenAI 相容的聊天補全介面，支援串流和非串流回應
      */
     public static aiProxyChatCompletions<ThrowOnError extends boolean = false>(options: Options<AiProxyChatCompletionsData, ThrowOnError>) {
         return (options.client ?? client).post<AiProxyChatCompletionsResponses, AiProxyChatCompletionsErrors, ThrowOnError>({
@@ -992,14 +1141,99 @@ export class AiProxyService {
     }
 }
 
-export class AiPveAdvisorService {
+export class AiPveLogService {
     /**
-     * Recommend Placement
+     * Get System Snapshot
      */
-    public static aiPveAdvisorRecommendPlacement<ThrowOnError extends boolean = false>(options: Options<AiPveAdvisorRecommendPlacementData, ThrowOnError>) {
-        return (options.client ?? client).post<AiPveAdvisorRecommendPlacementResponses, AiPveAdvisorRecommendPlacementErrors, ThrowOnError>({
+    public static aiPveLogGetSystemSnapshot<ThrowOnError extends boolean = false>(options?: Options<AiPveLogGetSystemSnapshotData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiPveLogGetSystemSnapshotResponses, unknown, ThrowOnError>({
             responseType: 'json',
-            url: '/api/v1/ai/pve-advisor/recommend',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai/pve-log/system-snapshot',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Nodes
+     */
+    public static aiPveLogGetNodes<ThrowOnError extends boolean = false>(options?: Options<AiPveLogGetNodesData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiPveLogGetNodesResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai/pve-log/nodes',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Storages
+     */
+    public static aiPveLogGetStorages<ThrowOnError extends boolean = false>(options?: Options<AiPveLogGetStoragesData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiPveLogGetStoragesResponses, AiPveLogGetStoragesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai/pve-log/storages',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Resources
+     */
+    public static aiPveLogGetResources<ThrowOnError extends boolean = false>(options?: Options<AiPveLogGetResourcesData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiPveLogGetResourcesResponses, AiPveLogGetResourcesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai/pve-log/resources',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Resource Statuses
+     */
+    public static aiPveLogGetResourceStatuses<ThrowOnError extends boolean = false>(options?: Options<AiPveLogGetResourceStatusesData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiPveLogGetResourceStatusesResponses, AiPveLogGetResourceStatusesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai/pve-log/resource-statuses',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Resource Configs
+     */
+    public static aiPveLogGetResourceConfigs<ThrowOnError extends boolean = false>(options?: Options<AiPveLogGetResourceConfigsData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiPveLogGetResourceConfigsResponses, AiPveLogGetResourceConfigsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai/pve-log/resource-configs',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Network Interfaces
+     */
+    public static aiPveLogGetNetworkInterfaces<ThrowOnError extends boolean = false>(options?: Options<AiPveLogGetNetworkInterfacesData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiPveLogGetNetworkInterfacesResponses, AiPveLogGetNetworkInterfacesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai/pve-log/network-interfaces',
+            ...options
+        });
+    }
+    
+    /**
+     * Chat
+     */
+    public static aiPveLogChat<ThrowOnError extends boolean = false>(options: Options<AiPveLogChatData, ThrowOnError>) {
+        return (options.client ?? client).post<AiPveLogChatResponses, AiPveLogChatErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai/pve-log/chat',
             ...options,
             headers: {
                 'Content-Type': 'application/json',
@@ -1034,6 +1268,37 @@ export class AiTemplateRecommendationService {
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/api/v1/ai/template-recommendation/recommend',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * 查看我的 Template 使用統計
+     *
+     * 查看當前使用者的 Template 呼叫統計（最近 30 天）
+     */
+    public static aiTemplateRecommendationGetMyTemplateUsage<ThrowOnError extends boolean = false>(options?: Options<AiTemplateRecommendationGetMyTemplateUsageData, ThrowOnError>) {
+        return (options?.client ?? client).get<AiTemplateRecommendationGetMyTemplateUsageResponses, AiTemplateRecommendationGetMyTemplateUsageErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ai/template-recommendation/usage/my',
+            ...options
+        });
+    }
+}
+
+export class AiPveAdvisorService {
+    /**
+     * Recommend Placement
+     */
+    public static aiPveAdvisorRecommendPlacement<ThrowOnError extends boolean = false>(options: Options<AiPveAdvisorRecommendPlacementData, ThrowOnError>) {
+        return (options.client ?? client).post<AiPveAdvisorRecommendPlacementResponses, AiPveAdvisorRecommendPlacementErrors, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/ai/pve-advisor/recommend',
             ...options,
             headers: {
                 'Content-Type': 'application/json',
@@ -2214,6 +2479,160 @@ export class GatewayService {
     }
 }
 
+export class GpuService {
+    /**
+     * List Gpu Mappings
+     *
+     * List all GPU (PCI) resource mappings with usage info (admin only).
+     */
+    public static gpuListGpuMappings<ThrowOnError extends boolean = false>(options?: Options<GpuListGpuMappingsData, ThrowOnError>) {
+        return (options?.client ?? client).get<GpuListGpuMappingsResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/gpu/mappings',
+            ...options
+        });
+    }
+    
+    /**
+     * Create Gpu Mapping
+     *
+     * Create a new PCI resource mapping (admin only).
+     */
+    public static gpuCreateGpuMapping<ThrowOnError extends boolean = false>(options: Options<GpuCreateGpuMappingData, ThrowOnError>) {
+        return (options.client ?? client).post<GpuCreateGpuMappingResponses, GpuCreateGpuMappingErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/gpu/mappings',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Delete Gpu Mapping
+     *
+     * Delete a PCI resource mapping (admin only).
+     */
+    public static gpuDeleteGpuMapping<ThrowOnError extends boolean = false>(options: Options<GpuDeleteGpuMappingData, ThrowOnError>) {
+        return (options.client ?? client).delete<GpuDeleteGpuMappingResponses, GpuDeleteGpuMappingErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/gpu/mappings/{mapping_id}',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Gpu Mapping
+     *
+     * Get details of a specific GPU mapping (admin only).
+     */
+    public static gpuGetGpuMapping<ThrowOnError extends boolean = false>(options: Options<GpuGetGpuMappingData, ThrowOnError>) {
+        return (options.client ?? client).get<GpuGetGpuMappingResponses, GpuGetGpuMappingErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/gpu/mappings/{mapping_id}',
+            ...options
+        });
+    }
+    
+    /**
+     * List Gpu Options
+     *
+     * List available GPU options for VM request forms.
+     *
+     * Returns a simplified list showing model, VRAM, and availability.
+     */
+    public static gpuListGpuOptions<ThrowOnError extends boolean = false>(options?: Options<GpuListGpuOptionsData, ThrowOnError>) {
+        return (options?.client ?? client).get<GpuListGpuOptionsResponses, GpuListGpuOptionsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/gpu/options',
+            ...options
+        });
+    }
+}
+
+export class IpManagementService {
+    /**
+     * Delete Subnet Config
+     *
+     * 刪除子網配置（需先移除所有 VM/LXC IP 分配）
+     */
+    public static ipManagementDeleteSubnetConfig<ThrowOnError extends boolean = false>(options?: Options<IpManagementDeleteSubnetConfigData, ThrowOnError>) {
+        return (options?.client ?? client).delete<IpManagementDeleteSubnetConfigResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ip-management/subnet',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Subnet Config
+     *
+     * 取得子網配置
+     */
+    public static ipManagementGetSubnetConfig<ThrowOnError extends boolean = false>(options?: Options<IpManagementGetSubnetConfigData, ThrowOnError>) {
+        return (options?.client ?? client).get<IpManagementGetSubnetConfigResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ip-management/subnet',
+            ...options
+        });
+    }
+    
+    /**
+     * Upsert Subnet Config
+     *
+     * 設定或更新子網配置
+     */
+    public static ipManagementUpsertSubnetConfig<ThrowOnError extends boolean = false>(options: Options<IpManagementUpsertSubnetConfigData, ThrowOnError>) {
+        return (options.client ?? client).put<IpManagementUpsertSubnetConfigResponses, IpManagementUpsertSubnetConfigErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ip-management/subnet',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * List Allocations
+     *
+     * 列出所有 IP 分配記錄
+     */
+    public static ipManagementListAllocations<ThrowOnError extends boolean = false>(options?: Options<IpManagementListAllocationsData, ThrowOnError>) {
+        return (options?.client ?? client).get<IpManagementListAllocationsResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ip-management/allocations',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Subnet Status
+     *
+     * 取得子網配置狀態（所有登入使用者可查詢）
+     */
+    public static ipManagementGetSubnetStatus<ThrowOnError extends boolean = false>(options?: Options<IpManagementGetSubnetStatusData, ThrowOnError>) {
+        return (options?.client ?? client).get<IpManagementGetSubnetStatusResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/ip-management/status',
+            ...options
+        });
+    }
+}
+
 export class ScriptDeployService {
     /**
      * Deploy Service Template
@@ -2251,6 +2670,23 @@ export class ScriptDeployService {
     }
     
     /**
+     * Cancel Deployment
+     *
+     * 取消正在執行的部署任務。
+     *
+     * 觸發背景部署執行緒在最近的檢查點中斷 → 走 rollback 流程，
+     * 自動銷毀已建立的容器並釋放預分配的 IP。
+     */
+    public static scriptDeployCancelDeployment<ThrowOnError extends boolean = false>(options: Options<ScriptDeployCancelDeploymentData, ThrowOnError>) {
+        return (options.client ?? client).post<ScriptDeployCancelDeploymentResponses, ScriptDeployCancelDeploymentErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/script-deploy/cancel/{task_id}',
+            ...options
+        });
+    }
+    
+    /**
      * Register Deployed Resource
      *
      * 部署成功後，將容器註冊到資料庫。
@@ -2263,6 +2699,74 @@ export class ScriptDeployService {
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/api/v1/script-deploy/register/{task_id}',
+            ...options
+        });
+    }
+    
+    /**
+     * List Deploy Logs
+     *
+     * 列出歷史部署日誌（Admin 可見全部）。
+     */
+    public static scriptDeployListDeployLogs<ThrowOnError extends boolean = false>(options?: Options<ScriptDeployListDeployLogsData, ThrowOnError>) {
+        return (options?.client ?? client).get<ScriptDeployListDeployLogsResponses, ScriptDeployListDeployLogsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/script-deploy/logs',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Deploy Log
+     *
+     * 查詢單筆部署日誌詳細內容（含完整 output 與 error）。
+     */
+    public static scriptDeployGetDeployLog<ThrowOnError extends boolean = false>(options: Options<ScriptDeployGetDeployLogData, ThrowOnError>) {
+        return (options.client ?? client).get<ScriptDeployGetDeployLogResponses, ScriptDeployGetDeployLogErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/script-deploy/logs/{task_id}',
+            ...options
+        });
+    }
+}
+
+export class JobsService {
+    /**
+     * List Unified Jobs
+     */
+    public static jobsListUnifiedJobs<ThrowOnError extends boolean = false>(options?: Options<JobsListUnifiedJobsData, ThrowOnError>) {
+        return (options?.client ?? client).get<JobsListUnifiedJobsResponses, JobsListUnifiedJobsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/jobs/',
+            ...options
+        });
+    }
+    
+    /**
+     * List Recent Jobs
+     */
+    public static jobsListRecentJobs<ThrowOnError extends boolean = false>(options?: Options<JobsListRecentJobsData, ThrowOnError>) {
+        return (options?.client ?? client).get<JobsListRecentJobsResponses, JobsListRecentJobsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/jobs/recent',
+            ...options
+        });
+    }
+    
+    /**
+     * Get Job
+     *
+     * job_id 為複合 ID：<kind>:<source_id>，例如 `migration:<uuid>`、`script_deploy:<task_id>`。
+     */
+    public static jobsGetJob<ThrowOnError extends boolean = false>(options: Options<JobsGetJobData, ThrowOnError>) {
+        return (options.client ?? client).get<JobsGetJobResponses, JobsGetJobErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/jobs/{job_id}',
             ...options
         });
     }
@@ -2416,9 +2920,10 @@ export class DesktopClientService {
     /**
      * Download Desktop Client
      *
-     * Download a zip with the desktop client exe + config.json.
+     * Return the desktop client zip (Electron portable build).
      *
-     * Config only contains the backend URL — no secrets.
+     * If DESKTOP_CLIENT_DOWNLOAD_URL is set, redirects to that URL (e.g. a
+     * GitHub Releases asset). Otherwise serves a local file from static/downloads/.
      */
     public static desktopClientDownloadDesktopClient<ThrowOnError extends boolean = false>(options?: Options<DesktopClientDownloadDesktopClientData, ThrowOnError>) {
         return (options?.client ?? client).get<DesktopClientDownloadDesktopClientResponses, unknown, ThrowOnError>({

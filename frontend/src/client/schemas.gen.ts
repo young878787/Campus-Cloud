@@ -482,6 +482,407 @@ export const AIAPIRequestsPublicSchema = {
     title: 'AIAPIRequestsPublic'
 } as const;
 
+export const AIMonitoringStatsSchema = {
+    properties: {
+        proxy_total_calls: {
+            type: 'integer',
+            title: 'Proxy Total Calls'
+        },
+        proxy_total_input_tokens: {
+            type: 'integer',
+            title: 'Proxy Total Input Tokens'
+        },
+        proxy_total_output_tokens: {
+            type: 'integer',
+            title: 'Proxy Total Output Tokens'
+        },
+        template_total_calls: {
+            type: 'integer',
+            title: 'Template Total Calls'
+        },
+        template_total_input_tokens: {
+            type: 'integer',
+            title: 'Template Total Input Tokens'
+        },
+        template_total_output_tokens: {
+            type: 'integer',
+            title: 'Template Total Output Tokens'
+        },
+        active_users: {
+            type: 'integer',
+            title: 'Active Users'
+        },
+        models_used: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Models Used'
+        }
+    },
+    type: 'object',
+    required: [
+        'proxy_total_calls',
+        'proxy_total_input_tokens',
+        'proxy_total_output_tokens',
+        'template_total_calls',
+        'template_total_input_tokens',
+        'template_total_output_tokens',
+        'active_users',
+        'models_used'
+    ],
+    title: 'AIMonitoringStats',
+    description: 'Admin 全局 AI 統計'
+} as const;
+
+export const AIProxyCallRecordSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        user_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'User Id'
+        },
+        user_email: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Email'
+        },
+        user_full_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Full Name'
+        },
+        credential_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Credential Id'
+        },
+        model_name: {
+            type: 'string',
+            title: 'Model Name'
+        },
+        request_type: {
+            type: 'string',
+            title: 'Request Type'
+        },
+        input_tokens: {
+            type: 'integer',
+            title: 'Input Tokens'
+        },
+        output_tokens: {
+            type: 'integer',
+            title: 'Output Tokens'
+        },
+        request_duration_ms: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Request Duration Ms'
+        },
+        status: {
+            type: 'string',
+            title: 'Status'
+        },
+        error_message: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Error Message'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'user_id',
+        'credential_id',
+        'model_name',
+        'request_type',
+        'input_tokens',
+        'output_tokens',
+        'status',
+        'created_at'
+    ],
+    title: 'AIProxyCallRecord',
+    description: '單筆 Proxy 呼叫紀錄'
+} as const;
+
+export const AIProxyCallsResponseSchema = {
+    properties: {
+        data: {
+            items: {
+                $ref: '#/components/schemas/AIProxyCallRecord'
+            },
+            type: 'array',
+            title: 'Data'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: [
+        'data',
+        'count'
+    ],
+    title: 'AIProxyCallsResponse',
+    description: 'Proxy 呼叫清單回應'
+} as const;
+
+export const AITemplateCallRecordSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        user_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'User Id'
+        },
+        user_email: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Email'
+        },
+        user_full_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Full Name'
+        },
+        call_type: {
+            type: 'string',
+            title: 'Call Type'
+        },
+        model_name: {
+            type: 'string',
+            title: 'Model Name'
+        },
+        preset: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Preset'
+        },
+        input_tokens: {
+            type: 'integer',
+            title: 'Input Tokens'
+        },
+        output_tokens: {
+            type: 'integer',
+            title: 'Output Tokens'
+        },
+        request_duration_ms: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Request Duration Ms'
+        },
+        status: {
+            type: 'string',
+            title: 'Status'
+        },
+        error_message: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Error Message'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'user_id',
+        'call_type',
+        'model_name',
+        'input_tokens',
+        'output_tokens',
+        'status',
+        'created_at'
+    ],
+    title: 'AITemplateCallRecord',
+    description: '單筆 Template 呼叫紀錄'
+} as const;
+
+export const AITemplateCallsResponseSchema = {
+    properties: {
+        data: {
+            items: {
+                $ref: '#/components/schemas/AITemplateCallRecord'
+            },
+            type: 'array',
+            title: 'Data'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: [
+        'data',
+        'count'
+    ],
+    title: 'AITemplateCallsResponse',
+    description: 'Template 呼叫清單回應'
+} as const;
+
+export const AIUserUsageSummarySchema = {
+    properties: {
+        user_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'User Id'
+        },
+        user_email: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Email'
+        },
+        user_full_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Full Name'
+        },
+        proxy_calls: {
+            type: 'integer',
+            title: 'Proxy Calls'
+        },
+        proxy_input_tokens: {
+            type: 'integer',
+            title: 'Proxy Input Tokens'
+        },
+        proxy_output_tokens: {
+            type: 'integer',
+            title: 'Proxy Output Tokens'
+        },
+        template_calls: {
+            type: 'integer',
+            title: 'Template Calls'
+        },
+        template_input_tokens: {
+            type: 'integer',
+            title: 'Template Input Tokens'
+        },
+        template_output_tokens: {
+            type: 'integer',
+            title: 'Template Output Tokens'
+        }
+    },
+    type: 'object',
+    required: [
+        'user_id',
+        'proxy_calls',
+        'proxy_input_tokens',
+        'proxy_output_tokens',
+        'template_calls',
+        'template_input_tokens',
+        'template_output_tokens'
+    ],
+    title: 'AIUserUsageSummary',
+    description: '單一使用者的 AI 用量彙總'
+} as const;
+
+export const AIUsersUsageResponseSchema = {
+    properties: {
+        data: {
+            items: {
+                $ref: '#/components/schemas/AIUserUsageSummary'
+            },
+            type: 'array',
+            title: 'Data'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: [
+        'data',
+        'count'
+    ],
+    title: 'AIUsersUsageResponse',
+    description: '使用者用量彙總回應'
+} as const;
+
 export const AiMetricsSchema = {
     properties: {
         prompt_tokens: {
@@ -798,6 +1199,91 @@ export const AuditUserOptionSchema = {
     ],
     title: 'AuditUserOption',
     description: '操作者下拉選單選項'
+} as const;
+
+export const BatchActionRequestSchema = {
+    properties: {
+        vmids: {
+            items: {
+                type: 'integer'
+            },
+            type: 'array',
+            maxItems: 100,
+            minItems: 1,
+            title: 'Vmids',
+            description: 'VM IDs to operate on'
+        },
+        action: {
+            type: 'string',
+            title: 'Action',
+            description: 'Action: start, stop, shutdown, reboot, reset, delete'
+        }
+    },
+    type: 'object',
+    required: [
+        'vmids',
+        'action'
+    ],
+    title: 'BatchActionRequest',
+    description: '批次操作請求'
+} as const;
+
+export const BatchActionResponseSchema = {
+    properties: {
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        succeeded: {
+            type: 'integer',
+            title: 'Succeeded'
+        },
+        failed: {
+            type: 'integer',
+            title: 'Failed'
+        },
+        results: {
+            items: {
+                $ref: '#/components/schemas/BatchActionResultItem'
+            },
+            type: 'array',
+            title: 'Results'
+        }
+    },
+    type: 'object',
+    required: [
+        'total',
+        'succeeded',
+        'failed',
+        'results'
+    ],
+    title: 'BatchActionResponse',
+    description: '批次操作回應'
+} as const;
+
+export const BatchActionResultItemSchema = {
+    properties: {
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        success: {
+            type: 'boolean',
+            title: 'Success'
+        },
+        message: {
+            type: 'string',
+            title: 'Message'
+        }
+    },
+    type: 'object',
+    required: [
+        'vmid',
+        'success',
+        'message'
+    ],
+    title: 'BatchActionResultItem',
+    description: '單一 VM 的批次操作結果'
 } as const;
 
 export const BatchProvisionJobPublicSchema = {
@@ -1545,79 +2031,6 @@ export const ChatMessage_OutputSchema = {
     description: '聊天消息'
 } as const;
 
-export const ChatRequestSchema = {
-    properties: {
-        messages: {
-            items: {
-                $ref: '#/components/schemas/app__ai__template_recommendation__schemas__ChatMessage'
-            },
-            type: 'array',
-            minItems: 1,
-            title: 'Messages',
-            description: 'List of previous chat messages.'
-        },
-        top_k: {
-            type: 'integer',
-            maximum: 10,
-            minimum: 1,
-            title: 'Top K',
-            default: 5
-        },
-        device_nodes: {
-            items: {
-                $ref: '#/components/schemas/DeviceNode'
-            },
-            type: 'array',
-            title: 'Device Nodes'
-        }
-    },
-    type: 'object',
-    required: [
-        'messages'
-    ],
-    title: 'ChatRequest'
-} as const;
-
-export const ChatResponseSchema = {
-    properties: {
-        reply: {
-            type: 'string',
-            title: 'Reply',
-            description: 'AI text reply.'
-        },
-        prompt_tokens: {
-            type: 'integer',
-            title: 'Prompt Tokens',
-            default: 0
-        },
-        completion_tokens: {
-            type: 'integer',
-            title: 'Completion Tokens',
-            default: 0
-        },
-        total_tokens: {
-            type: 'integer',
-            title: 'Total Tokens',
-            default: 0
-        },
-        elapsed_seconds: {
-            type: 'number',
-            title: 'Elapsed Seconds',
-            default: 0
-        },
-        tokens_per_second: {
-            type: 'number',
-            title: 'Tokens Per Second',
-            default: 0
-        }
-    },
-    type: 'object',
-    required: [
-        'reply'
-    ],
-    title: 'ChatResponse'
-} as const;
-
 export const CloudflareConfigPublicSchema = {
     properties: {
         account_id: {
@@ -2252,6 +2665,52 @@ export const CloudflareZonesPublicSchema = {
     title: 'CloudflareZonesPublic'
 } as const;
 
+export const ClusterInfoSchema = {
+    properties: {
+        cluster_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cluster Name'
+        },
+        is_cluster: {
+            type: 'boolean',
+            title: 'Is Cluster'
+        },
+        node_count: {
+            type: 'integer',
+            title: 'Node Count'
+        },
+        quorate: {
+            type: 'boolean',
+            title: 'Quorate'
+        },
+        cluster_version: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cluster Version'
+        }
+    },
+    type: 'object',
+    required: [
+        'is_cluster',
+        'node_count',
+        'quorate'
+    ],
+    title: 'ClusterInfo'
+} as const;
+
 export const ClusterPreviewResultSchema = {
     properties: {
         success: {
@@ -2617,6 +3076,206 @@ export const CurrentStatsResponseSchema = {
     ],
     title: 'CurrentStatsResponse',
     description: '資源即時狀態'
+} as const;
+
+export const DeletionRequestCreatedSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        status: {
+            $ref: '#/components/schemas/DeletionRequestStatus'
+        },
+        message: {
+            type: 'string',
+            title: 'Message',
+            default: 'Deletion request queued'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'vmid',
+        'status'
+    ],
+    title: 'DeletionRequestCreated',
+    description: 'Response when accepting a delete request (HTTP 202).'
+} as const;
+
+export const DeletionRequestPublicSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        user_id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'User Id'
+        },
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        node: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Node'
+        },
+        resource_type: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Resource Type'
+        },
+        purge: {
+            type: 'boolean',
+            title: 'Purge'
+        },
+        force: {
+            type: 'boolean',
+            title: 'Force'
+        },
+        status: {
+            $ref: '#/components/schemas/DeletionRequestStatus'
+        },
+        error_message: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Error Message'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        started_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Started At'
+        },
+        completed_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Completed At'
+        },
+        user_email: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Email'
+        },
+        user_full_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Full Name'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'user_id',
+        'vmid',
+        'purge',
+        'force',
+        'status',
+        'created_at'
+    ],
+    title: 'DeletionRequestPublic'
+} as const;
+
+export const DeletionRequestStatusSchema = {
+    type: 'string',
+    enum: [
+        'pending',
+        'running',
+        'completed',
+        'failed',
+        'cancelled'
+    ],
+    title: 'DeletionRequestStatus'
+} as const;
+
+export const DeletionRequestsPublicSchema = {
+    properties: {
+        data: {
+            items: {
+                $ref: '#/components/schemas/DeletionRequestPublic'
+            },
+            type: 'array',
+            title: 'Data'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: [
+        'data',
+        'count'
+    ],
+    title: 'DeletionRequestsPublic'
 } as const;
 
 export const DeviceApproveRequestSchema = {
@@ -3111,6 +3770,390 @@ export const FirewallRuleUpdateSchema = {
     type: 'object',
     title: 'FirewallRuleUpdate',
     description: '更新防火牆規則'
+} as const;
+
+export const GPUDeviceMapSchema = {
+    properties: {
+        node: {
+            type: 'string',
+            title: 'Node'
+        },
+        path: {
+            type: 'string',
+            title: 'Path'
+        },
+        id: {
+            type: 'string',
+            title: 'Id',
+            default: ''
+        },
+        subsystem_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Subsystem Id'
+        },
+        iommu_group: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Iommu Group'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        is_mdev: {
+            type: 'boolean',
+            title: 'Is Mdev',
+            default: false
+        }
+    },
+    type: 'object',
+    required: [
+        'node',
+        'path'
+    ],
+    title: 'GPUDeviceMap',
+    description: 'A single node-level mapping entry for a GPU resource mapping.'
+} as const;
+
+export const GPUMappingCreateSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            maxLength: 128,
+            minLength: 1,
+            title: 'Id',
+            description: 'Mapping name'
+        },
+        description: {
+            type: 'string',
+            title: 'Description',
+            default: ''
+        },
+        map: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Map',
+            description: 'List of map entries, e.g. \'node=pve1,path=0000:01:00.0\''
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'map'
+    ],
+    title: 'GPUMappingCreate',
+    description: 'Create a new PCI resource mapping.'
+} as const;
+
+export const GPUMappingDetailSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id',
+            description: 'Mapping logical ID (name)'
+        },
+        description: {
+            type: 'string',
+            title: 'Description',
+            default: ''
+        },
+        maps: {
+            items: {
+                $ref: '#/components/schemas/GPUDeviceMap'
+            },
+            type: 'array',
+            title: 'Maps'
+        },
+        physical_gpu_count: {
+            type: 'integer',
+            title: 'Physical Gpu Count',
+            description: 'Estimated physical GPU count (by unique PCI bus)',
+            default: 0
+        },
+        device_count: {
+            type: 'integer',
+            title: 'Device Count',
+            description: 'Total assignable device/VF slots',
+            default: 0
+        },
+        used_count: {
+            type: 'integer',
+            title: 'Used Count',
+            default: 0
+        },
+        available_count: {
+            type: 'integer',
+            title: 'Available Count',
+            default: 0
+        },
+        is_sriov: {
+            type: 'boolean',
+            title: 'Is Sriov',
+            description: 'True if SR-IOV detected (multiple devices on same PCI bus)',
+            default: false
+        },
+        has_mdev: {
+            type: 'boolean',
+            title: 'Has Mdev',
+            description: 'True if any device uses mediated devices',
+            default: false
+        },
+        total_vram_mb: {
+            type: 'integer',
+            title: 'Total Vram Mb',
+            description: 'Total physical VRAM in MB',
+            default: 0
+        },
+        used_vram_mb: {
+            type: 'integer',
+            title: 'Used Vram Mb',
+            description: 'Allocated VRAM in MB (sum of assigned vGPU/passthrough)',
+            default: 0
+        },
+        used_by: {
+            items: {
+                $ref: '#/components/schemas/GPUUsageInfo'
+            },
+            type: 'array',
+            title: 'Used By'
+        }
+    },
+    type: 'object',
+    required: [
+        'id'
+    ],
+    title: 'GPUMappingDetail',
+    description: 'Detail view with usage information.'
+} as const;
+
+export const GPUMappingsPublicSchema = {
+    properties: {
+        data: {
+            items: {
+                $ref: '#/components/schemas/GPUMappingDetail'
+            },
+            type: 'array',
+            title: 'Data'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: [
+        'data',
+        'count'
+    ],
+    title: 'GPUMappingsPublic',
+    description: 'List of GPU mappings.'
+} as const;
+
+export const GPUOptionContextSchema = {
+    properties: {
+        mapping_id: {
+            type: 'string',
+            title: 'Mapping Id'
+        },
+        description: {
+            type: 'string',
+            title: 'Description',
+            default: ''
+        },
+        model: {
+            type: 'string',
+            title: 'Model',
+            default: ''
+        },
+        vram: {
+            type: 'string',
+            title: 'Vram',
+            default: ''
+        },
+        node: {
+            type: 'string',
+            title: 'Node',
+            default: ''
+        },
+        available_count: {
+            type: 'integer',
+            title: 'Available Count',
+            default: 0
+        },
+        device_count: {
+            type: 'integer',
+            title: 'Device Count',
+            default: 0
+        },
+        used_count: {
+            type: 'integer',
+            title: 'Used Count',
+            default: 0
+        },
+        total_vram_mb: {
+            type: 'integer',
+            title: 'Total Vram Mb',
+            default: 0
+        },
+        used_vram_mb: {
+            type: 'integer',
+            title: 'Used Vram Mb',
+            default: 0
+        },
+        has_mdev: {
+            type: 'boolean',
+            title: 'Has Mdev',
+            default: false
+        },
+        is_sriov: {
+            type: 'boolean',
+            title: 'Is Sriov',
+            default: false
+        }
+    },
+    type: 'object',
+    required: [
+        'mapping_id'
+    ],
+    title: 'GPUOptionContext'
+} as const;
+
+export const GPUSummarySchema = {
+    properties: {
+        mapping_id: {
+            type: 'string',
+            title: 'Mapping Id'
+        },
+        description: {
+            type: 'string',
+            title: 'Description',
+            default: ''
+        },
+        model: {
+            type: 'string',
+            title: 'Model',
+            default: ''
+        },
+        vram: {
+            type: 'string',
+            title: 'Vram',
+            default: ''
+        },
+        node: {
+            type: 'string',
+            title: 'Node',
+            default: ''
+        },
+        physical_gpu_count: {
+            type: 'integer',
+            title: 'Physical Gpu Count',
+            default: 1
+        },
+        device_count: {
+            type: 'integer',
+            title: 'Device Count',
+            default: 1
+        },
+        used_count: {
+            type: 'integer',
+            title: 'Used Count',
+            default: 0
+        },
+        available_count: {
+            type: 'integer',
+            title: 'Available Count',
+            default: 1
+        },
+        is_sriov: {
+            type: 'boolean',
+            title: 'Is Sriov',
+            default: false
+        },
+        has_mdev: {
+            type: 'boolean',
+            title: 'Has Mdev',
+            default: false
+        },
+        total_vram_mb: {
+            type: 'integer',
+            title: 'Total Vram Mb',
+            default: 0
+        },
+        used_vram_mb: {
+            type: 'integer',
+            title: 'Used Vram Mb',
+            default: 0
+        }
+    },
+    type: 'object',
+    required: [
+        'mapping_id'
+    ],
+    title: 'GPUSummary',
+    description: 'A simplified GPU option for the application form selector.'
+} as const;
+
+export const GPUUsageInfoSchema = {
+    properties: {
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        vm_name: {
+            type: 'string',
+            title: 'Vm Name',
+            default: ''
+        },
+        node: {
+            type: 'string',
+            title: 'Node',
+            default: ''
+        },
+        status: {
+            type: 'string',
+            title: 'Status',
+            default: ''
+        },
+        mdev_type: {
+            type: 'string',
+            title: 'Mdev Type',
+            default: ''
+        },
+        allocated_vram_mb: {
+            type: 'integer',
+            title: 'Allocated Vram Mb',
+            default: 0
+        }
+    },
+    type: 'object',
+    required: [
+        'vmid'
+    ],
+    title: 'GPUUsageInfo',
+    description: 'Information about a VM using a GPU mapping.'
 } as const;
 
 export const GatewayConfigPublicSchema = {
@@ -3609,6 +4652,293 @@ export const HTTPValidationErrorSchema = {
     title: 'HTTPValidationError'
 } as const;
 
+export const IpAllocationListResponseSchema = {
+    properties: {
+        allocations: {
+            items: {
+                $ref: '#/components/schemas/IpAllocationPublic'
+            },
+            type: 'array',
+            title: 'Allocations'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        }
+    },
+    type: 'object',
+    required: [
+        'allocations',
+        'total'
+    ],
+    title: 'IpAllocationListResponse',
+    description: 'IP 分配列表回傳'
+} as const;
+
+export const IpAllocationPublicSchema = {
+    properties: {
+        ip_address: {
+            type: 'string',
+            title: 'Ip Address'
+        },
+        purpose: {
+            type: 'string',
+            title: 'Purpose'
+        },
+        vmid: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Vmid'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        allocated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Allocated At'
+        }
+    },
+    type: 'object',
+    required: [
+        'ip_address',
+        'purpose',
+        'vmid',
+        'description',
+        'allocated_at'
+    ],
+    title: 'IpAllocationPublic',
+    description: 'IP 分配記錄公開格式'
+} as const;
+
+export const JobDetailSchema = {
+    properties: {
+        item: {
+            $ref: '#/components/schemas/JobItem'
+        },
+        output: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Output',
+            description: '完整文字輸出（script_deploy 的 stdout/stderr；migration 的 last_error）'
+        },
+        error: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Error'
+        },
+        extra: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Extra',
+            description: 'kind 特定附加資訊（如 spec_change diff、vm_request 規格、migration 時間戳記）'
+        }
+    },
+    type: 'object',
+    required: [
+        'item'
+    ],
+    title: 'JobDetail',
+    description: 'Job 詳細資訊，包含 kind 特定的額外欄位（如腳本輸出、規格 diff 等）。'
+} as const;
+
+export const JobItemSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id',
+            description: '複合 ID，格式：<kind>:<source_id>'
+        },
+        kind: {
+            $ref: '#/components/schemas/JobKind'
+        },
+        title: {
+            type: 'string',
+            title: 'Title'
+        },
+        status: {
+            $ref: '#/components/schemas/JobStatus'
+        },
+        progress: {
+            anyOf: [
+                {
+                    type: 'integer',
+                    maximum: 100,
+                    minimum: 0
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Progress',
+            description: '0-100, 若不可估算則為 null'
+        },
+        message: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Message'
+        },
+        user_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Id'
+        },
+        user_email: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Email'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        },
+        completed_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Completed At'
+        },
+        detail_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Detail Url',
+            description: '前端可點擊跳轉的相對路徑（例：/jobs?focus=migration:xxx）'
+        },
+        meta: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Meta'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'kind',
+        'title',
+        'status',
+        'created_at',
+        'updated_at'
+    ],
+    title: 'JobItem',
+    description: '統一的 Job 顯示模型。'
+} as const;
+
+export const JobKindSchema = {
+    type: 'string',
+    enum: [
+        'migration',
+        'script_deploy',
+        'vm_request',
+        'spec_change',
+        'deletion'
+    ],
+    title: 'JobKind'
+} as const;
+
+export const JobStatusSchema = {
+    type: 'string',
+    enum: [
+        'pending',
+        'running',
+        'completed',
+        'failed',
+        'blocked',
+        'cancelled'
+    ],
+    title: 'JobStatus',
+    description: '正規化狀態。各來源的原始狀態會 map 到此枚舉。'
+} as const;
+
+export const JobsListResponseSchema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/JobItem'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        active_count: {
+            type: 'integer',
+            title: 'Active Count'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'active_count'
+    ],
+    title: 'JobsListResponse'
+} as const;
+
 export const LXCCreateRequestSchema = {
     properties: {
         hostname: {
@@ -3688,6 +5018,17 @@ export const LXCCreateRequestSchema = {
             type: 'boolean',
             title: 'Unprivileged',
             default: true
+        },
+        service_template_slug: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Service Template Slug'
         }
     },
     type: 'object',
@@ -4193,6 +5534,58 @@ export const NATRulePublicSchema = {
     description: 'NAT 端口轉發規則（回應）'
 } as const;
 
+export const NetworkInterfaceSchema = {
+    properties: {
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        inet: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Inet'
+        },
+        inet6: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Inet6'
+        },
+        hwaddr: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hwaddr'
+        }
+    },
+    type: 'object',
+    required: [
+        'vmid',
+        'name'
+    ],
+    title: 'NetworkInterface'
+} as const;
+
 export const NewPasswordSchema = {
     properties: {
         token: {
@@ -4213,6 +5606,76 @@ export const NewPasswordSchema = {
     ],
     title: 'NewPassword',
     description: '重設密碼請求'
+} as const;
+
+export const NodeInfoSchema = {
+    properties: {
+        node: {
+            type: 'string',
+            title: 'Node'
+        },
+        status: {
+            type: 'string',
+            title: 'Status'
+        },
+        cpu_usage: {
+            type: 'number',
+            title: 'Cpu Usage'
+        },
+        cpu_cores: {
+            type: 'integer',
+            title: 'Cpu Cores'
+        },
+        mem_used_bytes: {
+            type: 'integer',
+            title: 'Mem Used Bytes'
+        },
+        mem_total_bytes: {
+            type: 'integer',
+            title: 'Mem Total Bytes'
+        },
+        mem_used_pct: {
+            type: 'number',
+            title: 'Mem Used Pct'
+        },
+        disk_used_bytes: {
+            type: 'integer',
+            title: 'Disk Used Bytes'
+        },
+        disk_total_bytes: {
+            type: 'integer',
+            title: 'Disk Total Bytes'
+        },
+        disk_used_pct: {
+            type: 'number',
+            title: 'Disk Used Pct'
+        },
+        uptime_seconds: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Uptime Seconds'
+        }
+    },
+    type: 'object',
+    required: [
+        'node',
+        'status',
+        'cpu_usage',
+        'cpu_cores',
+        'mem_used_bytes',
+        'mem_total_bytes',
+        'mem_used_pct',
+        'disk_used_bytes',
+        'disk_total_bytes',
+        'disk_used_pct'
+    ],
+    title: 'NodeInfo'
 } as const;
 
 export const NodeSchemaSchema = {
@@ -5538,6 +7001,85 @@ export const RateLimitStatusResponseSchema = {
     description: '速率限制状态'
 } as const;
 
+export const RecommendationFormContextSchema = {
+    properties: {
+        resource_type: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'lxc',
+                        'vm'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Resource Type'
+        },
+        mode: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: [
+                        'immediate',
+                        'scheduled'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Mode'
+        },
+        start_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start At'
+        },
+        end_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End At'
+        },
+        selected_gpu_mapping_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Selected Gpu Mapping Id'
+        },
+        gpu_options: {
+            items: {
+                $ref: '#/components/schemas/GPUOptionContext'
+            },
+            type: 'array',
+            title: 'Gpu Options'
+        }
+    },
+    type: 'object',
+    title: 'RecommendationFormContext'
+} as const;
+
 export const RecommendedMachineSchema = {
     properties: {
         node: {
@@ -5584,6 +7126,155 @@ export const RefreshTokenRequestSchema = {
         'refresh_token'
     ],
     title: 'RefreshTokenRequest'
+} as const;
+
+export const ResourceConfigSchema = {
+    properties: {
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        node: {
+            type: 'string',
+            title: 'Node'
+        },
+        resource_type: {
+            type: 'string',
+            title: 'Resource Type'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        cpu_cores: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cpu Cores'
+        },
+        cpu_type: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cpu Type'
+        },
+        memory_mb: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Memory Mb'
+        },
+        disk_info: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Disk Info'
+        },
+        disk_size_gb: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Disk Size Gb'
+        },
+        os_type: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Os Type'
+        },
+        net0: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Net0'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        tags: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Tags'
+        },
+        onboot: {
+            type: 'boolean',
+            title: 'Onboot',
+            default: false
+        },
+        protection: {
+            type: 'boolean',
+            title: 'Protection',
+            default: false
+        },
+        raw: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Raw'
+        }
+    },
+    type: 'object',
+    required: [
+        'vmid',
+        'node',
+        'resource_type'
+    ],
+    title: 'ResourceConfig'
 } as const;
 
 export const ResourcePublicSchema = {
@@ -5664,6 +7355,17 @@ export const ResourcePublicSchema = {
             ],
             title: 'Ssh Public Key'
         },
+        service_template_slug: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Service Template Slug'
+        },
         cpu: {
             anyOf: [
                 {
@@ -5730,6 +7432,218 @@ export const ResourcePublicSchema = {
     ],
     title: 'ResourcePublic',
     description: '公開的資源資訊（合併 Proxmox + DB）'
+} as const;
+
+export const ResourceStatusSchema = {
+    properties: {
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        node: {
+            type: 'string',
+            title: 'Node'
+        },
+        resource_type: {
+            type: 'string',
+            title: 'Resource Type'
+        },
+        status: {
+            type: 'string',
+            title: 'Status'
+        },
+        cpu_usage: {
+            type: 'number',
+            title: 'Cpu Usage'
+        },
+        cpu_cores: {
+            type: 'integer',
+            title: 'Cpu Cores'
+        },
+        mem_used_bytes: {
+            type: 'integer',
+            title: 'Mem Used Bytes'
+        },
+        mem_total_bytes: {
+            type: 'integer',
+            title: 'Mem Total Bytes'
+        },
+        mem_used_pct: {
+            type: 'number',
+            title: 'Mem Used Pct'
+        },
+        disk_read_bytes: {
+            type: 'integer',
+            title: 'Disk Read Bytes'
+        },
+        disk_write_bytes: {
+            type: 'integer',
+            title: 'Disk Write Bytes'
+        },
+        disk_total_bytes: {
+            type: 'integer',
+            title: 'Disk Total Bytes'
+        },
+        net_in_bytes: {
+            type: 'integer',
+            title: 'Net In Bytes'
+        },
+        net_out_bytes: {
+            type: 'integer',
+            title: 'Net Out Bytes'
+        },
+        uptime_seconds: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Uptime Seconds'
+        },
+        pid: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Pid'
+        }
+    },
+    type: 'object',
+    required: [
+        'vmid',
+        'node',
+        'resource_type',
+        'status',
+        'cpu_usage',
+        'cpu_cores',
+        'mem_used_bytes',
+        'mem_total_bytes',
+        'mem_used_pct',
+        'disk_read_bytes',
+        'disk_write_bytes',
+        'disk_total_bytes',
+        'net_in_bytes',
+        'net_out_bytes'
+    ],
+    title: 'ResourceStatus'
+} as const;
+
+export const ResourceSummarySchema = {
+    properties: {
+        vmid: {
+            type: 'integer',
+            title: 'Vmid'
+        },
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        resource_type: {
+            type: 'string',
+            title: 'Resource Type'
+        },
+        node: {
+            type: 'string',
+            title: 'Node'
+        },
+        status: {
+            type: 'string',
+            title: 'Status'
+        },
+        pool: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Pool'
+        },
+        cpu_usage: {
+            type: 'number',
+            title: 'Cpu Usage'
+        },
+        cpu_cores: {
+            type: 'integer',
+            title: 'Cpu Cores'
+        },
+        mem_used_bytes: {
+            type: 'integer',
+            title: 'Mem Used Bytes'
+        },
+        mem_total_bytes: {
+            type: 'integer',
+            title: 'Mem Total Bytes'
+        },
+        mem_used_pct: {
+            type: 'number',
+            title: 'Mem Used Pct'
+        },
+        disk_used_bytes: {
+            type: 'integer',
+            title: 'Disk Used Bytes'
+        },
+        disk_total_bytes: {
+            type: 'integer',
+            title: 'Disk Total Bytes'
+        },
+        disk_used_pct: {
+            type: 'number',
+            title: 'Disk Used Pct'
+        },
+        net_in_bytes: {
+            type: 'integer',
+            title: 'Net In Bytes'
+        },
+        net_out_bytes: {
+            type: 'integer',
+            title: 'Net Out Bytes'
+        },
+        uptime_seconds: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Uptime Seconds'
+        },
+        is_template: {
+            type: 'boolean',
+            title: 'Is Template'
+        }
+    },
+    type: 'object',
+    required: [
+        'vmid',
+        'name',
+        'resource_type',
+        'node',
+        'status',
+        'cpu_usage',
+        'cpu_cores',
+        'mem_used_bytes',
+        'mem_total_bytes',
+        'mem_used_pct',
+        'disk_used_bytes',
+        'disk_total_bytes',
+        'disk_used_pct',
+        'net_in_bytes',
+        'net_out_bytes',
+        'is_template'
+    ],
+    title: 'ResourceSummary'
 } as const;
 
 export const ReverseProxyRuleCreateSchema = {
@@ -6135,6 +8049,316 @@ export const SSHKeyResponseSchema = {
     ],
     title: 'SSHKeyResponse',
     description: 'SSH 金鑰回應'
+} as const;
+
+export const ScriptDeployLogDetailSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        user_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Id'
+        },
+        vmid: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Vmid'
+        },
+        template_slug: {
+            type: 'string',
+            title: 'Template Slug'
+        },
+        template_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Template Name'
+        },
+        hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hostname'
+        },
+        status: {
+            type: 'string',
+            title: 'Status'
+        },
+        progress: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Progress'
+        },
+        message: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Message'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        },
+        completed_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Completed At'
+        },
+        script_path: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Script Path'
+        },
+        error: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Error'
+        },
+        output: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Output'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'task_id',
+        'template_slug',
+        'status',
+        'created_at',
+        'updated_at'
+    ],
+    title: 'ScriptDeployLogDetail',
+    description: '部署日誌詳細內容（含完整 output 與 error）'
+} as const;
+
+export const ScriptDeployLogListSchema = {
+    properties: {
+        items: {
+            items: {
+                $ref: '#/components/schemas/ScriptDeployLogListItem'
+            },
+            type: 'array',
+            title: 'Items'
+        },
+        total: {
+            type: 'integer',
+            title: 'Total'
+        },
+        limit: {
+            type: 'integer',
+            title: 'Limit'
+        },
+        offset: {
+            type: 'integer',
+            title: 'Offset'
+        }
+    },
+    type: 'object',
+    required: [
+        'items',
+        'total',
+        'limit',
+        'offset'
+    ],
+    title: 'ScriptDeployLogList',
+    description: '部署日誌列表回應'
+} as const;
+
+export const ScriptDeployLogListItemSchema = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        task_id: {
+            type: 'string',
+            title: 'Task Id'
+        },
+        user_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'User Id'
+        },
+        vmid: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Vmid'
+        },
+        template_slug: {
+            type: 'string',
+            title: 'Template Slug'
+        },
+        template_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Template Name'
+        },
+        hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hostname'
+        },
+        status: {
+            type: 'string',
+            title: 'Status'
+        },
+        progress: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Progress'
+        },
+        message: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Message'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        },
+        completed_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Completed At'
+        }
+    },
+    type: 'object',
+    required: [
+        'id',
+        'task_id',
+        'template_slug',
+        'status',
+        'created_at',
+        'updated_at'
+    ],
+    title: 'ScriptDeployLogListItem',
+    description: '部署日誌列表項'
 } as const;
 
 export const ScriptDeployRequestSchema = {
@@ -6856,6 +9080,242 @@ export const SpecChangeTypeSchema = {
     description: '規格調整類型'
 } as const;
 
+export const StorageInfoSchema = {
+    properties: {
+        node: {
+            type: 'string',
+            title: 'Node'
+        },
+        storage: {
+            type: 'string',
+            title: 'Storage'
+        },
+        storage_type: {
+            type: 'string',
+            title: 'Storage Type'
+        },
+        content: {
+            type: 'string',
+            title: 'Content'
+        },
+        avail_bytes: {
+            type: 'integer',
+            title: 'Avail Bytes'
+        },
+        used_bytes: {
+            type: 'integer',
+            title: 'Used Bytes'
+        },
+        total_bytes: {
+            type: 'integer',
+            title: 'Total Bytes'
+        },
+        used_pct: {
+            type: 'number',
+            title: 'Used Pct'
+        },
+        active: {
+            type: 'boolean',
+            title: 'Active'
+        },
+        enabled: {
+            type: 'boolean',
+            title: 'Enabled'
+        },
+        shared: {
+            type: 'boolean',
+            title: 'Shared'
+        }
+    },
+    type: 'object',
+    required: [
+        'node',
+        'storage',
+        'storage_type',
+        'content',
+        'avail_bytes',
+        'used_bytes',
+        'total_bytes',
+        'used_pct',
+        'active',
+        'enabled',
+        'shared'
+    ],
+    title: 'StorageInfo'
+} as const;
+
+export const SubnetConfigCreateSchema = {
+    properties: {
+        cidr: {
+            type: 'string',
+            title: 'Cidr'
+        },
+        gateway: {
+            type: 'string',
+            title: 'Gateway'
+        },
+        bridge_name: {
+            type: 'string',
+            title: 'Bridge Name'
+        },
+        gateway_vm_ip: {
+            type: 'string',
+            title: 'Gateway Vm Ip'
+        },
+        dns_servers: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dns Servers'
+        },
+        extra_blocked_subnets: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Extra Blocked Subnets',
+            default: []
+        }
+    },
+    type: 'object',
+    required: [
+        'cidr',
+        'gateway',
+        'bridge_name',
+        'gateway_vm_ip'
+    ],
+    title: 'SubnetConfigCreate',
+    description: '設定/更新子網配置'
+} as const;
+
+export const SubnetConfigPublicSchema = {
+    properties: {
+        cidr: {
+            type: 'string',
+            title: 'Cidr'
+        },
+        gateway: {
+            type: 'string',
+            title: 'Gateway'
+        },
+        bridge_name: {
+            type: 'string',
+            title: 'Bridge Name'
+        },
+        gateway_vm_ip: {
+            type: 'string',
+            title: 'Gateway Vm Ip'
+        },
+        dns_servers: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dns Servers'
+        },
+        extra_blocked_subnets: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Extra Blocked Subnets',
+            default: []
+        },
+        updated_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Updated At'
+        },
+        total_ips: {
+            type: 'integer',
+            title: 'Total Ips'
+        },
+        used_ips: {
+            type: 'integer',
+            title: 'Used Ips'
+        },
+        available_ips: {
+            type: 'integer',
+            title: 'Available Ips'
+        }
+    },
+    type: 'object',
+    required: [
+        'cidr',
+        'gateway',
+        'bridge_name',
+        'gateway_vm_ip',
+        'dns_servers',
+        'updated_at',
+        'total_ips',
+        'used_ips',
+        'available_ips'
+    ],
+    title: 'SubnetConfigPublic',
+    description: '子網配置公開回傳格式'
+} as const;
+
+export const SubnetStatusResponseSchema = {
+    properties: {
+        configured: {
+            type: 'boolean',
+            title: 'Configured'
+        },
+        cidr: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Cidr'
+        },
+        bridge_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Bridge Name'
+        },
+        total_ips: {
+            type: 'integer',
+            title: 'Total Ips',
+            default: 0
+        },
+        used_ips: {
+            type: 'integer',
+            title: 'Used Ips',
+            default: 0
+        },
+        available_ips: {
+            type: 'integer',
+            title: 'Available Ips',
+            default: 0
+        }
+    },
+    type: 'object',
+    required: [
+        'configured'
+    ],
+    title: 'SubnetStatusResponse',
+    description: '子網狀態摘要'
+} as const;
+
 export const SyncNowResultSchema = {
     properties: {
         success: {
@@ -6893,6 +9353,115 @@ export const SyncNowResultSchema = {
     ],
     title: 'SyncNowResult',
     description: '同步節點與 Storage 結果'
+} as const;
+
+export const SystemSnapshotSchema = {
+    properties: {
+        collected_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Collected At'
+        },
+        collection_duration_seconds: {
+            type: 'number',
+            title: 'Collection Duration Seconds'
+        },
+        cluster: {
+            $ref: '#/components/schemas/ClusterInfo'
+        },
+        nodes: {
+            items: {
+                $ref: '#/components/schemas/NodeInfo'
+            },
+            type: 'array',
+            title: 'Nodes'
+        },
+        storages: {
+            items: {
+                $ref: '#/components/schemas/StorageInfo'
+            },
+            type: 'array',
+            title: 'Storages'
+        },
+        resources: {
+            items: {
+                $ref: '#/components/schemas/ResourceSummary'
+            },
+            type: 'array',
+            title: 'Resources'
+        },
+        resource_statuses: {
+            items: {
+                $ref: '#/components/schemas/ResourceStatus'
+            },
+            type: 'array',
+            title: 'Resource Statuses'
+        },
+        resource_configs: {
+            items: {
+                $ref: '#/components/schemas/ResourceConfig'
+            },
+            type: 'array',
+            title: 'Resource Configs'
+        },
+        network_interfaces: {
+            items: {
+                $ref: '#/components/schemas/NetworkInterface'
+            },
+            type: 'array',
+            title: 'Network Interfaces'
+        },
+        errors: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Errors'
+        },
+        total_nodes: {
+            type: 'integer',
+            title: 'Total Nodes'
+        },
+        online_nodes: {
+            type: 'integer',
+            title: 'Online Nodes'
+        },
+        total_vms: {
+            type: 'integer',
+            title: 'Total Vms'
+        },
+        total_lxc: {
+            type: 'integer',
+            title: 'Total Lxc'
+        },
+        running_vms: {
+            type: 'integer',
+            title: 'Running Vms'
+        },
+        running_lxc: {
+            type: 'integer',
+            title: 'Running Lxc'
+        }
+    },
+    type: 'object',
+    required: [
+        'collected_at',
+        'collection_duration_seconds',
+        'cluster',
+        'nodes',
+        'storages',
+        'resources',
+        'resource_statuses',
+        'resource_configs',
+        'network_interfaces',
+        'total_nodes',
+        'online_nodes',
+        'total_vms',
+        'total_lxc',
+        'running_vms',
+        'running_lxc'
+    ],
+    title: 'SystemSnapshot'
 } as const;
 
 export const TemplateSchemaSchema = {
@@ -6985,6 +9554,25 @@ export const TokenSchema = {
     ],
     title: 'Token',
     description: 'JWT 存取權杖回應'
+} as const;
+
+export const ToolCallRecordSchema = {
+    properties: {
+        name: {
+            type: 'string',
+            title: 'Name'
+        },
+        args: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Args'
+        }
+    },
+    type: 'object',
+    required: [
+        'name'
+    ],
+    title: 'ToolCallRecord'
 } as const;
 
 export const TopologyEdgeSchema = {
@@ -7177,28 +9765,23 @@ export const UsageByModelSchema = {
             type: 'integer',
             title: 'Requests'
         },
-        tokens: {
+        input_tokens: {
             type: 'integer',
-            title: 'Tokens'
+            title: 'Input Tokens'
         },
-        prompt_tokens: {
+        output_tokens: {
             type: 'integer',
-            title: 'Prompt Tokens'
-        },
-        completion_tokens: {
-            type: 'integer',
-            title: 'Completion Tokens'
+            title: 'Output Tokens'
         }
     },
     type: 'object',
     required: [
         'requests',
-        'tokens',
-        'prompt_tokens',
-        'completion_tokens'
+        'input_tokens',
+        'output_tokens'
     ],
     title: 'UsageByModel',
-    description: '按模型分组的使用量'
+    description: '按模型分組的使用量'
 } as const;
 
 export const UsageInfoSchema = {
@@ -7230,17 +9813,13 @@ export const UsageStatsResponseSchema = {
             type: 'integer',
             title: 'Total Requests'
         },
-        total_tokens: {
+        total_input_tokens: {
             type: 'integer',
-            title: 'Total Tokens'
+            title: 'Total Input Tokens'
         },
-        total_prompt_tokens: {
+        total_output_tokens: {
             type: 'integer',
-            title: 'Total Prompt Tokens'
-        },
-        total_completion_tokens: {
-            type: 'integer',
-            title: 'Total Completion Tokens'
+            title: 'Total Output Tokens'
         },
         by_model: {
             additionalProperties: {
@@ -7263,15 +9842,14 @@ export const UsageStatsResponseSchema = {
     type: 'object',
     required: [
         'total_requests',
-        'total_tokens',
-        'total_prompt_tokens',
-        'total_completion_tokens',
+        'total_input_tokens',
+        'total_output_tokens',
         'by_model',
         'start_date',
         'end_date'
     ],
     title: 'UsageStatsResponse',
-    description: '使用量统计响应'
+    description: 'Proxy 使用量統計回應'
 } as const;
 
 export const UserCreateSchema = {
@@ -7702,6 +10280,17 @@ export const VMCreateRequestSchema = {
             type: 'boolean',
             title: 'Start',
             default: true
+        },
+        service_template_slug: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Service Template Slug'
         }
     },
     type: 'object',
@@ -8394,6 +10983,39 @@ export const VMRequestCreateSchema = {
                 }
             ],
             title: 'Username'
+        },
+        gpu_mapping_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Gpu Mapping Id'
+        },
+        service_template_slug: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Service Template Slug'
+        },
+        service_template_script_path: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Service Template Script Path'
         }
     },
     type: 'object',
@@ -8569,6 +11191,39 @@ export const VMRequestPublicSchema = {
                 }
             ],
             title: 'Username'
+        },
+        gpu_mapping_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Gpu Mapping Id'
+        },
+        service_template_slug: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Service Template Slug'
+        },
+        service_template_script_path: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Service Template Script Path'
         },
         status: {
             $ref: '#/components/schemas/VMRequestStatus'
@@ -9264,173 +11919,6 @@ export const VMRequestsPublicSchema = {
     title: 'VMRequestsPublic'
 } as const;
 
-export const VMSchemaSchema = {
-    properties: {
-        vmid: {
-            type: 'integer',
-            title: 'Vmid'
-        },
-        name: {
-            type: 'string',
-            title: 'Name'
-        },
-        status: {
-            type: 'string',
-            title: 'Status'
-        },
-        node: {
-            type: 'string',
-            title: 'Node'
-        },
-        type: {
-            type: 'string',
-            title: 'Type'
-        },
-        cpu: {
-            anyOf: [
-                {
-                    type: 'number'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Cpu'
-        },
-        maxcpu: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Maxcpu'
-        },
-        mem: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Mem'
-        },
-        maxmem: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Maxmem'
-        },
-        uptime: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Uptime'
-        },
-        netin: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Netin'
-        },
-        diskread: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Diskread'
-        },
-        diskwrite: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Diskwrite'
-        },
-        disk: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Disk'
-        },
-        template: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Template'
-        },
-        memhost: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Memhost'
-        },
-        maxdisk: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Maxdisk'
-        }
-    },
-    type: 'object',
-    required: [
-        'vmid',
-        'name',
-        'status',
-        'node',
-        'type'
-    ],
-    title: 'VMSchema',
-    description: '虛擬機資訊'
-} as const;
-
 export const VMTemplateSchemaSchema = {
     properties: {
         vmid: {
@@ -9544,6 +12032,54 @@ export const ValidationErrorSchema = {
     title: 'ValidationError'
 } as const;
 
+export const app__ai__pve_log__schemas__ChatRequestSchema = {
+    properties: {
+        message: {
+            type: 'string',
+            maxLength: 2000,
+            minLength: 1,
+            title: 'Message'
+        }
+    },
+    type: 'object',
+    required: [
+        'message'
+    ],
+    title: 'ChatRequest'
+} as const;
+
+export const app__ai__pve_log__schemas__ChatResponseSchema = {
+    properties: {
+        reply: {
+            type: 'string',
+            title: 'Reply'
+        },
+        tools_called: {
+            items: {
+                $ref: '#/components/schemas/ToolCallRecord'
+            },
+            type: 'array',
+            title: 'Tools Called'
+        },
+        error: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Error'
+        }
+    },
+    type: 'object',
+    required: [
+        'reply'
+    ],
+    title: 'ChatResponse'
+} as const;
+
 export const app__ai__template_recommendation__schemas__ChatMessageSchema = {
     properties: {
         role: {
@@ -9563,6 +12099,89 @@ export const app__ai__template_recommendation__schemas__ChatMessageSchema = {
         'content'
     ],
     title: 'ChatMessage'
+} as const;
+
+export const app__ai__template_recommendation__schemas__ChatRequestSchema = {
+    properties: {
+        messages: {
+            items: {
+                $ref: '#/components/schemas/app__ai__template_recommendation__schemas__ChatMessage'
+            },
+            type: 'array',
+            minItems: 1,
+            title: 'Messages',
+            description: 'List of previous chat messages.'
+        },
+        top_k: {
+            type: 'integer',
+            maximum: 10,
+            minimum: 1,
+            title: 'Top K',
+            default: 5
+        },
+        device_nodes: {
+            items: {
+                $ref: '#/components/schemas/DeviceNode'
+            },
+            type: 'array',
+            title: 'Device Nodes'
+        },
+        form_context: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/RecommendationFormContext'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: [
+        'messages'
+    ],
+    title: 'ChatRequest'
+} as const;
+
+export const app__ai__template_recommendation__schemas__ChatResponseSchema = {
+    properties: {
+        reply: {
+            type: 'string',
+            title: 'Reply',
+            description: 'AI text reply.'
+        },
+        prompt_tokens: {
+            type: 'integer',
+            title: 'Prompt Tokens',
+            default: 0
+        },
+        completion_tokens: {
+            type: 'integer',
+            title: 'Completion Tokens',
+            default: 0
+        },
+        total_tokens: {
+            type: 'integer',
+            title: 'Total Tokens',
+            default: 0
+        },
+        elapsed_seconds: {
+            type: 'number',
+            title: 'Elapsed Seconds',
+            default: 0
+        },
+        tokens_per_second: {
+            type: 'number',
+            title: 'Tokens Per Second',
+            default: 0
+        }
+    },
+    type: 'object',
+    required: [
+        'reply'
+    ],
+    title: 'ChatResponse'
 } as const;
 
 export const app__schemas__ai_proxy__ChatMessageSchema = {
