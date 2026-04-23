@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import cast
-from uuid import uuid4
 
 import pytest
 from sqlmodel import Session
 
 from app.exceptions import BadRequestError
-from app.services.network import cloudflare_service, reverse_proxy_service
 from app.repositories import reverse_proxy as rp_repo
+from app.services.network import cloudflare_service, reverse_proxy_service
 
 
 def test_build_full_domain_appends_zone_suffix() -> None:

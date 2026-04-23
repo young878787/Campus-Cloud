@@ -1,7 +1,8 @@
 """Gateway VM 連線設定模型"""
 
-import sqlalchemy as sa
 from datetime import datetime
+
+import sqlalchemy as sa
 from sqlmodel import Field, SQLModel
 
 from .base import get_datetime_utc

@@ -11,13 +11,12 @@ import httpx
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from app.features.ai.config import settings as ai_api_settings
 from app.api.deps import AIAPIUserDep, SessionDep
+from app.features.ai.config import settings as ai_api_settings
 from app.infrastructure.redis import check_rate_limit_sliding_window, get_redis
 from app.schemas.ai_proxy import (
     ChatCompletionRequest,
     ChatCompletionResponse,
-    ModelInfo,
     ModelsResponse,
     RateLimitStatusResponse,
     UsageStatsResponse,

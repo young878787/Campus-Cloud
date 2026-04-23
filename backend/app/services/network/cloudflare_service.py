@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import ipaddress
 import re
+from datetime import datetime
 from typing import Any, cast
 
 from sqlmodel import Session

@@ -136,7 +136,7 @@ def verify_user_api_key(settings: Settings, user_api_key: str) -> bool:
         headers=auth_headers(user_api_key),
     )
 
-    print(f"\nStep 1: verify user API key")
+    print("\nStep 1: verify user API key")
     print(f"GET {url} -> {status}")
 
     if status != 200:

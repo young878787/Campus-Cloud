@@ -81,6 +81,27 @@ ignore = [
 # Preserve types, even if a file imports `from __future__ import annotations`.
 keep-runtime-typing = true
 
+[tool.ruff.lint.per-file-ignores]
+# Re-export modules legitimately import-and-re-expose names.
+"__init__.py" = ["F401"]
+# FastAPI route handlers receive auth/permission dependencies (e.g.
+# `current_user: AdminUser`) that act as guards even when the body never
+# reads them. Same pattern applies to lifespan/middleware factories and
+# WebSocket / rate-limit dependency callables.
+"app/api/routes/*" = ["ARG001"]
+"app/api/deps/*" = ["ARG001"]
+"app/main.py" = ["ARG001"]
+# Service modules in active development — interface conformance and
+# placeholder parameters intentionally remain unused while behind feature
+# flags or future refactors. Do not silently fix.
+"app/services/vm/*" = ["ARG001", "F841"]
+"app/services/scheduling/*" = ["ARG001"]
+"app/services/network/*" = ["ARG001"]
+# Tests rely on print() for debug output and accept fixture/mock arguments
+# that are intentionally unused. Some env-bootstrap tests must set env vars
+# before the import they exercise (E402).
+"tests/*" = ["T201", "ARG001", "F401", "E402", "F841", "C408"]
+
 [tool.coverage.run]
 source = ["app"]
 dynamic_context = "test_function"

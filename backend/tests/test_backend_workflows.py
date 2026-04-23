@@ -1,14 +1,15 @@
+import threading
 import uuid
 from datetime import datetime, timedelta, timezone
-import threading
 from types import SimpleNamespace
 
 import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from app.core.security import encrypt_value
 from app.ai.pve_advisor.schemas import NodeCapacity, PlacementRequest
-from app.exceptions import BadRequestError, ProxmoxError, ProvisioningError
+from app.core.security import encrypt_value
+from app.exceptions import BadRequestError, ProvisioningError, ProxmoxError
+from app.infrastructure.proxmox import operations as proxmox_service
 from app.models import (
     ProxmoxConfig,
     ProxmoxNode,
@@ -33,12 +34,15 @@ from app.schemas import (
     VMRequestCreate,
     VMRequestReview,
 )
-from app.infrastructure.proxmox import operations as proxmox_service
 from app.services.proxmox import provisioning_service
 from app.services.scheduling import support as scheduling_support
 from app.services.scheduling import vm_request_schedule_service
 from app.services.user import user_service
-from app.services.vm import spec_change_service, vm_request_placement_service, vm_request_service
+from app.services.vm import (
+    spec_change_service,
+    vm_request_placement_service,
+    vm_request_service,
+)
 
 
 @pytest.fixture()

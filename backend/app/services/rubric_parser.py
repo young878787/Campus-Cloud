@@ -70,7 +70,7 @@ def parse_pdf(file_bytes: bytes) -> str:
             # 純文字（排除表格區域）：只保留不在任何表格 bbox 內的文字
             words = page.extract_words() or []
 
-            def _in_any_table_bbox(word: dict) -> bool:
+            def _in_any_table_bbox(word: dict, table_bboxes: list = table_bboxes) -> bool:
                 x0 = float(word.get("x0", 0.0))
                 x1 = float(word.get("x1", 0.0))
                 top = float(word.get("top", 0.0))
@@ -138,7 +138,6 @@ def _iter_block_items(doc):  # type: ignore
     python-docx 的 doc.paragraphs 和 doc.tables 是分開的，
     此函式利用 XML element 順序確保正確排列。
     """
-    from docx.oxml.ns import qn  # type: ignore
 
     body = doc.element.body
     for child in body.iterchildren():

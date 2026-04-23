@@ -1,9 +1,9 @@
 """IP 管理相關的 API Schemas"""
 
+import ipaddress
 from datetime import datetime
 
 from pydantic import BaseModel, field_validator
-import ipaddress
 
 
 class SubnetConfigCreate(BaseModel):

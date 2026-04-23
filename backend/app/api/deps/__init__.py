@@ -1,8 +1,8 @@
 from app.api.deps.ai_api_key import AIAPIUserDep, get_current_user_by_ai_api_key
 from app.api.deps.auth import (
+    AdminUser,
     AIAPIReviewerUser,
     AIAPIViewAllUser,
-    AdminUser,
     CurrentUser,
     InstructorUser,
     TokenDep,

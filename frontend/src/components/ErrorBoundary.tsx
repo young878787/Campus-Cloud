@@ -1,4 +1,9 @@
-import { Component, type ErrorInfo, type ReactElement, type ReactNode } from "react"
+import {
+  Component,
+  type ErrorInfo,
+  type ReactElement,
+  type ReactNode,
+} from "react"
 import { useTranslation } from "react-i18next"
 
 interface Props {

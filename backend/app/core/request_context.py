@@ -9,19 +9,18 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Optional
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 
 @dataclass
 class RequestContext:
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    ip_address: str | None = None
+    user_agent: str | None = None
 
 
 _request_context: ContextVar[RequestContext] = ContextVar(
-    "request_context", default=RequestContext()
+    "request_context", default=RequestContext()  # noqa: B039 - RequestContext is an immutable default snapshot, never mutated in place
 )
 
 

@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 
 from app.models.spec_change_request import SpecChangeRequestStatus, SpecChangeType
 
-
 # ===== Request Schemas =====
 
 

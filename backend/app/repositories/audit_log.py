@@ -1,11 +1,10 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import or_
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, func, select
 
-from app.models import AuditAction, AuditLog, User
+from app.models import AuditAction, AuditLog
 
 
 def create_audit_log(

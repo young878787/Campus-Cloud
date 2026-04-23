@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.api.deps import AdminUser, CurrentUser, SessionDep
 from app.infrastructure.worker import submit_sync

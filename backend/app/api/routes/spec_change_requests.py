@@ -3,13 +3,13 @@ import uuid
 from fastapi import APIRouter
 
 from app.api.deps import AdminUser, CurrentUser, SessionDep
+from app.models import SpecChangeRequestStatus
 from app.schemas import (
     SpecChangeRequestCreate,
     SpecChangeRequestPublic,
     SpecChangeRequestReview,
     SpecChangeRequestsPublic,
 )
-from app.models import SpecChangeRequestStatus
 from app.services.vm import spec_change_service
 
 router = APIRouter(prefix="/spec-change-requests", tags=["spec-change-requests"])

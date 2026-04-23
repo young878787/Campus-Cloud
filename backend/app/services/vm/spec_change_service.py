@@ -14,14 +14,14 @@ from app.exceptions import (
     ProxmoxError,
 )
 from app.models import SpecChangeRequestStatus, SpecChangeType
+from app.repositories import resource as resource_repo
+from app.repositories import spec_change_request as spec_request_repo
 from app.schemas import (
     SpecChangeRequestCreate,
     SpecChangeRequestPublic,
     SpecChangeRequestReview,
     SpecChangeRequestsPublic,
 )
-from app.repositories import resource as resource_repo
-from app.repositories import spec_change_request as spec_request_repo
 from app.services.proxmox import proxmox_service
 from app.services.user import audit_service
 

@@ -11,7 +11,6 @@ from app.ai.template_recommendation.catalog_service import (
     build_catalog_prompt_bundle,
     catalog_lookup,
 )
-from app.infrastructure.ai.template_recommendation import client
 from app.ai.template_recommendation.config import settings
 from app.ai.template_recommendation.node_service import summarize_device_nodes
 from app.ai.template_recommendation.prompt import (
@@ -25,7 +24,7 @@ from app.ai.template_recommendation.schemas import (
     ExtractedIntent,
     RecommendationRequest,
 )
-
+from app.infrastructure.ai.template_recommendation import client
 
 MIN_VM_DISK_GB = 20
 MIN_LXC_DISK_GB = 8
@@ -466,7 +465,7 @@ def normalize_ai_result(
             continue
 
         install_methods = template.raw.get("install_methods") or []
-        default_resources = dict((install_methods[0].get("resources") or {})) if install_methods else {}
+        default_resources = dict(install_methods[0].get("resources") or {}) if install_methods else {}
         cpu = _safe_int(machine.get("cpu"), int(default_resources.get("cpu") or 2), 1)
         memory_mb = _safe_int(machine.get("memory_mb"), int(default_resources.get("ram") or 2048), 256)
         gpu = _safe_int(machine.get("gpu"), 1 if request.requires_gpu else 0, 0)

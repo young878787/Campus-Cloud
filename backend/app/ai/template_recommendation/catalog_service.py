@@ -9,7 +9,6 @@ from typing import Any
 
 from app.ai.template_recommendation.config import settings
 
-
 IGNORED_FILES = {"metadata.json", "versions.json", "github-versions.json"}
 
 
@@ -74,7 +73,7 @@ def serialize_template(item: TemplateItem) -> dict[str, Any]:
     default_resources: dict[str, Any] = {}
     install_methods = item.raw.get("install_methods") or []
     if install_methods:
-        default_resources = dict((install_methods[0].get("resources") or {}))
+        default_resources = dict(install_methods[0].get("resources") or {})
     return {
         "slug": item.slug,
         "name": item.name,

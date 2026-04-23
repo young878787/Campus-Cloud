@@ -3,14 +3,12 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from datetime import datetime
-from time import monotonic
-from time import perf_counter
+from time import monotonic, perf_counter
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
 from app.ai.template_recommendation.catalog_service import get_catalog
-from app.infrastructure.ai.template_recommendation import client
 from app.ai.template_recommendation.config import settings
 from app.ai.template_recommendation.node_service import (
     build_resource_option_bundle,
@@ -32,6 +30,7 @@ from app.ai.template_recommendation.schemas import (
     RecommendationRequest,
 )
 from app.api.deps import CurrentUser, SessionDep
+from app.infrastructure.ai.template_recommendation import client
 from app.repositories import vm_request as vm_request_repo
 from app.services.llm_gateway import ai_gateway_service
 from app.services.proxmox import gpu_service

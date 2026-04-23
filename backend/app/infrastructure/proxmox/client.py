@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+import asyncio
 import logging
 import threading
 import time
-import asyncio
+from collections.abc import Callable
 
 from proxmoxer import ProxmoxAPI
 

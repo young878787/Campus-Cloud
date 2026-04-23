@@ -8,15 +8,15 @@ from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
 from sqlmodel import Session
 
-from app.api.deps.database import SessionDep, get_db
+from app.api.deps.database import SessionDep
+from app.core import security
 from app.core.authorizers import (
     require_admin_access,
     require_instructor_or_admin_access,
 )
-from app.core.permissions import Permission, require_permission
-from app.core import security
 from app.core.config import settings
 from app.core.db import engine
+from app.core.permissions import Permission, require_permission
 from app.exceptions import AuthenticationError
 from app.infrastructure.redis import get_redis, is_jti_revoked
 from app.models import User

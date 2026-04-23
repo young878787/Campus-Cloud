@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
 from sqlmodel import Session, select
@@ -13,7 +13,6 @@ from app.core.db import engine
 from app.domain.scheduling.models import ScheduledTask
 from app.domain.scheduling.runner import run_polling_scheduler
 from app.exceptions import NotFoundError
-from app.infrastructure.proxmox import get_proxmox_settings
 from app.models import (
     VMMigrationJob,
     VMMigrationJobStatus,
@@ -1653,7 +1652,9 @@ async def run_scheduler(stop_event: asyncio.Event) -> None:
 
 def process_pending_deletions_task() -> int:
     """Scheduler tick：處理一筆 pending DeletionRequest（每 tick 最多一筆，避免長阻塞）。"""
-    from app.services.resource import deletion_service  # noqa: PLC0415 — 避免 import cycle
+    from app.services.resource import (
+        deletion_service,  # noqa: PLC0415 — 避免 import cycle
+    )
 
     try:
         with Session(engine) as session:

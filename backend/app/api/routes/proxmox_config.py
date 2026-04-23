@@ -23,7 +23,6 @@ from app.models import AuditAction
 from app.repositories import proxmox_config as proxmox_config_repo
 from app.repositories import proxmox_node as proxmox_node_repo
 from app.repositories import proxmox_storage as proxmox_storage_repo
-from app.services.user import audit_service
 from app.schemas.proxmox_config import (
     CertParseResult,
     ClusterPreviewResult,
@@ -38,6 +37,7 @@ from app.schemas.proxmox_config import (
     ProxmoxStorageUpdate,
     SyncNowResult,
 )
+from app.services.user import audit_service
 
 logger = logging.getLogger(__name__)
 

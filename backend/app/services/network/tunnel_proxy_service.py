@@ -110,9 +110,9 @@ def _build_managed_block(proxies: list[TunnelProxy], resource_ips: dict[int, str
             lines.append(f"# vm-{p.vmid}-{p.service} skipped: no IP address known")
             lines.append("")
             continue
-        lines.append(f"[[proxies]]")
+        lines.append("[[proxies]]")
         lines.append(f'name = "{p.proxy_name}"')
-        lines.append(f'type = "stcp"')
+        lines.append('type = "stcp"')
         lines.append(f'secretKey = "{p.secret_key}"')
         lines.append(f'localIP = "{ip}"')
         lines.append(f"localPort = {p.internal_port}")
@@ -144,7 +144,9 @@ def sync_gateway_frpc(*, session: Session) -> None:
     # For VMs without cached IP, try Proxmox API
     if missing_ip_vmids:
         try:
-            from app.infrastructure.proxmox import operations as pve_ops  # noqa: PLC0415
+            from app.infrastructure.proxmox import (
+                operations as pve_ops,  # noqa: PLC0415
+            )
 
             cluster_resources = pve_ops.list_all_resources()
             vmid_info = {
@@ -251,10 +253,10 @@ def _build_visitor_toml(proxies: list[TunnelProxy]) -> str:
     for p in proxies:
         lines.append("[[visitors]]")
         lines.append(f'name = "{p.proxy_name}-visitor"')
-        lines.append(f'type = "stcp"')
+        lines.append('type = "stcp"')
         lines.append(f'serverName = "{p.proxy_name}"')
         lines.append(f'secretKey = "{p.secret_key}"')
-        lines.append(f'bindAddr = "127.0.0.1"')
+        lines.append('bindAddr = "127.0.0.1"')
         lines.append(f"bindPort = {p.visitor_port}")
         lines.append("")
     return "\n".join(lines)

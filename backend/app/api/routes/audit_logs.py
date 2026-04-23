@@ -9,8 +9,8 @@ from app.exceptions import BadRequestError
 from app.models import AuditAction
 from app.schemas import (
     AuditActionMeta,
-    AuditLogStats,
     AuditLogsPublic,
+    AuditLogStats,
     AuditUserOption,
 )
 from app.services.user import audit_service

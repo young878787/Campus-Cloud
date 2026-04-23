@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.models import UserRole
 
-
 # ===== Request Schemas =====
 
 

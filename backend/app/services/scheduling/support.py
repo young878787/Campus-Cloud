@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 
 from sqlmodel import Session, select
 
-from app.exceptions import NotFoundError
 from app.infrastructure.proxmox import get_proxmox_settings
 from app.models import (
     VMMigrationJobStatus,
@@ -13,7 +12,6 @@ from app.models import (
     VMRequest,
     VMRequestStatus,
 )
-from app.repositories import resource as resource_repo
 from app.repositories import vm_migration_job as vm_migration_job_repo
 from app.repositories import vm_request as vm_request_repo
 from app.services.proxmox import proxmox_service

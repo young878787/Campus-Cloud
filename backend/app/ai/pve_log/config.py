@@ -4,6 +4,7 @@ from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from app.ai.system_config import system_ai_config, system_ai_env
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]

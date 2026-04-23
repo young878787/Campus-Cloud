@@ -66,11 +66,11 @@ def _build_haproxy_managed_block(rules: list) -> str:
         lines += [
             f"frontend {name}",
             f"    bind *:{r.external_port}",
-            f"    mode tcp",
+            "    mode tcp",
             f"    default_backend {name}-back",
             "",
             f"backend {name}-back",
-            f"    mode tcp",
+            "    mode tcp",
             f"    server vm{r.vmid} {r.vm_ip}:{r.internal_port} check inter 10s",
             "",
         ]
@@ -84,11 +84,15 @@ def _sync_haproxy(session: object) -> None:
     """從 DB 重建 haproxy managed section 並 reload。
     若 Gateway VM 未設定則靜默略過（不拋錯，讓主流程繼續）。
     """
+    from app.infrastructure.ssh import create_key_client, exec_command  # noqa: PLC0415
     from app.repositories import gateway_config as gw_repo  # noqa: PLC0415
     from app.repositories import nat_rule as nat_repo  # noqa: PLC0415
-    from app.repositories.gateway_config import get_decrypted_private_key  # noqa: PLC0415
-    from app.infrastructure.ssh import create_key_client, exec_command  # noqa: PLC0415
-    from app.services.network.gateway_service import SERVICE_CONFIG_PATHS  # noqa: PLC0415
+    from app.repositories.gateway_config import (
+        get_decrypted_private_key,  # noqa: PLC0415
+    )
+    from app.services.network.gateway_service import (
+        SERVICE_CONFIG_PATHS,  # noqa: PLC0415
+    )
 
     config = gw_repo.get_gateway_config(session)  # type: ignore[arg-type]
     if config is None or not config.host or not config.encrypted_private_key:

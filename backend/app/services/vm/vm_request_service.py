@@ -7,8 +7,8 @@ from sqlmodel import Session
 from app.core.authorizers import (
     can_auto_approve_vm_request,
     require_immediate_vm_request_access,
-    require_vm_request_cancel,
     require_vm_request_access,
+    require_vm_request_cancel,
     require_vm_request_review,
 )
 from app.core.security import encrypt_value
@@ -19,22 +19,25 @@ from app.exceptions import (
 )
 from app.infrastructure.worker import submit_sync
 from app.models import VMMigrationStatus, VMRequest, VMRequestStatus
+from app.repositories import vm_request as vm_request_repo
 from app.schemas import (
     VMRequestCreate,
     VMRequestPublic,
+    VMRequestReview,
     VMRequestReviewContext,
     VMRequestReviewNodeScore,
     VMRequestReviewOverlapItem,
     VMRequestReviewProjectedNode,
     VMRequestReviewRuntimeResource,
-    VMRequestReview,
     VMRequestsPublic,
 )
-from app.repositories import vm_request as vm_request_repo
 from app.services.proxmox import proxmox_service
 from app.services.scheduling import vm_request_schedule_service
 from app.services.user import audit_service
-from app.services.vm import vm_request_availability_service, vm_request_placement_service
+from app.services.vm import (
+    vm_request_availability_service,
+    vm_request_placement_service,
+)
 from app.services.vm.placement_service import CurrentPlacementSelection
 
 logger = logging.getLogger(__name__)
@@ -674,6 +677,8 @@ def cancel(
     """
     from app.infrastructure.worker import (  # noqa: PLC0415
         cancel as _cancel_bg_task,
+    )
+    from app.infrastructure.worker import (
         is_active as _is_bg_task_active,
     )
 

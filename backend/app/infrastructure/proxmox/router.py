@@ -5,7 +5,7 @@ import logging
 from proxmoxer import ProxmoxAPI
 
 from app.infrastructure.proxmox.settings import ProxmoxSettings
-from app.infrastructure.proxmox.tls import _tcp_ping, _verify_server_with_ca
+from app.infrastructure.proxmox.tls import _verify_server_with_ca
 
 logger = logging.getLogger(__name__)
 

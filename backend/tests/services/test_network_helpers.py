@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from app.services.network import ip_management_service as ipm
 from app.services.network import nat_service as nat
 
-
 # ─── ip_management_service.get_extra_blocked_subnets ────────────────────────
 
 

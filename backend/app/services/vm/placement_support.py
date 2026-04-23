@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session
 
@@ -15,8 +15,15 @@ from app.ai.pve_advisor.schemas import (
 )
 from app.domain.placement import policy as placement_policy
 from app.domain.placement import scorer as placement_scorer
-from app.domain.placement.models import PlacementTuning, StorageSelection, WorkingStoragePool
-from app.domain.placement.storage import reserve_storage_pool, select_best_storage_for_request
+from app.domain.placement.models import (
+    PlacementTuning,
+    StorageSelection,
+    WorkingStoragePool,
+)
+from app.domain.placement.storage import (
+    reserve_storage_pool,
+    select_best_storage_for_request,
+)
 from app.models import VMRequest
 from app.repositories import proxmox_storage as proxmox_storage_repo
 

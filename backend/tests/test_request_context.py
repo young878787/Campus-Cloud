@@ -18,7 +18,6 @@ from app.core.request_context import (
     set_request_context,
 )
 
-
 # ─── Pure helpers ────────────────────────────────────────────────────────────
 
 

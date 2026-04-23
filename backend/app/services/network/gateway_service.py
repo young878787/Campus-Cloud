@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import logging
-from pathlib import Path
 import re
+from datetime import datetime, timezone
+from pathlib import Path
 from textwrap import dedent
 
 from app.core.config import settings
@@ -14,6 +14,8 @@ from app.infrastructure.ssh import (
     SSHAuthenticationError,
     create_key_client,
     exec_command,
+)
+from app.infrastructure.ssh import (
     generate_ed25519_keypair as _generate_ed25519_keypair,
 )
 from app.schemas.gateway import GatewayServiceVersionInfo, GatewayServiceVersionsResult
@@ -206,7 +208,9 @@ def test_connection(
 
 
 def read_service_config(session: object, service: str) -> str:
-    from app.repositories.gateway_config import get_decrypted_private_key  # noqa: PLC0415
+    from app.repositories.gateway_config import (
+        get_decrypted_private_key,  # noqa: PLC0415
+    )
 
     config = _get_config(session)
     private_key_pem = get_decrypted_private_key(config)  # type: ignore[arg-type]
@@ -233,7 +237,9 @@ def read_service_config(session: object, service: str) -> str:
 
 
 def write_service_config(session: object, service: str, content: str) -> None:
-    from app.repositories.gateway_config import get_decrypted_private_key  # noqa: PLC0415
+    from app.repositories.gateway_config import (
+        get_decrypted_private_key,  # noqa: PLC0415
+    )
 
     config = _get_config(session)
     private_key_pem = get_decrypted_private_key(config)  # type: ignore[arg-type]
@@ -255,7 +261,9 @@ def write_service_config(session: object, service: str, content: str) -> None:
 
 def sync_traefik_dns_challenge(session: object) -> None:
     from app.repositories import cloudflare_config as cf_repo  # noqa: PLC0415
-    from app.repositories.gateway_config import get_decrypted_private_key  # noqa: PLC0415
+    from app.repositories.gateway_config import (
+        get_decrypted_private_key,  # noqa: PLC0415
+    )
 
     gateway_config = _get_config(session)
     cloudflare_config = cf_repo.get_cloudflare_config(session)  # type: ignore[arg-type]
@@ -311,7 +319,9 @@ def sync_traefik_dns_challenge(session: object) -> None:
 
 
 def control_service(session: object, service: str, action: str) -> tuple[bool, str]:
-    from app.repositories.gateway_config import get_decrypted_private_key  # noqa: PLC0415
+    from app.repositories.gateway_config import (
+        get_decrypted_private_key,  # noqa: PLC0415
+    )
 
     config = _get_config(session)
     private_key_pem = get_decrypted_private_key(config)  # type: ignore[arg-type]
@@ -346,7 +356,9 @@ def control_service(session: object, service: str, action: str) -> tuple[bool, s
 
 def get_service_logs(session: object, service: str, lines: int = 50) -> tuple[bool, str]:
     """Read recent journalctl logs for a service on the Gateway VM."""
-    from app.repositories.gateway_config import get_decrypted_private_key  # noqa: PLC0415
+    from app.repositories.gateway_config import (
+        get_decrypted_private_key,  # noqa: PLC0415
+    )
 
     config = _get_config(session)
     private_key_pem = get_decrypted_private_key(config)  # type: ignore[arg-type]
@@ -364,7 +376,9 @@ def get_service_logs(session: object, service: str, lines: int = 50) -> tuple[bo
 
 
 def get_service_status(session: object, service: str) -> tuple[bool, str]:
-    from app.repositories.gateway_config import get_decrypted_private_key  # noqa: PLC0415
+    from app.repositories.gateway_config import (
+        get_decrypted_private_key,  # noqa: PLC0415
+    )
 
     config = _get_config(session)
     private_key_pem = get_decrypted_private_key(config)  # type: ignore[arg-type]
@@ -478,7 +492,9 @@ def _get_haproxy_candidate_version(client) -> str | None:
 
 
 def get_service_versions(session: object) -> GatewayServiceVersionsResult:
-    from app.repositories.gateway_config import get_decrypted_private_key  # noqa: PLC0415
+    from app.repositories.gateway_config import (
+        get_decrypted_private_key,  # noqa: PLC0415
+    )
 
     config = _get_config(session)
     private_key_pem = get_decrypted_private_key(config)  # type: ignore[arg-type]

@@ -7,9 +7,9 @@ Proxmox calls.
 
 from __future__ import annotations
 
-from app.domain.placement.models import PlacementTuning
 import pytest
 
+from app.domain.placement.models import PlacementTuning
 from app.domain.placement.scorer import (
     cpu_contention_penalty,
     linear_penalty,

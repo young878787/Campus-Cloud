@@ -13,8 +13,8 @@ import asyncio
 import json
 import sys
 import time
+
 import httpx
-from typing import List, Tuple
 
 # ─────────────────────────────────────────────
 # ★ 填入你的設定
@@ -59,7 +59,7 @@ def list_models() -> str:
 
 def chat(model: str):
     """非串流呼叫"""
-    print(f"\n[2] 非串流呼叫")
+    print("\n[2] 非串流呼叫")
     print(f"    prompt: {PROMPT}")
 
     start = time.time()
@@ -96,9 +96,9 @@ def chat(model: str):
 
 def chat_stream(model: str):
     """串流呼叫"""
-    print(f"\n[3] 串流呼叫")
+    print("\n[3] 串流呼叫")
     print(f"    prompt: {PROMPT}")
-    print(f"    輸出：", end="", flush=True)
+    print("    輸出：", end="", flush=True)
 
     start = time.time()
     char_count = 0
@@ -164,11 +164,11 @@ def check_rate_limit_status():
     print(f"    重置時間：{data['reset_at']}")
 
     if data.get("disabled"):
-        print(f"    ⚠️  Redis 已禁用 - 速率限制未生效")
+        print("    ⚠️  Redis 已禁用 - 速率限制未生效")
     elif data.get("error"):
         print(f"    ⚠️  Redis 錯誤: {data['error']}")
     else:
-        print(f"    ✓ Redis 正常運作")
+        print("    ✓ Redis 正常運作")
 
 
 def test_rate_limit(model: str, concurrent_count: int = 19, sequential_count: int = 6):
@@ -186,11 +186,11 @@ def test_rate_limit(model: str, concurrent_count: int = 19, sequential_count: in
     """
     total_requests = concurrent_count + sequential_count
 
-    print(f"\n[5] 速率限制壓力測試（優化版）")
+    print("\n[5] 速率限制壓力測試（優化版）")
     print(f"    階段 1: 同時發送 {concurrent_count} 個並發請求")
     print(f"    階段 2: 逐一發送 {sequential_count} 個序列請求")
     print(f"    總計: {total_requests} 個請求")
-    print(f"    限制: 20 次/分鐘")
+    print("    限制: 20 次/分鐘")
     print(f"    預期: 前 20 個成功，第 21-{total_requests} 個被擋下 (HTTP 429)")
     print()
 
@@ -206,7 +206,7 @@ def test_rate_limit(model: str, concurrent_count: int = 19, sequential_count: in
     # ========================================
     print(f"    階段 1: 發送 {concurrent_count} 個並發請求...")
 
-    async def send_concurrent_request(session_id: int) -> Tuple[int, int, str, str]:
+    async def send_concurrent_request(session_id: int) -> tuple[int, int, str, str]:
         """
         發送單個並發請求
 
@@ -354,45 +354,45 @@ def test_rate_limit(model: str, concurrent_count: int = 19, sequential_count: in
     # ========================================
     # 總結報告
     # ========================================
-    print(f"\n    ╔══════════════════════════════════════════╗")
+    print("\n    ╔══════════════════════════════════════════╗")
     print(f"    ║  測試完成 (總耗時 {elapsed_total:.2f}s)             ║")
-    print(f"    ╠══════════════════════════════════════════╣")
+    print("    ╠══════════════════════════════════════════╣")
     print(f"    ║  總請求數：{total_requests:2d}                         ║")
     print(f"    ║  ✓ 成功：{success_count:2d}                           ║")
     print(f"    ║  ✗ 被限制：{rate_limited_count:2d}                         ║")
     print(f"    ║  ✗ 其他錯誤：{error_count:2d}                         ║")
-    print(f"    ╠══════════════════════════════════════════╣")
+    print("    ╠══════════════════════════════════════════╣")
 
     # 判斷測試結果
     if error_count > 0:
         print(f"    ║  ⚠️  發生 {error_count} 個錯誤，請檢查以下問題：   ║")
-        print(f"    ║  1. 後端服務是否正常運行           ║")
-        print(f"    ║  2. VLLM Gateway 是否可訪問        ║")
-        print(f"    ║  3. API Key 是否有效               ║")
-        print(f"    ║  4. 網路連線是否正常               ║")
+        print("    ║  1. 後端服務是否正常運行           ║")
+        print("    ║  2. VLLM Gateway 是否可訪問        ║")
+        print("    ║  3. API Key 是否有效               ║")
+        print("    ║  4. 網路連線是否正常               ║")
     elif rate_limited_count > 0:
-        print(f"    ║  ✅ Redis 速率限制正常運作！        ║")
+        print("    ║  ✅ Redis 速率限制正常運作！        ║")
         print(f"    ║     成功擋下 {rate_limited_count} 個超限請求           ║")
     elif success_count == total_requests:
-        print(f"    ║  ⚠️  所有請求都成功 - Redis 可能未啟用 ║")
-        print(f"    ║     請檢查 .env 中的 REDIS_ENABLED  ║")
+        print("    ║  ⚠️  所有請求都成功 - Redis 可能未啟用 ║")
+        print("    ║     請檢查 .env 中的 REDIS_ENABLED  ║")
     else:
-        print(f"    ║  ⚠️  測試結果異常，請檢查錯誤訊息    ║")
+        print("    ║  ⚠️  測試結果異常，請檢查錯誤訊息    ║")
 
-    print(f"    ╚══════════════════════════════════════════╝")
+    print("    ╚══════════════════════════════════════════╝")
 
     # 顯示錯誤詳情（如果有）
     if error_count > 0:
-        print(f"\n    錯誤詳情:")
+        print("\n    錯誤詳情:")
         for req_id, status_code, status_text, detail in results:
             if status_text not in ["成功", "速率限制"]:
                 print(f"      [{req_id:2d}] {status_text} ({status_code}): {detail}")
 
-        print(f"\n    💡 常見問題排查:")
-        print(f"       - HTTP 500: 後端內部錯誤，檢查後端日誌")
-        print(f"       - 連線失敗: VLLM Gateway 未運行或網址錯誤")
-        print(f"       - 超時: 請求處理時間過長，增加 timeout")
-        print(f"       - HTTP 401: API Key 無效或已過期")
+        print("\n    💡 常見問題排查:")
+        print("       - HTTP 500: 後端內部錯誤，檢查後端日誌")
+        print("       - 連線失敗: VLLM Gateway 未運行或網址錯誤")
+        print("       - 超時: 請求處理時間過長，增加 timeout")
+        print("       - HTTP 401: API Key 無效或已過期")
 
 
 # ─────────────────────────────────────────────

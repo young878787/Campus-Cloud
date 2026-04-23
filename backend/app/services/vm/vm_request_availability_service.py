@@ -18,8 +18,8 @@ from app.schemas.vm_request import (
     VMRequestAvailabilityNodeSnapshot,
     VMRequestAvailabilityRequest,
     VMRequestAvailabilityResponse,
-    VMRequestAvailabilityStackItem,
     VMRequestAvailabilitySlot,
+    VMRequestAvailabilityStackItem,
     VMRequestAvailabilitySummary,
 )
 from app.services.vm import vm_request_placement_service
@@ -122,11 +122,11 @@ def validate_request_window(
         raise BadRequestError("end_at must be later than start_at")
 
     placement_request = PlacementRequest(
-        resource_type=cast(str, getattr(request_in, "resource_type")),
+        resource_type=cast(str, request_in.resource_type),
         cpu_cores=int(getattr(request_in, "cores", 1) or 1),
         memory_mb=int(getattr(request_in, "memory", 512) or 512),
         disk_gb=_extract_disk_gb(
-            resource_type=cast(str, getattr(request_in, "resource_type")),
+            resource_type=cast(str, request_in.resource_type),
             disk_size=getattr(request_in, "disk_size", None),
             rootfs_size=getattr(request_in, "rootfs_size", None),
         ),
@@ -384,7 +384,7 @@ def _load_hourly_demand_profile(*, session: Session, timezone: ZoneInfo) -> dict
 
     peak = max(counts.values(), default=0)
     if peak <= 0:
-        return {hour: 0.0 for hour in range(24)}
+        return dict.fromkeys(range(24), 0.0)
     return {
         hour: round(counts.get(hour, 0) / peak, 4)
         for hour in range(24)

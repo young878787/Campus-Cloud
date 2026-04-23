@@ -1,5 +1,4 @@
 import uuid
-from typing import Any
 
 from sqlmodel import Session, func, select
 
@@ -13,16 +12,16 @@ from app.exceptions import (
     PermissionDeniedError,
 )
 from app.models import AuditLog, SpecChangeRequest, User, VMRequest
-from app.schemas import (
-    UserCreate,
-    UserRegister,
-    UserUpdate,
-    UserUpdateMe,
-    UsersPublic,
-)
 from app.repositories import resource as resource_repo
 from app.repositories import user as user_repo
 from app.repositories import vm_migration_job as vm_migration_job_repo
+from app.schemas import (
+    UserCreate,
+    UserRegister,
+    UsersPublic,
+    UserUpdate,
+    UserUpdateMe,
+)
 from app.services.user import audit_service
 from app.utils import generate_new_account_email, send_email
 

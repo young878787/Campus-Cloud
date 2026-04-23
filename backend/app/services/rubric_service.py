@@ -14,7 +14,6 @@ from fastapi import HTTPException
 from app.ai.teacher_judge.config import settings
 from app.schemas.rubric import ChatMessage, RubricAnalysis, RubricItem
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -242,7 +241,7 @@ _ANALYZE_SYSTEM_PROMPT = """
       "id": "item-1",
       "title": "評分項目名稱",
       "description": "評分說明（從原文萃取或精簡改寫）",
-            "checked": 布林值（true 代表「已達成」、false 代表「未達成」，若無明確達成證據請填 false）, 
+            "checked": 布林值（true 代表「已達成」、false 代表「未達成」，若無明確達成證據請填 false）,
       "detectable": "auto | partial | manual",
       "detection_method": "若 auto/partial，具體說明偵測方式（e.g., TCP Port 80 探測）；否則 null",
       "fallback": "若 manual/partial，說明替代方案（e.g., 請學生提交截圖、要求提交 GitHub 連結）；否則 null"
@@ -616,7 +615,7 @@ def export_to_excel(items: list[RubricItem], summary: str = "") -> bytes:
     ]
     col_widths = [10, 25, 40, 12, 18, 35, 35]
 
-    for col_idx, (h, w) in enumerate(zip(headers, col_widths), start=1):
+    for col_idx, (h, w) in enumerate(zip(headers, col_widths, strict=True), start=1):
         cell = ws.cell(row=1, column=col_idx, value=h)
         cell.font = header_font
         cell.fill = PatternFill("solid", fgColor="D0D0D0")

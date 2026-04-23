@@ -12,7 +12,6 @@ from app.core.metrics import (
     metrics_endpoint,
 )
 
-
 # ─── _route_template helper ──────────────────────────────────────────────────
 
 

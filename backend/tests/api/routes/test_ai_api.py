@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app.features.ai.config import settings as ai_api_settings
 from app.core.config import settings
+from app.features.ai.config import settings as ai_api_settings
 from app.repositories import user as user_repo
 from app.schemas import UserCreate
 from tests.utils.user import user_authentication_headers

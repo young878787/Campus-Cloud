@@ -28,7 +28,7 @@ router = APIRouter(prefix="/ai/pve-log", tags=["ai-pve-log"])
 async def _snapshot_or_500() -> SystemSnapshot:
     try:
         return await asyncio.to_thread(collect_snapshot)
-    except Exception as exc:
+    except Exception:
         logger.exception("收集 PVE 系統快照失敗")
         raise HTTPException(status_code=500, detail="收集 PVE 資料失敗，請稍後再試")
 

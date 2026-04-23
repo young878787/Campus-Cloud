@@ -4,7 +4,12 @@ from fastapi import APIRouter
 
 from app.api.deps import AdminUser, CurrentUser, SessionDep, VmInfoDep
 from app.exceptions import BadRequestError, ProxmoxError
-from app.schemas import VMCreateRequest, VMCreateResponse, VMTemplateSchema, VNCInfoSchema
+from app.schemas import (
+    VMCreateRequest,
+    VMCreateResponse,
+    VMTemplateSchema,
+    VNCInfoSchema,
+)
 from app.services.proxmox import provisioning_service, proxmox_service
 
 logger = logging.getLogger(__name__)

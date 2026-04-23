@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from app.services.network import firewall_service as fw
 
-
 # ─── _make_connection_comment / _parse_connection_comment round-trip ────────
 
 

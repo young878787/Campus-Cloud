@@ -9,17 +9,17 @@ from app.api.deps import AdminUser, SessionDep
 from app.exceptions import BadRequestError, ProxmoxError
 from app.models import AuditAction
 from app.repositories import gateway_config as gw_repo
+from app.schemas.common import Message
 from app.schemas.gateway import (
     GatewayConfigPublic,
     GatewayConfigUpdate,
     GatewayConnectionTestResult,
+    GatewayServiceVersionsResult,
     ServiceActionResult,
     ServiceConfigRead,
     ServiceConfigWrite,
     ServiceStatusResult,
-    GatewayServiceVersionsResult,
 )
-from app.schemas.common import Message
 from app.services.network import gateway_service
 from app.services.user import audit_service
 

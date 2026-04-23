@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlmodel import Session
 
 from app.ai.pve_advisor import recommendation_service as advisor_service
 from app.ai.pve_advisor.schemas import (
     NodeCapacity,
-    PlacementDecision,
     PlacementPlan,
     PlacementRequest,
     ResourceType,
@@ -17,23 +16,27 @@ from app.ai.pve_advisor.schemas import (
 from app.domain.placement import policy as placement_policy
 from app.domain.placement import scorer as placement_scorer
 from app.domain.placement.models import (
-    DEFAULT_CPU_PEAK_HIGH_SHARE,
-    DEFAULT_CPU_PEAK_WARN_SHARE,
-    DEFAULT_RAM_PEAK_HIGH_SHARE,
-    DEFAULT_RAM_PEAK_WARN_SHARE,
     AssignmentEvaluation as _AssignmentEvaluation,
+)
+from app.domain.placement.models import (
     NodeScoreBreakdown,
+)
+from app.domain.placement.models import (
     PlacementTuning as _PlacementTuning,
+)
+from app.domain.placement.models import (
     StorageSelection as _StorageSelection,
+)
+from app.domain.placement.models import (
     WorkingStoragePool as _WorkingStoragePool,
 )
 from app.domain.placement.storage import (
-    STORAGE_SPEED_RANK as _STORAGE_SPEED_RANK,
     reserve_storage_pool as _reserve_storage_pool,
+)
+from app.domain.placement.storage import (
     select_best_storage_for_request as _select_best_storage_for_request,
 )
 from app.models import VMRequest
-from app.repositories import proxmox_storage as proxmox_storage_repo
 from app.repositories import vm_request as vm_request_repo
 from app.services.scheduling import policy as scheduling_policy
 from app.services.scheduling import support as scheduling_support
@@ -1216,7 +1219,7 @@ def rebalance_active_assignments(
 def compute_node_score_breakdown(
     *,
     session: Session,
-    candidate_evals: dict[str, "_AssignmentEvaluation"],
+    candidate_evals: dict[str, _AssignmentEvaluation],
     selected_node: str | None,
     priorities: dict[str, int] | None = None,
 ) -> list[NodeScoreBreakdown]:

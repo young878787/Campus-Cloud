@@ -15,7 +15,6 @@ from app.api.deps import (
 )
 from app.core import security
 from app.core.config import settings
-from app.exceptions import AuthenticationError
 from app.infrastructure.redis import get_redis, revoke_jti
 from app.schemas import Message, NewPassword, Token, TokenPayload, UserPublic
 from app.services.user import auth_service

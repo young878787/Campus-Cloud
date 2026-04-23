@@ -8,8 +8,6 @@ import threading
 import time
 import uuid
 
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.api.deps import InstructorUser, SessionDep
@@ -35,6 +33,8 @@ from app.schemas.group import (
 from app.schemas.user import UserCreate
 from app.services.user import audit_service
 from app.utils import generate_new_account_email, send_email
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 

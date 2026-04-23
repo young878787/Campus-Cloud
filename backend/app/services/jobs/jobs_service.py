@@ -11,11 +11,11 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
-from typing import Iterable
 
-from sqlmodel import Session, select
 from sqlalchemy.orm import selectinload
+from sqlmodel import Session, select
 
 from app.models import (
     DeletionRequest,
@@ -34,8 +34,8 @@ from app.schemas.jobs import (
     JobDetail,
     JobItem,
     JobKind,
-    JobStatus,
     JobsListResponse,
+    JobStatus,
 )
 
 logger = logging.getLogger(__name__)

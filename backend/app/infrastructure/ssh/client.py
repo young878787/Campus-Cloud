@@ -3,8 +3,9 @@ from __future__ import annotations
 import io
 import select
 import time
+from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 try:
     import paramiko

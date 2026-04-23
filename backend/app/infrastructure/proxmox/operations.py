@@ -5,12 +5,13 @@ control, resize, specs, session ticket, etc.) so that callers no longer
 duplicate the same cluster.resources iteration or qemu/lxc dispatch logic.
 """
 
-from collections.abc import Callable
 import logging
+from collections.abc import Callable
 from typing import Literal
 
 import httpx
 
+from app.exceptions import BadRequestError, NotFoundError, ProxmoxError
 from app.infrastructure.proxmox import (
     basic_blocking_task_status,
     get_active_host,
@@ -18,7 +19,6 @@ from app.infrastructure.proxmox import (
     get_proxmox_settings,
     wait_for_task_status,
 )
-from app.exceptions import BadRequestError, NotFoundError, ProxmoxError
 
 logger = logging.getLogger(__name__)
 

@@ -17,7 +17,6 @@ from app.core.security import (
     verify_password,
 )
 
-
 # ─── Fernet encrypt / decrypt ────────────────────────────────────────────────
 
 

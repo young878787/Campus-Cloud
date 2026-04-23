@@ -3,17 +3,17 @@ import logging
 import secrets
 import time
 import uuid
+from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta
-from typing import AsyncGenerator
 
 import httpx
 from sqlalchemy import and_, or_
 from sqlmodel import Session, select
 
-from app.features.ai.config import settings as ai_api_settings
 from app.core.authorizers import require_ai_api_access
 from app.core.security import decrypt_value, encrypt_value
 from app.exceptions import BadRequestError, NotFoundError
+from app.features.ai.config import settings as ai_api_settings
 from app.models import (
     AIAPICredential,
     AIAPIRequest,
@@ -748,7 +748,7 @@ def get_monitoring_stats(
     end_date: datetime | None = None,
 ) -> dict:
     """全局 AI 監控統計卡片"""
-    from sqlalchemy import func, distinct
+    from sqlalchemy import distinct, func
 
     proxy_query = select(
         func.count(AIAPIUsage.id),
@@ -960,7 +960,7 @@ def list_users_usage(
     limit: int = 50,
 ) -> dict:
     """Admin: 每個使用者的 AI 用量彙總"""
-    from sqlalchemy import func, literal_column
+    from sqlalchemy import func
 
     # Proxy 用量 per user
     proxy_sub = select(
@@ -993,7 +993,7 @@ def list_users_usage(
     # 合併：所有有 proxy 或 template 呼叫的使用者
     # 先取得所有相關 user_id
     all_user_ids_q = select(proxy_sub.c.user_id).union(select(tmpl_sub.c.user_id))
-    all_user_ids = [row for row in session.exec(all_user_ids_q).all()]
+    all_user_ids = list(session.exec(all_user_ids_q).all())
     total_count = len(all_user_ids)
 
     # 分頁取使用者明細

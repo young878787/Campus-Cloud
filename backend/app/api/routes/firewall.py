@@ -13,10 +13,11 @@ from app.api.deps import (
 )
 from app.core.authorizers import can_bypass_resource_ownership
 from app.exceptions import BadRequestError, NotFoundError, ProxmoxError
+from app.models import AuditAction
 from app.repositories import firewall_layout as layout_repo
-from app.schemas import Message
 from app.repositories import nat_rule as nat_repo
 from app.repositories import reverse_proxy as rp_repo
+from app.schemas import Message
 from app.schemas.firewall import (
     ConnectionCreate,
     ConnectionDelete,
@@ -29,7 +30,6 @@ from app.schemas.firewall import (
     ReverseProxyRulePublic,
     TopologyResponse,
 )
-from app.models import AuditAction
 from app.services.network import firewall_service, nat_service, reverse_proxy_service
 from app.services.user import audit_service
 
@@ -415,7 +415,7 @@ def delete_nat_rule(
     except ProxmoxError as e:
         logger.error(f"Proxmox error removing NAT rule {rule_id}: {e}")
         raise HTTPException(status_code=502, detail="Proxmox 操作失敗")
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to remove NAT rule {rule_id}")
         raise HTTPException(status_code=500, detail="刪除 NAT 規則失敗")
 
@@ -438,7 +438,7 @@ def sync_nat_rules(
     except ProxmoxError as e:
         logger.error(f"Proxmox error syncing NAT rules: {e}")
         raise HTTPException(status_code=502, detail="Proxmox 操作失敗")
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to sync NAT rules")
         raise HTTPException(status_code=500, detail="同步 NAT 規則失敗")
 
@@ -515,7 +515,7 @@ def delete_reverse_proxy_rule(
     except ProxmoxError as e:
         logger.error(f"Proxmox error removing reverse proxy rule {rule_id}: {e}")
         raise HTTPException(status_code=502, detail="Proxmox 操作失敗")
-    except Exception as e:
+    except Exception:
         logger.exception(f"Failed to remove reverse proxy rule {rule_id}")
         raise HTTPException(status_code=500, detail="刪除反向代理規則失敗")
 
@@ -538,7 +538,7 @@ def sync_reverse_proxy_rules(
     except ProxmoxError as e:
         logger.error(f"Proxmox error syncing reverse proxy rules: {e}")
         raise HTTPException(status_code=502, detail="Proxmox 操作失敗")
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to sync reverse proxy rules")
         raise HTTPException(status_code=500, detail="同步反向代理規則失敗")
 

@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.ai.system_config import BACKEND_ROOT, PROJECT_ROOT, system_ai_config, system_ai_env
+from app.ai.system_config import (
+    BACKEND_ROOT,
+    PROJECT_ROOT,
+    system_ai_config,
+    system_ai_env,
+)
 
 
 class TemplateRecommendationSettings:

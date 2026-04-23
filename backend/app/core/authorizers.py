@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from app.exceptions import PermissionDeniedError
 from app.core.permissions import (
     Permission,
     can_access_owner_resource,
@@ -13,6 +12,7 @@ from app.core.permissions import (
     require_owner_or_permission,
     require_permission,
 )
+from app.exceptions import PermissionDeniedError
 
 
 def can_manage_users(user: Any) -> bool:

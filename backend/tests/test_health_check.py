@@ -8,7 +8,6 @@ so the tests run without a live database, Redis, or Proxmox node.
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 import pytest
@@ -17,7 +16,7 @@ from app.api.routes import utils as utils_route
 
 
 class _FakeConn:
-    def __enter__(self) -> "_FakeConn":
+    def __enter__(self) -> _FakeConn:
         return self
 
     def __exit__(self, *_args: Any) -> None:

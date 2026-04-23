@@ -3,16 +3,16 @@ import uuid
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import AdminUser, CurrentUser, SessionDep, rate_limit_by_user
+from app.models import VMRequestStatus
 from app.schemas import (
     VMRequestAvailabilityRequest,
     VMRequestAvailabilityResponse,
     VMRequestCreate,
     VMRequestPublic,
-    VMRequestReviewContext,
     VMRequestReview,
+    VMRequestReviewContext,
     VMRequestsPublic,
 )
-from app.models import VMRequestStatus
 from app.services.vm import vm_request_availability_service, vm_request_service
 
 router = APIRouter(prefix="/vm-requests", tags=["vm-requests"])

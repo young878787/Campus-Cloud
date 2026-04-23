@@ -21,7 +21,6 @@ from app.infrastructure.redis import close_redis, init_redis
 from app.infrastructure.worker import init_background_runner, shutdown_background_runner
 from app.services.scheduling import vm_request_schedule_service
 
-
 _SECURITY_HEADERS: list[tuple[str, str]] = [
     ("X-Content-Type-Options", "nosniff"),
     ("X-Frame-Options", "DENY"),

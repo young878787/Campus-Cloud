@@ -2,9 +2,9 @@
 from pwdlib.hashers.bcrypt import BcryptHasher
 from sqlmodel import Session
 
-from app.repositories import user as user_repo
 from app.core.security import verify_password
 from app.models import User
+from app.repositories import user as user_repo
 from app.schemas import UserCreate, UserUpdate
 from tests.utils.utils import random_email, random_lower_string
 

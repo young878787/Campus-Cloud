@@ -5,7 +5,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-
 PersonaPreset = Literal[
     "student_individual",
     "student_team_project",
@@ -165,7 +164,7 @@ class RecommendationRequest(BaseModel):
         return data
 
     @model_validator(mode="after")
-    def _infer_preset_when_missing(self) -> "RecommendationRequest":
+    def _infer_preset_when_missing(self) -> RecommendationRequest:
         if self.preset is None:
             if self.role == "teacher" and self.course_context == "teaching":
                 self.preset = "teaching_class_service"

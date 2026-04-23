@@ -10,13 +10,13 @@
 
 import logging
 import re
-import uuid
 
 from sqlmodel import Session
 
 from app.core.authorizers import can_bypass_resource_ownership
-from app.infrastructure.proxmox import get_proxmox_api
 from app.exceptions import BadRequestError, NotFoundError, ProxmoxError
+from app.infrastructure.proxmox import get_proxmox_api
+from app.infrastructure.proxmox.operations import ResourceType
 from app.models.user import User
 from app.repositories import firewall_layout as layout_repo
 from app.repositories import resource as resource_repo
@@ -27,7 +27,6 @@ from app.schemas.firewall import (
     TopologyResponse,
 )
 from app.services.proxmox import proxmox_service
-from app.infrastructure.proxmox.operations import ResourceType
 
 logger = logging.getLogger(__name__)
 
@@ -238,7 +237,9 @@ def sync_block_local_subnet_rules() -> dict:
     回傳 {"extra_blocks": {...}} 統計。
     """
     from app.core.db import engine  # noqa: PLC0415
-    from app.infrastructure.proxmox.operations import list_all_resources  # noqa: PLC0415
+    from app.infrastructure.proxmox.operations import (
+        list_all_resources,  # noqa: PLC0415
+    )
     from app.services.network import ip_management_service  # noqa: PLC0415
 
     with Session(engine) as s:
@@ -326,8 +327,8 @@ def setup_default_rules(node: str, vmid: int, resource_type: ResourceType) -> No
 
         # 新增 Gateway VM → VM 全埠 ACCEPT 規則（1-65535 TCP+UDP）
         try:
-            from app.services.network import ip_management_service  # noqa: PLC0415
             from app.core.db import engine  # noqa: PLC0415
+            from app.services.network import ip_management_service  # noqa: PLC0415
 
             with Session(engine) as s:
                 subnet_config = ip_management_service.get_subnet_config(s)
@@ -581,7 +582,9 @@ def create_connection(
 
                 if domain:
                     # 🌐 反向代理（Traefik）
-                    from app.services.network import reverse_proxy_service  # noqa: PLC0415
+                    from app.services.network import (
+                        reverse_proxy_service,  # noqa: PLC0415
+                    )
                     reverse_proxy_service.apply_reverse_proxy_rule(
                         session=session,
                         vmid=target_vmid,
@@ -759,7 +762,10 @@ def delete_connection(
         )
         # 同步清理 Gateway VM 規則（haproxy + Traefik）
         if session is not None:
-            from app.services.network import nat_service, reverse_proxy_service  # noqa: PLC0415
+            from app.services.network import (  # noqa: PLC0415
+                nat_service,
+                reverse_proxy_service,
+            )
             if ports is None:
                 nat_service.remove_nat_rules_for_vmid(session, target_vmid)
                 reverse_proxy_service.remove_reverse_proxy_rules_for_vmid(session, target_vmid)

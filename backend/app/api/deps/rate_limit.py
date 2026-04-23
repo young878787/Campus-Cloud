@@ -9,7 +9,7 @@ behaviour of `check_rate_limit_sliding_window`.
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import HTTPException, Request, status
 

@@ -12,12 +12,12 @@ from app.core.security import decrypt_value
 from app.exceptions import ProxmoxError
 from app.infrastructure.worker import submit_sync
 from app.models import DeletionRequestStatus
-from app.schemas import Message, NodeSchema, ResourcePublic, SSHKeyResponse
+from app.repositories import resource as resource_repo
+from app.schemas import NodeSchema, ResourcePublic, SSHKeyResponse
 from app.schemas.deletion_request import DeletionRequestCreated
 from app.schemas.resource import BatchActionRequest, BatchActionResponse
 from app.services.proxmox import proxmox_service
 from app.services.resource import deletion_service, resource_service
-from app.repositories import resource as resource_repo
 
 logger = logging.getLogger(__name__)
 
