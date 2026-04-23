@@ -19,9 +19,17 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
+        with:
+          cache-dependency-path: uv.lock
 
       - name: Sync backend deps
         run: uv sync --frozen
 
       - name: Run migration check
+        env:
+          PROJECT_NAME: campus-cloud-ci
+          FIRST_SUPERUSER: admin@example.com
+          FIRST_SUPERUSER_PASSWORD: ci-migration-check-password
+          SECRET_KEY: ci-migration-check-secret-key-not-for-production
+          ENVIRONMENT: local
         run: bash scripts/check-migrations.sh

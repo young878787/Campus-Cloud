@@ -428,7 +428,8 @@ function StorageTab() {
     ? storages
         .filter((s) => s.is_shared)
         .reduce<Record<string, ProxmoxStoragePublic[]>>((acc, s) => {
-          ;(acc[s.storage] ??= []).push(s)
+          acc[s.storage] ??= []
+          acc[s.storage].push(s)
           return acc
         }, {})
     : {}
@@ -446,7 +447,9 @@ function StorageTab() {
   ) => {
     if (s.is_shared) {
       const group = sharedByName[s.storage] ?? []
-      group.forEach((entry) => updateMutation.mutate({ id: entry.id, body }))
+      group.forEach((entry) => {
+        updateMutation.mutate({ id: entry.id, body })
+      })
     } else {
       updateMutation.mutate({ id: s.id, body })
     }

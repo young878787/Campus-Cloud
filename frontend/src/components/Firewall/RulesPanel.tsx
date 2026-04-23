@@ -46,6 +46,7 @@ export function RulesPanel({ vmid, vmName, onClose }: Props) {
           </span>
         </div>
         <button
+          type="button"
           onClick={() => {
             setShow(false)
             onClose()

@@ -69,6 +69,28 @@ function getSelectedSlots(
 }
 
 function PlacementStatusCell({ request }: { request: VMRequestPublic }) {
+  const hasSchedule = !!(request.start_at && request.end_at)
+  const isTerminal = ["approved", "rejected", "cancelled"].includes(
+    request.status,
+  )
+
+  const query = useQuery({
+    queryKey: [
+      "vm-request-availability-row",
+      request.id,
+      request.start_at,
+      request.end_at,
+    ],
+    queryFn: () =>
+      VmRequestAvailabilityService.getByRequestId({
+        requestId: request.id,
+        days: 7,
+        timezone: "Asia/Taipei",
+      }),
+    staleTime: 30_000,
+    enabled: hasSchedule && !isTerminal,
+  })
+
   if (request.status === "approved") {
     return (
       <div className="flex flex-col gap-1">
@@ -110,22 +132,6 @@ function PlacementStatusCell({ request }: { request: VMRequestPublic }) {
       </div>
     )
   }
-
-  const query = useQuery({
-    queryKey: [
-      "vm-request-availability-row",
-      request.id,
-      request.start_at,
-      request.end_at,
-    ],
-    queryFn: () =>
-      VmRequestAvailabilityService.getByRequestId({
-        requestId: request.id,
-        days: 7,
-        timezone: "Asia/Taipei",
-      }),
-    staleTime: 30_000,
-  })
 
   if (query.isLoading) {
     return (

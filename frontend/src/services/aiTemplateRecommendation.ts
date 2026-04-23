@@ -1,9 +1,9 @@
+import type { RecommendationFormContext } from "@/client"
 import {
   AiTemplateRecommendationService,
   type ChatRequest,
   type ChatResponse,
 } from "@/client"
-import type { RecommendationFormContext } from "@/client"
 import type { GPUSummary } from "@/services/gpu"
 
 export type { RecommendationFormContext }

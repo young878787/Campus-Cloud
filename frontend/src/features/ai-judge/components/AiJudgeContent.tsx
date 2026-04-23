@@ -1,15 +1,15 @@
-import { useCallback, useState } from "react"
 import { Download, FileSpreadsheet, Plus, Sparkles } from "lucide-react"
+import { useCallback, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   AiJudgeService,
-  downloadBlob,
-  rubricToContext,
   type ChatMessage,
+  downloadBlob,
   type RubricAnalysis,
   type RubricItem,
+  rubricToContext,
 } from "@/features/ai-judge/api"
 import {
   ChatPanel,
@@ -98,7 +98,10 @@ export function AiJudgeContent({ groupId: _groupId }: { groupId: string }) {
         if (response.updated_items) {
           setAnalysis((prev) =>
             prev
-              ? applyItemsToAnalysis(prev, response.updated_items as RubricItem[])
+              ? applyItemsToAnalysis(
+                  prev,
+                  response.updated_items as RubricItem[],
+                )
               : null,
           )
           showSuccessToast("評估表已更新")
@@ -111,9 +114,14 @@ export function AiJudgeContent({ groupId: _groupId }: { groupId: string }) {
         setIsChatting(false)
       }
     },
-    [analysis, messages, showSuccessToast, showErrorToast, applyItemsToAnalysis],
+    [
+      analysis,
+      messages,
+      showSuccessToast,
+      showErrorToast,
+      applyItemsToAnalysis,
+    ],
   )
-
   const handleItemChange = useCallback(
     (index: number, updatedItem: RubricItem) => {
       if (!analysis) return
@@ -195,7 +203,7 @@ export function AiJudgeContent({ groupId: _groupId }: { groupId: string }) {
       {/* Main content */}
       {!analysis ? (
         /* Upload section */
-        (<Card className="shadow-sm border-border/50">
+        <Card className="shadow-sm border-border/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5" />
@@ -205,10 +213,10 @@ export function AiJudgeContent({ groupId: _groupId }: { groupId: string }) {
           <CardContent>
             <RubricUploader onUpload={handleUpload} isLoading={isUploading} />
           </CardContent>
-        </Card>)
+        </Card>
       ) : (
         /* Analysis results */
-        (<div className="grid gap-6 xl:grid-cols-[1fr_400px]">
+        <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
           {/* Left: Rubric items */}
           <div className="space-y-4">
             {/* Stats */}
@@ -267,7 +275,7 @@ export function AiJudgeContent({ groupId: _groupId }: { groupId: string }) {
               />
             </CardContent>
           </Card>
-        </div>)
+        </div>
       )}
     </div>
   )

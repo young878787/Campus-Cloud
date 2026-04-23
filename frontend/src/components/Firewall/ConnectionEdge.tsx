@@ -103,6 +103,7 @@ export function ConnectionEdge({
       </defs>
 
       {/* 透明寬邊路徑（hover 偵測區域，永遠存在） */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: SVG path hover detection in ReactFlow edge component */}
       <path
         d={edgePath}
         fill="none"
@@ -155,6 +156,7 @@ export function ConnectionEdge({
 
       {/* 連線標籤（hover 時才顯示） */}
       <EdgeLabelRenderer>
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: label tooltip follows pointer without keyboard focus */}
         <div
           style={{
             position: "absolute",
@@ -195,6 +197,7 @@ export function ConnectionEdge({
             {/* 刪除按鈕（hover 時顯示） */}
             {hovered && (
               <button
+                type="button"
                 onClick={() =>
                   data?.onDelete?.(data.sourceVmid, data.targetVmid)
                 }

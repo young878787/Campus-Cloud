@@ -76,7 +76,10 @@ async function approveDeviceCode(deviceCode: string): Promise<boolean> {
     const resolvedToken =
       typeof OpenAPI.TOKEN === "function"
         ? await (
-            OpenAPI.TOKEN as (options: { method: string; url: string }) => Promise<string>
+            OpenAPI.TOKEN as (options: {
+              method: string
+              url: string
+            }) => Promise<string>
           )({
             method: "POST",
             url: "/api/v1/desktop-client/auth/approve",
@@ -212,6 +215,7 @@ function Login() {
         <div className="flex flex-col items-center gap-4 text-center py-8">
           <div className="rounded-full bg-green-100 p-3 dark:bg-green-900">
             <svg
+              aria-hidden="true"
               className="h-8 w-8 text-green-600 dark:text-green-400"
               fill="none"
               viewBox="0 0 24 24"

@@ -41,7 +41,9 @@ describe("queryKeys", () => {
   describe("dynamic keys (parameter inclusion)", () => {
     it("groups.detail returns a stable key for the same id", () => {
       expect(queryKeys.groups.detail("g1")).toEqual(["group", "g1"])
-      expect(queryKeys.groups.detail("g1")).toEqual(queryKeys.groups.detail("g1"))
+      expect(queryKeys.groups.detail("g1")).toEqual(
+        queryKeys.groups.detail("g1"),
+      )
     })
 
     it("groups.detail produces distinct keys for distinct ids", () => {

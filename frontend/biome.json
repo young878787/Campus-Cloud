@@ -8,6 +8,7 @@
       "!**/node_modules/**/*",
       "!**/src/routeTree.gen.ts",
       "!**/src/client/**/*",
+      "!**/openapi.json",
       "!**/src/components/ui/**/*",
       "!**/playwright-report",
       "!**/playwright.config.ts"

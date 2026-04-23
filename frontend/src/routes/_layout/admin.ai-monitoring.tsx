@@ -1,6 +1,5 @@
-import { redirect } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 import {
   Activity,
   BarChart3,
@@ -309,7 +308,10 @@ function ProxyCallsTab({
                             fullName={row.user_full_name}
                           />
                         </TableCell>
-                        <TableCell className="font-mono text-sm" title={row.model_name}>
+                        <TableCell
+                          className="font-mono text-sm"
+                          title={row.model_name}
+                        >
                           {formatModelDisplay(row.model_name)}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
@@ -458,8 +460,13 @@ function TemplateCallsTab({
                             fullName={row.user_full_name}
                           />
                         </TableCell>
-                        <TableCell className="text-sm">{row.call_type}</TableCell>
-                        <TableCell className="font-mono text-sm" title={row.model_name}>
+                        <TableCell className="text-sm">
+                          {row.call_type}
+                        </TableCell>
+                        <TableCell
+                          className="font-mono text-sm"
+                          title={row.model_name}
+                        >
                           {formatModelDisplay(row.model_name)}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">

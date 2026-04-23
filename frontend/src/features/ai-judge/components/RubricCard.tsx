@@ -91,10 +91,14 @@ export function RubricCard({
 
       {/* ── Row 2: Title (user-editable) ── */}
       <div className="mt-3 space-y-1 pl-9">
-        <label className="text-xs font-medium text-muted-foreground">
+        <label
+          htmlFor={`rubric-title-${item.id}`}
+          className="text-xs font-medium text-muted-foreground"
+        >
           主題
         </label>
         <Input
+          id={`rubric-title-${item.id}`}
           value={item.title}
           onChange={(e) => handleFieldChange("title", e.target.value)}
           placeholder="評分項目名稱"
@@ -105,10 +109,14 @@ export function RubricCard({
 
       {/* ── Row 3: Description (user-editable) ── */}
       <div className="mt-2.5 space-y-1 pl-9">
-        <label className="text-xs font-medium text-muted-foreground">
+        <label
+          htmlFor={`rubric-desc-${item.id}`}
+          className="text-xs font-medium text-muted-foreground"
+        >
           說明
         </label>
         <Input
+          id={`rubric-desc-${item.id}`}
           value={item.description}
           onChange={(e) => handleFieldChange("description", e.target.value)}
           placeholder="評分說明"

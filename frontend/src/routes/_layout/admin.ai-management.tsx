@@ -16,7 +16,7 @@ import {
   Zap,
 } from "lucide-react"
 import { useMemo, useState } from "react"
-
+import { DataTable } from "@/components/Common/DataTable"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +36,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { DataTable } from "@/components/Common/DataTable"
 import {
   Dialog,
   DialogClose,
@@ -81,10 +80,10 @@ import {
   AiApiService,
 } from "@/services/aiApi"
 import {
-  AiAdminMonitoringService,
   type AIProxyCallRecord,
   type AITemplateCallRecord,
   type AIUserUsageSummary,
+  AiAdminMonitoringService,
 } from "@/services/aiMonitoring"
 import { handleError } from "@/utils"
 
@@ -213,12 +212,16 @@ function StatCard({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardDescription className="text-sm font-medium">{label}</CardDescription>
+        <CardDescription className="text-sm font-medium">
+          {label}
+        </CardDescription>
         <Icon className={`h-4 w-4 ${color ?? "text-muted-foreground"}`} />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
-        {sub ? <p className="mt-1 text-xs text-muted-foreground">{sub}</p> : null}
+        {sub ? (
+          <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
+        ) : null}
       </CardContent>
     </Card>
   )
@@ -314,7 +317,9 @@ function OverviewCard({
       onClick={onClick}
     >
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardDescription className="text-sm font-medium">{label}</CardDescription>
+        <CardDescription className="text-sm font-medium">
+          {label}
+        </CardDescription>
         <Icon
           className={`h-4 w-4 ${urgent ? "text-amber-500" : (color ?? "text-muted-foreground")}`}
         />
@@ -325,7 +330,9 @@ function OverviewCard({
         >
           {value}
         </div>
-        {sub ? <p className="mt-1 text-xs text-muted-foreground">{sub}</p> : null}
+        {sub ? (
+          <p className="mt-1 text-xs text-muted-foreground">{sub}</p>
+        ) : null}
       </CardContent>
     </Card>
   )
@@ -503,9 +510,7 @@ function ReviewTabContent() {
       {
         accessorKey: "status",
         header: "狀態",
-        cell: ({ row }) => (
-          <RequestStatusBadge status={row.original.status} />
-        ),
+        cell: ({ row }) => <RequestStatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "created_at",
@@ -538,9 +543,7 @@ function ReviewTabContent() {
     <div className="flex flex-col gap-4">
       <Tabs
         value={statusFilter}
-        onValueChange={(v) =>
-          setStatusFilter(v as AiApiRequestStatus | "all")
-        }
+        onValueChange={(v) => setStatusFilter(v as AiApiRequestStatus | "all")}
       >
         <TabsList>
           <TabsTrigger value="pending">待審核</TabsTrigger>
@@ -1075,7 +1078,9 @@ function TemplateCallsTab({
                             fullName={row.user_full_name}
                           />
                         </TableCell>
-                        <TableCell className="text-sm">{row.call_type}</TableCell>
+                        <TableCell className="text-sm">
+                          {row.call_type}
+                        </TableCell>
                         <TableCell
                           className="font-mono text-sm"
                           title={row.model_name}
@@ -1331,17 +1336,13 @@ function MonitoringTabContent() {
         <StatCard
           icon={FileText}
           label="Template Tokens（輸入）"
-          value={
-            stats ? formatTokens(stats.template_total_input_tokens) : "-"
-          }
+          value={stats ? formatTokens(stats.template_total_input_tokens) : "-"}
           color="text-purple-400"
         />
         <StatCard
           icon={FileText}
           label="Template Tokens（輸出）"
-          value={
-            stats ? formatTokens(stats.template_total_output_tokens) : "-"
-          }
+          value={stats ? formatTokens(stats.template_total_output_tokens) : "-"}
           color="text-purple-300"
         />
         <Card>
@@ -1355,11 +1356,7 @@ function MonitoringTabContent() {
             {stats?.models_used && stats.models_used.length > 0 ? (
               <div className="space-y-1">
                 {stats.models_used.map((m) => (
-                  <div
-                    key={m}
-                    className="truncate font-mono text-sm"
-                    title={m}
-                  >
+                  <div key={m} className="truncate font-mono text-sm" title={m}>
                     {formatModelDisplay(m)}
                   </div>
                 ))}

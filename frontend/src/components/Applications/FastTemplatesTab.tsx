@@ -12,7 +12,7 @@ import {
   Server,
   X,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { type ReactNode, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -47,6 +47,29 @@ const templates = Object.entries(allData)
 
 export type FastTemplate = (typeof templates)[number]
 
+function renderNoteText(text: string): ReactNode[] {
+  return text.split(/\r?\n/).flatMap((line, lineIdx, lines) => {
+    const parts: React.ReactNode[] = []
+    const segments = line.split(/`([^`]+)`/)
+    for (let i = 0; i < segments.length; i++) {
+      if (i % 2 === 0) {
+        if (segments[i]) parts.push(segments[i])
+      } else {
+        parts.push(
+          <code
+            key={`code-${lineIdx}-${i}`}
+            className="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-xs"
+          >
+            {segments[i]}
+          </code>,
+        )
+      }
+    }
+    if (lineIdx < lines.length - 1) parts.push(<br key={`br-${lineIdx}`} />)
+    return parts
+  })
+}
+
 function NoteBox({ note }: { note: { text: string; type?: string } }) {
   let colorClasses =
     "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400"
@@ -67,17 +90,7 @@ function NoteBox({ note }: { note: { text: string; type?: string } }) {
       className={`p-4 rounded-lg border flex items-start gap-3 ${colorClasses}`}
     >
       <Icon className="h-5 w-5 mt-0.5 shrink-0" />
-      <div
-        className="text-sm leading-relaxed"
-        dangerouslySetInnerHTML={{
-          __html: note.text
-            .replace(/\\r\\n|\\n/g, "<br />")
-            .replace(
-              /`([^`]+)`/g,
-              '<code class="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-xs">$1</code>',
-            ),
-        }}
-      />
+      <div className="text-sm leading-relaxed">{renderNoteText(note.text)}</div>
     </div>
   )
 }

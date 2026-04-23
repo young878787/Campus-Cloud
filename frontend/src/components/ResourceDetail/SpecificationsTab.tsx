@@ -82,7 +82,8 @@ export default function SpecificationsTab({ vmid }: SpecificationsTabProps) {
         return
       }
 
-      const hasChanges = cores !== config.cpu_cores || memory !== config.memory_mb
+      const hasChanges =
+        cores !== config.cpu_cores || memory !== config.memory_mb
       if (!hasChanges) {
         toast.error(t("specifications.noChanges"))
         return

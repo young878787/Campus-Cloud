@@ -6,12 +6,24 @@ const REFRESH_KEY = "refresh_token"
 
 class MemoryStorage {
   private store = new Map<string, string>()
-  getItem(k: string) { return this.store.get(k) ?? null }
-  setItem(k: string, v: string) { this.store.set(k, v) }
-  removeItem(k: string) { this.store.delete(k) }
-  clear() { this.store.clear() }
-  get length() { return this.store.size }
-  key(i: number) { return Array.from(this.store.keys())[i] ?? null }
+  getItem(k: string) {
+    return this.store.get(k) ?? null
+  }
+  setItem(k: string, v: string) {
+    this.store.set(k, v)
+  }
+  removeItem(k: string) {
+    this.store.delete(k)
+  }
+  clear() {
+    this.store.clear()
+  }
+  get length() {
+    return this.store.size
+  }
+  key(i: number) {
+    return Array.from(this.store.keys())[i] ?? null
+  }
 }
 
 describe("AuthSessionService.revokeTokens", () => {
@@ -31,9 +43,9 @@ describe("AuthSessionService.revokeTokens", () => {
   })
 
   it("does nothing when no access token is stored", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch" as never).mockResolvedValue(
-      new Response(null, { status: 200 }) as never,
-    )
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch" as never)
+      .mockResolvedValue(new Response(null, { status: 200 }) as never)
 
     await AuthSessionService.revokeTokens()
 
@@ -54,7 +66,7 @@ describe("AuthSessionService.revokeTokens", () => {
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
     expect(url).toMatch(/\/api\/v1\/login\/logout$/)
     expect(init.method).toBe("POST")
-    expect((init.headers as Record<string, string>)["Authorization"]).toBe(
+    expect((init.headers as Record<string, string>).Authorization).toBe(
       "Bearer access-abc",
     )
     expect(JSON.parse(init.body as string)).toEqual({

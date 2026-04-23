@@ -1,14 +1,11 @@
-import { FormEvent, useMemo, useState } from "react"
 import { Bot, MessageSquare, Send, Wrench } from "lucide-react"
+import { type FormEvent, useMemo, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  AiPveLogService,
-  type ToolCallRecord,
-} from "@/features/ai-pve-log/api"
+import { AiPveLogService, type ToolCallRecord } from "@/features/ai-pve-log/api"
 import useCustomToast from "@/hooks/useCustomToast"
 
 type LocalMessage = {
@@ -20,7 +17,11 @@ type LocalMessage = {
 /**
  * AI PVE Message Content Block - extracted from Page
  */
-export function AiPveMessageContent({ groupId: _groupId }: { groupId: string }) {
+export function AiPveMessageContent({
+  groupId: _groupId,
+}: {
+  groupId: string
+}) {
   const { showErrorToast } = useCustomToast()
 
   const [input, setInput] = useState("")
@@ -110,11 +111,19 @@ export function AiPveMessageContent({ groupId: _groupId }: { groupId: string }) 
                   ) : (
                     <MessageSquare className="h-4 w-4 text-muted-foreground" />
                   )}
-                  <span className={msg.role === "assistant" ? "text-primary" : "text-muted-foreground"}>
+                  <span
+                    className={
+                      msg.role === "assistant"
+                        ? "text-primary"
+                        : "text-muted-foreground"
+                    }
+                  >
                     {msg.role === "assistant" ? "AI-PVE" : "你"}
                   </span>
                 </div>
-                <p className="whitespace-pre-wrap leading-relaxed text-foreground/90">{msg.content}</p>
+                <p className="whitespace-pre-wrap leading-relaxed text-foreground/90">
+                  {msg.content}
+                </p>
                 {msg.tools && msg.tools.length > 0 && (
                   <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3">
                     <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -122,7 +131,11 @@ export function AiPveMessageContent({ groupId: _groupId }: { groupId: string }) 
                       系統呼叫：
                     </span>
                     {msg.tools.map((tool, toolIndex) => (
-                      <Badge key={`${tool.name}-${toolIndex}`} variant="secondary" className="bg-muted text-[10px] uppercase">
+                      <Badge
+                        key={`${tool.name}-${toolIndex}`}
+                        variant="secondary"
+                        className="bg-muted text-[10px] uppercase"
+                      >
                         {tool.name}
                       </Badge>
                     ))}
@@ -133,8 +146,8 @@ export function AiPveMessageContent({ groupId: _groupId }: { groupId: string }) 
             {isSending && (
               <div className="mr-8 rounded-xl border bg-background shadow-sm p-4 text-sm text-muted-foreground flex items-center gap-3">
                 <span className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
                 </span>
                 AI-PVE 思考中...
               </div>
@@ -150,7 +163,11 @@ export function AiPveMessageContent({ groupId: _groupId }: { groupId: string }) 
               disabled={isSending}
             />
             <div className="flex justify-end">
-              <Button type="submit" disabled={!canSend} className="w-full sm:w-auto">
+              <Button
+                type="submit"
+                disabled={!canSend}
+                className="w-full sm:w-auto"
+              >
                 <Send className="mr-2 h-4 w-4" />
                 發送訊息
               </Button>

@@ -94,27 +94,27 @@ export type LayoutNodeUpdate = {
 
 // ─── FirewallService ────────────────────────────────────────────────────────────
 
-export class FirewallService {
+export const FirewallService = {
   /** 取得拓撲資料（節點 + 連線） */
-  public static getFirewallTopology(): CancelablePromise<TopologyResponse> {
+  getFirewallTopology(): CancelablePromise<TopologyResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/firewall/topology",
       errors: { 422: "Validation Error" },
     })
-  }
+  },
 
   /** 取得佈局資料 */
-  public static getFirewallLayout(): CancelablePromise<LayoutNodeUpdate[]> {
+  getFirewallLayout(): CancelablePromise<LayoutNodeUpdate[]> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/firewall/layout",
       errors: { 422: "Validation Error" },
     })
-  }
+  },
 
   /** 儲存佈局資料 */
-  public static saveFirewallLayout(data: {
+  saveFirewallLayout(data: {
     requestBody: { nodes: LayoutNodeUpdate[] }
   }): CancelablePromise<{ message: string }> {
     return __request(OpenAPI, {
@@ -124,19 +124,19 @@ export class FirewallService {
       mediaType: "application/json",
       errors: { 422: "Validation Error" },
     })
-  }
+  },
 
   /** 列出 NAT 端口轉發規則 */
-  public static listNATRules(): CancelablePromise<NATRulePublic[]> {
+  listNATRules(): CancelablePromise<NATRulePublic[]> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/firewall/nat-rules",
       errors: { 422: "Validation Error" },
     })
-  }
+  },
 
   /** 刪除 NAT 端口轉發規則 */
-  public static deleteNATRule(data: {
+  deleteNATRule(data: {
     ruleId: string
   }): CancelablePromise<{ message: string }> {
     return __request(OpenAPI, {
@@ -145,29 +145,27 @@ export class FirewallService {
       path: { rule_id: data.ruleId },
       errors: { 404: "Not Found", 422: "Validation Error" },
     })
-  }
+  },
 
   /** 同步 NAT 規則到 Gateway VM */
-  public static syncNATRules(): CancelablePromise<{ message: string }> {
+  syncNATRules(): CancelablePromise<{ message: string }> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/firewall/nat-rules/sync",
       errors: { 403: "Forbidden", 422: "Validation Error" },
     })
-  }
+  },
 
   /** 列出反向代理規則 */
-  public static listReverseProxyRules(): CancelablePromise<
-    ReverseProxyRulePublic[]
-  > {
+  listReverseProxyRules(): CancelablePromise<ReverseProxyRulePublic[]> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/firewall/reverse-proxy-rules",
     })
-  }
+  },
 
   /** 刪除反向代理規則 */
-  public static deleteReverseProxyRule(data: {
+  deleteReverseProxyRule(data: {
     ruleId: string
   }): CancelablePromise<{ message: string }> {
     return __request(OpenAPI, {
@@ -175,21 +173,19 @@ export class FirewallService {
       url: "/api/v1/firewall/reverse-proxy-rules/{rule_id}",
       path: { rule_id: data.ruleId },
     })
-  }
+  },
 
   /** 同步反向代理規則到 Gateway VM */
-  public static syncReverseProxyRules(): CancelablePromise<{
-    message: string
-  }> {
+  syncReverseProxyRules(): CancelablePromise<{ message: string }> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/firewall/reverse-proxy-rules/sync",
       errors: { 403: "Forbidden" },
     })
-  }
+  },
 
   /** 建立連線 */
-  public static createFirewallConnection(data: {
+  createFirewallConnection(data: {
     requestBody: {
       source_vmid: number | null
       target_vmid: number | null
@@ -204,10 +200,10 @@ export class FirewallService {
       mediaType: "application/json",
       errors: { 400: "Bad Request", 422: "Validation Error" },
     })
-  }
+  },
 
   /** 刪除連線 */
-  public static deleteFirewallConnection(data: {
+  deleteFirewallConnection(data: {
     requestBody: {
       source_vmid: number
       target_vmid: number | null
@@ -221,10 +217,10 @@ export class FirewallService {
       mediaType: "application/json",
       errors: { 422: "Validation Error" },
     })
-  }
+  },
 
   /** 列出 VM 防火牆規則 */
-  public static listFirewallRules(data: {
+  listFirewallRules(data: {
     vmid: number
   }): CancelablePromise<FirewallRulePublic[]> {
     return __request(OpenAPI, {
@@ -233,10 +229,10 @@ export class FirewallService {
       path: { vmid: data.vmid },
       errors: { 422: "Validation Error" },
     })
-  }
+  },
 
   /** 取得 VM 防火牆選項 */
-  public static getFirewallOptions(data: {
+  getFirewallOptions(data: {
     vmid: number
   }): CancelablePromise<FirewallOptionsPublic> {
     return __request(OpenAPI, {
@@ -245,10 +241,10 @@ export class FirewallService {
       path: { vmid: data.vmid },
       errors: { 422: "Validation Error" },
     })
-  }
+  },
 
   /** 建立防火牆規則 */
-  public static createFirewallRule(data: {
+  createFirewallRule(data: {
     vmid: number
     requestBody: {
       type: "in" | "out"
@@ -269,10 +265,10 @@ export class FirewallService {
       mediaType: "application/json",
       errors: { 422: "Validation Error" },
     })
-  }
+  },
 
   /** 刪除防火牆規則 */
-  public static deleteFirewallRule(data: {
+  deleteFirewallRule(data: {
     vmid: number
     pos: number
   }): CancelablePromise<{ message: string }> {
@@ -282,5 +278,5 @@ export class FirewallService {
       path: { vmid: data.vmid, pos: data.pos },
       errors: { 422: "Validation Error" },
     })
-  }
+  },
 }

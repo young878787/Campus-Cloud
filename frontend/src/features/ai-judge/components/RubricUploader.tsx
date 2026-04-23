@@ -71,6 +71,7 @@ export function RubricUploader({
 
   return (
     <div className="space-y-4">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop zone requires static div with drag event handlers */}
       <div
         className={cn(
           "relative rounded-xl border-2 border-dashed p-8 transition-all",
