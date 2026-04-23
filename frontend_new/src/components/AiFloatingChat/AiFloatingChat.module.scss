@@ -1,0 +1,279 @@
+@use "../../assets/styles/variables" as *;
+@use "../../assets/styles/mixins" as *;
+
+/* ── Root ── */
+.root {
+  position: fixed;
+  bottom: $spacing-24;
+  right: $spacing-24;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: $spacing-8;
+}
+
+/* ── FAB ── */
+.fab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 $spacing-16 0 12px;
+  height: 44px;
+  border-radius: $radius-pill;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-primary) 40%, transparent);
+  cursor: pointer;
+  border: none;
+  transition: box-shadow $transition-base, transform $transition-base;
+  white-space: nowrap;
+
+  &:hover {
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--color-primary) 55%, transparent);
+    transform: translateY(-1px);
+  }
+
+  &.fabOpen {
+    padding: 0;
+    width: 44px;
+    justify-content: center;
+    background: var(--color-text-secondary);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+.fabIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity $transition-base, transform $transition-base;
+}
+
+/* 預設顯示 AI 圖示，隱藏 Close 圖示 */
+.fabIconAi    { opacity: 1; }
+.fabIconClose { opacity: 0; position: absolute; }
+
+.fab.fabOpen {
+  .fabIconAi    { opacity: 0; }
+  .fabIconClose { opacity: 1; position: static; }
+}
+
+.fabLabel {
+  font-size: $font-size-14;
+  font-weight: $font-weight-500;
+}
+
+/* ── Chat panel ── */
+.panel {
+  width: 340px;
+  height: 460px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: $radius-16;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform-origin: bottom right;
+}
+
+@keyframes panelIn {
+  from { opacity: 0; transform: scale(0.9) translateY(12px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0);    }
+}
+
+@keyframes panelOut {
+  from { opacity: 1; transform: scale(1)   translateY(0);    }
+  to   { opacity: 0; transform: scale(0.9) translateY(12px); }
+}
+
+.panelIn  { animation: panelIn  0.18s cubic-bezier(0.34, 1.4, 0.64, 1) forwards; }
+.panelOut { animation: panelOut 0.18s ease forwards; }
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-8;
+  padding: 12px $spacing-16;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+
+.headerIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: $radius-8;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  @include flex-center;
+  flex-shrink: 0;
+}
+
+.headerTitle {
+  flex: 1;
+  font-size: $font-size-14;
+  font-weight: $font-weight-700;
+  color: var(--color-text-primary);
+}
+
+.headerClear,
+.headerClose {
+  width: 28px;
+  height: 28px;
+  border-radius: $radius-8;
+  @include flex-center;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background $transition-base, color $transition-base;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
+  }
+}
+
+/* ── Messages ── */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: $spacing-16;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-8;
+  scroll-behavior: smooth;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: $radius-pill;
+  }
+}
+
+.msgRow {
+  display: flex;
+  align-items: flex-end;
+  gap: $spacing-8;
+  animation: msgIn 0.2s ease;
+
+  &.msgRowUser {
+    flex-direction: row-reverse;
+  }
+}
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  @include flex-center;
+  flex-shrink: 0;
+}
+
+.msgBubble {
+  max-width: 78%;
+  padding: 9px 12px;
+  border-radius: $radius-12;
+  font-size: $font-size-14;
+  line-height: $line-height-base;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msgBubbleAi {
+  background: var(--color-hover);
+  color: var(--color-text);
+  border-radius: $radius-12 $radius-12 $radius-12 4px;
+}
+
+.msgBubbleUser {
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  border-radius: $radius-12 $radius-12 4px $radius-12;
+}
+
+/* ── Typing indicator ── */
+.bubble {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  background: var(--color-hover);
+  border-radius: $radius-12 $radius-12 $radius-12 4px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-muted, #888);
+  animation: blink 1.2s infinite;
+
+  &:nth-child(2) { animation-delay: 0.2s; }
+  &:nth-child(3) { animation-delay: 0.4s; }
+}
+
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.85); }
+  40%            { opacity: 1;   transform: scale(1);    }
+}
+
+/* ── Input ── */
+.inputWrap {
+  display: flex;
+  align-items: flex-end;
+  gap: $spacing-8;
+  padding: 10px $spacing-16 12px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-8;
+  padding: 8px 10px;
+  font-size: $font-size-14;
+  line-height: $line-height-base;
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-hover);
+  max-height: 96px;
+  transition: border-color $transition-base;
+  outline: none;
+
+  &:focus {
+    border-color: var(--color-primary);
+    background: var(--color-surface);
+  }
+
+  &::placeholder { color: var(--color-text-muted, #888); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.sendBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: $radius-8;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  @include flex-center;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: none;
+  transition: opacity $transition-base;
+
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+  &:not(:disabled):hover { opacity: 0.85; }
+}

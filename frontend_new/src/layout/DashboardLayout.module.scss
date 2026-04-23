@@ -1,14 +1,16 @@
 .layout {
   --layout-py: 30px;
   --layout-px: 60px;
+  --footer-h: 18px;
   display: flex;
   flex: 1;
   min-height: 100vh;
   min-height: 100dvh;
-  gap: 20px;
-  padding: $spacing-8;
+  gap: 0;
+  padding: 0;
 
   @include respond-to(md) {
+    gap: 40px;
     padding: var(--layout-py) var(--layout-px);
   }
 }
@@ -31,9 +33,10 @@
   min-width: 0;
   @include flex-column;
   position: relative;
+  padding: 0 $spacing-8;
 
   @include respond-to(md) {
-    padding-left: 20px;
+    padding: 0;
   }
 }
 
@@ -42,7 +45,10 @@
   display: flex;
   align-items: center;
   gap: $spacing-8;
-  padding: $spacing-8 $spacing-16;
+  padding: $spacing-8 $spacing-8;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 
   @include respond-to(md) {
     display: none;

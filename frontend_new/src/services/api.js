@@ -28,6 +28,11 @@ async function handleResponse(res) {
     return res.status === 204 ? null : res.json();
   }
 
+  // 401 → token 失效，通知 AuthContext 強制登出
+  if (res.status === 401) {
+    window.dispatchEvent(new Event("auth:unauthorized"));
+  }
+
   let message = `HTTP ${res.status}`;
   try {
     const body = await res.json();

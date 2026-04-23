@@ -113,7 +113,6 @@ function NavGroup({ group, active, onSelect, collapsed, onExpand }) {
               className={`${styles.navItem} ${active === item.key ? styles.active : ""}`}
               onClick={() => onSelect(item.key)}
             >
-              <MIcon name={item.icon} size={20} />
               <span className={styles.navLabel}>{item.label}</span>
             </button>
           ))}
@@ -268,7 +267,7 @@ export default function Sidebar({ collapsed, mobileOpen, onToggle, onClose, acti
   return (
     <aside className={cls}>
       {/* ===== Brand ===== */}
-      <div className={styles.brand} onClick={onToggle}>
+      <div className={styles.brand} onClick={() => window.innerWidth >= 768 && onToggle?.()}>
         <span className={styles.brandIcon}>
           <MIcon name="bolt" size={18} />
         </span>

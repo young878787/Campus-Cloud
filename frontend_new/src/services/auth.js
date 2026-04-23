@@ -7,9 +7,25 @@
 const ACCESS_TOKEN_KEY  = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 
+/** 解析 JWT payload，取得 exp（毫秒）；失敗回傳 null */
+function parseJwtExpiry(token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
 export const AuthStorage = {
   getAccessToken()  { return localStorage.getItem(ACCESS_TOKEN_KEY);  },
   getRefreshToken() { return localStorage.getItem(REFRESH_TOKEN_KEY); },
+
+  /** 取得 access token 的過期時間（ms），若無法解析回傳 null */
+  getTokenExpiry() {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    return token ? parseJwtExpiry(token) : null;
+  },
 
   setTokens({ access_token, refresh_token }) {
     localStorage.setItem(ACCESS_TOKEN_KEY, access_token);

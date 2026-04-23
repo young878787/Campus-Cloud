@@ -25,9 +25,10 @@ import MigrationPage from "./pages/system/migration/MigrationPage";
 import AuditPage     from "./pages/system/audit/AuditPage";
 
 // 網路
-import FirewallPage from "./pages/network/firewall/FirewallPage";
-import DomainPage   from "./pages/network/domain/DomainPage";
-import GatewayPage  from "./pages/network/gateway/GatewayPage";
+import FirewallPage       from "./pages/network/firewall/FirewallPage";
+import DomainPage         from "./pages/network/domain/DomainPage";
+import GatewayPage        from "./pages/network/gateway/GatewayPage";
+import ReverseProxyPage   from "./pages/network/reverse-proxy/ReverseProxyPage";
 
 const PAGE_MAP = {
   dashboard:        <DashboardPage />,
@@ -46,6 +47,7 @@ const PAGE_MAP = {
   firewall:         <FirewallPage />,
   domain:           <DomainPage />,
   gateway:          <GatewayPage />,
+  "reverse-proxy":  <ReverseProxyPage />,
 };
 
 function App() {

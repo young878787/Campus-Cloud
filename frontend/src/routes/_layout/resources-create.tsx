@@ -1,9 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { z } from "zod"
 
-import { ApplicationRequestPage } from "@/components/Applications/ApplicationRequestPage"
+import { ResourceCreatePage } from "@/components/Resources/ResourceCreatePage"
+import { requireAdminUser } from "@/features/auth/guards"
+import { QUICK_START_TEMPLATE_SLUGS } from "@/lib/templateQuickStart"
+
+const resourcesCreateSearchSchema = z.object({
+  quickStartTemplate: z.enum(QUICK_START_TEMPLATE_SLUGS).optional(),
+})
 
 export const Route = createFileRoute("/_layout/resources-create")({
   component: ResourcesCreateRoute,
+  beforeLoad: () => requireAdminUser(),
+  validateSearch: resourcesCreateSearchSchema,
   head: () => ({
     meta: [
       {
@@ -14,5 +23,7 @@ export const Route = createFileRoute("/_layout/resources-create")({
 })
 
 function ResourcesCreateRoute() {
-  return <ApplicationRequestPage />
+  const search = Route.useSearch()
+
+  return <ResourceCreatePage quickStartTemplate={search.quickStartTemplate} />
 }

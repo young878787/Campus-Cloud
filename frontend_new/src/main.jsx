@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { Toaster } from "sonner";
 import "@material-design-icons/font/outlined.css";
 import App from "./App";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -11,6 +12,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <ThemeProvider>
       <AuthProvider>
         <App />
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          toastOptions={{ duration: 4000 }}
+        />
       </AuthProvider>
     </ThemeProvider>
   </React.StrictMode>,
