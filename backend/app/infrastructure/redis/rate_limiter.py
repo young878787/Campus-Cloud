@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -45,6 +46,7 @@ async def check_rate_limit_sliding_window(
     local window_start_ms = tonumber(ARGV[2])
     local limit = tonumber(ARGV[3])
     local ttl = tonumber(ARGV[4])
+    local member = ARGV[5]
 
     redis.call('ZREMRANGEBYSCORE', key, '-inf', window_start_ms)
     local current = redis.call('ZCARD', key)
@@ -53,7 +55,7 @@ async def check_rate_limit_sliding_window(
         return {0, current}
     end
 
-    redis.call('ZADD', key, now_ms, now_ms)
+    redis.call('ZADD', key, now_ms, member)
     redis.call('EXPIRE', key, ttl)
 
     return {1, current + 1}
@@ -68,6 +70,7 @@ async def check_rate_limit_sliding_window(
             window_start_ms,
             limit,
             window_seconds * 2,
+            f"{now_ms}:{uuid.uuid4().hex}",
         )
 
         allowed_int, current_count = result[0], result[1]
@@ -168,6 +171,7 @@ async def check_rate_limit_by_key(
     local window_start_ms = tonumber(ARGV[2])
     local limit = tonumber(ARGV[3])
     local ttl = tonumber(ARGV[4])
+    local member = ARGV[5]
 
     redis.call('ZREMRANGEBYSCORE', key, '-inf', window_start_ms)
     local current = redis.call('ZCARD', key)
@@ -176,7 +180,7 @@ async def check_rate_limit_by_key(
         return {0, current}
     end
 
-    redis.call('ZADD', key, now_ms, now_ms)
+    redis.call('ZADD', key, now_ms, member)
     redis.call('EXPIRE', key, ttl)
 
     return {1, current + 1}
@@ -191,6 +195,7 @@ async def check_rate_limit_by_key(
             window_start_ms,
             limit,
             window_seconds * 2,
+            f"{now_ms}:{uuid.uuid4().hex}",
         )
         allowed_int, current_count = result[0], result[1]
         allowed = allowed_int == 1

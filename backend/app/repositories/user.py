@@ -20,6 +20,9 @@ def _resolve_role_fields(
             role = UserRole.teacher
         else:
             role = UserRole.student
+    elif is_superuser and role != UserRole.admin:
+        # Explicit is_superuser=True overrides role default to admin.
+        role = UserRole.admin
 
     if role == UserRole.admin:
         return role, True, False

@@ -11,9 +11,10 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 
 from app.infrastructure.redis import check_rate_limit_by_key, get_redis
+from app.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -83,9 +84,12 @@ def rate_limit_by_user(
     need user-scoped rate limiting should also depend on the auth
     dependency to ensure the user is loaded.
     """
-    from app.api.deps.auth import CurrentUser  # local import to avoid cycle
+    from app.api.deps.auth import get_current_user  # local import to avoid cycle
 
-    async def _dep(request: Request, current_user: CurrentUser) -> None:  # type: ignore[valid-type]
+    async def _dep(
+        request: Request,
+        current_user: User = Depends(get_current_user),
+    ) -> None:
         redis = await get_redis()
         allowed, info = await check_rate_limit_by_key(
             redis,

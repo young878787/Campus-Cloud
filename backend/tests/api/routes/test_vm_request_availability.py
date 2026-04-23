@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
@@ -40,7 +42,7 @@ def _patch_availability(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(
         vm_request_availability_service.advisor_service,
         "_build_node_capacities",
-        lambda *, nodes, resources: _fake_capacities(),
+        lambda **kwargs: _fake_capacities(),
     )
     monkeypatch.setattr(
         vm_request_availability_service.advisor_service,
@@ -118,6 +120,8 @@ def test_existing_request_availability_uses_request_id(
 ) -> None:
     _patch_availability(monkeypatch)
 
+    start_at = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+    end_at = start_at + timedelta(hours=2)
     create_response = client.post(
         f"{settings.API_V1_STR}/vm-requests/",
         headers=normal_user_token_headers,
@@ -131,6 +135,9 @@ def test_existing_request_availability_uses_request_id(
             "storage": "local-lvm",
             "ostemplate": "local:vztmpl/debian-12-standard.tar.zst",
             "rootfs_size": 16,
+            "mode": "scheduled",
+            "start_at": start_at.isoformat(),
+            "end_at": end_at.isoformat(),
         },
     )
     assert create_response.status_code == 200
