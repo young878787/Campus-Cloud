@@ -14,9 +14,27 @@ from app.schemas.execution_profile import (
     ExecutionProfileCreate,
     ExecutionProfilePublic,
     ExecutionProfileUpdate,
+    ResourceExecutionReconcileResult,
+)
+from app.services.execution_profile_service import (
+    reconcile_resource_execution_metadata,
 )
 
 router = APIRouter(prefix="/execution-profiles", tags=["execution-profiles"])
+
+
+@router.post(
+    "/reconcile-resources",
+    response_model=ResourceExecutionReconcileResult,
+)
+def reconcile_resources(
+    session: SessionDep,
+    _: AdminUser,
+) -> ResourceExecutionReconcileResult:
+    """Repair legacy/imported Resource execution metadata."""
+    return ResourceExecutionReconcileResult.model_validate(
+        reconcile_resource_execution_metadata(session)
+    )
 
 
 def _profile_or_404(session: SessionDep, profile_id: uuid.UUID) -> ExecutionProfile:

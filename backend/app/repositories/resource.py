@@ -13,6 +13,7 @@ def create_resource(
     vmid: int,
     user_id: uuid.UUID,
     environment_type: str,
+    resource_type: str | None = None,
     os_info: str | None = None,
     execution_profile_id: uuid.UUID | None = None,
     expiry_date: date | None = None,
@@ -24,13 +25,26 @@ def create_resource(
     request_id: uuid.UUID | None = None,
     commit: bool = True,
 ) -> Resource:
+    from app.services.execution_profile_service import resolve_resource_execution
+
+    execution = resolve_resource_execution(
+        session,
+        resource_type=resource_type,
+        os_info=os_info,
+        execution_profile_id=execution_profile_id,
+        template_id=template_id,
+        service_template_slug=service_template_slug,
+        batch_job_id=batch_job_id,
+        request_id=request_id,
+    )
     db_resource = Resource(
         vmid=vmid,
         request_id=request_id,
         user_id=user_id,
+        resource_type=execution.resource_type,
         environment_type=environment_type,
-        os_info=os_info,
-        execution_profile_id=execution_profile_id,
+        os_info=execution.os_info,
+        execution_profile_id=execution.execution_profile_id,
         expiry_date=expiry_date,
         template_id=template_id,
         ssh_private_key_encrypted=ssh_private_key_encrypted,

@@ -940,7 +940,9 @@ def _run_deployment(task: DeploymentTask, request_data: dict, password: str) -> 
                     session=_s,
                     vmid=new_vmid,
                     user_id=uuid.UUID(task.user_id),
+                    resource_type="lxc",
                     environment_type=task.template_slug or "服務模板",
+                    os_info=request_data.get("os_info"),
                     service_template_slug=task.template_slug or None,
                 )
             logger.info("已自動將 VMID=%s 註冊至 resources 表", new_vmid)

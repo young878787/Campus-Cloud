@@ -64,3 +64,10 @@ class ExecutionProfileCommandPublic(ExecutionProfileCommandCreate):
     profile_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+
+
+class ResourceExecutionReconcileResult(BaseModel):
+    scanned: int
+    updated: int
+    unresolved: int
+    failed_vmids: list[int] = Field(default_factory=list)

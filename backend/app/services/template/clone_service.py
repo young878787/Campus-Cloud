@@ -312,6 +312,7 @@ def run_clone_task(task_id: uuid.UUID, payload: dict[str, Any]) -> dict[str, Any
                 session=session,
                 vmid=new_vmid,
                 user_id=user_id,
+                resource_type=resource_type,
                 environment_type=environment_type or f"範本 {template_name}",
                 expiry_date=expiry_date,
                 template_id=template_vmid,

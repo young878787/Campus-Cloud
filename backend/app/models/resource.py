@@ -35,6 +35,12 @@ class Resource(SQLModel, table=True):
         description="VM request that provisioned this resource",
     )
     user_id: uuid.UUID = Field(foreign_key="user.id", description="Owner user ID")
+    resource_type: str = Field(
+        default="unknown",
+        max_length=10,
+        index=True,
+        description="qemu, lxc, or unknown",
+    )
     environment_type: str = Field(description="Environment type")
     os_info: str | None = Field(default=None, description="Operating system info")
     execution_profile_id: uuid.UUID | None = Field(

@@ -87,6 +87,7 @@ def _adopt_existing_resource(
             session=session,
             vmid=vmid,
             user_id=request.user_id,
+            resource_type=resource_type,
             environment_type=request.environment_type,
             os_info=request.os_info,
             expiry_date=request.expiry_date,
@@ -228,6 +229,9 @@ def _provision_new_resource(
             session=finish_session,
             vmid=new_vmid,
             user_id=request_user_id,
+            resource_type=(
+                "lxc" if str(request_resource_type).lower() == "lxc" else "qemu"
+            ),
             environment_type=request_env_type,
             os_info=request_os_info,
             expiry_date=request_expiry_date,
@@ -514,6 +518,7 @@ def _provision_via_service_template(
             session=finish_session,
             vmid=new_vmid,
             user_id=request_user_id,
+            resource_type="lxc",
             environment_type=request_env_type,
             os_info=request_os_info,
             expiry_date=request_expiry_date,

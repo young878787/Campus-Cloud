@@ -335,8 +335,9 @@ def create_lxc(
             session=session,
             vmid=vmid,
             user_id=user_id,
+            resource_type="lxc",
             environment_type=lxc_data.environment_type,
-            os_info=lxc_data.os_info,
+            os_info=lxc_data.os_info or lxc_data.ostemplate,
             expiry_date=lxc_data.expiry_date,
             ssh_private_key_encrypted=encrypt_value(private_key_pem),
             ssh_public_key=public_key,
@@ -491,6 +492,7 @@ def create_vm(
             session=session,
             vmid=new_vmid,
             user_id=user_id,
+            resource_type="qemu",
             environment_type=vm_data.environment_type,
             os_info=vm_data.os_info,
             expiry_date=vm_data.expiry_date,
@@ -908,6 +910,9 @@ def provision_from_request(*, session: Session, db_request) -> tuple[int, str | 
         session=session,
         vmid=new_vmid,
         user_id=db_request.user_id,
+        resource_type=(
+            "lxc" if str(db_request.resource_type).lower() == "lxc" else "qemu"
+        ),
         environment_type=db_request.environment_type,
         os_info=db_request.os_info,
         expiry_date=db_request.expiry_date,
