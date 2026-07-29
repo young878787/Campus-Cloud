@@ -39,15 +39,17 @@ from app.ai.teacher_judge.script_generation_contract import (
 from app.ai.teacher_judge.script_policy import check_script_policy
 from app.ai.teacher_judge.script_quality_validator import check_script_quality
 from app.ai.teacher_judge.service import _call_vllm
-from app.ai.teacher_judge.template_command_service import get_enabled_template_commands
 from app.ai.utils import apply_thinking_control
+from app.models.execution_profile import ExecutionProfileCommand
 from app.models.teacher_judge_script_artifact import (
     TeacherJudgeScriptArtifact,
     TeacherJudgeScriptLanguage,
     TeacherJudgeScriptSource,
     TeacherJudgeScriptStatus,
 )
-from app.models.teacher_judge_template_command import TeacherJudgeTemplateCommand
+from app.services.execution_profile_service import (
+    get_enabled_profile_commands_by_key as get_enabled_template_commands,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -278,7 +280,7 @@ def _rubric_snapshot(
 
 
 def _template_commands_snapshot(
-    commands: list[TeacherJudgeTemplateCommand] | None,
+    commands: list[ExecutionProfileCommand] | None,
 ) -> list[TemplateCommandSnapshot]:
     if not commands:
         return []
@@ -299,7 +301,7 @@ def _template_commands_snapshot(
 
 def _with_template_command_catalog(
     rubric_snapshot: dict[str, Any],
-    template_commands: list[TeacherJudgeTemplateCommand] | None,
+    template_commands: list[ExecutionProfileCommand] | None,
 ) -> dict[str, Any]:
     snapshot = dict(rubric_snapshot)
     command_catalog = _template_commands_snapshot(template_commands)
@@ -1011,7 +1013,7 @@ async def create_artifact(
     rubric_analysis: TeacherJudgeRubricAnalysis,
     created_by: uuid.UUID | None,
     source_file_id: uuid.UUID | None = None,
-    template_commands: list[TeacherJudgeTemplateCommand] | None = None,
+    template_commands: list[ExecutionProfileCommand] | None = None,
 ) -> TeacherJudgeScriptArtifactPublic:
     artifact_name = name.strip()
     if not artifact_name:
@@ -1080,7 +1082,7 @@ async def regenerate_artifact(
     artifact_id: uuid.UUID,
     rubric_analysis: TeacherJudgeRubricAnalysis | None,
     created_by: uuid.UUID | None,
-    template_commands: list[TeacherJudgeTemplateCommand] | None = None,
+    template_commands: list[ExecutionProfileCommand] | None = None,
 ) -> TeacherJudgeScriptArtifactPublic:
     artifact = get_artifact(
         session=session,

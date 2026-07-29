@@ -29,6 +29,7 @@ from app.models.teacher_judge_script_run import (
     TeacherJudgeScriptRunTargetScope,
 )
 from app.repositories import resource as resource_repo
+from app.services import execution_profile_service
 
 SAFE_SCRIPT = """
 import json
@@ -480,8 +481,19 @@ async def test_create_artifact_includes_current_template_commands(
 ) -> None:
     session = _session()
     session.add(
-        models.TeacherJudgeTemplateCommand(
-            template_key="n8n",
+        models.ExecutionProfile(
+            profile_key="n8n",
+            display_name="n8n",
+            system_name="n8n",
+            manual="n8n test",
+        )
+    )
+    session.flush()
+    profile = execution_profile_service.get_profile_by_key(session, "n8n")
+    assert profile is not None
+    session.add(
+        models.ExecutionProfileCommand(
+            profile_id=profile.id,
             command_key="n8n.port_check",
             command_label="n8n 連接埠檢查",
             category="port",
@@ -1591,11 +1603,8 @@ async def test_create_artifact_rejects_blank_name(
     assert exc_info.value.status_code == 400
 
 
-def test_script_route_rejects_unknown_template_key() -> None:
-    with pytest.raises(HTTPException) as exc_info:
-        _normalize_supported_template_key("unknown")
-
-    assert exc_info.value.status_code == 400
+def test_script_route_normalizes_profile_key() -> None:
+    assert _normalize_supported_template_key(" N8N-1.X ") == "n8n-1.x"
 
 
 def test_script_policy_blocks_destructive_commands() -> None:

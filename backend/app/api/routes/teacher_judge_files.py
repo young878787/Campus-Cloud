@@ -25,13 +25,15 @@ from app.ai.teacher_judge.schemas import (
     TeacherJudgeFileUploadResponse,
 )
 from app.ai.teacher_judge.service import analyze_rubric
-from app.ai.teacher_judge.template_command_service import (
-    SUPPORTED_TEMPLATE_KEYS,
-    get_enabled_template_commands,
-)
 from app.api.deps import InstructorUser, SessionDep
 from app.core.authorizers import require_group_access
 from app.repositories import group as group_repo
+from app.services.execution_profile_service import (
+    get_enabled_profile_commands_by_key as get_enabled_template_commands,
+)
+from app.services.execution_profile_service import (
+    get_profile_by_key,
+)
 
 router = APIRouter(prefix="/groups/{group_id}/judge/files", tags=["teacher-judge"])
 
@@ -50,8 +52,6 @@ def _ensure_group_access(
 
 def _normalize_supported_template_key(template_key: str) -> str:
     normalized = template_key.strip().lower() or "linux"
-    if normalized not in SUPPORTED_TEMPLATE_KEYS:
-        raise HTTPException(status_code=400, detail="未知的評分環境 template。")
     return normalized
 
 
@@ -76,6 +76,8 @@ async def upload_group_teacher_judge_file(
 ) -> TeacherJudgeFileUploadResponse:
     _ensure_group_access(session=session, group_id=group_id, current_user=current_user)
     template_key = _normalize_supported_template_key(template_key)
+    if get_profile_by_key(session, template_key) is None:
+        raise HTTPException(status_code=400, detail="未知或停用的執行環境 profile。")
     conflict_strategy = parse_conflict_strategy(conflict_strategy)
     file_bytes = await file.read()
 

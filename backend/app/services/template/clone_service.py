@@ -247,6 +247,7 @@ def run_clone_task(task_id: uuid.UUID, payload: dict[str, Any]) -> dict[str, Any
             raise NotFoundError("Template is missing or not ready")
         template_vmid = template.pve_vmid
         template_name = template.name
+        execution_profile_id = template.execution_profile_id
         node = template.node
         resource_type: proxmox_ops.ResourceType = (
             "lxc" if template.resource_type == "lxc" else "qemu"
@@ -314,6 +315,7 @@ def run_clone_task(task_id: uuid.UUID, payload: dict[str, Any]) -> dict[str, Any
                 environment_type=environment_type or f"範本 {template_name}",
                 expiry_date=expiry_date,
                 template_id=template_vmid,
+                execution_profile_id=execution_profile_id,
                 ssh_private_key_encrypted=(
                     encrypt_value(private_key_pem)
                     if resource_type == "qemu"

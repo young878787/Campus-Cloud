@@ -34,6 +34,7 @@ from .course import (
     UserCourseProgress,
 )
 from .deletion_request import DeletionRequest, DeletionRequestStatus
+from .execution_profile import ExecutionProfile, ExecutionProfileCommand
 from .firewall_layout import FirewallLayout
 from .gateway_config import GatewayConfig
 from .governance_config import GovernanceConfig
@@ -75,7 +76,6 @@ from .teacher_judge_script_run import (
     TeacherJudgeScriptRunStatus,
     TeacherJudgeScriptRunTargetScope,
 )
-from .teacher_judge_template_command import TeacherJudgeTemplateCommand
 from .teaching_class import (
     TeachingClass,
     TeachingClassMachineNode,
@@ -119,6 +119,8 @@ __all__ = [
     "AITemplateCallLog",
     # Resource
     "Resource",
+    "ExecutionProfile",
+    "ExecutionProfileCommand",
     "ResourceNetwork",
     "ResourceQuota",
     "QuotaScope",
@@ -187,7 +189,6 @@ __all__ = [
     "TeacherJudgeScriptRunTargetScope",
     "TeacherJudgeScriptSource",
     "TeacherJudgeScriptStatus",
-    "TeacherJudgeTemplateCommand",
     # Deletion Request
     "DeletionRequest",
     "DeletionRequestStatus",

@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 import httpx
@@ -346,23 +347,75 @@ async def chat(
             error="vLLM 設定不完整，請確認 .env 中的 VLLM_* 設定",
         )
 
-    messages: list[dict] = history or []
-    if not messages:
-        messages = [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-        ]
-        if allowed_vmids is not None:
+    # 每次 request 都由後端重建可信 system context。前端會把上一輪完整
+    # messages 傳回；若沿用其中的 system messages，profile 更新不會生效，
+    # 而且第二輪開始也可能完全缺少 system prompt。
+    conversation = [
+        item
+        for item in (history or [])
+        if isinstance(item, dict) and item.get("role") != "system"
+    ]
+    if message and not (
+        conversation
+        and conversation[-1].get("role") == "user"
+        and conversation[-1].get("content") == message
+    ):
+        conversation.append({"role": "user", "content": message})
+
+    messages: list[dict] = [{"role": "system", "content": _SYSTEM_PROMPT}]
+    if allowed_vmids is not None:
+        messages.append(
+            {
+                "role": "system",
+                "content": (
+                    "本次對話僅可讀取目前群組可見的 VM/LXC 資源，"
+                    "不得查詢或操作範圍外的 VMID。"
+                ),
+            }
+        )
+
+        latest_user_text = next(
+            (
+                str(item.get("content") or "")
+                for item in reversed(conversation)
+                if item.get("role") == "user"
+            ),
+            "",
+        )
+        requested_vmids = {
+            int(value)
+            for value in re.findall(
+                r"\b(?:vm|lxc|vmid)\s*[-#:]?\s*(\d+)\b",
+                latest_user_text,
+                flags=re.IGNORECASE,
+            )
+        }
+        visible_requested_vmids = requested_vmids & allowed_vmids
+        if session is not None and visible_requested_vmids:
+            from app.services.execution_profile_service import (
+                format_resource_execution_context,
+            )
+
+            messages.append(
+                {
+                    "role": "system",
+                    "content": "\n\n".join(
+                        format_resource_execution_context(session, vmid)
+                        for vmid in sorted(visible_requested_vmids)
+                    ),
+                }
+            )
+        if requested_vmids - allowed_vmids:
             messages.append(
                 {
                     "role": "system",
                     "content": (
-                        "本次對話僅可讀取目前群組可見的 VM/LXC 資源，"
-                        "不得查詢或操作範圍外的 VMID。"
+                        "使用者提到的部分 VMID 不在本次授權範圍；"
+                        "不得確認其是否存在，也不得提供任何系統資料。"
                     ),
                 }
             )
-        if message:
-            messages.append({"role": "user", "content": message})
+    messages.extend(conversation)
 
     tools_called: list[ToolCallRecord] = []
     _snapshot = None  # lazy，只有工具真的被呼叫時才收集

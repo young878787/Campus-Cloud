@@ -25,6 +25,7 @@ from app.infrastructure.proxmox import get_proxmox_settings
 from app.infrastructure.proxmox import operations as proxmox_ops
 from app.infrastructure.queue import enqueue_task, report_progress
 from app.models import (
+    ExecutionProfile,
     Resource,
     TaskRecord,
     User,
@@ -162,6 +163,11 @@ async def create_template(
 
     require_template_manage(user)
     _validate_group_ids(session, user, data.group_ids)
+    if (
+        data.execution_profile_id is not None
+        and session.get(ExecutionProfile, data.execution_profile_id) is None
+    ):
+        raise BadRequestError("Execution profile not found")
 
     if (
         template_repo.get_template_by_pve_vmid(
@@ -198,6 +204,7 @@ async def create_template(
         pve_vmid=data.source_vmid,
         name=data.name,
         description=data.description,
+        execution_profile_id=data.execution_profile_id,
         owner_id=user.id,
         node=node,
         resource_type=resource_type,
@@ -239,6 +246,11 @@ def update_template(
 ) -> VMTemplatePublic:
     template = _get_or_404(session, template_id)
     _require_owner(user, template)
+    if (
+        data.execution_profile_id is not None
+        and session.get(ExecutionProfile, data.execution_profile_id) is None
+    ):
+        raise BadRequestError("Execution profile not found")
 
     if data.group_ids is not None:
         _validate_group_ids(session, user, data.group_ids)

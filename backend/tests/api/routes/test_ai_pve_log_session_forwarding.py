@@ -65,8 +65,11 @@ async def test_post_ssh_exec_forwards_session(
 ) -> None:
     captured: dict[str, object] = {}
 
-    async def _fake_ssh_exec(req: SSHExecRequest, *, session=None) -> SSHExecResult:
+    async def _fake_ssh_exec(
+        req: SSHExecRequest, *, session=None, allowed_vmids=None
+    ) -> SSHExecResult:
         captured["session"] = session
+        captured["allowed_vmids"] = allowed_vmids
         return SSHExecResult(
             vmid=req.vmid,
             host="127.0.0.1",
@@ -75,12 +78,14 @@ async def test_post_ssh_exec_forwards_session(
         )
 
     monkeypatch.setattr(ssh_exec_module, "ssh_exec", _fake_ssh_exec)
+    monkeypatch.setattr(route, "_resolve_user_vmids", lambda **_kwargs: {157})
 
     fake_session = object()
     req = SSHExecRequest(vmid=157, command="python3 --version")
     result = await route.post_ssh_exec(req, object(), fake_session)
     assert result.vmid == 157
     assert captured["session"] is fake_session
+    assert captured["allowed_vmids"] == {157}
 
 
 @pytest.mark.asyncio

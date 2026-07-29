@@ -27,12 +27,12 @@ from app.ai.teacher_judge.script_run_service import (
     create_script_run,
     get_script_run_public,
 )
-from app.ai.teacher_judge.template_command_service import SUPPORTED_TEMPLATE_KEYS
 from app.api.deps import InstructorUser, SessionDep
 from app.core.authorizers import require_group_access
 from app.infrastructure.worker import submit
 from app.models.teacher_judge_script_run import TeacherJudgeScriptRunTargetScope
 from app.repositories import group as group_repo
+from app.services.execution_profile_service import get_profile_by_key
 
 router = APIRouter(prefix="/groups/{group_id}/judge/scripts", tags=["teacher-judge"])
 
@@ -51,8 +51,6 @@ def _ensure_group_access(
 
 def _normalize_supported_template_key(template_key: str) -> str:
     normalized = template_key.strip().lower() or "linux"
-    if normalized not in SUPPORTED_TEMPLATE_KEYS:
-        raise HTTPException(status_code=400, detail="未知的評分環境 template。")
     return normalized
 
 
@@ -75,6 +73,8 @@ async def create_group_teacher_judge_script(
 ) -> TeacherJudgeScriptArtifactPublic:
     _ensure_group_access(session=session, group_id=group_id, current_user=current_user)
     template_key = _normalize_supported_template_key(payload.template_key)
+    if get_profile_by_key(session, template_key) is None:
+        raise HTTPException(status_code=400, detail="未知或停用的執行環境 profile。")
     return await create_artifact(
         session=session,
         group_id=group_id,

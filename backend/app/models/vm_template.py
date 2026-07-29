@@ -38,6 +38,15 @@ class VMTemplate(SQLModel, table=True):
     )
     name: str = Field(max_length=255)
     description: str | None = Field(default=None, max_length=1000)
+    execution_profile_id: uuid.UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            sa.Uuid,
+            sa.ForeignKey("execution_profiles.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+    )
     owner_id: uuid.UUID | None = Field(
         default=None,
         sa_column=Column(

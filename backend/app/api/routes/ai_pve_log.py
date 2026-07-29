@@ -24,6 +24,7 @@ from app.ai.pve_log.schemas import (
 )
 from app.api.deps import InstructorUser, SessionDep
 from app.core.authorizers import require_group_access
+from app.core.permissions import is_admin
 from app.repositories import group as group_repo
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,25 @@ def _resolve_group_vmids(
     require_group_access(current_user, db_group.owner_id)
     member_vmids = group_repo.get_member_vmids(session=session, group_id=group_id)
     return {vmid for vmid in member_vmids.values() if vmid is not None}
+
+
+def _resolve_user_vmids(
+    *, session: SessionDep, current_user: InstructorUser
+) -> set[int] | None:
+    if is_admin(current_user):
+        return None
+    vmids: set[int] = set()
+    for group in group_repo.get_groups_by_owner(
+        session=session, owner_id=current_user.id
+    ):
+        vmids.update(
+            vmid
+            for vmid in group_repo.get_member_vmids(
+                session=session, group_id=group.id
+            ).values()
+            if vmid is not None
+        )
+    return vmids
 
 
 @router.get("/system-snapshot", response_model=SystemSnapshot)
@@ -176,7 +196,13 @@ async def post_ssh_exec(
     from app.ai.pve_log.ssh_exec import ssh_exec as _ssh_exec
 
     try:
-        return await _ssh_exec(request, session=session)
+        return await _ssh_exec(
+            request,
+            session=session,
+            allowed_vmids=_resolve_user_vmids(
+                session=session, current_user=_current_user
+            ),
+        )
     except Exception as exc:
         logger.exception("SSH 執行失敗")
         raise HTTPException(status_code=500, detail=str(exc))

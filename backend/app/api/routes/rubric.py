@@ -25,12 +25,14 @@ from app.ai.teacher_judge.service import (
     chat_with_rubric,
     normalize_items_for_export,
 )
-from app.ai.teacher_judge.template_command_service import (
-    SUPPORTED_TEMPLATE_KEYS,
-    get_enabled_template_commands,
-)
 from app.api.deps import SessionDep
 from app.api.deps.auth import InstructorUser
+from app.services.execution_profile_service import (
+    get_enabled_profile_commands_by_key as get_enabled_template_commands,
+)
+from app.services.execution_profile_service import (
+    get_profile_by_key,
+)
 from app.services.rubric_parser import parse_document
 
 logger = logging.getLogger(__name__)
@@ -60,8 +62,8 @@ async def upload_rubric(
         )
 
     template_key = template_key.strip().lower() or "linux"
-    if template_key not in SUPPORTED_TEMPLATE_KEYS:
-        raise HTTPException(status_code=400, detail="未知的評分環境 template。")
+    if get_profile_by_key(session, template_key) is None:
+        raise HTTPException(status_code=400, detail="未知或停用的執行環境 profile。")
 
     file_bytes = await file.read()
 
@@ -137,8 +139,8 @@ async def chat(
     限制：Teacher / Admin 角色可使用。
     """
     template_key = chat_request.template_key.strip().lower() or "linux"
-    if template_key not in SUPPORTED_TEMPLATE_KEYS:
-        raise HTTPException(status_code=400, detail="未知的評分環境 template。")
+    if get_profile_by_key(session, template_key) is None:
+        raise HTTPException(status_code=400, detail="未知或停用的執行環境 profile。")
     template_commands = get_enabled_template_commands(session, template_key)
 
     try:

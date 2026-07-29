@@ -37,6 +37,15 @@ class Resource(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id", description="Owner user ID")
     environment_type: str = Field(description="Environment type")
     os_info: str | None = Field(default=None, description="Operating system info")
+    execution_profile_id: uuid.UUID | None = Field(
+        default=None,
+        sa_column=Column(
+            sa.Uuid,
+            sa.ForeignKey("execution_profiles.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+    )
     expiry_date: date | None = Field(default=None, description="Expiration date")
     template_id: int | None = Field(default=None, description="Proxmox template ID")
     service_template_slug: str | None = Field(

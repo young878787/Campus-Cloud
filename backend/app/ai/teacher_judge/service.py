@@ -25,13 +25,15 @@ from app.ai.teacher_judge.schemas import (
     TeacherJudgeRubricCheckStep,
     TeacherJudgeRubricItem,
 )
-from app.ai.teacher_judge.template_command_service import (
-    format_template_commands_for_prompt,
-    validate_check_steps,
-)
 from app.ai.utils import apply_thinking_control, safe_bool, strip_think_tags
 from app.infrastructure.ai.teacher_judge import client as teacher_judge_client
-from app.models.teacher_judge_template_command import TeacherJudgeTemplateCommand
+from app.models.execution_profile import ExecutionProfileCommand
+from app.services.execution_profile_service import (
+    format_profile_commands_for_prompt as format_template_commands_for_prompt,
+)
+from app.services.execution_profile_service import (
+    validate_profile_check_steps as validate_check_steps,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +47,7 @@ async def close_http_client() -> None:
 def _normalize_check_steps(
     raw_steps: Any,
     template_key: str | None = None,
-    template_commands: list[TeacherJudgeTemplateCommand] | None = None,
+    template_commands: list[ExecutionProfileCommand] | None = None,
 ) -> list[TeacherJudgeRubricCheckStep]:
     if not isinstance(raw_steps, list):
         return []
@@ -87,7 +89,7 @@ def _normalize_check_steps(
 def _normalize_rubric_items(
     raw_items: Any,
     template_key: str | None = None,
-    template_commands: list[TeacherJudgeTemplateCommand] | None = None,
+    template_commands: list[ExecutionProfileCommand] | None = None,
     force_checked_false: bool = False,
 ) -> list[TeacherJudgeRubricItem]:
     """Best-effort normalization for AI-returned item payloads."""
@@ -219,7 +221,7 @@ async def _call_vllm(
 async def analyze_rubric(
     raw_text: str,
     template_key: str = "linux",
-    template_commands: list[TeacherJudgeTemplateCommand] | None = None,
+    template_commands: list[ExecutionProfileCommand] | None = None,
 ) -> tuple[TeacherJudgeRubricAnalysis, VLLMMetrics]:
     """Send raw document text to AI, return structured rubric analysis."""
     if not settings.VLLM_MODEL_NAME:
@@ -300,7 +302,7 @@ async def chat_with_rubric(
     rubric_context: str,
     is_refine: bool = False,
     template_key: str = "linux",
-    template_commands: list[TeacherJudgeTemplateCommand] | None = None,
+    template_commands: list[ExecutionProfileCommand] | None = None,
 ) -> tuple[str, list[dict[str, Any]] | None, VLLMMetrics]:
     """
     Multi-turn chat with rubric context injected into system prompt.

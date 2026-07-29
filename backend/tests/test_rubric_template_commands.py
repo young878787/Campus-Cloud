@@ -11,12 +11,18 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from app.ai.teacher_judge import service as teacher_judge_service
 from app.ai.teacher_judge.schemas import RubricItem
-from app.ai.teacher_judge.template_command_service import (
-    format_template_commands_for_prompt,
-    get_enabled_template_commands,
-)
 from app.api.routes import rubric as rubric_route
-from app.models.teacher_judge_template_command import TeacherJudgeTemplateCommand
+from app.models.execution_profile import ExecutionProfile, ExecutionProfileCommand
+from app.services.execution_profile_service import (
+    format_profile_commands_for_prompt as format_template_commands_for_prompt,
+)
+from app.services.execution_profile_service import (
+    get_enabled_profile_commands_by_key as get_enabled_template_commands,
+)
+
+
+def _command(**kwargs) -> ExecutionProfileCommand:
+    return ExecutionProfileCommand(profile_id=uuid.uuid4(), **kwargs)
 
 
 def _patch_teacher_judge_vllm_settings(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -41,9 +47,29 @@ def _session_with_commands() -> Session:
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine)
     session = Session(engine)
+    n8n = ExecutionProfile(
+        profile_key="n8n",
+        display_name="n8n",
+        system_name="n8n",
+        manual="n8n test",
+    )
+    python = ExecutionProfile(
+        profile_key="python",
+        display_name="Python",
+        system_name="Python",
+        manual="Python test",
+    )
+    linux = ExecutionProfile(
+        profile_key="linux",
+        display_name="Linux",
+        system_name="Linux",
+        manual="Linux test",
+    )
+    session.add_all([n8n, python, linux])
+    session.flush()
     session.add(
-        TeacherJudgeTemplateCommand(
-            template_key="n8n",
+        ExecutionProfileCommand(
+            profile_id=n8n.id,
             command_key="n8n.port_check",
             command_label="n8n 連接埠檢查",
             category="port",
@@ -52,8 +78,8 @@ def _session_with_commands() -> Session:
         )
     )
     session.add(
-        TeacherJudgeTemplateCommand(
-            template_key="python",
+        ExecutionProfileCommand(
+            profile_id=python.id,
             command_key="python.version",
             command_label="Python 版本",
             category="runtime",
@@ -78,8 +104,7 @@ def test_get_enabled_template_commands_filters_template_and_enabled() -> None:
 async def test_analyze_rubric_injects_catalog_and_normalizes_check_steps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    command = TeacherJudgeTemplateCommand(
-        template_key="n8n",
+    command = _command(
         command_key="n8n.port_check",
         command_label="n8n 連接埠檢查",
         category="port",
@@ -142,8 +167,7 @@ async def test_analyze_rubric_injects_catalog_and_normalizes_check_steps(
 async def test_chat_with_rubric_validates_returned_check_steps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    command = TeacherJudgeTemplateCommand(
-        template_key="n8n",
+    command = _command(
         command_key="n8n.http_check",
         command_label="n8n HTTP 檢查",
         category="service",
@@ -281,8 +305,7 @@ def test_prompt_formatter_handles_empty_catalog() -> None:
 def test_prompt_formatter_does_not_expose_raw_shell_command() -> None:
     formatted = format_template_commands_for_prompt(
         [
-            TeacherJudgeTemplateCommand(
-                template_key="n8n",
+            _command(
                 command_key="n8n.http_check",
                 command_label="n8n HTTP 檢查",
                 category="service",
