@@ -1,5 +1,32 @@
 # AI PVE 共用 Tools Library 詳細分析與實作計畫
 
+## 0. 2026-07-31 實作狀態
+
+已完成三個資料庫 seed templates 的共用 Tools Library：
+
+- 新增 code-owned check registry、template profile、動態 `check_key` enum、compact prompt
+  catalog 與共用 executor。
+- 已實作 `system.disk_usage`、`service.process_search`、`n8n.port_5678`、
+  `n8n.local_http`。
+- Python profile 已實作 `python.version`、`python.environment`、
+  `python.processes`、`python.listening_ports`。
+- PostgreSQL profile 已實作 `postgresql.version`、`postgresql.readiness`、
+  `postgresql.service_status`、`postgresql.port_5432`；全部是 credential-free
+  health checks，不執行 SQL，也不讀取資料內容。
+- `run_guest_check` 經既有 `pve_log.ssh_exec` transport 執行，不建立第二套 SSH client；
+  VMID scope、SSH guard、timeout、redaction 與輸出截斷沿用既有實作。
+- template path 的自由 `ssh_exec` 已一律改為人工確認，並移除已無 runtime 使用者的
+  `command_policy.py` regex auto-run 路徑。
+- `ai_pve_templates` schema 與 template chat request/response 均未修改，沒有 migration
+  或 CRUD API。
+
+本次刻意未做：
+
+- 將既有 PVE `_TOOLS` 全部搬檔：本次只由 `pve_tools.definitions` 組合 template 的
+  動態 tools，原 PVE Log tool schema 保持原位與原行為，降低第一個切片的回歸面。
+- provider token 結論：目前只有 deterministic schema/round 測試，尚無 live provider
+  usage，因此不能宣稱實際節省多少 token。
+
 ## 1. 決策摘要
 
 建議建立共用 tools library，但不要把它做成「每個模板各自註冊一整套 OpenAI

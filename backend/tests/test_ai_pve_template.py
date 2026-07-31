@@ -16,7 +16,6 @@ from app.ai.pve_log.schemas import (
     ToolCallRecord,
 )
 from app.ai.pve_template import service as template_service
-from app.ai.pve_template.command_policy import is_known_read_command
 from app.ai.pve_template.prompts import BASE_SAFETY_PROMPT, compose_system_prompt
 from app.ai.pve_template.schemas import (
     AIPVETemplateChatRequest,
@@ -42,28 +41,32 @@ def test_template_prompt_keeps_code_owned_safety_rules() -> None:
     assert "VMID=102" in prompt
     assert "模板角色提示" in prompt
     assert "以固定安全規則及後端授權結果為準" in prompt
-    assert "直接呼叫 ssh_exec" in prompt
+    assert "優先使用目前 catalog 內的 run_guest_check" in prompt
+    assert "n8n.local_http" in prompt
     assert "後端是唯一的確認攔截點" in prompt
     assert "不要為此多呼叫 get_resource_detail" in prompt
 
 
 @pytest.mark.parametrize(
-    ("template_key", "command", "expected"),
+    ("template_key", "expected_check", "foreign_check"),
     [
-        ("n8n", "ss -lntp | grep ':5678'", True),
-        ("n8n", "npm install attacker-package", False),
-        ("python", "python3 --version", True),
-        ("postgresql", "DROP DATABASE app", False),
+        ("python", "python.environment", "postgresql.readiness"),
+        ("postgresql", "postgresql.readiness", "python.environment"),
     ],
 )
-def test_template_command_policy_requires_confirmation_for_unknown_commands(
-    template_key: str, command: str, expected: bool
+def test_template_prompt_injects_only_its_resolved_check_profile(
+    template_key: str,
+    expected_check: str,
+    foreign_check: str,
 ) -> None:
-    assert is_known_read_command(template_key, command) is expected
+    prompt = compose_system_prompt(_template(template_key), vmid=102)
+
+    assert expected_check in prompt
+    assert foreign_check not in prompt
 
 
 @pytest.mark.asyncio
-async def test_template_known_command_auto_runs_as_root(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_template_free_shell_always_requires_confirmation(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 
     async def fake_ssh_exec(request, **_kwargs):
@@ -79,13 +82,11 @@ async def test_template_known_command_auto_runs_as_root(monkeypatch: pytest.Monk
             "reason": "檢查 Python",
         },
         template_key="python",
-        auto_execute_known_ssh=True,
     )
 
     request = captured["request"]
     assert request.ssh_user == "root"
-    assert request.require_confirm is False
-    assert result["pending"] is False
+    assert request.require_confirm is True
 
 
 @pytest.mark.asyncio
@@ -106,7 +107,6 @@ async def test_template_unknown_command_stays_pending(monkeypatch: pytest.Monkey
     result = await pve_chat_module._execute_ssh_tool(
         {"vmid": 102, "command": "npm install attacker-package", "reason": "測試"},
         template_key="n8n",
-        auto_execute_known_ssh=True,
     )
 
     assert captured["request"].require_confirm is True
@@ -227,7 +227,6 @@ async def test_agent_continues_from_resource_detail_to_n8n_check_and_summary(
         message="檢查 N8n 服務",
         allowed_vmids={102},
         template_key="n8n",
-        auto_execute_known_ssh=True,
     )
 
     assert result.reply == "n8n 正在 5678 port 提供服務。"
@@ -236,7 +235,13 @@ async def test_agent_continues_from_resource_detail_to_n8n_check_and_summary(
         "ssh_exec",
     ]
     assert len(payloads) == 3
-    assert all(payload["tools"] == pve_chat_module._TOOLS for payload in payloads)
+    assert all(
+        payload["tools"] == pve_chat_module.build_tool_definitions(
+            pve_chat_module._TOOLS,
+            pve_chat_module.resolve_profile("n8n"),
+        )
+        for payload in payloads
+    )
     assert payloads[1]["messages"][-1]["role"] == "tool"
     assert payloads[2]["messages"][-1]["role"] == "tool"
 
@@ -303,7 +308,6 @@ async def test_template_prose_confirmation_is_intercepted_without_user_round_tri
         message="檢查 N8n 服務",
         allowed_vmids={102},
         template_key="n8n",
-        auto_execute_known_ssh=True,
     )
 
     assert len(payloads) == 1

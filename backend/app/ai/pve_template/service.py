@@ -123,7 +123,6 @@ async def chat(
         scope_id=template.id,
         system_prompt=compose_system_prompt(template, vmid=request.vmid),
         template_key=template.template_key,
-        auto_execute_known_ssh=True,
     )
     _remember_pending(vmid=request.vmid, response=response)
     return _response(template_key=template.template_key, vmid=request.vmid, response=response)
@@ -216,7 +215,6 @@ async def confirm_ssh(
         scope_id=template.id,
         system_prompt=compose_system_prompt(template, vmid=context.vmid),
         template_key=template.template_key,
-        auto_execute_known_ssh=True,
     )
     _remember_pending(vmid=context.vmid, response=resumed)
     return _response(

@@ -34,7 +34,9 @@ from sqlmodel import Session
 from app.ai.pve_log.collector import collect_snapshot
 from app.ai.pve_log.config import settings
 from app.ai.pve_log.schemas import ChatResponse, SystemSnapshot, ToolCallRecord
-from app.ai.pve_template.command_policy import is_known_read_command
+from app.ai.pve_tools.definitions import build_tool_definitions
+from app.ai.pve_tools.executor import execute_guest_check
+from app.ai.pve_tools.registry import resolve_profile
 from app.infrastructure.ai.pve_log import client as vllm_client
 
 logger = logging.getLogger(__name__)
@@ -301,7 +303,6 @@ async def _execute_ssh_tool(
     scope_type: str | None = None,
     scope_id: uuid.UUID | None = None,
     template_key: str | None = None,
-    auto_execute_known_ssh: bool = False,
 ) -> dict[str, Any]:
     """執行 ssh_exec 工具（async，需要等待 SSH 連線）。
 
@@ -336,10 +337,7 @@ async def _execute_ssh_tool(
         command=command,
         ssh_user=effective_ssh_user,
         ssh_port=int(args.get("ssh_port", 22)),
-        require_confirm=not (
-            auto_execute_known_ssh
-            and is_known_read_command(template_key, command)
-        ),
+        require_confirm=True,
     )
     result = await _ssh_exec(
         req,
@@ -561,7 +559,6 @@ async def chat(
     scope_id: uuid.UUID | None = None,
     system_prompt: str | None = None,
     template_key: str | None = None,
-    auto_execute_known_ssh: bool = False,
 ) -> ChatResponse:
     """執行有限步數的 AI agent 對話，支援 tool calling、確認中斷及接續。"""
     if not settings.VLLM_BASE_URL or not settings.VLLM_MODEL_NAME:
@@ -612,6 +609,8 @@ async def chat(
         if message:
             messages.append({"role": "user", "content": message})
 
+    profile = resolve_profile(template_key) if template_key else None
+    active_tools = build_tool_definitions(_TOOLS, profile)
     tools_called: list[ToolCallRecord] = []
     _snapshot: SystemSnapshot | None = None  # lazy，只有工具真的被呼叫時才收集
 
@@ -619,7 +618,7 @@ async def chat(
         payload: dict[str, Any] = {
             "model": settings.VLLM_MODEL_NAME,
             "messages": messages,
-            "tools": _TOOLS,
+            "tools": active_tools,
             "tool_choice": "auto",
             "temperature": 0.1,
             "max_tokens": 4096,
@@ -685,7 +684,9 @@ async def chat(
             )
 
         needs_snapshot = any(
-            tc.get("function", {}).get("name") != "ssh_exec" for tc in tool_calls
+            tc.get("function", {}).get("name")
+            not in {"ssh_exec", "run_guest_check"}
+            for tc in tool_calls
         )
         if needs_snapshot and _snapshot is None:
             try:
@@ -721,8 +722,23 @@ async def chat(
                         scope_type=scope_type,
                         scope_id=scope_id,
                         template_key=template_key,
-                        auto_execute_known_ssh=auto_execute_known_ssh,
                     )
+                elif func_name == "run_guest_check":
+                    if profile is None:
+                        result = {
+                            "status": "rejected",
+                            "error": "目前入口未啟用 guest-check profile",
+                        }
+                    else:
+                        result = await execute_guest_check(
+                            func_args,
+                            profile=profile,
+                            session=session,
+                            allowed_vmids=allowed_vmids,
+                            requester_id=requester_id,
+                            scope_type=scope_type,
+                            scope_id=scope_id,
+                        )
                 else:
                     if _snapshot is None:
                         raise RuntimeError("PVE snapshot 尚未完成收集")
