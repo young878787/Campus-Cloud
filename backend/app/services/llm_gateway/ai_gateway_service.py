@@ -4,10 +4,10 @@ import secrets
 import time
 import uuid
 from collections.abc import AsyncGenerator
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, case, distinct, func, or_
 from sqlmodel import Session, select
 
 from app.core.authorizers import require_ai_api_access
@@ -40,6 +40,7 @@ from app.services.user import audit_service
 logger = logging.getLogger(__name__)
 
 DEFAULT_REQUEST_RATE_LIMIT = 20
+MONITORING_SUCCESS_STATUSES = ("success", "ok", "200")
 
 
 def _generate_user_api_key() -> str:
@@ -762,6 +763,305 @@ def get_user_template_usage_stats(
 # ===== Admin 監控功能 =====
 
 
+def _monitoring_filters(model, start_date: datetime | None, end_date: datetime | None):
+    filters = []
+    if start_date:
+        filters.append(model.created_at >= start_date)
+    if end_date:
+        filters.append(model.created_at <= end_date)
+    return filters
+
+
+def _monitoring_bucket_rows(
+    *,
+    session: Session,
+    model,
+    bucket: str,
+    start_date: datetime | None,
+    end_date: datetime | None,
+):
+    """依時間 bucket 聚合單一 AI 使用表，避免前端用有限明細反推趨勢。"""
+    dialect_name = session.get_bind().dialect.name
+    if dialect_name == "sqlite":
+        sqlite_format = (
+            "%Y-%m-%d %H:00:00" if bucket == "hour" else "%Y-%m-%d 00:00:00"
+        )
+        bucket_expr = func.strftime(
+            sqlite_format, model.created_at
+        ).label("bucket_start")
+    else:
+        bucket_expr = func.date_trunc(bucket, model.created_at).label("bucket_start")
+    statement = select(
+        bucket_expr,
+        func.count(model.id).label("total_calls"),
+        func.coalesce(
+            func.sum(
+                case((model.status.in_(MONITORING_SUCCESS_STATUSES), 1), else_=0)
+            ),
+            0,
+        ).label("successful_calls"),
+        func.count(model.request_duration_ms).label("duration_count"),
+        func.coalesce(func.sum(model.request_duration_ms), 0).label("duration_sum"),
+    ).where(*_monitoring_filters(model, start_date, end_date))
+    statement = statement.group_by(bucket_expr).order_by(bucket_expr)
+    return session.exec(statement).all()
+
+
+def _monitoring_bucket_datetime(value: object) -> datetime | None:
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    return None
+
+
+def _monitoring_model_rows(
+    *,
+    session: Session,
+    model,
+    start_date: datetime | None,
+    end_date: datetime | None,
+):
+    statement = select(
+        model.model_name,
+        func.count(model.id).label("total_calls"),
+        func.coalesce(
+            func.sum(
+                case((model.status.in_(MONITORING_SUCCESS_STATUSES), 1), else_=0)
+            ),
+            0,
+        ).label("successful_calls"),
+        func.coalesce(func.sum(model.input_tokens), 0).label("input_tokens"),
+        func.coalesce(func.sum(model.output_tokens), 0).label("output_tokens"),
+        func.count(model.request_duration_ms).label("duration_count"),
+        func.coalesce(func.sum(model.request_duration_ms), 0).label("duration_sum"),
+    ).where(*_monitoring_filters(model, start_date, end_date))
+    statement = statement.group_by(model.model_name)
+    return session.exec(statement).all()
+
+
+def _monitoring_summary(stats: dict) -> dict:
+    total_calls = int(stats.get("proxy_total_calls", 0) or 0) + int(
+        stats.get("template_total_calls", 0) or 0
+    )
+    successful_calls = int(stats.get("successful_calls", 0) or 0)
+    failed_calls = max(0, total_calls - successful_calls)
+    total_tokens = sum(
+        int(stats.get(field, 0) or 0)
+        for field in (
+            "proxy_total_input_tokens",
+            "proxy_total_output_tokens",
+            "template_total_input_tokens",
+            "template_total_output_tokens",
+        )
+    )
+    return {
+        "total_calls": total_calls,
+        "successful_calls": successful_calls,
+        "failed_calls": failed_calls,
+        "error_rate": None if total_calls == 0 else round(failed_calls / total_calls * 100, 2),
+        "total_tokens": total_tokens,
+        "avg_latency_ms": (
+            None
+            if total_calls == 0 or stats.get("avg_latency_ms") is None
+            else int(stats["avg_latency_ms"])
+        ),
+        "active_users": int(stats.get("active_users", 0) or 0),
+    }
+
+
+def _monitoring_percent_delta(current: int, previous: int) -> float | None:
+    if previous == 0:
+        return None
+    return round((current - previous) / previous * 100, 2)
+
+
+def get_monitoring_overview(
+    *,
+    session: Session,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    bucket: str = "hour",
+    compare: bool = True,
+) -> dict:
+    """回傳 AI 監控首頁使用的趨勢、比較與模型聚合資料。"""
+    if bucket not in {"hour", "day"}:
+        raise ValueError("bucket must be hour or day")
+
+    current_stats = get_monitoring_stats(
+        session=session, start_date=start_date, end_date=end_date
+    )
+    current_summary = _monitoring_summary(current_stats)
+
+    comparison = {
+        "total_calls_delta": 0,
+        "total_calls_percent": None,
+        "failed_calls_delta": 0,
+        "failed_calls_percent": None,
+        "error_rate_delta": None,
+        "avg_latency_ms_delta": None,
+    }
+    if compare and start_date and end_date and end_date > start_date:
+        period = end_date - start_date
+        previous_end = start_date - timedelta(microseconds=1)
+        previous_stats = get_monitoring_stats(
+            session=session,
+            start_date=previous_end - period,
+            end_date=previous_end,
+        )
+        previous_summary = _monitoring_summary(previous_stats)
+        comparison = {
+            "total_calls_delta": current_summary["total_calls"]
+            - previous_summary["total_calls"],
+            "total_calls_percent": _monitoring_percent_delta(
+                current_summary["total_calls"], previous_summary["total_calls"]
+            ),
+            "failed_calls_delta": current_summary["failed_calls"]
+            - previous_summary["failed_calls"],
+            "failed_calls_percent": _monitoring_percent_delta(
+                current_summary["failed_calls"], previous_summary["failed_calls"]
+            ),
+            "error_rate_delta": (
+                None
+                if current_summary["error_rate"] is None
+                or previous_summary["error_rate"] is None
+                else round(
+                    current_summary["error_rate"] - previous_summary["error_rate"], 2
+                )
+            ),
+            "avg_latency_ms_delta": (
+                None
+                if current_summary["avg_latency_ms"] is None
+                or previous_summary["avg_latency_ms"] is None
+                else current_summary["avg_latency_ms"]
+                - previous_summary["avg_latency_ms"]
+            ),
+        }
+
+    series_by_bucket = {}
+    source_models = ((AIAPIUsage, "proxy_calls"), (AITemplateCallLog, "template_calls"))
+    for model, source_key in source_models:
+        for row in _monitoring_bucket_rows(
+            session=session,
+            model=model,
+            bucket=bucket,
+            start_date=start_date,
+            end_date=end_date,
+        ):
+            bucket_start = _monitoring_bucket_datetime(row[0])
+            if bucket_start is None:
+                continue
+            item = series_by_bucket.setdefault(
+                bucket_start,
+                {
+                    "bucket_start": bucket_start,
+                    "total_calls": 0,
+                    "successful_calls": 0,
+                    "avg_latency_sum": 0.0,
+                    "avg_latency_count": 0,
+                    "proxy_calls": 0,
+                    "template_calls": 0,
+                },
+            )
+            total_calls = int(row[1] or 0)
+            successful_calls = int(row[2] or 0)
+            item["total_calls"] += total_calls
+            item["successful_calls"] += successful_calls
+            item[source_key] += total_calls
+            duration_count = int(row[3] or 0)
+            if duration_count:
+                item["avg_latency_sum"] += float(row[4] or 0)
+                item["avg_latency_count"] += duration_count
+
+    series = []
+    for item in sorted(series_by_bucket.values(), key=lambda value: value["bucket_start"]):
+        total_calls = item["total_calls"]
+        failed_calls = total_calls - item["successful_calls"]
+        series.append(
+            {
+                "bucket_start": item["bucket_start"],
+                "total_calls": total_calls,
+                "successful_calls": item["successful_calls"],
+                "failed_calls": failed_calls,
+                "error_rate": (
+                    None if total_calls == 0 else round(failed_calls / total_calls * 100, 2)
+                ),
+                "avg_latency_ms": (
+                    round(item["avg_latency_sum"] / item["avg_latency_count"])
+                    if item["avg_latency_count"]
+                    else None
+                ),
+                "proxy_calls": item["proxy_calls"],
+                "template_calls": item["template_calls"],
+            }
+        )
+
+    model_totals = {}
+    for model in (AIAPIUsage, AITemplateCallLog):
+        for row in _monitoring_model_rows(
+            session=session,
+            model=model,
+            start_date=start_date,
+            end_date=end_date,
+        ):
+            model_name = str(row[0] or "unknown")
+            item = model_totals.setdefault(
+                model_name,
+                {
+                    "total_calls": 0,
+                    "successful_calls": 0,
+                    "total_tokens": 0,
+                    "avg_latency_sum": 0.0,
+                    "avg_latency_count": 0,
+                },
+            )
+            total_calls = int(row[1] or 0)
+            item["total_calls"] += total_calls
+            item["successful_calls"] += int(row[2] or 0)
+            item["total_tokens"] += int(row[3] or 0) + int(row[4] or 0)
+            duration_count = int(row[5] or 0)
+            if duration_count:
+                item["avg_latency_sum"] += float(row[6] or 0)
+                item["avg_latency_count"] += duration_count
+
+    model_breakdown = []
+    for model_name, item in sorted(
+        model_totals.items(), key=lambda entry: entry[1]["total_calls"], reverse=True
+    ):
+        total_calls = item["total_calls"]
+        failed_calls = total_calls - item["successful_calls"]
+        model_breakdown.append(
+            {
+                "model_name": model_name,
+                "total_calls": total_calls,
+                "total_tokens": item["total_tokens"],
+                "failed_calls": failed_calls,
+                "error_rate": (
+                    None if total_calls == 0 else round(failed_calls / total_calls * 100, 2)
+                ),
+                "avg_latency_ms": (
+                    round(item["avg_latency_sum"] / item["avg_latency_count"])
+                    if item["avg_latency_count"]
+                    else None
+                ),
+            }
+        )
+
+    return {
+        "start_date": start_date,
+        "end_date": end_date,
+        "bucket": bucket,
+        "summary": current_summary,
+        "comparison": comparison,
+        "series": series,
+        "model_breakdown": model_breakdown,
+    }
+
+
 def get_monitoring_stats(
     *,
     session: Session,
@@ -769,16 +1069,12 @@ def get_monitoring_stats(
     end_date: datetime | None = None,
 ) -> dict:
     """全局 AI 監控統計卡片"""
-    from sqlalchemy import case, distinct, func
-
-    success_statuses = ("success", "ok", "200")
-
     proxy_query = select(
         func.count(AIAPIUsage.id),
         func.coalesce(func.sum(AIAPIUsage.input_tokens), 0),
         func.coalesce(func.sum(AIAPIUsage.output_tokens), 0),
         func.coalesce(
-            func.sum(case((AIAPIUsage.status.in_(success_statuses), 1), else_=0)),
+            func.sum(case((AIAPIUsage.status.in_(MONITORING_SUCCESS_STATUSES), 1), else_=0)),
             0,
         ),
         func.count(AIAPIUsage.request_duration_ms),
@@ -790,7 +1086,7 @@ def get_monitoring_stats(
         func.coalesce(func.sum(AITemplateCallLog.output_tokens), 0),
         func.coalesce(
             func.sum(
-                case((AITemplateCallLog.status.in_(success_statuses), 1), else_=0)
+                case((AITemplateCallLog.status.in_(MONITORING_SUCCESS_STATUSES), 1), else_=0)
             ),
             0,
         ),
@@ -886,7 +1182,7 @@ def list_proxy_calls(
     limit: int = 50,
 ) -> dict:
     """Admin: 列出 Proxy 呼叫紀錄"""
-    count_query = select(AIAPIUsage.id)
+    count_query = select(func.count()).select_from(AIAPIUsage)
     data_query = select(AIAPIUsage, User).join(User, User.id == AIAPIUsage.user_id)
 
     filters = []
@@ -909,7 +1205,7 @@ def list_proxy_calls(
         data_query.order_by(AIAPIUsage.created_at.desc()).offset(skip).limit(limit)
     )
 
-    total = len(session.exec(count_query).all())
+    total = int(session.exec(count_query).one() or 0)
     rows = session.exec(data_query).all()
 
     records = []
@@ -948,7 +1244,7 @@ def list_template_calls(
     limit: int = 50,
 ) -> dict:
     """Admin: 列出 Template 呼叫紀錄"""
-    count_query = select(AITemplateCallLog.id)
+    count_query = select(func.count()).select_from(AITemplateCallLog)
     data_query = select(AITemplateCallLog, User).join(
         User, User.id == AITemplateCallLog.user_id
     )
@@ -977,7 +1273,7 @@ def list_template_calls(
         .limit(limit)
     )
 
-    total = len(session.exec(count_query).all())
+    total = int(session.exec(count_query).one() or 0)
     rows = session.exec(data_query).all()
 
     records = []
@@ -1012,20 +1308,30 @@ def list_users_usage(
     limit: int = 50,
 ) -> dict:
     """Admin: 每個使用者的 AI 用量彙總"""
-    from sqlalchemy import func
-
-    # Proxy 用量 per user
+    # 先在資料庫完成兩個來源的 per-user 聚合，再一次 join 使用者資料。
+    # 舊實作在分頁後對每位使用者執行 session.get + 2 次聚合查詢，
+    # 100 位使用者就會產生 300+ 次 round-trip。
     proxy_sub = select(
         AIAPIUsage.user_id,
         func.count(AIAPIUsage.id).label("proxy_calls"),
         func.coalesce(func.sum(AIAPIUsage.input_tokens), 0).label("proxy_input"),
         func.coalesce(func.sum(AIAPIUsage.output_tokens), 0).label("proxy_output"),
+        func.coalesce(
+            func.sum(
+                case((AIAPIUsage.status.in_(MONITORING_SUCCESS_STATUSES), 1), else_=0)
+            ),
+            0,
+        ).label("proxy_success"),
+        func.count(AIAPIUsage.request_duration_ms).label("proxy_duration_count"),
+        func.coalesce(func.sum(AIAPIUsage.request_duration_ms), 0).label(
+            "proxy_duration_sum"
+        ),
     )
     if start_date:
         proxy_sub = proxy_sub.where(AIAPIUsage.created_at >= start_date)
     if end_date:
         proxy_sub = proxy_sub.where(AIAPIUsage.created_at <= end_date)
-    proxy_sub = proxy_sub.group_by(AIAPIUsage.user_id).subquery()
+    proxy_sub = proxy_sub.group_by(AIAPIUsage.user_id).subquery("proxy_usage")
 
     # Template 用量 per user
     tmpl_sub = select(
@@ -1035,81 +1341,109 @@ def list_users_usage(
         func.coalesce(func.sum(AITemplateCallLog.output_tokens), 0).label(
             "tmpl_output"
         ),
+        func.coalesce(
+            func.sum(
+                case(
+                    (AITemplateCallLog.status.in_(MONITORING_SUCCESS_STATUSES), 1),
+                    else_=0,
+                )
+            ),
+            0,
+        ).label("tmpl_success"),
+        func.count(AITemplateCallLog.request_duration_ms).label("tmpl_duration_count"),
+        func.coalesce(func.sum(AITemplateCallLog.request_duration_ms), 0).label(
+            "tmpl_duration_sum"
+        ),
     )
     if start_date:
         tmpl_sub = tmpl_sub.where(AITemplateCallLog.created_at >= start_date)
     if end_date:
         tmpl_sub = tmpl_sub.where(AITemplateCallLog.created_at <= end_date)
-    tmpl_sub = tmpl_sub.group_by(AITemplateCallLog.user_id).subquery()
+    tmpl_sub = tmpl_sub.group_by(AITemplateCallLog.user_id).subquery("template_usage")
 
-    # 合併：所有有 proxy 或 template 呼叫的使用者
-    # 先取得所有相關 user_id
-    all_user_ids_q = select(proxy_sub.c.user_id).union(select(tmpl_sub.c.user_id))
-    raw_rows = session.exec(all_user_ids_q).all()
+    proxy_calls = func.coalesce(proxy_sub.c.proxy_calls, 0)
+    proxy_input = func.coalesce(proxy_sub.c.proxy_input, 0)
+    proxy_output = func.coalesce(proxy_sub.c.proxy_output, 0)
+    proxy_success = func.coalesce(proxy_sub.c.proxy_success, 0)
+    proxy_duration_count = func.coalesce(proxy_sub.c.proxy_duration_count, 0)
+    proxy_duration_sum = func.coalesce(proxy_sub.c.proxy_duration_sum, 0)
+    template_calls = func.coalesce(tmpl_sub.c.tmpl_calls, 0)
+    template_input = func.coalesce(tmpl_sub.c.tmpl_input, 0)
+    template_output = func.coalesce(tmpl_sub.c.tmpl_output, 0)
+    template_success = func.coalesce(tmpl_sub.c.tmpl_success, 0)
+    template_duration_count = func.coalesce(tmpl_sub.c.tmpl_duration_count, 0)
+    template_duration_sum = func.coalesce(tmpl_sub.c.tmpl_duration_sum, 0)
+    total_tokens = proxy_input + proxy_output + template_input + template_output
 
-    # UNION of single-column selects returns Row objects (Sequence-like); unwrap
-    # to scalar UUIDs so downstream `WHERE user_id == uid` binds a UUID, not a Row.
-    def _scalar(r):
-        if isinstance(r, uuid.UUID):
-            return r
-        try:
-            return r[0]
-        except (TypeError, IndexError):
-            return r
+    # UNION of both aggregates gives exactly one row per user with activity.
+    active_users = (
+        select(proxy_sub.c.user_id.label("user_id"))
+        .union(select(tmpl_sub.c.user_id.label("user_id")))
+        .subquery("active_ai_users")
+    )
+    usage_query = (
+        select(
+            User.id,
+            User.email,
+            User.full_name,
+            proxy_calls.label("proxy_calls"),
+            proxy_input.label("proxy_input"),
+            proxy_output.label("proxy_output"),
+            proxy_success.label("proxy_success"),
+            proxy_duration_count.label("proxy_duration_count"),
+            proxy_duration_sum.label("proxy_duration_sum"),
+            template_calls.label("template_calls"),
+            template_input.label("template_input"),
+            template_output.label("template_output"),
+            template_success.label("template_success"),
+            template_duration_count.label("template_duration_count"),
+            template_duration_sum.label("template_duration_sum"),
+        )
+        .select_from(User)
+        .join(active_users, active_users.c.user_id == User.id)
+        .outerjoin(proxy_sub, proxy_sub.c.user_id == User.id)
+        .outerjoin(tmpl_sub, tmpl_sub.c.user_id == User.id)
+    )
 
-    all_user_ids = [_scalar(row) for row in raw_rows]
-    total_count = len(all_user_ids)
-
-    # 分頁取使用者明細
-    paginated_ids = all_user_ids[skip : skip + limit]
-    if not paginated_ids:
-        return {"data": [], "count": total_count}
+    total_count = int(
+        session.exec(select(func.count()).select_from(usage_query.subquery())).one() or 0
+    )
+    rows = session.exec(
+        usage_query.order_by(total_tokens.desc(), User.id).offset(skip).limit(limit)
+    ).all()
 
     results = []
-    for uid in paginated_ids:
-        user = session.get(User, uid)
-        if not user:
-            continue
-
-        # proxy stats
-        proxy_row = session.exec(
-            select(
-                proxy_sub.c.proxy_calls,
-                proxy_sub.c.proxy_input,
-                proxy_sub.c.proxy_output,
-            ).where(proxy_sub.c.user_id == uid)
-        ).first()
-
-        # template stats
-        tmpl_row = session.exec(
-            select(
-                tmpl_sub.c.tmpl_calls, tmpl_sub.c.tmpl_input, tmpl_sub.c.tmpl_output
-            ).where(tmpl_sub.c.user_id == uid)
-        ).first()
-
+    for row in rows:
+        proxy_calls_value = int(row.proxy_calls or 0)
+        template_calls_value = int(row.template_calls or 0)
+        successful_calls = int(row.proxy_success or 0) + int(row.template_success or 0)
+        total_calls = proxy_calls_value + template_calls_value
+        duration_count = int(row.proxy_duration_count or 0) + int(
+            row.template_duration_count or 0
+        )
+        duration_sum = int(row.proxy_duration_sum or 0) + int(row.template_duration_sum or 0)
+        failed_calls = max(0, total_calls - successful_calls)
         results.append(
             {
-                "user_id": uid,
-                "user_email": user.email,
-                "user_full_name": user.full_name,
-                "proxy_calls": proxy_row[0] if proxy_row else 0,
-                "proxy_input_tokens": proxy_row[1] if proxy_row else 0,
-                "proxy_output_tokens": proxy_row[2] if proxy_row else 0,
-                "template_calls": tmpl_row[0] if tmpl_row else 0,
-                "template_input_tokens": tmpl_row[1] if tmpl_row else 0,
-                "template_output_tokens": tmpl_row[2] if tmpl_row else 0,
+                "user_id": row.id,
+                "user_email": row.email,
+                "user_full_name": row.full_name,
+                "proxy_calls": proxy_calls_value,
+                "proxy_input_tokens": int(row.proxy_input or 0),
+                "proxy_output_tokens": int(row.proxy_output or 0),
+                "template_calls": template_calls_value,
+                "template_input_tokens": int(row.template_input or 0),
+                "template_output_tokens": int(row.template_output or 0),
+                "failed_calls": failed_calls,
+                "error_rate": (
+                    None
+                    if total_calls == 0
+                    else round(failed_calls / total_calls * 100, 2)
+                ),
+                "avg_latency_ms": (
+                    round(duration_sum / duration_count) if duration_count else None
+                ),
             }
         )
-
-    # 按總 token 降序排
-    results.sort(
-        key=lambda r: (
-            r["proxy_input_tokens"]
-            + r["proxy_output_tokens"]
-            + r["template_input_tokens"]
-            + r["template_output_tokens"]
-        ),
-        reverse=True,
-    )
 
     return {"data": results, "count": total_count}

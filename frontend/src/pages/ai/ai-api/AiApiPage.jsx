@@ -442,7 +442,7 @@ function MyUsageTab() {
 export default function AiApiPage() {
   const { t } = useTranslation("ai");
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState("records");
+  const [activeTab, setActiveTab] = useState("keys");
 
   const DURATION_OPTIONS = [
     { value: "1h", label: t("AiApiPage.durationOption1h") },
