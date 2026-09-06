@@ -54,5 +54,7 @@
   "auth.tokenInvalid": "無效的 token",
   "auth.usernameNotFound": "系統中不存在此使用者名稱的帳號。",
   "ldapAuth.notEnabled": "尚未啟用 LDAP 登入",
-  "ldapAuth.accountNotRegistered": "此帳號尚未註冊"
+  "ldapAuth.accountNotRegistered": "此帳號尚未註冊",
+  "auth.googleNotConfigured": "尚未設定 Google 登入",
+  "template.sourceVmNotRegistered": "VM {vmid} 未登記在平台，無法轉換為範本"
 }

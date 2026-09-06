@@ -183,6 +183,7 @@ def delete_session_data(db: Session, item: TeacherJudgeSession) -> None:
             try:
                 storage_path(attachment).unlink(missing_ok=True)
             except OSError:
+                # 附件實體檔刪不掉不影響 DB 刪除，留給清理排程處理
                 pass
 
 
@@ -218,6 +219,7 @@ def clear_session_messages(db: Session, item: TeacherJudgeSession) -> None:
         try:
             storage_path(attachment).unlink(missing_ok=True)
         except OSError:
+            # 附件實體檔刪不掉不影響 DB 狀態，留給清理排程處理
             pass
 
 

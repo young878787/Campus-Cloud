@@ -1499,9 +1499,6 @@ _SURFACES: tuple[SurfaceSpec, ...] = (
     ),
 )
 
-_BY_ID = {surface.id: surface for surface in _SURFACES}
-
-
 def all_surfaces() -> tuple[SurfaceSpec, ...]:
     return _SURFACES
 

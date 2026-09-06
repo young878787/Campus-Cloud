@@ -313,9 +313,17 @@ def _resource_api(node: str, vmid: int, resource_type: ResourceType):
 # Config
 # ---------------------------------------------------------------------------
 
-def get_config(node: str, vmid: int, resource_type: ResourceType) -> dict:
-    """GET /nodes/{node}/{type}/{vmid}/config"""
-    return _resource_api(node, vmid, resource_type).config.get()
+def get_config(
+    node: str, vmid: int, resource_type: ResourceType, *, current: bool = False
+) -> dict:
+    """GET /nodes/{node}/{type}/{vmid}/config
+
+    預設回傳的是「含 pending 的設定」：執行中的機器若有尚未生效的變更
+    （例如改了 cores 但還沒重開機），拿到的會是那個尚未生效的值。
+    ``current=True`` 改要實際生效中的值。
+    """
+    api = _resource_api(node, vmid, resource_type).config
+    return api.get(current=1) if current else api.get()
 
 
 def update_config(
@@ -491,8 +499,12 @@ def get_ip_address(node: str, vmid: int, resource_type: ResourceType) -> str | N
 # ---------------------------------------------------------------------------
 
 def get_current_specs(node: str, vmid: int, resource_type: ResourceType) -> dict:
-    """Returns {"cpu": int|None, "memory": int|None, "disk": int|None}."""
-    config = get_config(node, vmid, resource_type)
+    """Returns {"cpu": int|None, "memory": int|None, "disk": int|None}.
+
+    讀實際生效值（current=1），規格調整申請的「目前規格」才不會抄到
+    尚未生效的 pending 設定。
+    """
+    config = get_config(node, vmid, resource_type, current=True)
 
     current_cpu = config.get("cores") or config.get("cpus")
     current_memory = config.get("memory")
@@ -603,8 +615,16 @@ def get_vm_templates() -> list[dict]:
 
 _TEMPLATE_NODE_MAP_TTL_SECONDS = 60.0
 _template_node_map: dict[str, set[str]] = {}
-_template_node_map_at = 0.0
 _template_node_map_lock = threading.Lock()
+
+
+class _TemplateNodeMapCacheMeta:
+    """快取最後刷新時間（集中在物件上，避免 global 重新指派）。"""
+
+    refreshed_at: float = 0.0
+
+
+_template_node_map_meta = _TemplateNodeMapCacheMeta()
 
 
 def get_lxc_template_node_map() -> dict[str, set[str]]:
@@ -613,10 +633,11 @@ def get_lxc_template_node_map() -> dict[str, set[str]]:
     vztmpl 存在與否是節點層事實（各連線 iso_storage 未必共享到每個節點），
     placement 與模板清單都以此判斷。個別節點查詢失敗視為該節點沒有模板。
     """
-    global _template_node_map_at
     now = time.monotonic()
     with _template_node_map_lock:
-        if (now - _template_node_map_at) < _TEMPLATE_NODE_MAP_TTL_SECONDS:
+        if (
+            now - _template_node_map_meta.refreshed_at
+        ) < _TEMPLATE_NODE_MAP_TTL_SECONDS:
             return {volid: set(nodes) for volid, nodes in _template_node_map.items()}
 
     mapping: dict[str, set[str]] = {}
@@ -641,7 +662,7 @@ def get_lxc_template_node_map() -> dict[str, set[str]]:
     with _template_node_map_lock:
         _template_node_map.clear()
         _template_node_map.update(mapping)
-        _template_node_map_at = time.monotonic()
+        _template_node_map_meta.refreshed_at = time.monotonic()
     return {volid: set(nodes) for volid, nodes in mapping.items()}
 
 

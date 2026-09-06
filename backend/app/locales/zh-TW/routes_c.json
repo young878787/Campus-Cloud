@@ -77,5 +77,7 @@
   "ai_api_key.invalid_or_revoked": "Invalid or revoked API key",
   "ai_api_key.api_key_expired": "API key has expired",
   "ai_api_key.user_not_found": "User not found",
-  "ai_api_key.user_inactive": "User account is inactive"
+  "ai_api_key.user_inactive": "User account is inactive",
+  "desktop.device_code_too_many": "待核准的裝置代碼過多，請稍後再試",
+  "desktop.device_code_already_approved": "此裝置代碼已核准過"
 }

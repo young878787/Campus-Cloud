@@ -221,8 +221,8 @@ async def download_excel(
 
 
 @router.get("/health")
-async def health_check():
-    """健康檢查端點。"""
+async def health_check(_: InstructorUser):
+    """健康檢查端點（與其他 rubric 端點一致，僅老師/管理員可查）。"""
     return {
         "status": "ok",
         "vllm_configured": bool(settings.VLLM_MODEL_NAME),

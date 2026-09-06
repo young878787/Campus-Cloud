@@ -1040,7 +1040,7 @@ def test_create_script_run_falls_back_to_live_ip_when_cache_missing(
         policy_check_result_json={"approved": True},
         ai_review_result_json={"approved": True},
     )
-    resource = _add_resource(session, vmid=131, user_id=user_id, ip=None)
+    _add_resource(session, vmid=131, user_id=user_id, ip=None)
     session.add(artifact)
     session.commit()
     session.refresh(artifact)
@@ -1391,7 +1391,7 @@ def test_executor_runtime_target_falls_back_to_live_ip_when_cache_missing(
     session = _session()
     teaching_class_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    resource = _add_resource(session, vmid=131, user_id=user_id, ip=None)
+    _add_resource(session, vmid=131, user_id=user_id, ip=None)
     session.commit()
 
     run = models.TeacherJudgeScriptRun(
@@ -1727,13 +1727,16 @@ def test_execute_target_script_uploads_runs_and_collects_result(
         script_content=SAFE_SCRIPT,
     )
 
-    assert commands == [
-        "mkdir -p /tmp/campus-cloud-judge/run-1/101",
-        "cd /tmp/campus-cloud-judge/run-1/101 && python3 script.py > result.json 2> stderr.log",
+    cleanup_command = (
         "rm -f -- /tmp/campus-cloud-judge/run-1/101/script.py "
         "/tmp/campus-cloud-judge/run-1/101/result.json "
         "/tmp/campus-cloud-judge/run-1/101/stderr.log && "
-        "rmdir -- /tmp/campus-cloud-judge/run-1/101 2>/dev/null || true",
+        "rmdir -- /tmp/campus-cloud-judge/run-1/101 2>/dev/null || true"
+    )
+    assert commands == [
+        "mkdir -p /tmp/campus-cloud-judge/run-1/101",
+        "cd /tmp/campus-cloud-judge/run-1/101 && python3 script.py > result.json 2> stderr.log",
+        cleanup_command,
     ]
     assert fake_client.sftp.files[f"{remote_dir}/script.py"] == SAFE_SCRIPT.encode()
     assert result.exit_code == 0

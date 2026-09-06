@@ -12,5 +12,6 @@
   "provisioning.vm_network_incomplete": "ネットワーク設定が不完全なため、VM VMID={vmid} を作成できません。IP 管理のサブネット設定を確認してください。",
   "reset.init_snapshot_exists": "初期スナップショット skylab-init は既に存在します",
   "reset.no_init_snapshot": "このリソースには skylab-init 初期スナップショットがないためリセットできません。講師または管理者に作成を依頼してください",
-  "quota.exceeded": "クォータ不足: {violations}"
+  "quota.exceeded": "クォータ不足: {violations}",
+  "provisioning.gpu_mdev_profile_invalid": "vGPU プロファイル名の形式が不正です: '{profile}'"
 }

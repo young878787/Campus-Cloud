@@ -54,5 +54,7 @@
   "auth.tokenInvalid": "Invalid token",
   "auth.usernameNotFound": "The user with this username does not exist in the system.",
   "ldapAuth.notEnabled": "LDAP login is not enabled",
-  "ldapAuth.accountNotRegistered": "Account is not registered"
+  "ldapAuth.accountNotRegistered": "Account is not registered",
+  "auth.googleNotConfigured": "Google login is not configured",
+  "template.sourceVmNotRegistered": "VM {vmid} is not registered on the platform and cannot be converted to a template"
 }

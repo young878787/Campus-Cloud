@@ -77,5 +77,7 @@
   "ai_api_key.invalid_or_revoked": "API key が無効か、失効しています",
   "ai_api_key.api_key_expired": "API key の有効期限が切れています",
   "ai_api_key.user_not_found": "ユーザーが見つかりません",
-  "ai_api_key.user_inactive": "ユーザーアカウントが無効化されています"
+  "ai_api_key.user_inactive": "ユーザーアカウントが無効化されています",
+  "desktop.device_code_too_many": "承認待ちのデバイスコードが多すぎます。しばらくしてから再試行してください",
+  "desktop.device_code_already_approved": "このデバイスコードはすでに承認されています"
 }

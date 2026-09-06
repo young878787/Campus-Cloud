@@ -872,7 +872,7 @@ async def build_reviewed_script(
         "suggested_fix": None,
     }
     stop_reason = "unrecoverable_error"
-
+    # stop_reason 只會在下方兩個 break 分支設定，其餘路徑皆 return
     while True:
         safety_check = check_script_policy(script_content)
         quality_check = check_script_quality(script_content)

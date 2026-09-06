@@ -51,7 +51,10 @@ def _now() -> datetime:
 
 
 def _safe_filename(filename: str) -> str:
-    name = Path(filename or "rubric").name.strip()
+    # 去掉路徑片段後，再移除控制字元（CR/LF 等），避免之後作為
+    # Content-Disposition 檔名或寫入日誌時被夾帶額外內容
+    name = Path(filename or "rubric").name
+    name = "".join(ch for ch in name if ch.isprintable()).strip()
     return name or "rubric"
 
 

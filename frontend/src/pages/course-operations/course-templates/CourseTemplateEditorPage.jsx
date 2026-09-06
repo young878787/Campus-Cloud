@@ -234,6 +234,19 @@ function MachineEditor({ value, edges, onChange, onEdgesChange, pveTemplates, vm
   </section>;
 }
 
+/** 只允許站內相對路徑（以單一 "/" 開頭、不含 scheme 或 "//"），其餘視為無效。 */
+function sanitizeReturnTo(value) {
+  if (typeof value !== "string" || !value) return null;
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return null;
+  try {
+    const url = new URL(value, window.location.origin);
+    if (url.origin !== window.location.origin) return null;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 export default function CourseTemplateEditorPage() {
   const { t } = useTranslation("teaching");
   const confirm = useConfirm();
@@ -241,7 +254,9 @@ export default function CourseTemplateEditorPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const requestedTab = params.get("tab") ?? "basic";
-  const returnTo = params.get("returnTo");
+  // 只接受站內相對路徑（單一斜線開頭）：`//evil.com` 或含 scheme 的值會被
+  // react-router 交給 window.location.assign，形成 open redirect
+  const returnTo = sanitizeReturnTo(params.get("returnTo"));
   const tab = TABS.some(([key]) => key === requestedTab) ? requestedTab : "basic";
   const [template, setTemplate] = useState(() => makeEmptyTemplate());
   const [pveTemplates, setPveTemplates] = useState([]);

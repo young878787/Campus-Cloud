@@ -158,9 +158,11 @@ def update_user(
 
     db_user = user_repo.update_user(session=session, db_user=db_user, user_in=user_in)
 
-    changes = ", ".join(
-        f"{k}={v}" for k, v in user_in.model_dump(exclude_unset=True).items()
-    )
+    # 稽核紀錄絕不可寫入明文密碼；只記錄「密碼已變更」
+    changed_fields = user_in.model_dump(exclude_unset=True)
+    if "password" in changed_fields:
+        changed_fields["password"] = "<changed>"
+    changes = ", ".join(f"{k}={v}" for k, v in changed_fields.items())
     try:
         audit_service.log_action(
             session=session,

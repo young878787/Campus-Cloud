@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, date, datetime, time, timedelta
 
 from sqlmodel import Session, SQLModel, create_engine
 
-from app import models  # noqa: F401
 from app.models import (
     CoursePath,
     CoursePathStatus,

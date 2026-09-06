@@ -14,6 +14,7 @@ from app.models.vm_request import VMProvisioningStatus, VMRequest, VMRequestStat
 from app.repositories import audit_log as audit_log_repo
 from app.repositories import batch_provision as batch_provision_repo
 from app.repositories import resource as resource_repo
+from app.repositories import spec_change_request as spec_request_repo
 from app.repositories import vm_request as vm_request_repo
 from app.schemas import ResourcePublic
 from app.schemas.resource import (
@@ -321,6 +322,25 @@ def mark_linked_request_consumed(
     if commit:
         session.commit()
     return snapshot
+
+
+def _cancel_open_spec_change_requests(
+    *, session: Session, vmid: int, marker: str
+) -> None:
+    """機器刪除時作廢該 vmid 處理中的規格調整申請；失敗不阻斷刪除。"""
+    try:
+        cancelled = spec_request_repo.cancel_open_spec_change_requests_for_vmid(
+            session=session, vmid=vmid, comment=marker, commit=False
+        )
+        if cancelled:
+            logger.info(
+                "Cancelled %s open spec change request(s) for vmid=%s", cancelled, vmid
+            )
+    except Exception as exc:
+        session.rollback()
+        logger.warning(
+            "Failed to cancel spec change requests for vmid=%s: %s", vmid, exc
+        )
 
 
 def restore_linked_request(
@@ -783,6 +803,12 @@ def delete(
                 exc,
             )
 
+        # 規格調整申請也要跟著作廢：VMID 會被新機器回收，留著會核准／套用到
+        # 別人的機器上。resource_vmid 的 SET NULL 只擋審核，這裡把狀態收掉。
+        _cancel_open_spec_change_requests(
+            session=session, vmid=vmid, marker=RESOURCE_DELETED_BY_USER_MARKER
+        )
+
         if teaching_class_id is not None:
             _mark_class_machine_reclaimed(session=session, vmid=vmid)
 
@@ -855,6 +881,9 @@ def delete_orphan_db_record(
 
     if teaching_class_id is not None:
         _mark_class_machine_reclaimed(session=session, vmid=vmid)
+    _cancel_open_spec_change_requests(
+        session=session, vmid=vmid, marker=RESOURCE_DELETED_ORPHAN_MARKER
+    )
     resource_repo.delete_resource(session=session, vmid=vmid)
     audit_log_repo.delete_audit_logs_by_vmid(session=session, vmid=vmid)
     _mark_class_reclaimed_if_empty(

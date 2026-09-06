@@ -18,6 +18,7 @@ from app.ai.teacher_judge.attachment_service import (
     delete_attachment,
     get_pending_attachments,
 )
+from app.ai.teacher_judge.config import settings as teacher_judge_settings
 from app.ai.teacher_judge.file_service import create_blank_file
 from app.ai.teacher_judge.schemas import (
     TeacherJudgeRubricAnalysis,
@@ -334,7 +335,10 @@ async def upload_session_attachment(
             status_code=400,
             detail=f"單次最多準備 {MAX_ATTACHMENT_COUNT} 個附件。",
         )
-    file_bytes = await file.read()
+    # 有上限地讀取：多讀 1 byte 即可讓 create_attachment 判定超限，
+    # 不必先把整個（可能超大的）上傳檔載入記憶體
+    max_upload_bytes = teacher_judge_settings.VLLM_MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    file_bytes = await file.read(max_upload_bytes + 1)
     try:
         attachment = create_attachment(
             session,

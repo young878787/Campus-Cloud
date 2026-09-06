@@ -103,5 +103,10 @@
   "gateway.restartTraefikFailed": "Failed to restart Traefik",
   "gateway.applyTraefikDnsChallengeFailed": "Failed to apply the Traefik dnsChallenge configuration: {error}",
   "gateway.invalidAction": "Invalid action: {action}",
-  "gateway.noOutput": "No output"
+  "gateway.noOutput": "No output",
+  "publish.targetIpInvalid": "Invalid target IP address, cannot create external access: {ip}",
+  "publish.targetIpNotPublishable": "Target IP {ip} is not a publishable address",
+  "publish.targetIpInfrastructure": "Target IP {ip} belongs to platform infrastructure (Gateway / PVE node) and cannot be published",
+  "publish.targetIpBlocked": "Target IP {ip} falls within the blocked subnet {network} and cannot be published",
+  "publish.targetIpOutsideVmSubnet": "Target IP {ip} is outside the platform-assigned VM subnet, so external access cannot be created; make sure the VM uses its assigned IP"
 }

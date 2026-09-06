@@ -12,5 +12,6 @@
   "provisioning.vm_network_incomplete": "Network configuration is incomplete; cannot create VM VMID={vmid}. Please check the IP management subnet settings.",
   "reset.init_snapshot_exists": "Init snapshot skylab-init already exists",
   "reset.no_init_snapshot": "This resource has no skylab-init init snapshot and cannot be reset; please ask an instructor or admin to create one first",
-  "quota.exceeded": "Quota exceeded: {violations}"
+  "quota.exceeded": "Quota exceeded: {violations}",
+  "provisioning.gpu_mdev_profile_invalid": "Invalid vGPU profile name: '{profile}'"
 }

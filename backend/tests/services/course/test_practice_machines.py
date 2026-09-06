@@ -6,7 +6,6 @@ from types import SimpleNamespace
 
 from sqlmodel import Session, SQLModel, create_engine
 
-from app import models  # noqa: F401
 from app.api.routes.courses import list_practice_machines
 from app.models.course import CoursePath, CoursePathStatus
 from app.models.teaching_class import (

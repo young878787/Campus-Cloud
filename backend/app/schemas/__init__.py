@@ -140,6 +140,7 @@ from .resource import (
     VNCInfoSchema,
 )
 from .spec_change_request import (
+    SpecChangeApplyAccepted,
     SpecChangeRequestCreate,
     SpecChangeRequestPublic,
     SpecChangeRequestReview,
@@ -282,6 +283,7 @@ __all__ = [
     "CloudflareDNSRecordCreate",
     "CloudflareDNSRecordUpdate",
     # Spec Change Request
+    "SpecChangeApplyAccepted",
     "SpecChangeRequestCreate",
     "SpecChangeRequestReview",
     "SpecChangeRequestPublic",

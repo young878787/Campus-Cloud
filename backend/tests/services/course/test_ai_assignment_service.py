@@ -7,7 +7,6 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from app import models  # noqa: F401
 from app.models.course import CoursePath, CoursePathStatus
 from app.models.teacher_judge_file import TeacherJudgeFile
 from app.models.teacher_judge_script_artifact import (

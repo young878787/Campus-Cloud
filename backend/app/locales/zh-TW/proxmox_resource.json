@@ -12,5 +12,6 @@
   "provisioning.vm_network_incomplete": "網路設定不完整，無法建立 VM VMID={vmid}。請確認 IP 管理子網設定。",
   "reset.init_snapshot_exists": "初始快照 skylab-init 已存在",
   "reset.no_init_snapshot": "此資源沒有 skylab-init 初始快照，無法重置；請老師或管理員先補建",
-  "quota.exceeded": "配額不足：{violations}"
+  "quota.exceeded": "配額不足：{violations}",
+  "provisioning.gpu_mdev_profile_invalid": "vGPU 規格名稱格式不合法: '{profile}'"
 }

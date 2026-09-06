@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ─── 基礎型別 ──────────────────────────────────────────────────────────────────
 
@@ -19,7 +19,13 @@ class PortSpec(BaseModel):
     """
 
     port: int = Field(ge=0, le=65535, description="端口號；0 表示無端口協定")
-    protocol: str = Field(default="tcp", description="協定 (tcp/udp/icmp/esp/ah/...)")
+    # 協定名稱會被寫進 PVE 防火牆規則與 haproxy 設定檔（frontend/backend 名稱），
+    # 只允許小寫英數與連字號，避免換行等字元污染產生的設定
+    protocol: str = Field(
+        default="tcp",
+        pattern=r"^[a-z0-9-]{1,16}$",
+        description="協定 (tcp/udp/icmp/esp/ah/...)",
+    )
     external_port: int | None = Field(
         default=None,
         ge=1,
@@ -35,6 +41,13 @@ class PortSpec(BaseModel):
         default=True,
         description="反向代理是否啟用 HTTPS（Let's Encrypt）",
     )
+
+    @field_validator("protocol", mode="before")
+    @classmethod
+    def _normalize_protocol(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
 
 
 # ─── 連線管理 ──────────────────────────────────────────────────────────────────

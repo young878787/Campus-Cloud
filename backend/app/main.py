@@ -149,6 +149,7 @@ async def lifespan(app: FastAPI):
             try:
                 await wireguard_task
             except asyncio.CancelledError:
+                # 關機時主動取消 reconciler，CancelledError 是預期結果
                 pass
         await shutdown_background_runner()
         await close_ai_clients()

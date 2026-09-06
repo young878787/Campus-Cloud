@@ -59,9 +59,10 @@ class _FakeSession:
 def patched(monkeypatch: pytest.MonkeyPatch) -> dict:
     """預設樁：enabled 設定、無本地帳號、audit 記到 list。"""
     calls: dict = {"audit": []}
-    monkeypatch.setattr(
-        ldap_auth_service, "get_ldap_config", lambda *, session: _config()
-    )
+    def _fake_get_ldap_config(*, session):
+        return _config()
+
+    monkeypatch.setattr(ldap_auth_service, "get_ldap_config", _fake_get_ldap_config)
     monkeypatch.setattr(
         ldap_auth_service.user_repo,
         "get_user_by_email",

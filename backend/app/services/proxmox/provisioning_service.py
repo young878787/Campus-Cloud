@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 import uuid
 from collections.abc import Iterable
@@ -124,6 +125,11 @@ def cleanup_provisioned_resource(vmid: int) -> None:
     _cleanup_failed_resource(resource["node"], vmid, resource["type"])
 
 
+# PVE mdev 型別名稱只會是 nvidia-123 / i915-GVTg_V5_4 這類 token，
+# 不含逗號、等號或空白（那些字元在 hostpci 字串裡是選項分隔符）
+_MDEV_PROFILE_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+
 def _build_gpu_hostpci(mapping_id: str, mdev_profile: str | None) -> str:
     """驗證 GPU 可用額度與 vGPU 規格，回傳 hostpci 設定字串。
 
@@ -134,6 +140,13 @@ def _build_gpu_hostpci(mapping_id: str, mdev_profile: str | None) -> str:
     不帶 mdev 的裸 VF 對 NVIDIA vGPU 是不可用的，不能落回 raw passthrough。
     """
     from app.services.proxmox import gpu_service  # noqa: PLC0415
+
+    # hostpci 是逗號分隔的 key=value 字串：mdev 值若含 ',' 或 '=' 就能夾帶
+    # romfile/rombar 等額外選項，必須先做格式白名單，再對照 PVE 回報的規格。
+    if mdev_profile and not _MDEV_PROFILE_RE.fullmatch(mdev_profile):
+        raise ProxmoxError(
+            t("provisioning.gpu_mdev_profile_invalid", profile=mdev_profile)
+        )
 
     try:
         gpu_detail = gpu_service.get_gpu_mapping(mapping_id)
@@ -151,7 +164,8 @@ def _build_gpu_hostpci(mapping_id: str, mdev_profile: str | None) -> str:
                 (p for p in gpu_detail.profiles if p.mdev_type == mdev_profile),
                 None,
             )
-            if gpu_detail.profiles and match is None:
+            # 裸直通卡（profiles 為空）不接受任何 mdev 規格；vGPU 卡則必須命中
+            if match is None:
                 raise ProxmoxError(
                     t(
                         "provisioning.gpu_profile_not_found",
@@ -1207,7 +1221,10 @@ def _resize_clone_disk_if_needed(
             proxmox_service.find_vm_template(template_id)
         )
     except Exception:
-        pass
+        # 查不到範本磁碟大小時略過下限檢查（PVE 端會再驗證）
+        logger.debug(
+            "Unable to determine template %s disk size", template_id, exc_info=True
+        )
     if template_gb and int(disk_size) <= template_gb:
         logger.info(
             "Skip disk resize for VM %d: requested %dG <= template %dG",

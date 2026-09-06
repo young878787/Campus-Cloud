@@ -54,5 +54,7 @@
   "auth.tokenInvalid": "無効なトークンです",
   "auth.usernameNotFound": "このユーザー名のアカウントはシステムに存在しません。",
   "ldapAuth.notEnabled": "LDAP ログインは有効になっていません",
-  "ldapAuth.accountNotRegistered": "このアカウントは登録されていません"
+  "ldapAuth.accountNotRegistered": "このアカウントは登録されていません",
+  "auth.googleNotConfigured": "Google ログインは設定されていません",
+  "template.sourceVmNotRegistered": "VM {vmid} はプラットフォームに登録されていないため、テンプレートに変換できません"
 }

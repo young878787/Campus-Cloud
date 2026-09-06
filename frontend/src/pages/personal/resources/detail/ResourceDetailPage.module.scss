@@ -199,6 +199,13 @@
   letter-spacing: 0.04em;
 }
 
+.noteActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-8;
+  margin-top: $spacing-4;
+}
+
 .noteBoxLine {
   font-size: $font-size-14;
 

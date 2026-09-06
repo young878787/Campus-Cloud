@@ -34,7 +34,27 @@ function useStatusMeta() {
     running: { label: t("RequestReviewPage.statusRunning"), tone: "info" },
     completed: { label: t("RequestReviewPage.statusCompleted"), tone: "muted" },
     failed: { label: t("RequestReviewPage.statusFailed"), tone: "danger" },
+    /* 規格調整：核准後由申請人自己按「套用」，所以 approved 再依套用進度細分 */
+    approved_awaiting_apply: { label: t("RequestReviewPage.statusAwaitingApply"), tone: "success" },
+    applying: { label: t("RequestReviewPage.statusApplying"), tone: "info" },
+    applied: { label: t("RequestReviewPage.statusApplied"), tone: "success" },
+    apply_failed: { label: t("RequestReviewPage.statusApplyFailed"), tone: "danger" },
   }), [t]);
+}
+
+function specReviewStatus(request) {
+  if (request.status !== "approved") return request.status;
+  switch (request.apply_status) {
+    case "applied":
+      return "applied";
+    case "applying":
+      return "applying";
+    case "failed":
+    case "interrupted":
+      return "apply_failed";
+    default:
+      return "approved_awaiting_apply";
+  }
 }
 
 
@@ -134,8 +154,10 @@ function normalizeSpecRequest(request, t) {
     source: "spec",
     raw: request,
     reviewStatus: request.status,
-    status: request.status,
-    title: t("RequestReviewPage.specChangeTitle", { vmid: request.vmid }),
+    status: specReviewStatus(request),
+    title: request.resource_name
+      ? t("RequestReviewPage.specChangeTitleNamed", { name: request.resource_name, vmid: request.vmid })
+      : t("RequestReviewPage.specChangeTitle", { vmid: request.vmid }),
     user: request.user_full_name || request.user_email || t("RequestReviewPage.unknownUser"),
     userSubtext: request.user_email || request.user_id || "-",
     timeText: formatDateTime(request.created_at, t),
@@ -328,6 +350,9 @@ export default function RequestReviewPage() {
   }
 
   const isPending = selected?.reviewStatus === "pending";
+  /* 規格調整：機器已刪除（resource_vmid 已清空）就不能核准，後端也會擋 */
+  const specResourceGone =
+    selected?.source === "spec" && selected?.raw?.resource_exists === false;
   /* 系統寫入的刪除標記（CONSUMED_REQUEST_MARKERS）不是審核人留的備註，不顯示 */
   const rawReviewComment = selected?.raw?.review_comment;
   const reviewNote =
@@ -523,6 +548,15 @@ export default function RequestReviewPage() {
 
                 {isPending && selected.source !== "deletion" ? (
                   <div className={styles.reviewBar}>
+                    {selected.source === "spec" && (
+                      <div className={styles.rowActions}>
+                        <span className={styles.doneText}>
+                          {specResourceGone
+                            ? t("RequestReviewPage.specResourceGoneHint")
+                            : t("RequestReviewPage.specApplyHint")}
+                        </span>
+                      </div>
+                    )}
                     <label className={styles.commentField}>
                       <span>{t("RequestReviewPage.commentLabel")}</span>
                       <textarea
@@ -536,7 +570,7 @@ export default function RequestReviewPage() {
                       <button
                         type="button"
                         className={styles.btnApprove}
-                        disabled={reviewing || (selected.source === "vm" && context && !context.feasible)}
+                        disabled={reviewing || (selected.source === "vm" && context && !context.feasible) || specResourceGone}
                         onClick={() => submitReview("approved")}
                       >
                         {t("RequestReviewPage.approve")}
@@ -556,15 +590,33 @@ export default function RequestReviewPage() {
                     <span className={styles.doneText}>{t("RequestReviewPage.deletionOnlyNote")}</span>
                   </div>
                 ) : (
-                  (reviewNote || selected.reviewedAt) && (
-                    <div className={styles.reasonBox}>
-                      <span>
-                        {t("RequestReviewPage.commentLabel")}
-                        {selected.reviewedAt ? t("RequestReviewPage.reviewedAtSuffix", { time: formatDateTime(selected.reviewedAt, t) }) : ""}
-                      </span>
-                      <p>{reviewNote || t("RequestReviewPage.noReviewNote")}</p>
-                    </div>
-                  )
+                  <>
+                    {(reviewNote || selected.reviewedAt) && (
+                      <div className={styles.reasonBox}>
+                        <span>
+                          {t("RequestReviewPage.commentLabel")}
+                          {selected.reviewedAt ? t("RequestReviewPage.reviewedAtSuffix", { time: formatDateTime(selected.reviewedAt, t) }) : ""}
+                        </span>
+                        <p>{reviewNote || t("RequestReviewPage.noReviewNote")}</p>
+                      </div>
+                    )}
+                    {selected.source === "spec" && selected.raw?.status === "approved" && (
+                      <div className={styles.reasonBox}>
+                        <span>
+                          {t("RequestReviewPage.applyResultLabel")}
+                          {selected.raw.applied_at ? t("RequestReviewPage.applyResultAppliedAt", { time: formatDateTime(selected.raw.applied_at, t) }) : ""}
+                        </span>
+                        <p>
+                          {selected.raw.apply_error
+                            || (selected.raw.apply_status === "applied"
+                              ? t("RequestReviewPage.applyResultApplied")
+                              : selected.raw.apply_status === "applying"
+                                ? t("RequestReviewPage.applyResultApplying")
+                                : t("RequestReviewPage.applyResultAwaiting"))}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
