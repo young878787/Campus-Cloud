@@ -254,6 +254,10 @@ def test_ai_api_credentials_list_all_for_admin(
     assert payload["data"]
     assert any(item["status"] == "inactive" for item in payload["data"])
     assert all("user_email" in item for item in payload["data"])
+    assert payload["total_count"] >= payload["count"]
+    assert payload["active_count"] + payload["inactive_count"] == payload["total_count"]
+    assert all("api_key" not in item for item in payload["data"])
+    assert all("user_role" in item for item in payload["data"])
 
     inactive_response = client.get(
         f"{settings.API_V1_STR}/ai-api/credentials?status=inactive",
@@ -274,6 +278,15 @@ def test_ai_api_credentials_list_all_for_admin(
     assert all(
         "admin-list-a" in (item["user_email"] or "") for item in email_payload["data"]
     )
+
+    key_name_filtered_response = client.get(
+        f"{settings.API_V1_STR}/ai-api/credentials?query=user-a-key",
+        headers=superuser_token_headers,
+    )
+    assert key_name_filtered_response.status_code == 200
+    key_name_payload = key_name_filtered_response.json()
+    assert key_name_payload["count"] >= 1
+    assert all(item["api_key_name"] == "user-a-key" for item in key_name_payload["data"])
 
 
 def test_ai_api_credentials_list_all_requires_admin(

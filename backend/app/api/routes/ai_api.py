@@ -5,7 +5,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Query
 
 from app.api.deps import AIAPIReviewerUser, AIAPIViewAllUser, CurrentUser, SessionDep
-from app.models import AIAPIRequestStatus
+from app.models import AIAPIRequestStatus, UserRole
 from app.schemas import (
     AIAPICredentialPublic,
     AIAPICredentialsAdminPublic,
@@ -123,6 +123,9 @@ def list_all_ai_api_credentials(
     _current_user: AIAPIViewAllUser,
     status: Literal["active", "inactive"] | None = None,
     user_email: str | None = Query(default=None, max_length=255),
+    query: str | None = Query(default=None, max_length=255),
+    user_role: list[UserRole] | None = Query(default=None),
+    created_after: datetime | None = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=100),
 ) -> Any:
@@ -130,6 +133,9 @@ def list_all_ai_api_credentials(
         session=session,
         status=status,
         user_email=user_email,
+        query=query,
+        user_roles=[role.value for role in user_role] if user_role else None,
+        created_after=created_after,
         skip=skip,
         limit=limit,
     )

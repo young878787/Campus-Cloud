@@ -5,9 +5,11 @@ import time
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import httpx
 from sqlalchemy import and_, case, distinct, func, or_
+from sqlalchemy.orm import aliased
 from sqlmodel import Session, select
 
 from app.core.authorizers import require_ai_api_access
@@ -112,7 +114,13 @@ def _resolve_credential_status(
 
 
 def _to_credential_admin_public(
-    *, credential: AIAPICredential, user: User, now: datetime
+    *,
+    credential: AIAPICredential,
+    user: User,
+    request: AIAPIRequest | None,
+    reviewer: User | None,
+    last_used_at: datetime | None,
+    now: datetime,
 ) -> AIAPICredentialAdminPublic:
     status, inactive_reason = _resolve_credential_status(credential=credential, now=now)
     return AIAPICredentialAdminPublic(
@@ -120,6 +128,7 @@ def _to_credential_admin_public(
         user_id=credential.user_id,
         user_email=user.email,
         user_full_name=user.full_name,
+        user_role=user.role.value if user.role else None,
         request_id=credential.request_id,
         base_url=credential.base_url,
         api_key_prefix=credential.api_key_prefix,
@@ -130,6 +139,11 @@ def _to_credential_admin_public(
         expires_at=credential.expires_at,
         revoked_at=credential.revoked_at,
         created_at=credential.created_at,
+        request_purpose=request.purpose if request else None,
+        reviewer_email=reviewer.email if reviewer else None,
+        reviewer_full_name=reviewer.full_name if reviewer else None,
+        reviewed_at=request.reviewed_at if request else None,
+        last_used_at=last_used_at,
     )
 
 
@@ -299,23 +313,65 @@ def list_all_credentials(
     session: Session,
     status: str | None = None,
     user_email: str | None = None,
+    query: str | None = None,
+    user_roles: list[str] | None = None,
+    created_after: datetime | None = None,
     skip: int = 0,
     limit: int = 100,
 ) -> AIAPICredentialsAdminPublic:
     now = get_datetime_utc()
 
-    count_query = select(AIAPICredential.id).join(
-        User, User.id == AIAPICredential.user_id
+    reviewer = aliased(User)
+    usage_subquery = (
+        select(
+            AIAPIUsage.credential_id,
+            func.max(AIAPIUsage.created_at).label("last_used_at"),
+        )
+        .group_by(AIAPIUsage.credential_id)
+        .subquery("credential_last_usage")
     )
-    data_query = select(AIAPICredential, User).join(
-        User, User.id == AIAPICredential.user_id
+    base_from = (
+        select(AIAPICredential.id)
+        .select_from(AIAPICredential)
+        .join(User, User.id == AIAPICredential.user_id)
+    )
+    data_query = (
+        select(
+            AIAPICredential,
+            User,
+            AIAPIRequest,
+            reviewer,
+            usage_subquery.c.last_used_at,
+        )
+        .join(User, User.id == AIAPICredential.user_id)
+        .join(AIAPIRequest, AIAPIRequest.id == AIAPICredential.request_id)
+        .outerjoin(reviewer, reviewer.id == AIAPIRequest.reviewer_id)
+        .outerjoin(
+            usage_subquery,
+            usage_subquery.c.credential_id == AIAPICredential.id,
+        )
     )
 
-    keyword = (user_email or "").strip()
+    keyword = (
+        query.strip()
+        if query and query.strip()
+        else (user_email or "").strip()
+    )
+    filters = []
     if keyword:
         like_pattern = f"%{keyword}%"
-        count_query = count_query.where(User.email.ilike(like_pattern))
-        data_query = data_query.where(User.email.ilike(like_pattern))
+        filters.append(
+            or_(
+                User.email.ilike(like_pattern),
+                User.full_name.ilike(like_pattern),
+                AIAPICredential.api_key_name.ilike(like_pattern),
+                AIAPICredential.api_key_prefix.ilike(like_pattern),
+            )
+        )
+    if user_roles:
+        filters.append(User.role.in_(user_roles))
+    if created_after is not None:
+        filters.append(AIAPICredential.created_at >= created_after)
 
     active_clause = and_(
         AIAPICredential.revoked_at.is_(None),
@@ -328,24 +384,47 @@ def list_all_credentials(
         ),
     )
 
+    base_filters = list(filters)
     if status == "active":
-        count_query = count_query.where(active_clause)
-        data_query = data_query.where(active_clause)
+        filters.append(active_clause)
     elif status == "inactive":
-        count_query = count_query.where(inactive_clause)
-        data_query = data_query.where(inactive_clause)
+        filters.append(inactive_clause)
+
+    count_query = base_from.where(*filters)
+
+    def count_rows(query_to_count: Any) -> int:
+        count_statement = select(func.count()).select_from(query_to_count.subquery())
+        return int(session.exec(count_statement).one())
+
+    summary_query = base_from.where(*base_filters)
+    total_count_value = count_rows(summary_query)
+    active_count = count_rows(summary_query.where(active_clause))
+    inactive_count = count_rows(summary_query.where(inactive_clause))
 
     data_query = (
-        data_query.order_by(AIAPICredential.created_at.desc()).offset(skip).limit(limit)
+        data_query.where(*filters)
+        .order_by(AIAPICredential.created_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
     rows = session.exec(data_query).all()
 
     return AIAPICredentialsAdminPublic(
         data=[
-            _to_credential_admin_public(credential=credential, user=user, now=now)
-            for credential, user in rows
+            _to_credential_admin_public(
+                credential=credential,
+                user=user,
+                request=request,
+                reviewer=reviewer_user,
+                last_used_at=last_used_at,
+                now=now,
+            )
+            for credential, user, request, reviewer_user, last_used_at in rows
         ],
-        count=len(session.exec(count_query).all()),
+        count=count_rows(count_query),
+        total_count=total_count_value,
+        active_count=active_count,
+        inactive_count=inactive_count,
     )
 
 

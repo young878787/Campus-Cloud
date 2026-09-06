@@ -26,8 +26,16 @@ export const AiApiService = {
   },
 
   /* ── Admin: 憑證管理 ── */
-  listAllCredentials() {
-    return apiGet(`${BASE}/credentials`);
+  listAllCredentials({ status, user_email, query, user_role = [], created_after, skip = 0, limit = 100 } = {}) {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (user_email) params.set("user_email", user_email);
+    if (query) params.set("query", query);
+    for (const role of user_role) params.append("user_role", role);
+    if (created_after) params.set("created_after", created_after);
+    params.set("skip", String(skip));
+    params.set("limit", String(limit));
+    return apiGet(`${BASE}/credentials?${params.toString()}`);
   },
   rotateCredential(credentialId) {
     return apiPost(`${BASE}/credentials/${credentialId}/rotate`, {});
