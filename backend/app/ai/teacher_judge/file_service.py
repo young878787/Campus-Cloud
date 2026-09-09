@@ -430,6 +430,19 @@ def update_file_analysis(
     file.analysis_revision = int(file.analysis_revision or 1) + 1
     file.updated_at = _now()
     session.add(file)
+    # Manual edits change the session workflow context even when an existing
+    # proposal remains pending.  The proposal must stay visible (and block
+    # script creation) until the teacher resolves or replaces it.
+    linked_sessions = session.exec(
+        select(TeacherJudgeSession).where(
+            TeacherJudgeSession.selected_file_id == file.id
+        )
+    ).all()
+    for linked_session in linked_sessions:
+        linked_session.workflow_revision = int(linked_session.workflow_revision or 0) + 1
+        linked_session.updated_at = file.updated_at
+        linked_session.last_activity_at = file.updated_at
+        session.add(linked_session)
     session.commit()
     session.refresh(file)
     return _file_to_public(file)
@@ -620,6 +633,11 @@ def stage_file_delete(
     ).all()
     for linked_session in linked_sessions:
         linked_session.selected_file_id = None
+        # The source is disappearing, so a proposal based on it can no longer
+        # be resolved or authorize script creation.  Preserve the message
+        # history but clear the active pointer and invalidate in-flight work.
+        linked_session.active_proposal_message_id = None
+        linked_session.workflow_revision = int(linked_session.workflow_revision or 0) + 1
         linked_session.updated_at = _now()
         linked_session.last_activity_at = linked_session.updated_at
         session.add(linked_session)

@@ -592,6 +592,7 @@ async def chat_with_rubric(
     template_commands: list[TeacherJudgeTemplateCommand] | None = None,
     environment_keys: list[str] | None = None,
     attachment_context: str | None = None,
+    pending_proposal_context: str | None = None,
     enable_workflow_tools: bool = False,
 ) -> tuple[str, list[dict[str, Any]] | None, VLLMMetrics]:
     """
@@ -624,6 +625,10 @@ async def chat_with_rubric(
         .replace(
             "{attachment_context}",
             prompt_attachment_context,
+        )
+        .replace(
+            "{pending_proposal_context}",
+            pending_proposal_context or "目前沒有尚未處理的 AI 提案。",
         )
         .replace("{situation_instruction}", situation)
         .replace(
@@ -745,6 +750,20 @@ async def chat_with_rubric(
                         f"原始回覆：{reply_text}"
                     )
             updated_items = [item.model_dump() for item in normalized_updated]
+            # ``operation`` is proposal metadata rather than rubric data.  Keep
+            # it in the candidate payload so a later partial apply can safely
+            # distinguish an explicit delete from an omitted item.
+            raw_operations = {
+                str(raw.get("id")): str(raw.get("operation") or raw.get("action"))
+                for raw in (raw_updated if isinstance(raw_updated, list) else [])
+                if isinstance(raw, dict)
+                and raw.get("id") is not None
+                and (raw.get("operation") or raw.get("action"))
+            }
+            for item in updated_items:
+                operation = raw_operations.get(str(item.get("id")))
+                if operation in {"add", "update", "delete", "remove"}:
+                    item["operation"] = "delete" if operation == "remove" else operation
     except (json.JSONDecodeError, TypeError):
         # Ignore malformed AI response for rubric updates
         pass

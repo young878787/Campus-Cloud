@@ -62,7 +62,7 @@ revision；若相容模型只回傳一般 JSON `reply` 而沒有 `tool_calls`，
 
 依據：[評分項目 schema](../backend/app/ai/teacher_judge/schemas.py)、[規劃 prompt](../backend/app/ai/teacher_judge/prompt.py)、[生成 prompt](../backend/app/ai/teacher_judge/script_artifact_service.py)。
 
-### 3. 尚未套用 AI 提案，也能製作腳本（P1，前端局部防呆不足）
+### 3. 尚未套用 AI 提案，也能製作腳本（P1，第一階段已修正）
 
 目前工作區已在 `getScriptCreationBlocker()` 加入 `pendingProposal` 判斷，所以同一頁、同一次載入且前端仍記得提案時，按鈕會停用，`handleCreateScript()` 也會再擋一次。這只修到瀏覽器記憶體內的正常操作，尚未形成可靠的工作流程契約。
 
@@ -143,10 +143,10 @@ proposal message 的 `metadata_json` 使用固定 `proposal_state` 結構，至�
 
 #### 3.6 實作檔案與驗證矩陣
 
-| 邊界 | 預計修改 | 驗證重點 |
+| 邊界 | 實作檔案／內容 | 驗證重點 |
 | --- | --- | --- |
 | Model／migration | `backend/app/models/teacher_judge_session.py`、新 Alembic revision | nullable pointer、`workflow_revision` 預設值、legacy reconciliation、upgrade/downgrade 只在隔離測試 DB 驗證 |
-| Proposal domain | 在 `backend/app/ai/teacher_judge/` 新增單一聚焦的 proposal service，重用現有 rubric schema | 建立／取代／全部套用／部分套用／dismiss 的 transaction 與 idempotency；不要建立通用 workflow framework |
+| Proposal domain | `backend/app/ai/teacher_judge/proposal_service.py`，重用現有 rubric schema | 建立／取代／全部套用／部分套用／dismiss 的 transaction 與 idempotency；不要建立通用 workflow framework |
 | Session API | `backend/app/api/routes/teacher_judge_sessions.py`、`schemas.py`、`session_service.py` | instructor/class/session scope、archived read-only、active proposal 查詢、穩定 409、clear/source switch、腳本起點及保存前 revalidation |
 | AI context | `backend/app/ai/teacher_judge/service.py`、`prompt.py` | current rubric 與 pending candidate 分隔；一般問答保留 pending；補資料／更新／換版回完整候選；模型不得自行把 proposal 宣告成已套用 |
 | Frontend service／UI | `frontend/src/services/aiJudge.js`、`AiJudgePanel.jsx` 與樣式 | reload 恢復、聊天不被禁用、一般回覆不清 proposal、歷史狀態標籤、409 後重新同步、製作按鈕及 chat workflow action 一致阻擋 |
@@ -295,4 +295,5 @@ UI 主動作應隨狀態切換：補充必要資訊 → 檢視／更新 AI 提�
 - 本次已修改 Teacher Judge 對話／session 腳本建立契約、提示詞、前端聊天按鈕與狀態顯示，並新增對應 regression tests；未操作開始分析時發現的 teaching_classes.py 與 ClassWorkspacePage.jsx 既有變更。
 - 已執行 `backend` Teacher Judge focused tests（140 passed）、`ruff`、`mypy`、`frontend` 全套 Vitest（323 passed）及 production build；build 僅有既有 chunk size 警告。
 - 尚未以真實 vLLM tool parser、登入瀏覽器、資料庫服務或學生 VM 做端到端驗證；上述測試不能取代 live/authenticated E2E。
-- 2026-09-09 本次提案生命週期補充為 docs-only：已重新閱讀目前 `RubricsTab`、session message/script routes、`bounded_history()`、session/message models 與既有 tests，確認前端局部 blocker 已存在，但 reload、繼續一般對話、聊天室後續製作要求與直接 API 仍缺少持久化防線；尚未修改 model、migration、API、UI 或測試，也未執行實作後驗證。
+- 2026-09-09 提案生命週期第一階段已實作：`TeacherJudgeSession` 增加 `active_proposal_message_id` 與 `workflow_revision`，Alembic revision `tjprop01_persist_proposal_state` 以保守規則重建可辨識的舊提案；新增 server-owned proposal service、active／resolve API、全部／部分套用與保留目前版本的原子處理，並讓一般對話保留 pending、更新提案時將舊版標為 `superseded`。session scripts API 現在會在模型呼叫前以穩定 409 `teacher_judge_proposal_pending` 阻擋 pending，且要求 `analysis_revision`；腳本保存前再以 session workflow revision、active pointer 與檔案 revision 做 compare-and-swap revalidation。前端 reload 由 active endpoint 還原提案，聊天不會因一般回覆清除 pending，歷史訊息顯示處理結果，套用／保留動作改走後端 resolve endpoint。
+- 本次已執行 Teacher Judge session／script／file／template focused pytest（含 proposal persistence、pending blocker、partial apply、重送 409）、變更檔 Ruff、mypy、前端 AiJudgePanel／service Vitest 與 production build；migration 僅完成 revision／compile／語法檢查，未對不明或 production DB 執行 upgrade。仍未驗證登入後多分頁真實競態、真實 vLLM、資料庫服務與學生 VM E2E；這些 focused checks 不能取代 authenticated browser／live runtime 驗收。

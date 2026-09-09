@@ -181,6 +181,28 @@ export const AiJudgeService = {
     );
   },
 
+  getActiveProposal(classId, sessionId) {
+    return apiGet(
+      `/api/v1/teaching-classes/${classId}/judge/sessions/${sessionId}/proposals/active`,
+    );
+  },
+
+  resolveProposal(
+    classId,
+    sessionId,
+    messageId,
+    { action, selectedItemIds = [], expectedAnalysisRevision },
+  ) {
+    return apiPost(
+      `/api/v1/teaching-classes/${classId}/judge/sessions/${sessionId}/proposals/${messageId}/resolve`,
+      {
+        action,
+        selected_item_ids: selectedItemIds,
+        expected_analysis_revision: expectedAnalysisRevision,
+      },
+    );
+  },
+
   listSessionRuns(classId, sessionId) {
     return apiGet(
       `/api/v1/teaching-classes/${classId}/judge/sessions/${sessionId}/runs`,

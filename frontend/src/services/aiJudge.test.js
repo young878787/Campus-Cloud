@@ -148,6 +148,39 @@ describe("AiJudgeService persistent sessions", () => {
     expect(init.method).toBe("DELETE");
   });
 
+  test("重新整理檢查時讀取 server-owned active proposal", async () => {
+    await AiJudgeService.getActiveProposal("class-1", "session-1");
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toContain(
+      "/api/v1/teaching-classes/class-1/judge/sessions/session-1/proposals/active",
+    );
+  });
+
+  test("套用提案會送出 action、選取項目與目前 analysis revision", async () => {
+    await AiJudgeService.resolveProposal(
+      "class-1",
+      "session-1",
+      "message-1",
+      {
+        action: "apply",
+        selectedItemIds: ["item-1"],
+        expectedAnalysisRevision: 8,
+      },
+    );
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain(
+      "/api/v1/teaching-classes/class-1/judge/sessions/session-1/proposals/message-1/resolve",
+    );
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({
+      action: "apply",
+      selected_item_ids: ["item-1"],
+      expected_analysis_revision: 8,
+    });
+  });
+
   test("標記為 UI 隱藏的 refine 訊息不會顯示在聊天室", () => {
     expect(shouldDisplayChatMessage({ role: "user", content: "內部提示詞" })).toBe(true);
     expect(shouldDisplayChatMessage({

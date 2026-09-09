@@ -11,8 +11,9 @@ from functools import lru_cache
 from inspect import signature
 from typing import Any, Literal, cast
 
+import sqlalchemy as sa
 from fastapi import HTTPException
-from sqlmodel import Session, desc, func, select
+from sqlmodel import Session, col, desc, func, select
 
 from app.ai.monitoring import (
     CALL_TJ_SCRIPT_GENERATION,
@@ -53,12 +54,14 @@ from app.ai.teacher_judge.service import _call_vllm
 from app.ai.teacher_judge.template_command_service import get_enabled_template_commands
 from app.ai.utils import apply_thinking_control
 from app.core.i18n import t
+from app.models.teacher_judge_file import TeacherJudgeFile
 from app.models.teacher_judge_script_artifact import (
     TeacherJudgeScriptArtifact,
     TeacherJudgeScriptLanguage,
     TeacherJudgeScriptSource,
     TeacherJudgeScriptStatus,
 )
+from app.models.teacher_judge_session import TeacherJudgeSession
 from app.models.teacher_judge_template_command import TeacherJudgeTemplateCommand
 
 logger = logging.getLogger(__name__)
@@ -1444,6 +1447,8 @@ async def create_artifact(
     source_file_id: uuid.UUID | None = None,
     session_id: uuid.UUID | None = None,
     template_commands: list[TeacherJudgeTemplateCommand] | None = None,
+    expected_session_workflow_revision: int | None = None,
+    expected_analysis_revision: int | None = None,
 ) -> TeacherJudgeScriptArtifactPublic:
     artifact_name = name.strip()
     if not artifact_name:
@@ -1471,10 +1476,6 @@ async def create_artifact(
         teaching_class_id=teaching_class_id,
         file_id=source_file_id,
     )
-    if source_file is not None:
-        source_file.analysis_json = analysis_dump
-        source_file.updated_at = _now()
-        session.add(source_file)
     (
         script_content,
         policy_check,
@@ -1494,6 +1495,72 @@ async def create_artifact(
         # workflow is system-approved even if the legacy helper name/status is
         # still returned.
         status = TeacherJudgeScriptStatus.approved
+
+    if session_id is not None and expected_session_workflow_revision is not None:
+        # The model call is intentionally outside the CAS transaction.  Once
+        # this conditional update succeeds, the row lock is held until the
+        # artifact commit, so a concurrent proposal/file update cannot sneak in
+        # between validation and persistence.
+        session.rollback()
+        current_session = session.get(TeacherJudgeSession, session_id)
+        if current_session is None:
+            raise HTTPException(status_code=404, detail="找不到檢查。")
+        current_file = (
+            session.exec(
+                select(TeacherJudgeFile)
+                .where(TeacherJudgeFile.id == source_file_id)
+                .with_for_update()
+            ).first()
+            if source_file_id is not None
+            else None
+        )
+        if (
+            current_file is None
+            or expected_analysis_revision is None
+            or current_file.analysis_revision != expected_analysis_revision
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "teacher_judge_context_changed",
+                    "message": "評分表在製作期間已變更，未保存依舊版本建立的檢查腳本。",
+                    "analysis_revision": current_file.analysis_revision
+                    if current_file is not None
+                    else None,
+                },
+            )
+        # Lock the source file before the session row.  Manual analysis saves
+        # use the same file-then-session order; keeping that order avoids a
+        # cross-row deadlock while the final artifact transaction is open.
+        cas = session.exec(
+            sa.update(TeacherJudgeSession)
+            .where(
+                col(TeacherJudgeSession.id) == session_id,
+                col(TeacherJudgeSession.workflow_revision)
+                == expected_session_workflow_revision,
+                col(TeacherJudgeSession.active_proposal_message_id).is_(None),
+            )
+            .values(updated_at=_now())
+        )
+        if cas.rowcount != 1:
+            session.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "teacher_judge_context_changed",
+                    "message": "檢查流程在製作期間已更新，未保存依舊版本建立的檢查腳本。",
+                },
+            )
+        source_file, source_file_snapshot_json = source_file_snapshot(
+            session=session,
+            teaching_class_id=teaching_class_id,
+            file_id=source_file_id,
+        )
+
+    if source_file is not None:
+        source_file.analysis_json = analysis_dump
+        source_file.updated_at = _now()
+        session.add(source_file)
 
     artifact = TeacherJudgeScriptArtifact(
         teaching_class_id=teaching_class_id,

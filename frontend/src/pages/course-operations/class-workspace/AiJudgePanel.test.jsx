@@ -309,6 +309,13 @@ describe("getScriptCreationBlocker", () => {
     expect(getScriptCreationBlocker({ analysis: { items: [completeItem] } })).toBeNull();
   });
 
+  test("即使本地沒有 proposal diff，server-owned pending proposal 仍阻擋腳本", () => {
+    expect(getScriptCreationBlocker({
+      analysis: { items: [completeItem] },
+      activeProposal: { status: "pending", message_id: "proposal-1" },
+    })).toContain("套用");
+  });
+
   test("缺少資訊或不支援自動檢測時阻擋整份腳本", () => {
     const blocker = getScriptCreationBlocker({
       analysis: {

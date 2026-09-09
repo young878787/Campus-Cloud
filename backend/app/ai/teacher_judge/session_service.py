@@ -27,6 +27,7 @@ from app.ai.teacher_judge.file_service import (
     restore_file_delete,
     stage_file_delete,
 )
+from app.ai.teacher_judge.proposal_service import clear_active_proposal
 from app.ai.teacher_judge.schemas import (
     TeacherJudgeRubricChatMessage,
     TeacherJudgeSessionMessagePublic,
@@ -258,6 +259,13 @@ def clear_session_messages(
 
     now = _now()
     _reset_summary_state(item)
+    # A cleared conversation cannot leave a pointer to a deleted proposal.
+    # Keep the decision explicit in the workflow revision so an in-flight chat
+    # or script generation fails its compare-and-swap check.
+    had_active_proposal = item.active_proposal_message_id is not None
+    clear_active_proposal(item)
+    if not had_active_proposal:
+        item.workflow_revision = int(item.workflow_revision or 0) + 1
     item.updated_at = now
     item.last_activity_at = now
     db.add(item)
@@ -354,6 +362,12 @@ def _session_public(
         updated_at=item.updated_at.isoformat(),
         last_activity_at=item.last_activity_at.isoformat(),
         pinned_at=item.pinned_at.isoformat() if item.pinned_at else None,
+        active_proposal_message_id=(
+            str(item.active_proposal_message_id)
+            if item.active_proposal_message_id
+            else None
+        ),
+        workflow_revision=int(item.workflow_revision or 0),
     )
 
 

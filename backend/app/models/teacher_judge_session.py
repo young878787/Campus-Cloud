@@ -53,6 +53,10 @@ class TeacherJudgeSession(SQLModel, table=True):
             postgresql_where=sa.text("selected_file_id IS NOT NULL"),
             sqlite_where=sa.text("selected_file_id IS NOT NULL"),
         ),
+        sa.Index(
+            "ix_teacher_judge_sessions_active_proposal",
+            "active_proposal_message_id",
+        ),
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -102,6 +106,18 @@ class TeacherJudgeSession(SQLModel, table=True):
         sa_column=Column(sa.Uuid, nullable=True),
     )
     summary_through_assistant_count: int = Field(
+        default=0,
+        sa_column=Column(sa.Integer, nullable=False, server_default="0"),
+    )
+    # The message row owns the proposal payload.  This pointer is deliberately
+    # not a foreign key so clearing/replacing conversation history cannot create
+    # a circular dependency between the session and its messages.
+    active_proposal_message_id: uuid.UUID | None = Field(
+        default=None,
+        sa_column=Column(sa.Uuid, nullable=True),
+    )
+    # Monotonic optimistic-concurrency token for proposal/chat/script races.
+    workflow_revision: int = Field(
         default=0,
         sa_column=Column(sa.Integer, nullable=False, server_default="0"),
     )

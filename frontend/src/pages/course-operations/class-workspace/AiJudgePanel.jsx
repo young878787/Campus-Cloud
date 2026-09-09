@@ -215,9 +215,16 @@ export function getRubricReviewItemIds(analysis, candidateIds = null) {
   return new Set([...reviewIds].filter((itemId) => currentIds.has(itemId)));
 }
 
-export function getScriptCreationBlocker({ analysis, pendingProposal = null, pendingReviewIds = new Set() }) {
+export function getScriptCreationBlocker({
+  analysis,
+  pendingProposal = null,
+  activeProposal = null,
+  pendingReviewIds = new Set(),
+}) {
   const items = Array.isArray(analysis?.items) ? analysis.items : [];
-  if (pendingProposal) return "請先套用或保留目前的 AI 檢查項目提案";
+  if (pendingProposal || activeProposal?.status === "pending") {
+    return "請先套用或保留目前的 AI 檢查項目提案";
+  }
   if (items.length === 0) return "請先新增至少一個檢查項目";
   const reviewIds = getRubricReviewItemIds(analysis, pendingReviewIds);
   if (reviewIds.size > 0) {
@@ -380,7 +387,16 @@ export function buildProposalDiff(currentItems, proposedItems) {
   return changes;
 }
 
-function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip, disabled, isRefine = false }) {
+function ProposalPanel({
+  proposal,
+  selectedIds,
+  onToggle,
+  onApply,
+  onSkip,
+  disabled,
+  isRefine = false,
+  proposalMeta = null,
+}) {
   if (!proposal?.length) return null;
   return (
     <div className={styles.proposalCard}>
@@ -388,6 +404,11 @@ function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip, disab
         <div className={styles.createCheckBody}>
           <strong>{isRefine ? "AI一鍵整理提案" : "AI 評分表提案"}</strong>
           <p>{isRefine ? "請逐項確認評分目標、描述、成功條件與檢查設定後再套用。" : "逐項確認後才會套用到目前的評分表。"}</p>
+          {proposalMeta?.canApply === false && (
+            <p className={styles.proposalRevisionNotice}>
+              評分表已變更（目前 revision {proposalMeta.currentRevision ?? "未知"}，提案基準 {proposalMeta.baseRevision ?? "未知"}），請保留目前版本或請 AI 依目前內容產生新版提案。
+            </p>
+          )}
         </div>
         <span>{selectedIds.size}/{proposal.length} 項</span>
       </div>
@@ -411,8 +432,15 @@ function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip, disab
         })}
       </div>
       <div className={styles.proposalActions}>
-        <button type="button" className={styles.btnSecondary} disabled={disabled} onClick={onSkip}>略過</button>
-        <button type="button" className={styles.btnPrimary} disabled={disabled || selectedIds.size === 0} onClick={onApply}>套用選取</button>
+        <button type="button" className={styles.btnSecondary} disabled={disabled} onClick={onSkip}>保留目前版本</button>
+        <button
+          type="button"
+          className={styles.btnPrimary}
+          disabled={disabled || selectedIds.size === 0 || proposalMeta?.canApply === false}
+          onClick={onApply}
+        >
+          套用選取
+        </button>
       </div>
     </div>
   );
@@ -729,6 +757,14 @@ export function ChatPanel({
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const visibleMessages = messages.filter(shouldDisplayChatMessage);
+  const proposalStatusLabels = {
+    pending: "待確認",
+    applied: "已套用",
+    partially_applied: "部分套用",
+    dismissed: "保留目前版本",
+    superseded: "已被新版取代",
+    legacy_unknown: "歷史提案，結果未知",
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -792,6 +828,11 @@ export function ChatPanel({
                   </div>
                 )}
                 {msg.content}
+                {msg.metadata_json?.proposal_state?.status && (
+                  <small className={styles.chatProposalStatus}>
+                    提案：{proposalStatusLabels[msg.metadata_json.proposal_state.status] ?? msg.metadata_json.proposal_state.status}
+                  </small>
+                )}
               </div>
               {msg.role === "user" && (
                 <span className={`${styles.chatAvatar} ${styles.chatAvatar_user}`}>
@@ -1395,6 +1436,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("linux");
   const [analysisTemplateKey, setAnalysisTemplateKey] = useState("linux");
   const [pendingProposal, setPendingProposal] = useState(null);
+  const [activeProposal, setActiveProposal] = useState(null);
   const [selectedProposalIds, setSelectedProposalIds] = useState(() => new Set());
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [pendingProposalMeta, setPendingProposalMeta] = useState(null);
@@ -1474,17 +1516,27 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     setMessages([]);
     setPendingAttachments([]);
     setPendingProposal(null);
+    setActiveProposal(null);
     setSelectedProposalIds(new Set());
     setPendingProposalMeta(null);
     setPendingProposalIsRefine(false);
     if (!judgeSession?.id) return undefined;
-    AiJudgeService.listSessionMessages(classId, judgeSession.id)
-      .then((rows) => {
-        if (!cancelled) setMessages(rows);
-      })
-      .catch(() => {
-        if (!cancelled) toast.error("載入檢查對話失敗");
-      });
+    Promise.allSettled([
+      AiJudgeService.listSessionMessages(classId, judgeSession.id),
+      AiJudgeService.getActiveProposal(classId, judgeSession.id),
+    ]).then(([messagesResult, proposalResult]) => {
+      if (cancelled) return;
+      if (messagesResult.status === "fulfilled") {
+        setMessages(messagesResult.value);
+      } else {
+        toast.error("載入檢查對話失敗");
+      }
+      if (proposalResult.status === "fulfilled") {
+        setActiveProposal(proposalResult.value ?? null);
+      } else {
+        toast.error("載入待處理 AI 提案失敗");
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -1501,6 +1553,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       setSelectedTemplateKey("linux");
       setPendingReviewIds(new Set());
       setPendingProposal(null);
+      setActiveProposal(null);
       setSelectedProposalIds(new Set());
       setPendingProposalMeta(null);
       setPendingProposalIsRefine(false);
@@ -1532,6 +1585,31 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     setAnalysisTemplateKey(file.template_key);
     setSelectedTemplateKey(file.template_key);
   }, [files, filesLoaded, judgeSession?.selected_file_id, sourceFileId]);
+
+  // The backend pointer is the source of truth.  Rebuild the display-only diff
+  // whenever the persisted candidate or the selected rubric is restored.
+  useEffect(() => {
+    if (!activeProposal || activeProposal.status !== "pending") {
+      setPendingProposal(null);
+      setSelectedProposalIds(new Set());
+      setPendingProposalMeta(null);
+      setPendingProposalIsRefine(false);
+      return;
+    }
+    const candidate = Array.isArray(activeProposal.candidate_items)
+      ? activeProposal.candidate_items
+      : [];
+    const diff = buildProposalDiff(analysis?.items ?? [], candidate);
+    setPendingProposal(diff.length ? diff : null);
+    setSelectedProposalIds(new Set(diff.map((item, index) => item.id ?? `proposal-${index}`)));
+    setPendingProposalMeta({
+      baseRevision: activeProposal.base_revision,
+      currentRevision: activeProposal.current_revision,
+      messageId: activeProposal.message_id,
+      canApply: Boolean(activeProposal.can_apply),
+    });
+    setPendingProposalIsRefine(false);
+  }, [activeProposal, analysis]);
 
   /** 重算統計欄位後套用新的項目清單 */
   function applyItems(base, nextItems) {
@@ -1734,13 +1812,19 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
         });
         setPendingAttachments([]);
         const proposal = buildProposalDiff(analysis?.items ?? [], response.rubric_proposal);
-        setPendingProposal(proposal.length ? proposal : null);
-        setSelectedProposalIds(new Set(proposal.map((item, index) => item.id ?? `proposal-${index}`)));
-        setPendingProposalMeta(proposal.length ? { baseRevision: response.base_revision ?? analysisRevisionsRef.current.get(sourceFileId) } : null);
-        setPendingProposalIsRefine(Boolean(proposal.length && isRefine));
+        if (Object.prototype.hasOwnProperty.call(response, "active_proposal")) {
+          setActiveProposal(response.active_proposal ?? null);
+        } else if (proposal.length) {
+          // Compatibility with an older backend during rolling deployment;
+          // the new endpoint always returns active_proposal.
+          setPendingProposal(proposal);
+          setSelectedProposalIds(new Set(proposal.map((item, index) => item.id ?? `proposal-${index}`)));
+          setPendingProposalMeta({ baseRevision: response.base_revision ?? analysisRevisionsRef.current.get(sourceFileId) });
+          setPendingProposalIsRefine(Boolean(isRefine));
+        }
         const workflowAction = response.workflow_action;
         if (workflowAction?.type === "create_script" && workflowAction.status === "ready") {
-          if (pendingProposal) {
+          if (activeProposal?.status === "pending" || response.active_proposal?.status === "pending") {
             const blockedMessage = "目前有尚未套用的檢查項目提案，請先套用或保留目前版本。";
             setMessages((current) => {
               const next = [...current];
@@ -1806,56 +1890,75 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   }
 
   async function applyPendingProposal() {
-    if (!pendingProposal) return;
+    if (!pendingProposal || !judgeSession?.id || !activeProposal?.message_id) return;
     if (autosaveRef.current && !(await autosaveRef.current.flush())) return;
     const currentRevision = sourceFileId ? analysisRevisionsRef.current.get(sourceFileId) : null;
-    if (pendingProposalMeta?.baseRevision && currentRevision !== pendingProposalMeta.baseRevision) {
+    const selectedItemIds = [...selectedProposalIds];
+    try {
+      const response = await AiJudgeService.resolveProposal(
+        classId,
+        judgeSession.id,
+        activeProposal.message_id,
+        {
+          action: "apply",
+          selectedItemIds,
+          expectedAnalysisRevision: currentRevision ?? activeProposal.current_revision,
+        },
+      );
+      if (response.analysis_json && sourceFileId) {
+        const savedAnalysis = response.analysis_json;
+        setAnalysis(savedAnalysis);
+        analysisRevisionsRef.current.set(sourceFileId, response.analysis_revision);
+        lastSavedValuesRef.current.set(sourceFileId, getRubricItemsValue(savedAnalysis));
+        lastSavedItemsRef.current.set(sourceFileId, savedAnalysis.items ?? []);
+        lastSavedNeedsReviewRef.current.set(sourceFileId, Boolean(savedAnalysis.detectability_needs_review));
+        const savedReviewIds = getRubricReviewItemIds(savedAnalysis);
+        pendingReviewIdsByFileRef.current.set(sourceFileId, savedReviewIds);
+        setPendingReviewIds(savedReviewIds);
+      }
+      setActiveProposal(null);
       setPendingProposal(null);
       setSelectedProposalIds(new Set());
       setPendingProposalMeta(null);
       setPendingProposalIsRefine(false);
-      toast.error("評分表已經有新的修改，請重新請 AI 產生提案。");
-      return;
-    }
-    const selected = pendingProposal.filter((item, index) => selectedProposalIds.has(item.id ?? `proposal-${index}`));
-    const byId = new Map((analysis?.items ?? []).map((item) => [item.id, item]));
-    const evaluatedIds = new Set();
-    selected.forEach((item) => {
-      const operation = item.operation ?? item.action;
-      const cleanItem = { ...item };
-      delete cleanItem.operation;
-      delete cleanItem.action;
-      if (operation === "delete" || operation === "remove") {
-        if (item.id) evaluatedIds.add(item.id);
-        byId.delete(item.id);
-      } else if (item.id && byId.has(item.id)) {
-        evaluatedIds.add(item.id);
-        byId.set(item.id, { ...byId.get(item.id), ...cleanItem });
-      } else {
-        const id = item.id ?? `item-${Date.now()}-${byId.size}`;
-        evaluatedIds.add(id);
-        byId.set(id, { ...cleanItem, id });
+      await fetchFiles(true);
+      onSessionUpdated?.(await AiJudgeService.getSession(classId, judgeSession.id));
+      toast.success(response.status === "partially_applied" ? "已部分套用 AI 提案，未選項目維持目前版本" : "已套用 AI 提出的檢查項目修改");
+    } catch (err) {
+      if (err?.status === 409) {
+        const [currentProposal] = await Promise.all([
+          AiJudgeService.getActiveProposal(classId, judgeSession.id),
+          fetchFiles(true),
+        ]);
+        setActiveProposal(currentProposal ?? null);
       }
-    });
-    const currentPendingIds = sourceFileId
-      ? pendingReviewIdsByFileRef.current.get(sourceFileId) ?? pendingReviewIds
-      : pendingReviewIds;
-    const pendingIdsAfterApply = new Set(currentPendingIds);
-    evaluatedIds.forEach((id) => pendingIdsAfterApply.delete(id));
-    const saved = await applyAnalysis(applyItems(analysis, [...byId.values()]), {
-      persist: true,
-      immediate: true,
-      detectabilityNeedsReview: pendingIdsAfterApply.size > 0,
-      reviewItemIds: pendingIdsAfterApply,
-    });
-    if (!saved) return;
-    if (sourceFileId) pendingReviewIdsByFileRef.current.set(sourceFileId, pendingIdsAfterApply);
-    setPendingReviewIds(pendingIdsAfterApply);
-    setPendingProposal(null);
-    setSelectedProposalIds(new Set());
-    setPendingProposalMeta(null);
-    setPendingProposalIsRefine(false);
-    toast.success("已套用 AI 提出的檢查項目修改");
+      toast.error(err?.message ?? "套用 AI 提案失敗");
+    }
+  }
+
+  async function dismissPendingProposal() {
+    if (!judgeSession?.id || !activeProposal?.message_id) return;
+    const currentRevision = sourceFileId ? analysisRevisionsRef.current.get(sourceFileId) : null;
+    try {
+      await AiJudgeService.resolveProposal(
+        classId,
+        judgeSession.id,
+        activeProposal.message_id,
+        {
+          action: "dismiss",
+          expectedAnalysisRevision: currentRevision ?? activeProposal.current_revision,
+        },
+      );
+      setActiveProposal(null);
+      setPendingProposal(null);
+      setSelectedProposalIds(new Set());
+      setPendingProposalMeta(null);
+      setPendingProposalIsRefine(false);
+      onSessionUpdated?.(await AiJudgeService.getSession(classId, judgeSession.id));
+      toast.success("已保留目前版本，AI 提案已記錄為不採用");
+    } catch (err) {
+      toast.error(err?.message ?? "保留目前版本失敗");
+    }
   }
 
   function handleItemChange(index, updatedItem) {
@@ -1910,6 +2013,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       setMessages([]);
       setPendingAttachments([]);
       setPendingProposal(null);
+      setActiveProposal(null);
       setSelectedProposalIds(new Set());
       setPendingProposalMeta(null);
       setPendingProposalIsRefine(false);
@@ -1923,7 +2027,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   }
 
   async function handleCreateScript({ analysisRevision = null } = {}) {
-    const blocker = getScriptCreationBlocker({ analysis, pendingProposal, pendingReviewIds });
+    const blocker = getScriptCreationBlocker({ analysis, pendingProposal, activeProposal, pendingReviewIds });
     if (blocker) {
       const message = `${blocker}。`;
       setScriptGenerationNotice({ status: "error", message });
@@ -1946,8 +2050,10 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
         return;
       }
       setScriptGenerationStatus("generating");
+      const effectiveRevision = analysisRevision
+        ?? (sourceFileId ? analysisRevisionsRef.current.get(sourceFileId) : null);
       const artifact = judgeSession?.id
-        ? await AiJudgeService.createSessionScript(classId, judgeSession.id, analysisRevision)
+        ? await AiJudgeService.createSessionScript(classId, judgeSession.id, effectiveRevision)
         : await AiJudgeService.createScript(classId, {
             name: uploadedFileName,
             templateKey: analysisTemplateKey,
@@ -1985,6 +2091,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   const scriptCreationBlocker = getScriptCreationBlocker({
     analysis,
     pendingProposal,
+    activeProposal,
     pendingReviewIds,
   });
 
@@ -2102,15 +2209,25 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
                 return next;
               })}
               onApply={applyPendingProposal}
-              onSkip={() => {
-               setPendingProposal(null);
-               setSelectedProposalIds(new Set());
-               setPendingProposalMeta(null);
-                setPendingProposalIsRefine(false);
-              }}
+              onSkip={dismissPendingProposal}
               isRefine={pendingProposalIsRefine}
+              proposalMeta={pendingProposalMeta}
               disabled={isChatting || isClearingMessages}
             />}
+            {activeProposal?.status === "pending" && !pendingProposal && (
+              <div className={styles.noticeInfo} role="status">
+                <p><strong>有一份待處理的 AI 提案</strong></p>
+                <p>目前沒有可逐項顯示的差異；請保留目前版本後再製作檢查腳本。</p>
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  disabled={isChatting || isClearingMessages}
+                  onClick={dismissPendingProposal}
+                >
+                  保留目前版本
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

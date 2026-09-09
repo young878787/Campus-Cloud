@@ -21,7 +21,17 @@ from app.ai.teacher_judge.attachment_service import (
 )
 from app.ai.teacher_judge.config import settings as teacher_judge_settings
 from app.ai.teacher_judge.file_service import create_blank_file
+from app.ai.teacher_judge.proposal_service import (
+    active_proposal_public,
+    begin_proposal,
+    get_active_proposal_row,
+    proposal_context_json,
+    resolve_proposal,
+)
 from app.ai.teacher_judge.schemas import (
+    TeacherJudgeProposalPublic,
+    TeacherJudgeProposalResolveRequest,
+    TeacherJudgeProposalResolveResponse,
     TeacherJudgeRubricAnalysis,
     TeacherJudgeScriptArtifactPublic,
     TeacherJudgeScriptRunCreateRequest,
@@ -117,12 +127,13 @@ def _resolve_workflow_action(
     *,
     file: object | None,
     proposal: list[dict[str, object]] | None,
+    has_pending_proposal: bool = False,
     raw_action: dict[str, object],
 ) -> TeacherJudgeWorkflowAction:
     """Turn a model request into a bounded, server-owned UI action."""
 
     tool_call_id = raw_action.get("tool_call_id")
-    if proposal:
+    if proposal or has_pending_proposal:
         return TeacherJudgeWorkflowAction(
             type="create_script",
             status="blocked",
@@ -483,6 +494,45 @@ def list_messages(
     ]
 
 
+@router.get(
+    "/{session_id}/proposals/active",
+    response_model=TeacherJudgeProposalPublic | None,
+)
+def get_active_proposal(
+    teaching_class_id: uuid.UUID,
+    session_id: uuid.UUID,
+    session: SessionDep,
+    current_user: InstructorUser,
+) -> TeacherJudgeProposalPublic | None:
+    _access(session, teaching_class_id, current_user)
+    item = get_session(session, teaching_class_id, session_id)
+    return active_proposal_public(session, item)
+
+
+@router.post(
+    "/{session_id}/proposals/{message_id}/resolve",
+    response_model=TeacherJudgeProposalResolveResponse,
+)
+def resolve_active_proposal(
+    teaching_class_id: uuid.UUID,
+    session_id: uuid.UUID,
+    message_id: uuid.UUID,
+    payload: TeacherJudgeProposalResolveRequest,
+    session: SessionDep,
+    current_user: InstructorUser,
+) -> TeacherJudgeProposalResolveResponse:
+    _access(session, teaching_class_id, current_user)
+    item = get_session(session, teaching_class_id, session_id)
+    ensure_active(item)
+    return resolve_proposal(
+        session,
+        item,
+        message_id=message_id,
+        payload=payload,
+        resolved_by=current_user.id,
+    )
+
+
 @router.delete(
     "/{session_id}/messages", response_model=TeacherJudgeSessionPublic
 )
@@ -512,6 +562,10 @@ async def create_message(
     ensure_active(item)
     file = selected_file_for_chat(session, item)
     base_revision = file.analysis_revision if file else None
+    initial_workflow_revision = int(item.workflow_revision or 0)
+    initial_active_proposal_id = item.active_proposal_message_id
+    active_proposal_context = proposal_context_json(session, item)
+    active_proposal_row = get_active_proposal_row(session, item)
     if (
         file
         and payload.analysis_revision is not None
@@ -561,6 +615,7 @@ async def create_message(
             template_commands=template_commands,
             environment_keys=file.environment_keys if file else None,
             attachment_context=attachment_context(attachments),
+            pending_proposal_context=active_proposal_context,
             enable_workflow_tools=True,
         )
         # Without a selected rubric the conversation is general assistance only;
@@ -573,6 +628,7 @@ async def create_message(
             workflow_action = _resolve_workflow_action(
                 file=file,
                 proposal=proposal,
+                has_pending_proposal=active_proposal_row is not None,
                 raw_action=raw_workflow_action,
             )
             # Do not persist model prose such as "已啟動" as the source of
@@ -620,6 +676,8 @@ async def create_message(
     if (
         (current_file.id if current_file else None) != (file.id if file else None)
         or (current_file.analysis_revision if current_file else None) != base_revision
+        or int(item.workflow_revision or 0) != initial_workflow_revision
+        or item.active_proposal_message_id != initial_active_proposal_id
     ):
         raise HTTPException(
             status_code=409,
@@ -629,6 +687,7 @@ async def create_message(
                 "analysis_revision": current_file.analysis_revision
                 if current_file
                 else None,
+                "workflow_revision": int(item.workflow_revision or 0),
             },
         )
     from app.models.base import get_datetime_utc
@@ -636,8 +695,21 @@ async def create_message(
     item.last_activity_at = get_datetime_utc()
     item.updated_at = item.last_activity_at
     session.add_all([assistant, item])
+    session.flush()
+    if proposal:
+        begin_proposal(
+            session,
+            item,
+            assistant,
+            candidate_items=proposal,
+            base_revision=base_revision,
+            supersedes=active_proposal_row,
+            expected_workflow_revision=initial_workflow_revision,
+            expected_active_proposal_message_id=initial_active_proposal_id,
+        )
     session.commit()
     session.refresh(assistant)
+    session.refresh(item)
     schedule_summary(session, item, boundary_message_id=assistant.id)
     return TeacherJudgeSessionChatResponse(
         user_message=message_public(user_message, attachments),
@@ -645,6 +717,8 @@ async def create_message(
         rubric_proposal=proposal,
         base_revision=base_revision,
         workflow_action=workflow_action,
+        active_proposal=active_proposal_public(session, item),
+        workflow_revision=int(item.workflow_revision or 0),
     )
 
 
@@ -660,8 +734,28 @@ async def create_session_script(
     item = get_session(session, teaching_class_id, session_id)
     ensure_active(item)
     file = require_selected_file(session, item)
+    active_proposal = get_active_proposal_row(session, item)
+    if active_proposal is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "teacher_judge_proposal_pending",
+                "message": "目前有尚未套用的檢查項目提案，請先套用或保留目前版本。",
+                "proposal_message_id": str(active_proposal.id),
+                "workflow_revision": int(item.workflow_revision or 0),
+            },
+        )
     expected_revision = payload.analysis_revision if payload else None
-    if expected_revision is not None and expected_revision != file.analysis_revision:
+    if expected_revision is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "teacher_judge_analysis_revision_required",
+                "message": "建立檢查腳本前必須提供目前評分表版本。",
+                "analysis_revision": file.analysis_revision,
+            },
+        )
+    if expected_revision != file.analysis_revision:
         raise HTTPException(
             status_code=409,
             detail={
@@ -685,6 +779,8 @@ async def create_session_script(
         created_by=current_user.id,
         source_file_id=file.id,
         session_id=item.id,
+        expected_session_workflow_revision=int(item.workflow_revision or 0),
+        expected_analysis_revision=file.analysis_revision,
     )
     from app.models.base import get_datetime_utc
 

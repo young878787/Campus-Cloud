@@ -10,7 +10,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.ai.teacher_judge import attachment_service, file_service, session_service
+from app.ai.teacher_judge.proposal_service import active_proposal_public
 from app.ai.teacher_judge.schemas import (
+    TeacherJudgeProposalResolveRequest,
     TeacherJudgeRubricAnalysis,
     TeacherJudgeSessionCreateRequest,
     TeacherJudgeSessionMessageCreateRequest,
@@ -457,6 +459,251 @@ async def test_message_tool_action_is_server_validated_for_script_creation(
     assert result.assistant_message.metadata_json["workflow_action"]["type"] == (
         "create_script"
     )
+
+
+@pytest.mark.asyncio
+async def test_proposal_is_persisted_and_survives_a_follow_up_question(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    class_id = uuid.uuid4()
+    rubric_file = _file(db, class_id)
+    rubric_file.analysis_json = {
+        "items": [
+            {
+                "id": "item-1",
+                "title": "程式可執行",
+                "description": "",
+                "checked": False,
+                "detectable": "manual",
+                "detection_method": None,
+                "fallback": "",
+                "check_steps": [],
+            }
+        ]
+    }
+    db.add(rubric_file)
+    item = TeacherJudgeSession(
+        teaching_class_id=class_id,
+        title="持久化提案",
+        selected_file_id=rubric_file.id,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+
+    async def fake_chat(messages, rubric_context, **kwargs):
+        if messages[-1].content == "請補充成功條件":
+            return "已整理新的候選。", [
+                {
+                    "id": "item-1",
+                    "title": "程式可執行",
+                    "description": "必須正常結束",
+                    "checked": False,
+                    "detectable": "manual",
+                    "detection_method": None,
+                    "fallback": "",
+                    "check_steps": [],
+                }
+            ], {}
+        return "可以繼續補充資料。", None, {}
+
+    monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
+    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
+    monkeypatch.setattr(
+        teacher_judge_sessions,
+        "get_enabled_template_commands",
+        lambda *args, **kwargs: [],
+    )
+    user = SimpleNamespace(id=uuid.uuid4())
+
+    first = await teacher_judge_sessions.create_message(
+        class_id,
+        item.id,
+        TeacherJudgeSessionMessageCreateRequest(content="請補充成功條件"),
+        db,
+        user,
+    )
+    db.refresh(item)
+    assert first.active_proposal is not None
+    assert item.active_proposal_message_id == uuid.UUID(first.active_proposal.message_id)
+    first_revision = item.workflow_revision
+
+    second = await teacher_judge_sessions.create_message(
+        class_id,
+        item.id,
+        TeacherJudgeSessionMessageCreateRequest(content="請問還缺什麼資料？"),
+        db,
+        user,
+    )
+    db.refresh(item)
+    assert second.rubric_proposal is None
+    assert item.active_proposal_message_id == uuid.UUID(first.active_proposal.message_id)
+    assert item.workflow_revision == first_revision
+    active = active_proposal_public(db, item)
+    assert active is not None and active.status == "pending"
+
+
+@pytest.mark.asyncio
+async def test_session_script_is_blocked_by_persisted_pending_proposal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    class_id = uuid.uuid4()
+    rubric_file = _file(db, class_id)
+    rubric_file.analysis_json = {
+        "items": [
+            {
+                "id": "item-1",
+                "title": "可執行",
+                "description": "",
+                "checked": False,
+                "detectable": "auto",
+                "detection_method": "exit code",
+                "check_steps": [],
+            }
+        ]
+    }
+    item = TeacherJudgeSession(
+        teaching_class_id=class_id,
+        title="待處理提案",
+        selected_file_id=rubric_file.id,
+    )
+    db.add_all([rubric_file, item])
+    db.commit()
+    db.refresh(item)
+    proposal = TeacherJudgeSessionMessage(
+        session_id=item.id,
+        role=TeacherJudgeMessageRole.assistant,
+        message_type="rubric_proposal",
+        content="提案",
+        metadata_json={
+            "rubric_proposal": rubric_file.analysis_json["items"],
+            "base_revision": rubric_file.analysis_revision,
+            "proposal_state": {
+                "status": "pending",
+                "base_revision": rubric_file.analysis_revision,
+                "candidate_items": rubric_file.analysis_json["items"],
+            },
+        },
+    )
+    db.add(proposal)
+    db.flush()
+    item.active_proposal_message_id = proposal.id
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
+    called = False
+
+    async def should_not_create(*args, **kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("pending proposals must block before artifact generation")
+
+    monkeypatch.setattr(teacher_judge_sessions, "create_artifact", should_not_create)
+    with pytest.raises(HTTPException) as exc_info:
+        await teacher_judge_sessions.create_session_script(
+            class_id,
+            item.id,
+            db,
+            SimpleNamespace(id=uuid.uuid4()),
+            TeacherJudgeSessionScriptCreateRequest(
+                analysis_revision=rubric_file.analysis_revision
+            ),
+        )
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["code"] == "teacher_judge_proposal_pending"
+    assert called is False
+
+
+def test_resolve_partial_proposal_is_atomic_and_persists_history(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    class_id = uuid.uuid4()
+    rubric_file = _file(db, class_id)
+    rubric_file.analysis_json = {
+        "items": [
+            {"id": "one", "title": "第一項", "description": "原本", "checked": False, "detectable": "manual", "check_steps": []},
+            {"id": "two", "title": "第二項", "description": "保留", "checked": False, "detectable": "manual", "check_steps": []},
+        ]
+    }
+    item = TeacherJudgeSession(
+        teaching_class_id=class_id,
+        title="部分套用",
+        selected_file_id=rubric_file.id,
+    )
+    db.add_all([rubric_file, item])
+    db.commit()
+    db.refresh(item)
+    candidate = [
+        {"id": "one", "title": "第一項", "description": "更新後", "checked": False, "detectable": "manual", "check_steps": []},
+        {"id": "two", "title": "第二項", "description": "第二個更新", "checked": False, "detectable": "manual", "check_steps": []},
+    ]
+    proposal = TeacherJudgeSessionMessage(
+        session_id=item.id,
+        role=TeacherJudgeMessageRole.assistant,
+        message_type="rubric_proposal",
+        content="提案",
+        metadata_json={
+            "rubric_proposal": candidate,
+            "base_revision": rubric_file.analysis_revision,
+            "proposal_state": {
+                "status": "pending",
+                "base_revision": rubric_file.analysis_revision,
+                "candidate_items": candidate,
+            },
+        },
+    )
+    db.add(proposal)
+    db.flush()
+    item.active_proposal_message_id = proposal.id
+    db.add(item)
+    db.commit()
+    db.refresh(rubric_file)
+    monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
+    result = teacher_judge_sessions.resolve_active_proposal(
+        class_id,
+        item.id,
+        proposal.id,
+        TeacherJudgeProposalResolveRequest(
+            action="apply",
+            selected_item_ids=["one"],
+            expected_analysis_revision=rubric_file.analysis_revision,
+        ),
+        db,
+        SimpleNamespace(id=uuid.uuid4()),
+    )
+
+    db.refresh(item)
+    db.refresh(rubric_file)
+    db.refresh(proposal)
+    assert result.status == "partially_applied"
+    assert item.active_proposal_message_id is None
+    assert rubric_file.analysis_revision == 2
+    assert rubric_file.analysis_json["items"][0]["description"] == "更新後"
+    assert rubric_file.analysis_json["items"][1]["description"] == "保留"
+    assert proposal.metadata_json["proposal_state"]["status"] == "partially_applied"
+
+    with pytest.raises(HTTPException) as second_exc:
+        teacher_judge_sessions.resolve_active_proposal(
+            class_id,
+            item.id,
+            proposal.id,
+            TeacherJudgeProposalResolveRequest(
+                action="apply",
+                selected_item_ids=["one"],
+                expected_analysis_revision=2,
+            ),
+            db,
+            SimpleNamespace(id=uuid.uuid4()),
+        )
+    assert second_exc.value.status_code == 409
+    assert second_exc.value.detail["code"] == "teacher_judge_proposal_not_active"
+    db.refresh(rubric_file)
+    assert rubric_file.analysis_revision == 2
 
 
 @pytest.mark.asyncio

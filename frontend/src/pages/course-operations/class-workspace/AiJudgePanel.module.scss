@@ -951,6 +951,13 @@
   @include text-truncate;
 }
 
+.chatProposalStatus {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-text-muted);
+  font-size: $font-size-12;
+}
+
 .scriptRenameForm {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1876,6 +1883,11 @@
   flex: 0 0 auto;
   color: var(--color-text-secondary);
   font-size: $font-size-12;
+  font-weight: $font-weight-700;
+}
+
+.proposalRevisionNotice {
+  color: var(--color-pending) !important;
   font-weight: $font-weight-700;
 }
 

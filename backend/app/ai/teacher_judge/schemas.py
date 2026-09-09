@@ -151,6 +151,15 @@ TeacherJudgeMessageRoleLiteral = Literal["user", "assistant"]
 TeacherJudgeMessageTypeLiteral = Literal["chat", "rubric_proposal", "system_notice"]
 TeacherJudgeWorkflowActionTypeLiteral = Literal["create_script"]
 TeacherJudgeWorkflowActionStatusLiteral = Literal["ready", "blocked"]
+TeacherJudgeProposalStatusLiteral = Literal[
+    "pending",
+    "applied",
+    "partially_applied",
+    "dismissed",
+    "superseded",
+    "legacy_unknown",
+]
+TeacherJudgeProposalResolveActionLiteral = Literal["apply", "dismiss"]
 TeacherJudgeSessionCreationModeLiteral = Literal["blank", "existing"]
 TeacherJudgeFileSourceTypeLiteral = Literal["uploaded", "created"]
 
@@ -245,6 +254,8 @@ class TeacherJudgeSessionPublic(BaseModel):
     updated_at: str
     last_activity_at: str
     pinned_at: str | None = None
+    active_proposal_message_id: str | None = None
+    workflow_revision: int = 0
 
 
 class TeacherJudgeSessionMessageCreateRequest(BaseModel):
@@ -280,12 +291,46 @@ class TeacherJudgeWorkflowAction(BaseModel):
     tool_call_id: str | None = None
 
 
+class TeacherJudgeProposalPublic(BaseModel):
+    """Server-owned proposal state used to restore a session after reload."""
+
+    message_id: str
+    status: TeacherJudgeProposalStatusLiteral
+    base_revision: int | None = None
+    current_revision: int | None = None
+    can_apply: bool = False
+    candidate_items: list[dict[str, Any]] = Field(default_factory=list)
+    selected_item_ids: list[str] = Field(default_factory=list)
+    supersedes_message_id: str | None = None
+    superseded_by_message_id: str | None = None
+    result_revision: int | None = None
+    resolved_at: str | None = None
+
+
 class TeacherJudgeSessionChatResponse(BaseModel):
     user_message: TeacherJudgeSessionMessagePublic
     assistant_message: TeacherJudgeSessionMessagePublic
     rubric_proposal: list[dict[str, Any]] | None = None
     base_revision: int | None = None
     workflow_action: TeacherJudgeWorkflowAction | None = None
+    active_proposal: TeacherJudgeProposalPublic | None = None
+    workflow_revision: int = 0
+
+
+class TeacherJudgeProposalResolveRequest(BaseModel):
+    action: TeacherJudgeProposalResolveActionLiteral
+    selected_item_ids: list[str] = Field(default_factory=list)
+    expected_analysis_revision: int = Field(..., ge=1)
+
+
+class TeacherJudgeProposalResolveResponse(BaseModel):
+    message_id: str
+    status: TeacherJudgeProposalStatusLiteral
+    analysis_revision: int | None = None
+    workflow_revision: int
+    active_proposal_message_id: str | None = None
+    selected_item_ids: list[str] = Field(default_factory=list)
+    analysis_json: dict[str, Any] | None = None
 
 
 class TeacherJudgeSessionAttachmentPublic(BaseModel):
