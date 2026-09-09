@@ -238,7 +238,15 @@
 
 .noticeProgress {
   border-color: color-mix(in srgb, var(--color-pending) 34%, transparent);
-  background: color-mix(in srgb, var(--color-pending) 9%, transparent);
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--color-pending) 9%, var(--color-surface)) 0%,
+    color-mix(in srgb, var(--color-pending) 18%, var(--color-surface)) 42%,
+    color-mix(in srgb, var(--color-pending) 9%, var(--color-surface)) 70%
+  );
+  background-size: 220% 100%;
+  animation: scriptButtonProgress 1.8s ease-in-out infinite;
+  overflow: hidden;
 
   strong { color: var(--color-pending); }
 }
@@ -251,8 +259,18 @@
   font-weight: $font-weight-700;
 }
 
-.noticeProgressHighlight {
-  margin: 0 2px;
+.noticeWorkflowSuccess {
+  border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
+  background: color-mix(in srgb, var(--color-success) 8%, transparent);
+
+  strong { color: var(--color-success); }
+}
+
+.noticeWorkflowError {
+  border-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+
+  strong { color: var(--color-danger); }
 }
 
 .fileMeta {
@@ -971,6 +989,30 @@
   &::selection {
     background: color-mix(in srgb, var(--color-primary) 24%, transparent);
     color: var(--color-text-primary);
+  }
+}
+
+@keyframes scriptButtonProgress {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.btnPrimaryProcessing {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    110deg,
+    var(--color-primary) 0%,
+    color-mix(in srgb, var(--color-primary) 76%, white) 42%,
+    var(--color-primary) 70%
+  );
+  background-size: 220% 100%;
+  animation: scriptButtonProgress 1.8s ease-in-out infinite;
+  cursor: progress;
+
+  > * {
+    position: relative;
+    z-index: 1;
   }
 }
 
@@ -1927,6 +1969,19 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .btnPrimaryProcessing {
+    animation: none;
+  }
+
+  .noticeProgress {
+    animation: none;
+  }
+
+  .btnPrimaryProcessing .spinning,
+  .noticeProgress .spinning {
+    animation: none;
+  }
+
   .createChoice { transition-duration: .01ms; }
   .createChoice:hover { transform: none; }
   .sessionTitleViewport:hover .sessionTitleOverflowing,

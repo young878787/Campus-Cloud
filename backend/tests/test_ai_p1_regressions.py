@@ -49,6 +49,13 @@ def test_plain_prompt_json_examples_are_valid(prompt):
     json.JSONDecoder().raw_decode(prompt[start:])
 
 
+def test_teacher_judge_prompt_exposes_script_workflow_intent_rules():
+    assert "request_check_script_creation" in CHAT_SYSTEM_TEMPLATE
+    assert "可以幫我產生腳本嗎" in CHAT_SYSTEM_TEMPLATE
+    assert "腳本怎麼製作" in CHAT_SYSTEM_TEMPLATE
+    assert "不要用 JSON 文字模擬工具呼叫" in CHAT_SYSTEM_TEMPLATE
+
+
 @pytest.mark.parametrize("content", ["null", "[]", '"text"'])
 async def test_non_object_rubric_and_script_outputs_fail_cleanly(monkeypatch, content):
     monkeypatch.setattr(system_ai_env, "vllm_model_name", "test-model")
@@ -74,6 +81,95 @@ async def test_non_object_rubric_and_script_outputs_fail_cleanly(monkeypatch, co
     )
     assert reply == content
     assert proposal is None
+
+
+@pytest.mark.asyncio
+async def test_teacher_judge_chat_preserves_create_script_tool_call(monkeypatch):
+    monkeypatch.setattr(system_ai_env, "vllm_model_name", "test-model")
+    captured = {}
+
+    async def fake_call(payload, timeout=60.0):
+        captured["payload"] = payload
+        return service.VLLMCallResult(
+            content="",
+            metrics={},
+            message={
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "call-create-script",
+                        "type": "function",
+                        "function": {
+                            "name": "request_check_script_creation",
+                            "arguments": "{}",
+                        },
+                    }
+                ],
+            },
+        )
+
+    monkeypatch.setattr(service, "_call_vllm", fake_call)
+    reply, proposal, metrics = await service.chat_with_rubric(
+        [
+            TeacherJudgeRubricChatMessage(
+                role="user", content="可以幫我製作檢查腳本嗎"
+            )
+        ],
+        '{"items":[{"id":"item-1"}]}',
+        enable_workflow_tools=True,
+    )
+
+    assert "製作檢查腳本" in reply
+    assert proposal is None
+    assert metrics["workflow_action"] == {
+        "type": "create_script",
+        "status": "requested",
+        "tool_call_id": "call-create-script",
+    }
+    assert captured["payload"]["tools"][0]["function"]["name"] == (
+        "request_check_script_creation"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "content, expected_action",
+    [
+        ("可以幫我製作檢查腳本嗎", True),
+        ("幫我做檢查腳本", True),
+        ("請說明如何製作檢查腳本", False),
+        ("腳本安全嗎？", False),
+        ("沒問題，我現在就為您啟動檢查腳本的製作流程，請稍候。", False),
+        ("how to create check script", False),
+    ],
+)
+async def test_teacher_judge_chat_falls_back_to_explicit_user_intent(
+    monkeypatch, content, expected_action
+):
+    """A prose-only model reply must not hide an explicit script command."""
+
+    monkeypatch.setattr(system_ai_env, "vllm_model_name", "test-model")
+
+    async def fake_call(payload, timeout=60.0):
+        return (
+            json.dumps(
+                {
+                    "reply": "沒問題，我現在就為您啟動檢查腳本的製作流程，請稍候。",
+                    "updated_items": None,
+                },
+                ensure_ascii=False,
+            ),
+            {},
+        )
+
+    monkeypatch.setattr(service, "_call_vllm", fake_call)
+    _reply, _proposal, metrics = await service.chat_with_rubric(
+        [TeacherJudgeRubricChatMessage(role="user", content=content)],
+        '{"items":[{"id":"item-1"}]}',
+        enable_workflow_tools=True,
+    )
+
+    assert ("workflow_action" in metrics) is expected_action
 
 
 async def test_teacher_judge_summary_uses_dedicated_low_budget_prompt(monkeypatch):

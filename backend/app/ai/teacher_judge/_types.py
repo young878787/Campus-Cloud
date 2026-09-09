@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 # ── Fix Hint ──────────────────────────────────────────────────────────────────
 # Each fix_type populates a different subset; total=False allows partial keys.
@@ -96,6 +96,7 @@ class VLLMMetrics(TypedDict):
     total_tokens: int
     elapsed_seconds: float
     tokens_per_second: float
+    workflow_action: NotRequired[dict[str, Any]]
 
 
 # ── Template Command Snapshot ─────────────────────────────────────────────────

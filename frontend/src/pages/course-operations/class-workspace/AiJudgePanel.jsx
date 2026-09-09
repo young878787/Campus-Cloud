@@ -29,6 +29,72 @@ function Spinner({ size = 16 }) {
   );
 }
 
+const SCRIPT_GENERATION_PROGRESS = {
+  queued: {
+    title: "已收到製作要求",
+    message: "正在準備建立檢查腳本。",
+  },
+  generating: {
+    title: "正在製作檢查腳本",
+    message: "AI 正在依目前檢查項目產生收集腳本。",
+  },
+  policy_review: {
+    title: "正在進行安全檢查",
+    message: "腳本已產生，正在檢查受管命令與安全規則。",
+  },
+  ai_review: {
+    title: "正在進行 AI 複核",
+    message: "正在確認腳本是否覆蓋目前的檢查項目。",
+  },
+};
+
+export function ScriptGenerationNotice({
+  isCreatingScript = false,
+  status = null,
+  notice = null,
+}) {
+  if (!isCreatingScript && !notice) return null;
+
+  const workflowStatus = isCreatingScript ? (status || "queued") : notice.status;
+  const isError = !isCreatingScript && notice.status === "error";
+  const isSuccess = !isCreatingScript && notice.status === "success";
+  const progress = SCRIPT_GENERATION_PROGRESS[workflowStatus]
+    ?? SCRIPT_GENERATION_PROGRESS.generating;
+  const title = isCreatingScript
+    ? progress.title
+    : isError
+      ? "檢查腳本製作失敗"
+      : "檢查腳本製作完成";
+  const message = isCreatingScript
+    ? `${progress.message} 請保持此頁面，完成後會顯示結果；若失敗會保留原因。`
+    : notice.message;
+  const className = isError
+    ? styles.noticeWorkflowError
+    : isSuccess
+      ? styles.noticeWorkflowSuccess
+      : styles.noticeProgress;
+
+  return (
+    <div
+      className={`${styles.noticeInfo} ${className}`}
+      role={isError ? "alert" : "status"}
+      aria-live={isError ? "assertive" : "polite"}
+      aria-busy={isCreatingScript || undefined}
+      data-workflow-status={workflowStatus}
+    >
+      <p className={styles.noticeProgressTitle}>
+        {isCreatingScript ? (
+          <Spinner size={16} />
+        ) : (
+          <MIcon name={isError ? "error_outline" : isSuccess ? "check_circle" : "autorenew"} size={16} />
+        )}
+        <strong>{title}</strong>
+      </p>
+      <p>{message}</p>
+    </div>
+  );
+}
+
 /**
  * Session 名稱在清單中維持省略號；只有實際超出可視寬度時，才在 hover/focus
  * 時平移文字以揭示右側尾端。量測放在元件內，讓 sidebar 寬度變化時也能更新。
@@ -566,6 +632,7 @@ export function ChatPanel({
   isUploading = false,
   onCreateScript,
   isCreatingScript = false,
+  scriptGenerationStatus = null,
   canCreateScript = false,
   createScriptHint = "",
 }) {
@@ -590,6 +657,13 @@ export function ChatPanel({
     event.target.value = "";
     if (file) onUploadFile?.(file);
   }
+
+  const scriptProgressLabel = {
+    queued: "準備製作…",
+    generating: "AI 製作中…",
+    policy_review: "安全檢查中…",
+    ai_review: "AI 複核中…",
+  }[scriptGenerationStatus] ?? "製作中...";
 
   return (
     <div className={styles.chatPanel}>
@@ -691,13 +765,15 @@ export function ChatPanel({
           {onCreateScript && (
             <button
               type="button"
-              className={styles.btnPrimary}
+              className={`${styles.btnPrimary} ${isCreatingScript ? styles.btnPrimaryProcessing : ""}`}
               disabled={isLoading || isClearing || isUploading || disabled || isCreatingScript || !canCreateScript}
-              onClick={onCreateScript}
+              onClick={() => onCreateScript?.({ trigger: "button" })}
               title={createScriptHint || undefined}
+              aria-busy={isCreatingScript}
+              data-generation-status={scriptGenerationStatus || undefined}
             >
               {isCreatingScript ? <Spinner size={14} /> : <MIcon name="terminal" size={14} />}
-              {isCreatingScript ? "製作中..." : "製作檢查腳本"}
+              {isCreatingScript ? scriptProgressLabel : "製作檢查腳本"}
             </button>
           )}
           {onToggleSources && <button
@@ -1221,6 +1297,8 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   const [isChatting, setIsChatting] = useState(false);
   const [isClearingMessages, setIsClearingMessages] = useState(false);
   const [isCreatingScript, setIsCreatingScript] = useState(false);
+  const [scriptGenerationStatus, setScriptGenerationStatus] = useState(null);
+  const [scriptGenerationNotice, setScriptGenerationNotice] = useState(null);
   const [uploadedFileName, setUploadedFileName] = useState("rubric");
   const [sourceFileId, setSourceFileId] = useState(null);
   const [pendingConflictFile, setPendingConflictFile] = useState(null);
@@ -1325,6 +1403,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   useEffect(() => {
     function clearSelectedSourceState() {
       setAnalysis(null);
+      setScriptGenerationNotice(null);
       setUploadedFileName("rubric");
       setSourceFileId(null);
       setEnvironmentKeys([]);
@@ -1456,6 +1535,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
           return false;
         }
       }
+      setScriptGenerationNotice(null);
       setAnalysis(response.analysis);
       setUploadedFileName(file.name || "rubric");
       setSourceFileId(uploadedFile.id);
@@ -1555,6 +1635,26 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
         setSelectedProposalIds(new Set(proposal.map((item, index) => item.id ?? `proposal-${index}`)));
         setPendingProposalMeta(proposal.length ? { baseRevision: response.base_revision ?? analysisRevisionsRef.current.get(sourceFileId) } : null);
         setPendingProposalIsRefine(Boolean(proposal.length && isRefine));
+        const workflowAction = response.workflow_action;
+        if (workflowAction?.type === "create_script" && workflowAction.status === "ready") {
+          if (pendingProposal) {
+            const blockedMessage = "目前有尚未套用的檢查項目提案，請先套用或保留目前版本。";
+            setMessages((current) => {
+              const next = [...current];
+              const lastIndex = next.length - 1;
+              if (lastIndex >= 0 && next[lastIndex]?.role === "assistant") {
+                next[lastIndex] = { ...next[lastIndex], content: blockedMessage };
+              }
+              return next;
+            });
+            toast.error(blockedMessage);
+          } else {
+            setIsChatting(false);
+            await handleCreateScript({
+              analysisRevision: workflowAction.analysis_revision,
+            });
+          }
+        }
         if (isRefine && !Array.isArray(response.rubric_proposal)) {
           toast.error("AI 未回傳完整檢查項目列表，潤飾尚未套用，請稍後再試");
         } else if (isRefine && !proposal.length && analysis) {
@@ -1704,6 +1804,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       setSelectedProposalIds(new Set());
       setPendingProposalMeta(null);
       setPendingProposalIsRefine(false);
+      setScriptGenerationNotice(null);
       toast.success("對話內容已清除");
     } catch (err) {
       toast.error(err?.message ?? "清除對話內容失敗");
@@ -1712,12 +1813,31 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     }
   }
 
-  async function handleCreateScript() {
+  async function handleCreateScript({ analysisRevision = null } = {}) {
+    if (pendingProposal) {
+      const message = "請先套用或保留目前的 AI 檢查項目提案，再製作檢查腳本。";
+      setScriptGenerationNotice({ status: "error", message });
+      toast.error(message);
+      return;
+    }
+    if (isCreatingScript) return;
     setIsCreatingScript(true);
+    setScriptGenerationStatus("queued");
+    setScriptGenerationNotice({
+      status: "queued",
+      message: "已收到製作要求，正在準備建立檢查腳本。",
+    });
     try {
-      if (autosaveRef.current && !(await autosaveRef.current.flush())) return;
+      if (autosaveRef.current && !(await autosaveRef.current.flush())) {
+        setScriptGenerationNotice({
+          status: "error",
+          message: "評分表尚未成功儲存，因此尚未開始製作檢查腳本。",
+        });
+        return;
+      }
+      setScriptGenerationStatus("generating");
       const artifact = judgeSession?.id
-        ? await AiJudgeService.createSessionScript(classId, judgeSession.id)
+        ? await AiJudgeService.createSessionScript(classId, judgeSession.id, analysisRevision)
         : await AiJudgeService.createScript(classId, {
             name: uploadedFileName,
             templateKey: analysisTemplateKey,
@@ -1725,17 +1845,29 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
             sourceFileId,
           });
       if (artifact.status === "approved") {
-        toast.success("檢查腳本已通過靜態與 AI 檢查，可開始執行");
+        const message = "檢查腳本已通過靜態與 AI 檢查，可開始執行。";
+        setScriptGenerationNotice({ status: "success", message });
+        toast.success(message);
       } else if (artifact.status === "review_failed") {
-        toast.error("自動修正仍未通過，已將原因放到腳本總覽");
+        const message = "自動修正仍未通過；腳本與失敗原因已保留在腳本總覽。";
+        setScriptGenerationNotice({ status: "error", message });
+        toast.error(message);
       } else {
-        toast.success("檢查腳本已產生，請查看審查結果");
+        const message = "檢查腳本已產生，請到腳本總覽查看審查結果。";
+        setScriptGenerationNotice({ status: "success", message });
+        toast.success(message);
       }
       onScriptCreated?.(artifact);
     } catch (err) {
-      toast.error(err?.message ?? "製作檢查腳本失敗");
+      const message = err?.message ?? "製作檢查腳本失敗";
+      setScriptGenerationNotice({
+        status: "error",
+        message: `${message}。可再次按「製作檢查腳本」重試。`,
+      });
+      toast.error(message);
     } finally {
       setIsCreatingScript(false);
+      setScriptGenerationStatus(null);
     }
   }
 
@@ -1743,18 +1875,11 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
 
   return (
     <div className={styles.tabBody}>
-      {isCreatingScript && (
-        <div className={`${styles.noticeInfo} ${styles.noticeProgress}`} role="status" aria-live="polite">
-          <p className={styles.noticeProgressTitle}>
-            <MIcon name="autorenew" size={16} />
-            <strong>正在製作檢查腳本</strong>
-          </p>
-          <p>
-            AI 正在依目前檢查項目產生收集腳本，完成後會接著進行安全規則檢查與 AI 複核；
-            <strong className={styles.noticeProgressHighlight}>可以離開此頁面，稍後回到「腳本總覽」查看結果。</strong>
-          </p>
-        </div>
-      )}
+      <ScriptGenerationNotice
+        isCreatingScript={isCreatingScript}
+        status={scriptGenerationStatus}
+        notice={scriptGenerationNotice}
+      />
 
       {analysis && items.length === 0 && (
         <div className={styles.noticeInfo}>
@@ -1842,8 +1967,13 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
               isUploading={isUploading}
               onCreateScript={analysis ? handleCreateScript : undefined}
               isCreatingScript={isCreatingScript}
-              canCreateScript={Boolean(analysis) && items.length > 0}
-              createScriptHint={items.length === 0 ? "請先新增至少一個檢查項目" : undefined}
+              scriptGenerationStatus={scriptGenerationStatus}
+              canCreateScript={Boolean(analysis) && items.length > 0 && !pendingProposal}
+              createScriptHint={pendingProposal
+                ? "請先套用或保留目前的 AI 檢查項目提案"
+                : items.length === 0
+                  ? "請先新增至少一個檢查項目"
+                  : undefined}
             />
             {pendingProposal && analysis && <ProposalPanel
               proposal={pendingProposal}

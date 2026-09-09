@@ -26,13 +26,19 @@
 
 ### 1. 對話的能力與老師期待不一致（P1）
 
-`create_message()` 傳給 AI 的內容為評分表、catalog、對話歷史與附件，沒有本次腳本、審查原因、執行任務或 target 結果。`chat_with_rubric()` 的輸出只有 `reply` 與 `updated_items`，也沒有可呼叫生成／執行流程的動作契約。
+原始 `create_message()` 傳給 AI 的內容為評分表、catalog、對話歷史與附件，沒有本次腳本、審查原因、執行任務或 target 結果。原始 `chat_with_rubric()` 的輸出只有 `reply` 與 `updated_items`，也沒有可呼叫生成／執行流程的動作契約。
 
 因此老師即使在聊天室說「幫我生成腳本」或「剛才失敗了，幫我修好」，這條路徑也沒有相應的執行能力或可靠的即時狀態。老師仍須自行轉到按鈕及分頁操作。
 
 Prompt 又要求「無法確定時視為詢問」，一般對話允許以「你覺得……如何？」提供建議；這會增加委婉請求被當成純討論的可能。是否是本次實際卡點，需要原始對話確認。
 
 建議：讓後端根據持久化狀態提供 `stage`、`blockers`、`next_action`，AI 負責理解目標、解釋缺口與提出動作。明確的「幫我／可以幫我產生」應形成具體提案或動作，不要求老師學特殊句型；實際生成、執行與成功狀態必須由後端回報。
+
+本次先完成最小可行的腳本製作閉環：session 對話提供受限的
+`request_check_script_creation` Tool Call，後端只接受無參數的建立請求並重新驗證評分表、項目與
+revision；若相容模型只回傳一般 JSON `reply` 而沒有 `tool_calls`，後端只依最後一則明確的使用者
+製作指令（不解析 AI 宣告文字）做窄範圍 fallback。回應加入 `workflow_action`，前端沿用既有腳本端點，
+讓聊天指令與按鈕走同一個建立流程；按鈕、頁面狀態、完成及失敗原因都會保留在 UI，避免只剩短暫 toast。
 
 依據：[訊息端點](../backend/app/api/routes/teacher_judge_sessions.py)、[對話服務](../backend/app/ai/teacher_judge/service.py)、[提示詞](../backend/app/ai/teacher_judge/prompt.py)。
 
@@ -50,7 +56,7 @@ Prompt 又要求「無法確定時視為詢問」，一般對話允許以「你�
 
 ### 3. 尚未套用 AI 提案，也能製作腳本（P1）
 
-前端 `canCreateScript` 只判斷有 analysis 且項目數大於零，沒有把 `pendingProposal` 列入阻擋條件。`handleCreateScript()` 會 flush 已編輯內容，但不會套用待確認的 AI 提案。session 生成端點讀取的是目前已保存的 `file.analysis_json`。
+原始前端 `canCreateScript` 只判斷有 analysis 且項目數大於零，沒有把 `pendingProposal` 列入阻擋條件。原始 `handleCreateScript()` 會 flush 已編輯內容，但不會套用待確認的 AI 提案。session 生成端點讀取的是目前已保存的 `file.analysis_json`。
 
 可重現操作：已有項目 A → 要求 AI 改成 B → 收到待套用提案 → 未套用便按「製作檢查腳本」。此時生成來源仍是 A。這可能讓老師以為 AI 沒聽懂或生成內容不正確。
 
@@ -62,11 +68,21 @@ Prompt 又要求「無法確定時視為詢問」，一般對話允許以「你�
 
 `build_reviewed_script()` 在進入審查迴圈之前就呼叫 `generate_script_content()`。後者遇到無效 JSON、缺少 `script_content` 或空內容會直接拋出 HTTPException。這類初次生成錯誤不會進入既有政策／品質修正迴圈，也還沒有保存 artifact。
 
-所以「已有自動重試」並不涵蓋常見的模型格式錯誤。若長腳本輸出被截斷而造成無效 JSON，也會走同一路徑；是否確有截斷必須查模型回應及 finish reason，不能直接歸因。
+所以「已有自動重試」並不涵蓋常見的模型格式錯誤。
 
-建議：生成任務先持久化，再區分模型呼叫錯誤、格式錯誤、政策失敗及品質失敗。對可恢復的格式錯誤做有限次重新生成；記錄階段與原因，避免只留下 toast。長任務提供 job ID、狀態查詢與防重複送出的識別值。
+本次追查進一步確認（含本機執行驗證，見文末驗證紀錄）：
 
-依據：[generate_script_content、build_reviewed_script、create_artifact](../backend/app/ai/teacher_judge/script_artifact_service.py)。
+- 同一函式內還有三處重新生成也沒有保護：靜態關卡失敗且無 fix hints 時的直接重新生成、patch 失敗後的 fallback 重新生成、AI review patch 失敗後的 fallback 重新生成，都是未包 try/except 的 `generate_script_content()` 呼叫。實測第二次模型呼叫遇到格式錯誤時，整個審查迴圈中止，剩餘重試額度作廢，已累積的 attempt 紀錄一併丟失。
+- 截斷其實已有偵測：`_call_vllm()` 會檢查 `finish_reason == "length"` 並拋出錯誤轉成 502。初次生成就截斷時走同一條無重試路徑；「必須查 finish reason」這部分已由程式保證，缺口在失敗處理。
+- `generate_script_content()` 拋格式錯誤時沒有任何 logger 呼叫；只有 `_call_vllm()` 層的網路與狀態錯誤有 `logger.error`。格式錯誤在伺服器端不會留下 log。
+- 失敗那次呼叫的 token 用量也會丟失：`usage_records.append` 在生成函式成功回傳之後才執行。
+- 呼叫鏈上沒有任何一層接住：`create_artifact()` 及 class scripts、session scripts 兩個建立端點都沒有 try/except，502 直接回前端，前端只剩 toast。
+- 沒有 generation job model。原始 UI 進行中提示卻寫「可以離開此頁面，稍後回到腳本總覽查看結果」，在這條失敗路徑上不成立：老師離開後回來什麼都看不到；本次先改為要求留在頁面並保留失敗原因，job 化仍是後續範圍。
+- 對話端點在 AI 失敗時會把失敗寫成 session 的 system notice；腳本生成端點沒有比照，修正時可直接參考此先例。
+
+建議：生成任務先持久化，再區分模型呼叫錯誤、格式錯誤、政策失敗及品質失敗。把初次與迴圈內重新生成的可恢復錯誤（格式錯誤、截斷、timeout、上游 5xx）納入既有重試預算，以 `generation` phase 計入 failure signature；503 模型未設定維持不重試。對 `generate_script_content()` 補上 logger。記錄階段與原因，避免只留下 toast。長任務提供 job ID、狀態查詢與防重複送出的識別值。
+
+依據：[generate_script_content、build_reviewed_script、create_artifact](../backend/app/ai/teacher_judge/script_artifact_service.py)、[模型呼叫與截斷偵測](../backend/app/ai/teacher_judge/service.py)、[session 腳本建立端點與對話失敗訊息先例](../backend/app/api/routes/teacher_judge_sessions.py)、[前端製作流程與離開頁面提示](../frontend/src/pages/course-operations/class-workspace/AiJudgePanel.jsx)。
 
 ### 5. 品質門檻偏重固定寫法，缺少目標覆蓋驗證（P1）
 
@@ -166,7 +182,10 @@ UI 主動作應隨狀態切換：補充必要資訊 → 套用檢查項目 → �
 ## 驗證紀錄與限制
 
 - 已直接執行目前工作區的政策／品質／輸出驗證函式，確認標準函式庫檢查被無條件 run_command 規則擋下、空 checks 通過及重複 check ID 通過，三項斷言成立。
+- 2026-09-09 追查發現 4：以 monkeypatch 模擬 `_call_vllm` 回傳無效 JSON 後直接呼叫 `build_reviewed_script()`，兩項斷言成立：初次生成格式錯誤只呼叫模型一次即拋 502、無重試；迴圈內 fallback 重新生成遇格式錯誤時剩餘重試額度作廢。測試為臨時檔案，執行後已刪除，未留存於工作樹。
 - 實驗沒有執行候選腳本，也沒有載入整個後端服務或連線資料庫。
 - 其餘發現來自前後端呼叫鏈與提示詞閱讀，尚未做瀏覽器操作、真實模型生成或 VM 端到端驗證。
 - 尚未取得使用者失敗當下的對話、生成回應、review issues 或 run reason_code；無法宣稱其中某一點就是本次事故的唯一原因。
-- 本次只新增分析文件，沒有修改產品程式；也未操作開始分析時發現的 teaching_classes.py 與 ClassWorkspacePage.jsx 既有變更。
+- 本次已修改 Teacher Judge 對話／session 腳本建立契約、提示詞、前端聊天按鈕與狀態顯示，並新增對應 regression tests；未操作開始分析時發現的 teaching_classes.py 與 ClassWorkspacePage.jsx 既有變更。
+- 已執行 `backend` Teacher Judge focused tests（140 passed）、`ruff`、`mypy`、`frontend` 全套 Vitest（323 passed）及 production build；build 僅有既有 chunk size 警告。
+- 尚未以真實 vLLM tool parser、登入瀏覽器、資料庫服務或學生 VM 做端到端驗證；上述測試不能取代 live/authenticated E2E。

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from time import perf_counter
 from typing import Any, Literal, cast
 
@@ -36,6 +37,102 @@ from app.infrastructure.ai.teacher_judge import client as teacher_judge_client
 from app.models.teacher_judge_template_command import TeacherJudgeTemplateCommand
 
 logger = logging.getLogger(__name__)
+
+
+CREATE_SCRIPT_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "request_check_script_creation",
+        "description": (
+            "要求平台使用目前已確認的評分表建立受管檢查腳本。"
+            "平台會自行驗證 session、版本與檢查項目；不要自行傳入 ID 或內容。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    },
+}
+
+_SCRIPT_CREATION_PHRASES = (
+    "製作檢查腳本",
+    "生成檢查腳本",
+    "建立檢查腳本",
+    "產生檢查腳本",
+    "製作腳本",
+    "生成腳本",
+    "建立腳本",
+    "產生腳本",
+    "做檢查腳本",
+    "做腳本",
+    "寫檢查腳本",
+    "寫腳本",
+    "createcheckscript",
+    "generatecheckscript",
+    "buildcheckscript",
+)
+_SCRIPT_CREATION_ACTIONS = (
+    "製作",
+    "生成",
+    "建立",
+    "產生",
+    "做",
+    "寫",
+    "create",
+    "generate",
+    "build",
+)
+_SCRIPT_CREATION_DIRECT_MARKERS = (
+    "幫我",
+    "請幫",
+    "我想",
+    "我要",
+    "開始",
+    "啟動",
+    "直接",
+    "麻煩",
+)
+_SCRIPT_CREATION_EXPLANATION_MARKERS = (
+    "如何",
+    "怎麼",
+    "怎樣",
+    "教我",
+    "說明",
+    "流程",
+    "需要什麼",
+    "安全嗎",
+    "能不能",
+    "是否可以",
+    "howto",
+    "how",
+    "explain",
+    "safe",
+)
+_SCRIPT_CREATION_NON_COMMAND_MARKERS = (
+    "為您啟動",
+    "請稍候",
+    "正在製作",
+    "已啟動",
+)
+
+
+class VLLMCallResult(tuple[str, VLLMMetrics]):
+    """Message-aware result that remains a real 2-tuple for old callers."""
+
+    message: dict[str, Any]
+
+    def __new__(
+        cls,
+        *,
+        content: str,
+        metrics: VLLMMetrics,
+        message: dict[str, Any],
+    ) -> VLLMCallResult:
+        result = super().__new__(cls, (content, metrics))
+        result.message = message
+        return result
+
 
 async def close_http_client() -> None:
     """Close Teacher Judge AI client; kept for older callers/tests."""
@@ -167,9 +264,88 @@ def _extract_context_item_count(rubric_context: str) -> int:
     return len(items) if isinstance(items, list) else 0
 
 
+def _workflow_action_from_message(message: dict[str, Any]) -> dict[str, Any] | None:
+    """Accept only the one server-owned workflow tool exposed to Teacher Judge."""
+
+    raw_tool_calls = message.get("tool_calls")
+    if not isinstance(raw_tool_calls, list):
+        return None
+
+    for raw_call in raw_tool_calls:
+        if not isinstance(raw_call, dict):
+            continue
+        function = raw_call.get("function")
+        if not isinstance(function, dict):
+            continue
+        if function.get("name") != "request_check_script_creation":
+            logger.warning("Ignoring unsupported Teacher Judge tool call: %s", function.get("name"))
+            continue
+        raw_arguments = function.get("arguments") or "{}"
+        try:
+            arguments = json.loads(raw_arguments) if isinstance(raw_arguments, str) else raw_arguments
+        except (TypeError, json.JSONDecodeError):
+            logger.warning("Ignoring malformed Teacher Judge workflow tool arguments")
+            continue
+        if not isinstance(arguments, dict) or arguments:
+            logger.warning("Ignoring workflow tool call with unexpected arguments")
+            continue
+        tool_call_id = raw_call.get("id")
+        return {
+            "type": "create_script",
+            "status": "requested",
+            "tool_call_id": str(tool_call_id) if tool_call_id else None,
+        }
+    return None
+
+
+def _user_requests_script_creation(
+    messages: list[TeacherJudgeRubricChatMessage],
+) -> bool:
+    """Detect an explicit script-creation command without trusting model prose.
+
+    Tool-capable model deployments do not all preserve ``tool_calls`` reliably.
+    The fallback is intentionally narrow: it reads only the latest user turn,
+    requires a script-creation phrase (or an explicit script + action pair),
+    and rejects educational/how-to questions.  It never executes a workflow by
+    inspecting an assistant reply such as "我現在就啟動".
+    """
+
+    latest_user_content = next(
+        (
+            message.content
+            for message in reversed(messages)
+            if message.role == "user" and message.content.strip()
+        ),
+        "",
+    )
+    normalized = re.sub(r"\s+", "", latest_user_content).lower()
+    if not normalized or (
+        "腳本" not in normalized and "script" not in normalized
+    ):
+        return False
+    if any(marker in normalized for marker in _SCRIPT_CREATION_NON_COMMAND_MARKERS):
+        return False
+
+    has_creation_phrase = any(phrase in normalized for phrase in _SCRIPT_CREATION_PHRASES)
+    has_action = any(action in normalized for action in _SCRIPT_CREATION_ACTIONS)
+    has_direct_marker = any(marker in normalized for marker in _SCRIPT_CREATION_DIRECT_MARKERS)
+    if not has_creation_phrase and not (has_action and has_direct_marker):
+        return False
+
+    # "請說明如何製作腳本" and similar questions are explanations, not a
+    # request to start a side effect.  A direct request ending in "嗎" (for
+    # example, "可以幫我製作腳本嗎") remains eligible because it has a
+    # direct marker.
+    if any(marker in normalized for marker in _SCRIPT_CREATION_EXPLANATION_MARKERS):
+        return False
+    if "嗎" in normalized or "?" in normalized or "？" in normalized:
+        return has_direct_marker
+    return True
+
+
 async def _call_vllm(
     payload: dict[str, Any], timeout: float = 60.0
-) -> tuple[str, VLLMMetrics]:
+) -> VLLMCallResult:
     """Call vLLM chat/completions and return (content, usage_metrics)."""
     url = f"{settings.VLLM_BASE_URL}/chat/completions"
     started = perf_counter()
@@ -198,7 +374,12 @@ async def _call_vllm(
         choice = data["choices"][0]
         if choice.get("finish_reason") == "length":
             raise ValueError("Model output was truncated before completion")
-        content = choice["message"]["content"] or ""
+        message = choice.get("message") or {}
+        if not isinstance(message, dict):
+            raise ValueError("Model response message was not an object")
+        content = message.get("content") or ""
+        if not isinstance(content, str):
+            content = str(content)
         content = strip_think_tags(content)
         metrics = {
             "prompt_tokens": prompt_tokens,
@@ -207,7 +388,11 @@ async def _call_vllm(
             "elapsed_seconds": round(elapsed, 3),
             "tokens_per_second": round(tps, 2),
         }
-        return content, cast("VLLMMetrics", metrics)
+        return VLLMCallResult(
+            content=content,
+            metrics=cast("VLLMMetrics", metrics),
+            message=message,
+        )
     except httpx.TimeoutException as exc:
         logger.error(f"vLLM API timeout after {timeout}s")
         raise HTTPException(
@@ -371,6 +556,7 @@ async def chat_with_rubric(
     template_commands: list[TeacherJudgeTemplateCommand] | None = None,
     environment_keys: list[str] | None = None,
     attachment_context: str | None = None,
+    enable_workflow_tools: bool = False,
 ) -> tuple[str, list[dict[str, Any]] | None, VLLMMetrics]:
     """
     Multi-turn chat with rubric context injected into system prompt.
@@ -378,6 +564,8 @@ async def chat_with_rubric(
     - is_refine: True 表示針對目前評分表執行「全表潤飾」模式。
     - updated_items: complete list of rubric item dicts when AI modified the rubric;
       None when AI only answered a question without changes.
+    - workflow_action: session callers may receive a server-validated workflow request
+      in the metrics dict; legacy callers keep the original 3-tuple contract.
     """
     if not settings.VLLM_MODEL_NAME:
         raise HTTPException(status_code=503, detail=t("service.model_not_configured"))
@@ -436,23 +624,62 @@ async def chat_with_rubric(
             }
         )
 
+    payload_data: dict[str, Any] = {
+        "model": settings.VLLM_MODEL_NAME,
+        "messages": formatted,
+        "max_tokens": settings.VLLM_CHAT_MAX_TOKENS,
+        "temperature": settings.VLLM_CHAT_TEMPERATURE,
+        "top_p": settings.VLLM_TOP_P,
+        "top_k": settings.VLLM_TOP_K,
+        "repetition_penalty": settings.VLLM_REPETITION_PENALTY,
+        "response_format": {"type": "json_object"},
+    }
+    if enable_workflow_tools and not is_refine:
+        payload_data["tools"] = [CREATE_SCRIPT_TOOL]
+        payload_data["tool_choice"] = "auto"
     payload = apply_thinking_control(
-        {
-            "model": settings.VLLM_MODEL_NAME,
-            "messages": formatted,
-            "max_tokens": settings.VLLM_CHAT_MAX_TOKENS,
-            "temperature": settings.VLLM_CHAT_TEMPERATURE,
-            "top_p": settings.VLLM_TOP_P,
-            "top_k": settings.VLLM_TOP_K,
-            "repetition_penalty": settings.VLLM_REPETITION_PENALTY,
-            "response_format": {"type": "json_object"},
-        },
+        payload_data,
         settings.VLLM_ENABLE_THINKING,
     )
 
-    content, metrics = await _call_vllm(
+    call_result = await _call_vllm(
         payload, timeout=float(settings.VLLM_TIMEOUT)
     )
+    content, metrics = call_result
+    raw_model_message = getattr(call_result, "message", None)
+    model_message = (
+        raw_model_message
+        if isinstance(raw_model_message, dict)
+        else {"content": content}
+    )
+    workflow_action = (
+        _workflow_action_from_message(model_message)
+        if isinstance(model_message, dict)
+        else None
+    )
+    if (
+        workflow_action is None
+        and enable_workflow_tools
+        and not is_refine
+        and _user_requests_script_creation(messages)
+    ):
+        # Some OpenAI-compatible/vLLM deployments return a normal JSON reply
+        # even when tools were supplied.  The user command is the only safe
+        # fallback signal; assistant prose is deliberately not parsed as an
+        # instruction.  The session route still validates the rubric and
+        # revision before the frontend can call the script endpoint.
+        logger.info("Using explicit user intent fallback for script creation workflow")
+        workflow_action = {
+            "type": "create_script",
+            "status": "requested",
+            "tool_call_id": None,
+        }
+
+    workflow_metrics = dict(metrics)
+    if workflow_action is not None:
+        # Keep the public 3-tuple compatible with existing callers while
+        # allowing the session route to consume this server-owned action.
+        workflow_metrics["workflow_action"] = workflow_action
 
     reply_text = content
     updated_items: list[dict[str, Any]] | None = None
@@ -485,5 +712,10 @@ async def chat_with_rubric(
     except (json.JSONDecodeError, TypeError):
         # Ignore malformed AI response for rubric updates
         pass
+
+    if workflow_action is not None:
+        if not reply_text.strip():
+            reply_text = "我會使用目前的評分表製作檢查腳本。"
+        return reply_text.strip(), updated_items, cast("VLLMMetrics", workflow_metrics)
 
     return reply_text, updated_items, metrics

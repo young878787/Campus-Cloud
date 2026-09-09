@@ -4,6 +4,7 @@ import {
   ChatPanel,
   CreateCheckChooser,
   RubricTable,
+  ScriptGenerationNotice,
   SessionTitle,
   buildProposalDiff,
   getRubricDisplayName,
@@ -155,6 +156,52 @@ describe("ChatPanel", () => {
     );
 
     expect(html).toContain("製作中...");
+  });
+
+  test("腳本製作中顯示可辨識的 workflow 狀態與進度動畫標記", () => {
+    const html = renderToStaticMarkup(
+      <ChatPanel
+        messages={[]}
+        onSendMessage={() => {}}
+        isLoading={false}
+        hasRubric
+        onCreateScript={() => {}}
+        isCreatingScript
+        scriptGenerationStatus="policy_review"
+        canCreateScript
+      />,
+    );
+
+    expect(html).toContain("安全檢查中…");
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('data-generation-status="policy_review"');
+  });
+
+  test("腳本製作失敗會留下可辨識的頁面狀態，不只依賴 toast", () => {
+    const html = renderToStaticMarkup(
+      <ScriptGenerationNotice
+        notice={{
+          status: "error",
+          message: "上游服務逾時。可再次按「製作檢查腳本」重試。",
+        }}
+      />,
+    );
+
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('data-workflow-status="error"');
+    expect(html).toContain("上游服務逾時");
+    expect(html).toContain("再次按");
+  });
+
+  test("腳本製作中的橙色橫幅沿用旋轉圖示與忙碌狀態", () => {
+    const html = renderToStaticMarkup(
+      <ScriptGenerationNotice isCreatingScript status="generating" />,
+    );
+
+    expect(html).toContain("正在製作檢查腳本");
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('data-workflow-status="generating"');
+    expect(html).toContain("spinning");
   });
 });
 

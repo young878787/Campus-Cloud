@@ -282,6 +282,13 @@ describe("AiJudgeService persistent sessions", () => {
     expect(JSON.parse(init.body)).toEqual({});
   });
 
+  test("session script endpoint 可綁定目前評分表 revision", async () => {
+    await AiJudgeService.createSessionScript("class-1", "session-1", 7);
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(init.body)).toEqual({ analysis_revision: 7 });
+  });
+
   test("腳本產生 request 可超過一般 15 秒 timeout", async () => {
     vi.useFakeTimers();
     try {

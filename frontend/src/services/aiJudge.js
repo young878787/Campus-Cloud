@@ -169,10 +169,14 @@ export const AiJudgeService = {
     );
   },
 
-  createSessionScript(classId, sessionId) {
+  createSessionScript(classId, sessionId, analysisRevision = null) {
+    const payload = {};
+    if (analysisRevision !== null && analysisRevision !== undefined) {
+      payload.analysis_revision = analysisRevision;
+    }
     return apiPost(
       `/api/v1/teaching-classes/${classId}/judge/sessions/${sessionId}/scripts`,
-      {},
+      payload,
       { timeoutMs: SCRIPT_GENERATION_TIMEOUT_MS },
     );
   },

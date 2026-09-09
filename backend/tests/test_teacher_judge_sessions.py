@@ -14,6 +14,7 @@ from app.ai.teacher_judge.schemas import (
     TeacherJudgeRubricAnalysis,
     TeacherJudgeSessionCreateRequest,
     TeacherJudgeSessionMessageCreateRequest,
+    TeacherJudgeSessionScriptCreateRequest,
     TeacherJudgeSessionUpdateRequest,
 )
 from app.api.routes import teacher_judge_sessions
@@ -383,6 +384,109 @@ async def test_message_without_rubric_is_saved_and_uses_general_chat(
     assert result.assistant_message.content == "可以，先描述目標環境。"
     assert result.rubric_proposal is None
     assert len(db.exec(select(TeacherJudgeSessionMessage)).all()) == 2
+
+
+@pytest.mark.asyncio
+async def test_message_tool_action_is_server_validated_for_script_creation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    class_id = uuid.uuid4()
+    rubric_file = _file(db, class_id)
+    rubric_file.analysis_json = {
+        "items": [
+            {
+                "id": "item-1",
+                "title": "程式可執行",
+                "description": "",
+                "checked": False,
+                "detectable": "auto",
+                "detection_method": "exit code",
+                "check_steps": [],
+                "fallback": None,
+            }
+        ]
+    }
+    db.add(rubric_file)
+    db.commit()
+    db.refresh(rubric_file)
+    item = TeacherJudgeSession(
+        teaching_class_id=class_id,
+        title="Create script from chat",
+        selected_file_id=rubric_file.id,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+
+    async def fake_chat(messages, rubric_context, **kwargs):
+        assert kwargs["enable_workflow_tools"] is True
+        return (
+            "我會使用目前的評分表製作檢查腳本。",
+            None,
+            {
+                "workflow_action": {
+                    "type": "create_script",
+                    "status": "requested",
+                    "tool_call_id": "call-1",
+                }
+            },
+        )
+
+    monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
+    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
+    monkeypatch.setattr(
+        teacher_judge_sessions,
+        "get_enabled_template_commands",
+        lambda *args, **kwargs: [],
+    )
+
+    result = await teacher_judge_sessions.create_message(
+        class_id,
+        item.id,
+        TeacherJudgeSessionMessageCreateRequest(content="可以幫我製作檢查腳本嗎"),
+        db,
+        SimpleNamespace(id=uuid.uuid4()),
+    )
+
+    assert result.workflow_action is not None
+    assert result.workflow_action.status == "ready"
+    assert result.workflow_action.analysis_revision == rubric_file.analysis_revision
+    assert result.workflow_action.tool_call_id == "call-1"
+    assert result.assistant_message.content == result.workflow_action.message
+    assert result.assistant_message.metadata_json["workflow_action"]["type"] == (
+        "create_script"
+    )
+
+
+@pytest.mark.asyncio
+async def test_session_script_rejects_stale_analysis_revision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    class_id = uuid.uuid4()
+    rubric_file = _file(db, class_id)
+    item = TeacherJudgeSession(
+        teaching_class_id=class_id,
+        title="Stale script revision",
+        selected_file_id=rubric_file.id,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await teacher_judge_sessions.create_session_script(
+            class_id,
+            item.id,
+            db,
+            SimpleNamespace(id=uuid.uuid4()),
+            TeacherJudgeSessionScriptCreateRequest(analysis_revision=99),
+        )
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["code"] == "teacher_judge_analysis_revision_conflict"
 
 
 @pytest.mark.asyncio
