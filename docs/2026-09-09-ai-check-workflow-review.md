@@ -64,7 +64,7 @@ revision；若相容模型只回傳一般 JSON `reply` 而沒有 `tool_calls`，
 
 依據：[RubricsTab 與 ChatPanel](../frontend/src/pages/course-operations/class-workspace/AiJudgePanel.jsx)、[session 腳本生成端點](../backend/app/api/routes/teacher_judge_sessions.py)。
 
-### 4. 第一次生成的格式錯誤進不了自動修正（P1）
+### 4. 第一次生成的格式錯誤進不了自動修正（P1，已修正）
 
 `build_reviewed_script()` 在進入審查迴圈之前就呼叫 `generate_script_content()`。後者遇到無效 JSON、缺少 `script_content` 或空內容會直接拋出 HTTPException。這類初次生成錯誤不會進入既有政策／品質修正迴圈，也還沒有保存 artifact。
 
@@ -183,6 +183,7 @@ UI 主動作應隨狀態切換：補充必要資訊 → 套用檢查項目 → �
 
 - 已直接執行目前工作區的政策／品質／輸出驗證函式，確認標準函式庫檢查被無條件 run_command 規則擋下、空 checks 通過及重複 check ID 通過，三項斷言成立。
 - 2026-09-09 追查發現 4：以 monkeypatch 模擬 `_call_vllm` 回傳無效 JSON 後直接呼叫 `build_reviewed_script()`，兩項斷言成立：初次生成格式錯誤只呼叫模型一次即拋 502、無重試；迴圈內 fallback 重新生成遇格式錯誤時剩餘重試額度作廢。測試為臨時檔案，執行後已刪除，未留存於工作樹。
+- 2026-09-09 修正發現 4（已修正）：初次與審查迴圈內的 `generate_script_content()` 錯誤已納入 `generation` phase 重試會計；可恢復錯誤（502/504）共用既有重試預算，503 維持直接拋出。重試耗盡時改回傳 review_failed 結果並保存 generation_error、attempt 紀錄，由 create_artifact 持久化，不再只留 toast。`generate_script_content()` 補上格式錯誤 logger；前端 RetrySummary 顯示 generation attempt 原因。同一批修正也把 AI review 呼叫本身的 502/504 納入 `ai_review_call` phase 重試，耗盡時保存失敗原因並回傳 review_failed。已新增七個 regression tests（生成四個、AI review 呼叫三個），teacher_judge 相關 133 tests 通過、ruff 通過、變更檔 mypy 通過；AiJudgePanel 24 tests 通過。未驗證：真實模型生成與 VM 端到端。
 - 實驗沒有執行候選腳本，也沒有載入整個後端服務或連線資料庫。
 - 其餘發現來自前後端呼叫鏈與提示詞閱讀，尚未做瀏覽器操作、真實模型生成或 VM 端到端驗證。
 - 尚未取得使用者失敗當下的對話、生成回應、review issues 或 run reason_code；無法宣稱其中某一點就是本次事故的唯一原因。

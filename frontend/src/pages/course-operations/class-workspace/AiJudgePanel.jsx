@@ -2111,7 +2111,7 @@ function RetrySummary({ script }) {
         <strong className={styles.dangerText}>{stopReason}</strong>
       </p>
       <p>
-        Agent 已自動修正 {retryCount} 次；仍未通過時，請檢查下列原因，回到評分表調整後重新製作檢查腳本。
+        Agent 已自動重試 {retryCount} 次；仍未通過時，請檢查下列原因，回到評分表調整後重新製作檢查腳本。
       </p>
       {attempts.length > 0 && (
         <ul className={styles.reviewIssues}>
@@ -2120,6 +2120,7 @@ function RetrySummary({ script }) {
               ...(Array.isArray(attempt?.safety_issues) ? attempt.safety_issues : []),
               ...(Array.isArray(attempt?.quality_issues) ? attempt.quality_issues : []),
               ...(Array.isArray(attempt?.ai_review_issues) ? attempt.ai_review_issues : []),
+              ...(Array.isArray(attempt?.generation_issues) ? attempt.generation_issues : []),
             ].filter(Boolean);
             return (
               <li key={`${attempt?.attempt ?? index}-${attempt?.failure_signature ?? "failure"}`}>

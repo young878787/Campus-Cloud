@@ -493,6 +493,18 @@ def _retry_summary(
     }
 
 
+# Model-side failures that a fresh call can plausibly recover from: malformed
+# model output (502) and timeouts/upstream errors (502/504). A missing model
+# configuration (503) is a setup problem, not a retry case.
+MODEL_CALL_RETRYABLE_STATUS_CODES = frozenset({502, 504})
+
+
+def _model_issue(exc: HTTPException) -> str:
+    if isinstance(exc.detail, dict):
+        return str(exc.detail.get("message") or exc.detail)
+    return str(exc.detail)
+
+
 def _feedback_snapshot(
     *,
     rubric_snapshot: dict[str, Any],
@@ -644,14 +656,17 @@ async def generate_script_content(
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError as exc:
+        logger.warning("Teacher Judge script generation output was not JSON: %s", exc)
         raise HTTPException(
             status_code=502, detail=t("artifact.generation_not_json")
         ) from exc
 
     if not isinstance(parsed, dict) or not isinstance(parsed.get("script_content"), str):
+        logger.warning("Teacher Judge script generation output missing script_content")
         raise HTTPException(status_code=502, detail=t("artifact.generation_not_json"))
     script_content = parsed["script_content"].strip()
     if not script_content:
+        logger.warning("Teacher Judge script generation returned empty script_content")
         raise HTTPException(status_code=502, detail=t("artifact.no_script_content"))
     return script_content, dict(metrics)
 
@@ -845,19 +860,8 @@ async def build_reviewed_script(
     attempt_records: list[dict[str, object]] = []
     failure_counts: dict[str, int] = {}
     retry_count = 0
-
-    script_content, metrics = _script_result(
-        await generate_script_content(
-            rubric_snapshot=attempt_snapshot,
-            template_key=template_key,
-        )
-    )
-    usage_records.append(
-        {
-            "call_type": CALL_TJ_SCRIPT_GENERATION,
-            "metrics": metrics,
-        }
-    )
+    generation_error: str | None = None
+    review_call_error: str | None = None
 
     gate_result: GateResult = {
         "approved": False,
@@ -876,8 +880,68 @@ async def build_reviewed_script(
         "suggested_fix": None,
     }
     stop_reason = "unrecoverable_error"
-    # stop_reason 只會在下方兩個 break 分支設定，其餘路徑皆 return
+    # stop_reason 在各 break 分支設定，其餘路徑皆 return。
+    # script_content is None while a fresh generation is required: on the first
+    # call, or after a failed patch fallback. last_gated_content keeps the most
+    # recent candidate that reached the gates for the final result.
+    script_content: str | None = None
+    last_gated_content: str | None = None
     while True:
+        if script_content is None:
+            try:
+                script_content, metrics = _script_result(
+                    await generate_script_content(
+                        rubric_snapshot=attempt_snapshot,
+                        template_key=template_key,
+                    )
+                )
+            except HTTPException as exc:
+                if exc.status_code not in MODEL_CALL_RETRYABLE_STATUS_CODES:
+                    raise
+                generation_error = _model_issue(exc)
+                signature = _failure_signature(
+                    phase="generation",
+                    issues=[generation_error],
+                    fix_hints=[],
+                )
+                failure_counts[signature] = failure_counts.get(signature, 0) + 1
+                attempt_records.append(
+                    {
+                        "attempt": len(attempt_records) + 1,
+                        "phase": "generation",
+                        "failure_signature": signature,
+                        "retry_count": retry_count,
+                        "same_failure_count": failure_counts[signature],
+                        "generation_status_code": exc.status_code,
+                        "generation_issues": [generation_error],
+                    }
+                )
+                logger.warning(
+                    "Teacher Judge script generation failed retry=%s/%s same_failure=%s/%s signature=%s error=%s",
+                    retry_count,
+                    SCRIPT_GENERATION_MAX_RETRIES,
+                    failure_counts[signature],
+                    SCRIPT_GENERATION_SAME_FAILURE_MAX_RETRIES,
+                    signature,
+                    generation_error,
+                )
+                if failure_counts[signature] > SCRIPT_GENERATION_SAME_FAILURE_MAX_RETRIES:
+                    stop_reason = "same_failure_limit"
+                    break
+                if retry_count >= SCRIPT_GENERATION_MAX_RETRIES:
+                    stop_reason = "total_retry_limit"
+                    break
+                retry_count += 1
+                continue
+            usage_records.append(
+                {
+                    "call_type": CALL_TJ_SCRIPT_GENERATION,
+                    "metrics": metrics,
+                }
+            )
+            generation_error = None
+
+        last_gated_content = script_content
         safety_check = check_script_policy(script_content)
         quality_check = check_script_quality(script_content)
         gate_result = _merge_gate_results(safety_check, quality_check)
@@ -943,19 +1007,11 @@ async def build_reviewed_script(
                         "Teacher Judge script patch failed; falling back to regenerate: %s",
                         exc.detail,
                     )
-                    script_content, metrics = _script_result(
-                        await generate_script_content(
-                            rubric_snapshot=attempt_snapshot,
-                            template_key=template_key,
-                        )
-                    )
+                    script_content = None
+                    continue
             else:
-                script_content, metrics = _script_result(
-                    await generate_script_content(
-                        rubric_snapshot=attempt_snapshot,
-                        template_key=template_key,
-                    )
-                )
+                script_content = None
+                continue
             usage_records.append(
                 {
                     "call_type": CALL_TJ_SCRIPT_GENERATION,
@@ -964,18 +1020,63 @@ async def build_reviewed_script(
             )
             continue
 
-        last_ai_review, metrics = _review_result(
-            await review_script_with_ai(
-                script_content=script_content,
-                rubric_snapshot=attempt_snapshot,
+        review_call_error = None
+        while True:
+            try:
+                last_ai_review, metrics = _review_result(
+                    await review_script_with_ai(
+                        script_content=script_content,
+                        rubric_snapshot=attempt_snapshot,
+                    )
+                )
+            except HTTPException as exc:
+                if exc.status_code not in MODEL_CALL_RETRYABLE_STATUS_CODES:
+                    raise
+                review_call_error = _model_issue(exc)
+                signature = _failure_signature(
+                    phase="ai_review_call",
+                    issues=[review_call_error],
+                    fix_hints=[],
+                )
+                failure_counts[signature] = failure_counts.get(signature, 0) + 1
+                attempt_records.append(
+                    {
+                        "attempt": len(attempt_records) + 1,
+                        "phase": "ai_review_call",
+                        "failure_signature": signature,
+                        "retry_count": retry_count,
+                        "same_failure_count": failure_counts[signature],
+                        "ai_review_issues": [f"AI 複核呼叫失敗：{review_call_error}"],
+                    }
+                )
+                logger.warning(
+                    "Teacher Judge AI review call failed retry=%s/%s same_failure=%s/%s signature=%s error=%s",
+                    retry_count,
+                    SCRIPT_GENERATION_MAX_RETRIES,
+                    failure_counts[signature],
+                    SCRIPT_GENERATION_SAME_FAILURE_MAX_RETRIES,
+                    signature,
+                    review_call_error,
+                )
+                if failure_counts[signature] > SCRIPT_GENERATION_SAME_FAILURE_MAX_RETRIES:
+                    stop_reason = "same_failure_limit"
+                    break
+                if retry_count >= SCRIPT_GENERATION_MAX_RETRIES:
+                    stop_reason = "total_retry_limit"
+                    break
+                retry_count += 1
+                continue
+            usage_records.append(
+                {
+                    "call_type": CALL_TJ_SCRIPT_REVIEW,
+                    "metrics": metrics,
+                }
             )
-        )
-        usage_records.append(
-            {
-                "call_type": CALL_TJ_SCRIPT_REVIEW,
-                "metrics": metrics,
-            }
-        )
+            review_call_error = None
+            break
+        if review_call_error is not None:
+            break
+
         if last_ai_review.get("approved") is True:
             stop_reason = "passed"
             break
@@ -1043,18 +1144,24 @@ async def build_reviewed_script(
                 "Teacher Judge AI feedback patch failed; falling back to regenerate: %s",
                 exc.detail,
             )
-            script_content, metrics = _script_result(
-                await generate_script_content(
-                    rubric_snapshot=attempt_snapshot,
-                    template_key=template_key,
-                )
-            )
+            script_content = None
+            continue
         usage_records.append(
             {
                 "call_type": CALL_TJ_SCRIPT_GENERATION,
                 "metrics": metrics,
             }
         )
+
+    if generation_error is not None:
+        gate_result["generation_error"] = generation_error
+        if generation_error not in gate_result["issues"]:
+            gate_result["issues"] = [*gate_result["issues"], generation_error]
+
+    if review_call_error is not None:
+        review_issue = f"AI 複核呼叫失敗：{review_call_error}"
+        if review_issue not in gate_result["issues"]:
+            gate_result["issues"] = [*gate_result["issues"], review_issue]
 
     gate_result["review_attempts"] = attempt_records
     gate_result["retry_summary"] = _retry_summary(
@@ -1063,7 +1170,10 @@ async def build_reviewed_script(
         stop_reason=stop_reason,
     )
     status = _resolve_status(gate_result, last_ai_review)
-    result = (script_content, gate_result, last_ai_review, status)
+    final_content = (
+        script_content if script_content is not None else (last_gated_content or "")
+    )
+    result = (final_content, gate_result, last_ai_review, status)
     if include_usage:
         return (*result, usage_records)
     return result

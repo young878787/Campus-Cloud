@@ -70,6 +70,7 @@ class GateResult(TypedDict):
     quality_issues: list[str]
     review_attempts: NotRequired[list[dict[str, object]]]
     retry_summary: NotRequired[dict[str, object]]
+    generation_error: NotRequired[str]
 
 
 # ── Previous Review Feedback ──────────────────────────────────────────────────

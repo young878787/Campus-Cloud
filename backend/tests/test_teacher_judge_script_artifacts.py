@@ -676,6 +676,382 @@ async def test_build_reviewed_script_stops_after_four_total_retries(
 
 
 @pytest.mark.asyncio
+async def test_build_reviewed_script_retries_initial_generation_format_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generate_calls = [0]
+
+    async def fake_generate_script_content(*, rubric_snapshot, template_key):
+        generate_calls[0] += 1
+        if generate_calls[0] == 1:
+            raise HTTPException(status_code=502, detail="AI 產生腳本格式不是 JSON。")
+        return SAFE_SCRIPT
+
+    async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
+        return {"approved": True, "risk_level": "low", "issues": []}
+
+    monkeypatch.setattr(
+        script_artifact_service, "generate_script_content", fake_generate_script_content
+    )
+    monkeypatch.setattr(
+        script_artifact_service, "review_script_with_ai", fake_review_script_with_ai
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_policy",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_quality",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+
+    (
+        script_content,
+        policy_check,
+        ai_review,
+        status,
+    ) = await script_artifact_service.build_reviewed_script(
+        rubric_snapshot={"template_key": "linux", "items": []},
+        template_key="linux",
+    )
+
+    assert script_content == SAFE_SCRIPT
+    assert status == TeacherJudgeScriptStatus.approved
+    assert generate_calls[0] == 2
+    assert len(policy_check["review_attempts"]) == 1
+    assert policy_check["review_attempts"][0]["phase"] == "generation"
+    assert policy_check["review_attempts"][0]["generation_issues"] == [
+        "AI 產生腳本格式不是 JSON。"
+    ]
+    assert "generation_error" not in policy_check
+    assert ai_review["approved"] is True
+
+
+@pytest.mark.asyncio
+async def test_build_reviewed_script_stops_after_repeated_generation_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generate_calls = [0]
+
+    async def fake_generate_script_content(*, rubric_snapshot, template_key):
+        generate_calls[0] += 1
+        raise HTTPException(status_code=504, detail="AI 服務回應超時，請稍後再試。")
+
+    monkeypatch.setattr(
+        script_artifact_service, "generate_script_content", fake_generate_script_content
+    )
+
+    (
+        script_content,
+        policy_check,
+        _ai_review,
+        status,
+    ) = await script_artifact_service.build_reviewed_script(
+        rubric_snapshot={"template_key": "linux", "items": []},
+        template_key="linux",
+    )
+
+    assert script_content == ""
+    assert status == TeacherJudgeScriptStatus.review_failed
+    assert generate_calls[0] == 3
+    assert policy_check["retry_summary"]["retry_count"] == 2
+    assert policy_check["retry_summary"]["stop_reason"] == "same_failure_limit"
+    assert len(policy_check["review_attempts"]) == 3
+    assert all(
+        attempt["phase"] == "generation"
+        for attempt in policy_check["review_attempts"]
+    )
+    assert policy_check["generation_error"] == "AI 服務回應超時，請稍後再試。"
+    assert "AI 服務回應超時，請稍後再試。" in policy_check["issues"]
+
+
+@pytest.mark.asyncio
+async def test_build_reviewed_script_propagates_non_retryable_generation_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generate_calls = [0]
+
+    async def fake_generate_script_content(*, rubric_snapshot, template_key):
+        generate_calls[0] += 1
+        raise HTTPException(status_code=503, detail="模型未設定")
+
+    monkeypatch.setattr(
+        script_artifact_service, "generate_script_content", fake_generate_script_content
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await script_artifact_service.build_reviewed_script(
+            rubric_snapshot={"template_key": "linux", "items": []},
+            template_key="linux",
+        )
+
+    assert error.value.status_code == 503
+    assert generate_calls[0] == 1
+
+
+@pytest.mark.asyncio
+async def test_build_reviewed_script_recovers_after_fallback_generation_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generate_calls = [0]
+
+    async def fake_generate_script_content(*, rubric_snapshot, template_key):
+        generate_calls[0] += 1
+        if generate_calls[0] == 1:
+            return "bad-script"
+        if generate_calls[0] == 2:
+            raise HTTPException(status_code=502, detail="AI 產生腳本格式不是 JSON。")
+        return SAFE_SCRIPT
+
+    async def fake_fix_script_content(*, script_content, fix_hints):
+        raise HTTPException(status_code=502, detail="AI 修正輸出格式不是 JSON。")
+
+    async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
+        return {"approved": True, "risk_level": "low", "issues": []}
+
+    monkeypatch.setattr(
+        script_artifact_service, "generate_script_content", fake_generate_script_content
+    )
+    monkeypatch.setattr(
+        script_artifact_service, "fix_script_content", fake_fix_script_content
+    )
+    monkeypatch.setattr(
+        script_artifact_service, "review_script_with_ai", fake_review_script_with_ai
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_policy",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_quality",
+        lambda script_content: {
+            "approved": script_content != "bad-script",
+            "blocked": script_content == "bad-script",
+            "risk_level": "high" if script_content == "bad-script" else "low",
+            "issues": ["品質錯誤"] if script_content == "bad-script" else [],
+            "fix_hints": [{"type": "fixed_failure", "description": "品質錯誤"}]
+            if script_content == "bad-script"
+            else [],
+        },
+    )
+
+    (
+        script_content,
+        policy_check,
+        ai_review,
+        status,
+    ) = await script_artifact_service.build_reviewed_script(
+        rubric_snapshot={"template_key": "linux", "items": []},
+        template_key="linux",
+    )
+
+    assert script_content == SAFE_SCRIPT
+    assert status == TeacherJudgeScriptStatus.approved
+    assert generate_calls[0] == 3
+    assert [attempt["phase"] for attempt in policy_check["review_attempts"]] == [
+        "static",
+        "generation",
+    ]
+    assert "generation_error" not in policy_check
+    assert ai_review["approved"] is True
+
+
+@pytest.mark.asyncio
+async def test_build_reviewed_script_retries_ai_review_call_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    review_calls = [0]
+
+    async def fake_generate_script_content(*, rubric_snapshot, template_key):
+        return SAFE_SCRIPT
+
+    async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
+        review_calls[0] += 1
+        if review_calls[0] == 1:
+            raise HTTPException(status_code=504, detail="AI 服務回應超時，請稍後再試。")
+        return {"approved": True, "risk_level": "low", "issues": []}
+
+    monkeypatch.setattr(
+        script_artifact_service, "generate_script_content", fake_generate_script_content
+    )
+    monkeypatch.setattr(
+        script_artifact_service, "review_script_with_ai", fake_review_script_with_ai
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_policy",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_quality",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+
+    (
+        script_content,
+        policy_check,
+        ai_review,
+        status,
+    ) = await script_artifact_service.build_reviewed_script(
+        rubric_snapshot={"template_key": "linux", "items": []},
+        template_key="linux",
+    )
+
+    assert script_content == SAFE_SCRIPT
+    assert status == TeacherJudgeScriptStatus.approved
+    assert review_calls[0] == 2
+    assert len(policy_check["review_attempts"]) == 1
+    assert policy_check["review_attempts"][0]["phase"] == "ai_review_call"
+    assert policy_check["review_attempts"][0]["ai_review_issues"] == [
+        "AI 複核呼叫失敗：AI 服務回應超時，請稍後再試。"
+    ]
+    assert ai_review["approved"] is True
+
+
+@pytest.mark.asyncio
+async def test_build_reviewed_script_stops_after_repeated_ai_review_call_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    review_calls = [0]
+
+    async def fake_generate_script_content(*, rubric_snapshot, template_key):
+        return SAFE_SCRIPT
+
+    async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
+        review_calls[0] += 1
+        raise HTTPException(status_code=502, detail="AI 服務異常（狀態碼 502）")
+
+    monkeypatch.setattr(
+        script_artifact_service, "generate_script_content", fake_generate_script_content
+    )
+    monkeypatch.setattr(
+        script_artifact_service, "review_script_with_ai", fake_review_script_with_ai
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_policy",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_quality",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+
+    (
+        script_content,
+        policy_check,
+        ai_review,
+        status,
+    ) = await script_artifact_service.build_reviewed_script(
+        rubric_snapshot={"template_key": "linux", "items": []},
+        template_key="linux",
+    )
+
+    assert script_content == SAFE_SCRIPT
+    assert status == TeacherJudgeScriptStatus.review_failed
+    assert review_calls[0] == 3
+    assert policy_check["retry_summary"]["retry_count"] == 2
+    assert policy_check["retry_summary"]["stop_reason"] == "same_failure_limit"
+    assert all(
+        attempt["phase"] == "ai_review_call"
+        for attempt in policy_check["review_attempts"]
+    )
+    assert "AI 複核呼叫失敗：AI 服務異常（狀態碼 502）" in policy_check["issues"]
+    assert ai_review["approved"] is False
+
+
+@pytest.mark.asyncio
+async def test_build_reviewed_script_propagates_non_retryable_ai_review_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    review_calls = [0]
+
+    async def fake_generate_script_content(*, rubric_snapshot, template_key):
+        return SAFE_SCRIPT
+
+    async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
+        review_calls[0] += 1
+        raise HTTPException(status_code=503, detail="模型未設定")
+
+    monkeypatch.setattr(
+        script_artifact_service, "generate_script_content", fake_generate_script_content
+    )
+    monkeypatch.setattr(
+        script_artifact_service, "review_script_with_ai", fake_review_script_with_ai
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_policy",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_quality",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await script_artifact_service.build_reviewed_script(
+            rubric_snapshot={"template_key": "linux", "items": []},
+            template_key="linux",
+        )
+
+    assert error.value.status_code == 503
+    assert review_calls[0] == 1
+
+
+@pytest.mark.asyncio
 async def test_create_artifact_includes_current_template_commands(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
