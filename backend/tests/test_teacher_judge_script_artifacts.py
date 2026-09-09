@@ -48,6 +48,31 @@ print(json.dumps({
 }, ensure_ascii=False))
 """.strip()
 
+SCRIPT_WITH_RECORD_CHECK = """
+import json
+import platform
+from datetime import datetime, timezone
+
+def record_check(check_id, title, status, evidence, raw=""):
+    return {"id": check_id, "title": title, "status": status, "evidence": evidence, "raw": raw}
+
+checks = [record_check("runtime.python_version", "收集 Python 版本", "unknown", "n/a")]
+print(json.dumps({
+    "schema_version": "teacher_judge_result.v1",
+    "metadata": {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "platform": platform.platform(),
+    },
+    "summary": "ok",
+    "checks": checks,
+    "errors": [],
+}, ensure_ascii=False))
+""".strip()
+
+SCRIPT_WITH_RENAMED_CHECK = SCRIPT_WITH_RECORD_CHECK.replace(
+    "runtime.python_version", "new.check.id"
+)
+
 
 def _session() -> Session:
     engine = create_engine(
@@ -287,7 +312,7 @@ async def test_build_reviewed_script_retries_with_quality_feedback(
 
     async def fake_generate_script_content(*, rubric_snapshot, template_key):
         seen_snapshots.append(dict(rubric_snapshot))
-        return "bad-script"
+        return "bad-script", [], {}
 
     review_call_count = [0]
 
@@ -469,7 +494,7 @@ async def test_build_reviewed_script_re_reviews_after_ai_feedback_fix(
     reviewed_scripts: list[str] = []
 
     async def fake_generate_script_content(*, rubric_snapshot, template_key):
-        return SAFE_SCRIPT
+        return SAFE_SCRIPT, [], {}
 
     async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
         reviewed_scripts.append(script_content)
@@ -598,7 +623,7 @@ async def test_build_reviewed_script_stops_after_two_retries_of_same_ai_failure(
     review_calls = [0]
 
     async def fake_generate_script_content(*, rubric_snapshot, template_key):
-        return "static-safe"
+        return "static-safe", [], {}
 
     async def fake_fix_script_content(*, script_content, fix_hints):
         fix_calls[0] += 1
@@ -729,7 +754,7 @@ async def test_build_reviewed_script_retries_initial_generation_format_error(
         generate_calls[0] += 1
         if generate_calls[0] == 1:
             raise HTTPException(status_code=502, detail="AI 產生腳本格式不是 JSON。")
-        return SAFE_SCRIPT
+        return SAFE_SCRIPT, [], {}
 
     async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
         return {"approved": True, "risk_level": "low", "issues": []}
@@ -854,10 +879,10 @@ async def test_build_reviewed_script_recovers_after_fallback_generation_error(
     async def fake_generate_script_content(*, rubric_snapshot, template_key):
         generate_calls[0] += 1
         if generate_calls[0] == 1:
-            return "bad-script"
+            return "bad-script", [], {}
         if generate_calls[0] == 2:
             raise HTTPException(status_code=502, detail="AI 產生腳本格式不是 JSON。")
-        return SAFE_SCRIPT
+        return SAFE_SCRIPT, [], {}
 
     async def fake_fix_script_content(*, script_content, fix_hints):
         raise HTTPException(status_code=502, detail="AI 修正輸出格式不是 JSON。")
@@ -926,7 +951,7 @@ async def test_build_reviewed_script_retries_ai_review_call_timeout(
     review_calls = [0]
 
     async def fake_generate_script_content(*, rubric_snapshot, template_key):
-        return SAFE_SCRIPT
+        return SAFE_SCRIPT, [], {}
 
     async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
         review_calls[0] += 1
@@ -989,7 +1014,7 @@ async def test_build_reviewed_script_stops_after_repeated_ai_review_call_failure
     review_calls = [0]
 
     async def fake_generate_script_content(*, rubric_snapshot, template_key):
-        return SAFE_SCRIPT
+        return SAFE_SCRIPT, [], {}
 
     async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
         review_calls[0] += 1
@@ -1052,7 +1077,7 @@ async def test_build_reviewed_script_propagates_non_retryable_ai_review_error(
     review_calls = [0]
 
     async def fake_generate_script_content(*, rubric_snapshot, template_key):
-        return SAFE_SCRIPT
+        return SAFE_SCRIPT, [], {}
 
     async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
         review_calls[0] += 1
@@ -1093,6 +1118,244 @@ async def test_build_reviewed_script_propagates_non_retryable_ai_review_error(
 
     assert error.value.status_code == 503
     assert review_calls[0] == 1
+
+
+@pytest.mark.asyncio
+async def test_build_reviewed_script_retries_when_coverage_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generate_calls = [0]
+
+    async def fake_generate_script_content(*, rubric_snapshot, template_key):
+        generate_calls[0] += 1
+        if generate_calls[0] == 1:
+            return SAFE_SCRIPT
+        return SAFE_SCRIPT, [], {}
+
+    async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
+        return {"approved": True, "risk_level": "low", "issues": []}
+
+    monkeypatch.setattr(
+        script_artifact_service, "generate_script_content", fake_generate_script_content
+    )
+    monkeypatch.setattr(
+        script_artifact_service, "review_script_with_ai", fake_review_script_with_ai
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_policy",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_quality",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+
+    (
+        _script,
+        policy_check,
+        ai_review,
+        status,
+    ) = await script_artifact_service.build_reviewed_script(
+        rubric_snapshot={"template_key": "linux", "items": []},
+        template_key="linux",
+    )
+
+    assert status == TeacherJudgeScriptStatus.approved
+    assert generate_calls[0] == 2
+    assert [attempt["phase"] for attempt in policy_check["review_attempts"]] == [
+        "coverage"
+    ]
+    assert policy_check["review_attempts"][0]["coverage_issues"] == [
+        "模型未提供 rubric 覆蓋映射（coverage）"
+    ]
+    assert policy_check["retry_summary"]["retry_count"] == 1
+    assert ai_review["approved"] is True
+
+
+@pytest.mark.asyncio
+async def test_build_reviewed_script_blocks_uncovered_rubric_item(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generate_calls = [0]
+
+    async def fake_generate_script_content(*, rubric_snapshot, template_key):
+        generate_calls[0] += 1
+        if generate_calls[0] == 1:
+            return SCRIPT_WITH_RECORD_CHECK, [
+                {"check_id": "runtime.python_version", "rubric_item_ids": []}
+            ], {}
+        return SCRIPT_WITH_RECORD_CHECK, [
+            {"check_id": "runtime.python_version", "rubric_item_ids": ["item-1"]}
+        ], {}
+
+    async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
+        return {"approved": True, "risk_level": "low", "issues": []}
+
+    monkeypatch.setattr(
+        script_artifact_service, "generate_script_content", fake_generate_script_content
+    )
+    monkeypatch.setattr(
+        script_artifact_service, "review_script_with_ai", fake_review_script_with_ai
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_policy",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_quality",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+
+    (
+        _script,
+        policy_check,
+        ai_review,
+        status,
+    ) = await script_artifact_service.build_reviewed_script(
+        rubric_snapshot={
+            "template_key": "linux",
+            "items": [{"id": "item-1", "title": "輸出整數 20"}],
+        },
+        template_key="linux",
+    )
+
+    assert status == TeacherJudgeScriptStatus.approved
+    assert generate_calls[0] == 2
+    assert [attempt["phase"] for attempt in policy_check["review_attempts"]] == [
+        "coverage"
+    ]
+    first_attempt = policy_check["review_attempts"][0]
+    assert first_attempt["uncovered_rubric_items"] == [
+        {"id": "item-1", "title": "輸出整數 20"}
+    ]
+    assert any("item-1" in issue for issue in first_attempt["coverage_issues"])
+    assert policy_check["coverage"]["approved"] is True
+    assert policy_check["coverage"]["mappings"] == [
+        {"check_id": "runtime.python_version", "rubric_item_ids": ["item-1"]}
+    ]
+    assert ai_review["approved"] is True
+
+
+@pytest.mark.asyncio
+async def test_build_reviewed_script_realigns_coverage_after_patch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    generate_calls = [0]
+
+    async def fake_generate_script_content(*, rubric_snapshot, template_key):
+        generate_calls[0] += 1
+        if generate_calls[0] == 1:
+            return SCRIPT_WITH_RECORD_CHECK, [
+                {"check_id": "runtime.python_version", "rubric_item_ids": ["item-1"]}
+            ], {}
+        return SCRIPT_WITH_RENAMED_CHECK, [
+            {"check_id": "new.check.id", "rubric_item_ids": ["item-1"]}
+        ], {}
+
+    ai_review_results = [
+        {
+            "approved": False,
+            "risk_level": "medium",
+            "issues": ["請重新命名 check id"],
+            "suggested_fix": "把 runtime.python_version 改為 new.check.id",
+        },
+        {
+            "approved": True,
+            "risk_level": "low",
+            "issues": [],
+            "suggested_fix": None,
+        },
+    ]
+
+    async def fake_fix_script_content(*, script_content, fix_hints):
+        assert fix_hints[0]["type"] == "ai_reviewer_feedback"
+        return SCRIPT_WITH_RENAMED_CHECK
+
+    async def fake_review_script_with_ai(*, script_content, rubric_snapshot):
+        return ai_review_results.pop(0)
+
+    monkeypatch.setattr(
+        script_artifact_service, "generate_script_content", fake_generate_script_content
+    )
+    monkeypatch.setattr(
+        script_artifact_service, "fix_script_content", fake_fix_script_content
+    )
+    monkeypatch.setattr(
+        script_artifact_service, "review_script_with_ai", fake_review_script_with_ai
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_policy",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+    monkeypatch.setattr(
+        script_artifact_service,
+        "check_script_quality",
+        lambda script_content: {
+            "approved": True,
+            "blocked": False,
+            "risk_level": "low",
+            "issues": [],
+        },
+    )
+
+    (
+        _script,
+        policy_check,
+        ai_review,
+        status,
+    ) = await script_artifact_service.build_reviewed_script(
+        rubric_snapshot={
+            "template_key": "linux",
+            "items": [{"id": "item-1", "title": "輸出整數 20"}],
+        },
+        template_key="linux",
+    )
+
+    assert status == TeacherJudgeScriptStatus.approved
+    assert generate_calls[0] == 2
+    assert [attempt["phase"] for attempt in policy_check["review_attempts"]] == [
+        "ai_review",
+        "coverage",
+    ]
+    realign_attempt = policy_check["review_attempts"][1]
+    assert realign_attempt["uncovered_rubric_items"] == [
+        {"id": "item-1", "title": "輸出整數 20"}
+    ]
+    assert policy_check["coverage"]["approved"] is True
+    assert policy_check["coverage"]["mappings"] == [
+        {"check_id": "new.check.id", "rubric_item_ids": ["item-1"]}
+    ]
+    assert ai_review["approved"] is True
 
 
 @pytest.mark.asyncio

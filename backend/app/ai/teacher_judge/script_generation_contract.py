@@ -18,7 +18,7 @@ SCRIPT_GENERATION_CONTRACT_PROMPT = f"""
 # 腳本品質契約
 - 你產生的是受管資料收集腳本，不是自由發揮的診斷腳本；可讀性、可移植性、證據品質與狀態語意都必須穩定。
 - 腳本目標是收集同學 VM/LXC 內可客觀觀察的只讀資料；rubric 與 catalog 明確引用 `system.run_command` 或其他受控執行能力時，可在指定 cwd 以有限 timeout 執行單一命令並收集 exit code/stdout/stderr。所有結果整理成單一 JSON。
-- 腳本必須定義並使用這些 helper：`truncate_output`、`command_available`、`run_command`、`record_check`。
+- 核心 helper 只有 2 個：`truncate_output`、`record_check`；僅在需要執行外部命令時才額外定義並使用 `command_available` 與 `run_command`。
 - `truncate_output(text, limit={RAW_OUTPUT_CHAR_LIMIT})` 必須將 raw 輸出截斷到固定長度。
 - `command_available(command)` 必須用 `shutil.which(command)` 檢查外部工具是否存在。
 - `run_command(argv, cwd=None, timeout=秒數)` 必須包裝 `subprocess.run([...], cwd=cwd, capture_output=True, text=True, check=False, timeout=...)`，並回傳包含未遮蔽 `stdout`、`stderr`、`returncode` 的 dict。

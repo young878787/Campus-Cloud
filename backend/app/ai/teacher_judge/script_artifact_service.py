@@ -22,6 +22,8 @@ from app.ai.monitoring import (
 from app.ai.teacher_judge._types import (
     AIReviewResult,
     CheckResult,
+    CoverageMapping,
+    CoverageResult,
     FixHint,
     GateResult,
     PreviousReviewFeedback,
@@ -33,6 +35,11 @@ from app.ai.teacher_judge.file_service import source_file_snapshot
 from app.ai.teacher_judge.schemas import (
     TeacherJudgeRubricAnalysis,
     TeacherJudgeScriptArtifactPublic,
+)
+from app.ai.teacher_judge.script_coverage_validator import (
+    parse_coverage_payload,
+    realign_coverage_to_script,
+    validate_coverage,
 )
 from app.ai.teacher_judge.script_generation_contract import (
     RESULT_SCHEMA_VERSION,
@@ -63,6 +70,22 @@ def _script_result(value: Any) -> tuple[str, dict[str, Any]]:
     if isinstance(value, tuple) and len(value) == 2:
         return str(value[0]), cast("dict[str, Any]", value[1] or {})
     return str(value), {}
+
+
+def _generation_result(
+    value: Any,
+) -> tuple[str, list[CoverageMapping] | None, dict[str, Any]]:
+    """Normalize generate_script_content output to (content, coverage, metrics)."""
+    if isinstance(value, tuple) and len(value) == 3:
+        coverage = value[1]
+        return (
+            str(value[0]),
+            cast("list[CoverageMapping] | None", coverage),
+            cast("dict[str, Any]", value[2] or {}),
+        )
+    if isinstance(value, tuple) and len(value) == 2:
+        return str(value[0]), None, cast("dict[str, Any]", value[1] or {})
+    return str(value), None, {}
 
 
 def _review_result(value: Any) -> tuple[AIReviewResult, dict[str, Any]]:
@@ -109,7 +132,7 @@ SCRIPT_GENERATION_SYSTEM_PROMPT = f"""
 
 # 硬性規則
 - 只能輸出 JSON，不要 markdown。
-- JSON 欄位必須是 {{"script_content": "..."}}。
+- JSON 欄位必須是 {{"script_content": "...", "coverage": [{{"check_id": "...", "rubric_item_ids": ["..."]}}]}}。
 - script_content 必須是完整 Python 程式。
 - 腳本可收集本機檔案內容、目錄、command log、服務、port、process、localhost HTTP 與受控命令執行結果。
 - 腳本不得刪除、修改、修復、安裝、重啟、停用或重設任何環境。
@@ -129,17 +152,24 @@ SCRIPT_GENERATION_SYSTEM_PROMPT = f"""
 - 執行 Python 入口時，必須使用 argv list、明確 `cwd`、有限 timeout，並把 exit code、stdout、stderr、未捕捉例外與 timeout 寫成該 check 的證據。
 - 若 rubric 缺少工作目錄、命令或「正常結束／常駐服務」判準，不得搜尋檔案系統或猜路徑；該 check 必須回傳 `unknown`，清楚寫出缺少的資訊。
 - 不得把 Python 執行檢查替換成 n8n、Port 或程序存在檢查；這些只能在 rubric 本來就要求時使用。
-- 若 previous_review_feedback 有內容，代表上一輪腳本審查未通過；必須修正其中所有 policy、quality validator、AI reviewer 問題。
+- 若 previous_review_feedback 有內容，代表上一輪腳本審查未通過；必須修正其中所有 policy、quality validator、coverage 覆蓋與 AI reviewer 問題。
 - 腳本頂層必須定義 `errors: list[str] = []`。每個收集項目的例外處理區塊（try/except）必須使用 `errors.append(f"{{check_id}}: {{錯誤說明}}")` 記錄錯誤原因，讓老師看到執行時的收集品質。所有收集成功時 errors 輸出空陣列。
+
+# rubric 覆蓋映射（coverage）
+- coverage 列出 script_content 中每個 record_check 與其支持的 rubric item id 對應；沒有對應 rubric item 的輔助收集可不列入。
+- 一個 check 可支持多個 rubric item；一個 rubric item 也可由多個 check 支持。
+- check_id 必須與 script_content 中 record_check 使用的 id 完全一致。
+- rubric_item_ids 必須是 rubric snapshot 中真實存在的 item id。
+- 每個 rubric item 都必須至少被一個 check 覆蓋；若某項目真的無法取證，仍不得虛構映射，讓驗證明確回報缺口。
 
 # 簡潔程式碼骨架
 - 產生單檔 Python script；不要建立 class、plugin 架構、retry framework 或多層抽象。
-- helper 只保留這 4 個：`truncate_output`、`command_available`、`run_command`、`record_check`。
+- 核心 helper 只有 2 個：`truncate_output`、`record_check`；僅在需要執行外部命令時才額外定義並使用 `command_available` 與 `run_command`，標準函式庫即可完成的檢查不需要外部命令 helper。
 - `run_command()` 只負責接受 argv list、cwd 與 timeout，並回傳未遮蔽的 `stdout`、`stderr`、`returncode`；若捕捉例外，回傳 `returncode=None` 與錯誤文字，不要在 helper 內吞掉資訊。
 - 每個收集項目使用同一個簡潔模式：
   1. 先決定 `check_id`
-  2. 檢查工具是否存在；缺工具時 `record_check(..., "unknown", ...)`
-  3. 執行 `run_command()`
+  2. 需要外部命令時，先檢查工具是否存在；缺工具時 `record_check(..., "unknown", ...)`
+  3. 需要外部命令時執行 `run_command()`；標準函式庫可直接完成的檢查不要執行命令
   4. 若 `returncode is None`，必須 `errors.append(f"{{check_id}}: {{錯誤說明}}")` 並輸出 `unknown`
   5. 只有明確驗證條件成立時才輸出 `pass`
 - 避免 broad `try/except` 包住大段主流程；若收集項目使用 `except Exception as exc`，該 except 區塊必須同時 `errors.append(...)`，且對應 check 不可為 `pass`。
@@ -376,6 +406,7 @@ def _merge_gate_results(
 ) -> GateResult:
     safety_issues = safety_check.get("issues")
     quality_issues = quality_check.get("issues")
+    quality_warnings = quality_check.get("warnings")
     combined_issues = [
         *(
             [str(issue) for issue in safety_issues]
@@ -404,6 +435,9 @@ def _merge_gate_results(
         "quality_issues": [str(issue) for issue in quality_issues]
         if isinstance(quality_issues, list)
         else [],
+        "quality_warnings": [str(warning) for warning in quality_warnings]
+        if isinstance(quality_warnings, list)
+        else [],
     }
 
 
@@ -416,6 +450,7 @@ def _gate_attempt_record(
 ) -> dict[str, object]:
     safety_issues = safety_check.get("issues")
     quality_issues = quality_check.get("issues")
+    quality_warnings = quality_check.get("warnings")
     return {
         "attempt": attempt,
         "safety_approved": safety_check.get("approved") is True,
@@ -425,6 +460,9 @@ def _gate_attempt_record(
         "quality_approved": quality_check.get("approved") is True,
         "quality_issues": [str(issue) for issue in quality_issues]
         if isinstance(quality_issues, list)
+        else [],
+        "quality_warnings": [str(warning) for warning in quality_warnings]
+        if isinstance(quality_warnings, list)
         else [],
         "fix_hints": fix_hints,
     }
@@ -512,6 +550,7 @@ def _feedback_snapshot(
     attempt: int,
     gate_result: GateResult,
     ai_review: AIReviewResult | None = None,
+    coverage: CoverageResult | None = None,
 ) -> dict[str, Any]:
     feedback: dict[str, Any] = {
         "attempt": attempt,
@@ -520,6 +559,14 @@ def _feedback_snapshot(
         "quality_approved": gate_result.get("quality_approved"),
         "quality_issues": gate_result.get("quality_issues", []),
     }
+    if coverage is not None:
+        feedback.update(
+            {
+                "coverage_approved": coverage.get("approved"),
+                "coverage_issues": coverage.get("issues", []),
+                "uncovered_rubric_items": coverage.get("uncovered_items", []),
+            }
+        )
     if ai_review is not None:
         feedback.update(
             {
@@ -617,7 +664,7 @@ async def generate_script_content(
     *,
     rubric_snapshot: dict[str, Any],
     template_key: str,
-) -> tuple[str, dict[str, Any]]:
+) -> tuple[str, list[CoverageMapping] | None, dict[str, Any]]:
     if not settings.VLLM_MODEL_NAME:
         raise HTTPException(
             status_code=503, detail=t("artifact.model_not_configured")
@@ -669,7 +716,12 @@ async def generate_script_content(
     if not script_content:
         logger.warning("Teacher Judge script generation returned empty script_content")
         raise HTTPException(status_code=502, detail=t("artifact.no_script_content"))
-    return script_content, dict(metrics)
+    coverage = parse_coverage_payload(parsed.get("coverage"))
+    if coverage is None:
+        logger.warning(
+            "Teacher Judge script generation missing or invalid coverage mapping"
+        )
+    return script_content, coverage, dict(metrics)
 
 
 async def review_script_with_ai(
@@ -873,6 +925,7 @@ async def build_reviewed_script(
         "safety_issues": [],
         "quality_approved": False,
         "quality_issues": [],
+        "quality_warnings": [],
     }
     last_ai_review: AIReviewResult = {
         "approved": False,
@@ -887,10 +940,16 @@ async def build_reviewed_script(
     # recent candidate that reached the gates for the final result.
     script_content: str | None = None
     last_gated_content: str | None = None
+    coverage: list[CoverageMapping] | None = None
+    coverage_state: dict[str, Any] | None = None
+    # True when script_content was produced by a line-replacement patch: the
+    # stored coverage must then be re-aligned against the patched script's
+    # actual record_check ids before it can be trusted.
+    coverage_needs_realign = False
     while True:
         if script_content is None:
             try:
-                script_content, metrics = _script_result(
+                script_content, coverage, metrics = _generation_result(
                     await generate_script_content(
                         rubric_snapshot=attempt_snapshot,
                         template_key=template_key,
@@ -941,6 +1000,7 @@ async def build_reviewed_script(
                 }
             )
             generation_error = None
+            coverage_needs_realign = False
 
         last_gated_content = script_content
         safety_check = check_script_policy(script_content)
@@ -1019,6 +1079,97 @@ async def build_reviewed_script(
                     "metrics": metrics,
                 }
             )
+            coverage_needs_realign = True
+            continue
+
+        # ── rubric coverage 閘門 ──
+        # 生成回應必須附上 coverage 映射；映射引用的 check/rubric id 必須真實
+        # 存在，且每個 rubric item 都至少被一個 check 覆蓋。patch 產生的腳本
+        # 先以實際 record_check ids 對帳，再驗證完整性。
+        if coverage is None:
+            missing_issue = "模型未提供 rubric 覆蓋映射（coverage）"
+            coverage_check: CoverageResult = {
+                "approved": False,
+                "issues": [missing_issue],
+                "fix_hints": [
+                    {
+                        "type": "provide_coverage_mapping",
+                        "description": "生成回應必須附上 coverage：每個 record_check 對應的 rubric item ids",
+                    }
+                ],
+                "mappings": [],
+                "uncovered_items": [],
+            }
+            effective_coverage: list[CoverageMapping] | None = None
+        else:
+            effective_coverage = (
+                realign_coverage_to_script(coverage, script_content)
+                if coverage_needs_realign
+                else coverage
+            )
+            coverage_check = validate_coverage(
+                coverage=effective_coverage,
+                script_content=script_content,
+                rubric_items=cast(
+                    "list[dict[str, Any]]", rubric_snapshot.get("items") or []
+                ),
+            )
+        coverage_state = {
+            "approved": coverage_check["approved"],
+            "mappings": coverage_check["mappings"],
+            "uncovered_items": coverage_check["uncovered_items"],
+        }
+        if effective_coverage is not None:
+            coverage = effective_coverage
+            coverage_needs_realign = False
+
+        if not coverage_check["approved"]:
+            coverage_issues = coverage_check["issues"]
+            for issue in coverage_issues:
+                if issue not in gate_result["issues"]:
+                    gate_result["issues"].append(issue)
+            signature = _failure_signature(
+                phase="coverage",
+                issues=coverage_issues,
+                fix_hints=coverage_check["fix_hints"],
+            )
+            failure_counts[signature] = failure_counts.get(signature, 0) + 1
+            attempt_records.append(
+                {
+                    "attempt": len(attempt_records) + 1,
+                    "phase": "coverage",
+                    "failure_signature": signature,
+                    "retry_count": retry_count,
+                    "same_failure_count": failure_counts[signature],
+                    "coverage_issues": coverage_issues,
+                    "uncovered_rubric_items": coverage_check["uncovered_items"],
+                    "fix_hints": coverage_check["fix_hints"],
+                }
+            )
+            logger.warning(
+                "Teacher Judge script coverage failed retry=%s/%s same_failure=%s/%s signature=%s issues=%s",
+                retry_count,
+                SCRIPT_GENERATION_MAX_RETRIES,
+                failure_counts[signature],
+                SCRIPT_GENERATION_SAME_FAILURE_MAX_RETRIES,
+                signature,
+                coverage_issues,
+            )
+            if failure_counts[signature] > SCRIPT_GENERATION_SAME_FAILURE_MAX_RETRIES:
+                stop_reason = "same_failure_limit"
+                break
+            if retry_count >= SCRIPT_GENERATION_MAX_RETRIES:
+                stop_reason = "total_retry_limit"
+                break
+            retry_count += 1
+            attempt_snapshot = _feedback_snapshot(
+                rubric_snapshot=rubric_snapshot,
+                attempt=len(attempt_records),
+                gate_result=gate_result,
+                coverage=coverage_check,
+            )
+            # 補一個缺失的收集項目不適合行區間 patch，直接重新生成。
+            script_content = None
             continue
 
         review_call_error = None
@@ -1109,6 +1260,7 @@ async def build_reviewed_script(
                 "safety_issues": gate_result["safety_issues"],
                 "quality_approved": gate_result["quality_approved"],
                 "quality_issues": gate_result["quality_issues"],
+                "quality_warnings": gate_result.get("quality_warnings", []),
                 "ai_review_issues": last_ai_review.get("issues", []),
                 "ai_review_suggested_fix": last_ai_review.get("suggested_fix"),
                 "fix_hints": ai_fix_hints,
@@ -1153,6 +1305,7 @@ async def build_reviewed_script(
                 "metrics": metrics,
             }
         )
+        coverage_needs_realign = True
 
     if generation_error is not None:
         gate_result["generation_error"] = generation_error
@@ -1163,6 +1316,9 @@ async def build_reviewed_script(
         review_issue = f"AI 複核呼叫失敗：{review_call_error}"
         if review_issue not in gate_result["issues"]:
             gate_result["issues"] = [*gate_result["issues"], review_issue]
+
+    if coverage_state is not None:
+        gate_result["coverage"] = coverage_state
 
     gate_result["review_attempts"] = attempt_records
     gate_result["retry_summary"] = _retry_summary(
