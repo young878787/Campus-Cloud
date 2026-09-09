@@ -51,7 +51,17 @@ def _analysis(summary: str = "rubric") -> RubricAnalysis:
                 detectable="auto",
                 detection_method="檢查 localhost",
                 fallback=None,
-                check_steps=[],
+                check_steps=[
+                    {
+                        "template_key": "linux",
+                        "command_key": "system.run_command",
+                        "parameters": {
+                            "argv": ["ss", "-lnt"],
+                            "timeout_seconds": 10,
+                            "success_criteria": "命令成功並取得 listening sockets",
+                        },
+                    }
+                ],
             )
         ],
         total_items=1,

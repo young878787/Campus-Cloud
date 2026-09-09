@@ -287,11 +287,12 @@ async def test_chat_with_rubric_validates_returned_check_steps(
     assert "n8n.http_check" in system_prompt
     assert "curl -I" not in system_prompt
     assert updated_items[0]["check_steps"] == [
-        {
-            "template_key": "n8n",
-            "command_key": "n8n.http_check",
-            "command_label": "n8n HTTP 檢查",
-        }
+            {
+                "template_key": "n8n",
+                "command_key": "n8n.http_check",
+                "command_label": "n8n HTTP 檢查",
+                "parameters": {},
+            }
     ]
 
 
@@ -335,6 +336,12 @@ async def test_chat_prompt_accepts_objectively_verifiable_main_py_checkpoint(
                                 {
                                     "template_key": "python",
                                     "command_key": "python.run_entrypoint",
+                                    "parameters": {
+                                        "cwd": "/home/student/project",
+                                        "argv": ["python3", "main.py"],
+                                        "timeout_seconds": 30,
+                                        "success_criteria": "exit code 為 0 且 stdout 等於 20",
+                                    },
                                 }
                             ],
                         }
@@ -351,7 +358,10 @@ async def test_chat_prompt_accepts_objectively_verifiable_main_py_checkpoint(
         messages=[
             SimpleNamespace(
                 role="user",
-                content="幫我新增檢查點：執行 main.py，確認無錯誤並輸出整數 20。",
+                content=(
+                    "幫我新增檢查點：在 /home/student/project 執行 python3 main.py，"
+                    "確認無錯誤並輸出整數 20。"
+                ),
             )
         ],
         rubric_context=json.dumps({"items": []}),
@@ -360,13 +370,13 @@ async def test_chat_prompt_accepts_objectively_verifiable_main_py_checkpoint(
     )
 
     system_prompt = captured_payload["messages"][0]["content"]
-    assert "判斷的是「後續能否自動驗證」，不是現在是否已有答案" in system_prompt
+    assert "`auto` 表示「自動檢測支援完整」" in system_prompt
     assert "執行 main.py，確認無錯誤並輸出整數 20" in system_prompt
-    assert "工作目錄、參數、timeout 或核准屬於執行階段資訊" in system_prompt
-    assert "只有美觀、優雅、體驗、創意等主觀條件" in system_prompt
+    assert "缺少實際工作目錄、服務名稱、Port、argv 或成功條件" in system_prompt
+    assert "主觀條件或平台沒有安全取證能力" in system_prompt
     assert "`auto` 項目的 `check_steps` 必須引用該 `command_key`" in system_prompt
-    assert "`checked` 仍是 false" in system_prompt
-    assert "`auto` 項目的 `fallback` 必須是 null" in system_prompt
+    assert "`checked` 表示是否已達成" in system_prompt
+    assert "`auto` 項目的 `missing_information` 必須是空陣列" in system_prompt
     assert "python.run_entrypoint" in system_prompt
     assert updated_items is not None
     assert updated_items[-1]["detectable"] == "auto"
@@ -402,6 +412,12 @@ async def test_chat_prompt_accepts_generic_cat_env_checkpoint(
                                 {
                                     "template_key": "linux",
                                     "command_key": "system.run_command",
+                                    "parameters": {
+                                        "cwd": "/home/student/project",
+                                        "argv": ["cat", ".env"],
+                                        "timeout_seconds": 10,
+                                        "success_criteria": "exit code 為 0",
+                                    },
                                 }
                             ],
                         }
@@ -415,7 +431,12 @@ async def test_chat_prompt_accepts_generic_cat_env_checkpoint(
     _patch_teacher_judge_vllm_settings(monkeypatch)
 
     _reply, updated_items, _metrics = await teacher_judge_service.chat_with_rubric(
-        messages=[SimpleNamespace(role="user", content="新增檢查點：cat .env")],
+            messages=[
+                SimpleNamespace(
+                    role="user",
+                    content="新增檢查點：在 /home/student/project 執行 cat .env",
+                )
+            ],
         rubric_context=json.dumps({"items": []}),
         template_key="n8n",
         template_commands=[GENERAL_COMMAND],
@@ -484,7 +505,7 @@ async def test_chat_prompt_treats_attachment_as_concrete_rubric_content(
     assert updated_items[0]["title"] == "服務 Port"
 
 
-def test_normalize_downgrades_auto_without_valid_check_steps() -> None:
+def test_normalize_marks_auto_without_valid_check_steps_as_unsupported() -> None:
     items = teacher_judge_service._normalize_rubric_items(
         [
             {
@@ -503,10 +524,10 @@ def test_normalize_downgrades_auto_without_valid_check_steps() -> None:
             title="未知檢查",
             description="",
             checked=False,
-            detectable="partial",
-            detection_method="目前沒有可引用的有效 command_key，缺少自動取得客觀證據的能力",
-            fallback=None,
-            check_steps=[],
+                detectable="manual",
+                detection_method="目前沒有可引用的有效 command_key，缺少自動取得客觀證據的能力",
+                fallback="目前平台不支援此項目的安全自動檢測。",
+                check_steps=[],
         )
     ]
 
@@ -527,6 +548,12 @@ def test_normalize_preserves_objectively_verifiable_main_py_checkpoint() -> None
                     {
                         "template_key": "python",
                         "command_key": "python.run_entrypoint",
+                        "parameters": {
+                            "cwd": "/home/student/project",
+                            "argv": ["python3", "main.py"],
+                            "timeout_seconds": 30,
+                            "success_criteria": "exit code 為 0 且 stdout 等於 20",
+                        },
                     }
                 ],
             }
@@ -539,6 +566,34 @@ def test_normalize_preserves_objectively_verifiable_main_py_checkpoint() -> None
     assert items[0].check_steps[0].command_key == "python.run_entrypoint"
     assert "stdout" in (items[0].detection_method or "")
     assert items[0].fallback is None
+
+
+def test_normalize_marks_missing_python_parameters_as_missing_information() -> None:
+    items = teacher_judge_service._normalize_rubric_items(
+        [
+            {
+                "title": "main.py 執行結果",
+                "detectable": "auto",
+                "detection_method": "執行 main.py 並檢查 stdout",
+                "check_steps": [
+                    {
+                        "template_key": "python",
+                        "command_key": "python.run_entrypoint",
+                        "parameters": {
+                            "argv": ["python3", "main.py"],
+                            "timeout_seconds": 30,
+                            "success_criteria": "stdout 等於 20",
+                        },
+                    }
+                ],
+            }
+        ],
+        template_key="python",
+        template_commands=[_python_entrypoint_command()],
+    )
+
+    assert items[0].detectable == "partial"
+    assert items[0].missing_information == ["main.py 所在的工作目錄"]
 
 
 def test_normalize_python_code_quality_stays_manual() -> None:

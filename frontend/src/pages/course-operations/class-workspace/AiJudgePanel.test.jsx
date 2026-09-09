@@ -11,6 +11,7 @@ import {
   getRubricCheckTitle,
   getRubricItemsValue,
   getPendingRubricItemIds,
+  getScriptCreationBlocker,
   getSessionMenuPosition,
   getSelectedRubricSource,
   getScriptCreationDestination,
@@ -234,7 +235,8 @@ describe("RubricTable", () => {
       description: "回傳內容符合規格",
       detectable: "partial",
       detection_method: null,
-      fallback: null,
+      fallback: "請補充實際輸出格式",
+      missing_information: ["預期輸出格式"],
       check_steps: [],
     },
     {
@@ -257,9 +259,9 @@ describe("RubricTable", () => {
     expect(html).toContain("評分標準");
     expect(html).toContain("自動檢測支援");
     expect(html).toContain('value="Python 版本檢查"');
-    expect(html).toContain("可自動");
-    expect(html).toContain("部分自動");
-    expect(html).toContain("不行");
+    expect(html).toContain("能自動檢測");
+    expect(html).toContain("缺少資訊");
+    expect(html).toContain("不支援");
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('aria-label="展開第 1 項檢查設定"');
     expect(html.indexOf('aria-label="展開第 1 項檢查設定"')).toBeLessThan(html.indexOf('value="Python 版本檢查"'));
@@ -279,9 +281,51 @@ describe("RubricTable", () => {
     );
 
     expect(html).toContain("待更新");
-    expect(html).toContain('title="可自動（待更新）"');
-    expect(html).not.toContain('title="部分自動（待更新）"');
-    expect(html).not.toContain('title="不行（待更新）"');
+    expect(html).toContain('title="缺少資訊（自動檢測支援待更新）"');
+    expect(html).toContain("warning_amber");
+  });
+});
+
+describe("getScriptCreationBlocker", () => {
+  const completeItem = {
+    id: "python-run",
+    title: "執行 main.py",
+    detectable: "auto",
+    detection_method: "依 exit code 與 stdout 判定",
+    check_steps: [{
+      template_key: "python",
+      command_key: "python.run_entrypoint",
+      parameters: {
+        cwd: "/home/student/project",
+        argv: ["python3", "main.py"],
+        timeout_seconds: 30,
+        success_criteria: "exit code 為 0 且 stdout 等於 20",
+      },
+    }],
+  };
+
+  test("所有項目都能自動檢測時允許製作腳本", () => {
+    expect(getScriptCreationBlocker({ analysis: { items: [completeItem] } })).toBeNull();
+  });
+
+  test("缺少資訊或不支援自動檢測時阻擋整份腳本", () => {
+    const blocker = getScriptCreationBlocker({
+      analysis: {
+        items: [
+          { ...completeItem, id: "missing", detectable: "partial" },
+          { ...completeItem, id: "manual", detectable: "manual" },
+        ],
+      },
+    });
+
+    expect(blocker).toContain("1 項缺少資訊");
+    expect(blocker).toContain("1 項不支援自動檢測");
+  });
+
+  test("異動後尚未重新確認時阻擋腳本", () => {
+    expect(getScriptCreationBlocker({
+      analysis: { items: [completeItem], detectability_needs_review: true },
+    })).toContain("待更新");
   });
 });
 

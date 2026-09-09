@@ -8,7 +8,7 @@ from app.ai.teacher_judge.schemas import TeacherJudgeRubricItem
 
 _DETECTABLE_LABELS = {
     "auto": "✅ 可自動偵測",
-    "partial": "⚠️ 部分可偵測",
+    "partial": "⚠️ 缺少資訊",
     "manual": "❌ 需人工評閱",
 }
 

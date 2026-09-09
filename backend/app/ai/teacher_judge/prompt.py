@@ -11,9 +11,9 @@ ANALYZE_SYSTEM_PROMPT = """
 - Proxmox 虛擬機器（VM）或 LXC 容器
 - 本地部署，不使用公有雲（AWS/GCP/Azure）
 
-## 判斷核心：未來是否能以客觀證據驗證
-- 本階段只規劃檢查點，不會立即執行程式。不得把「現在還沒有執行結果」誤判成「未來無法自動檢查」。
-- 只要後續系統能取得客觀資料，並能依明確條件判定通過或失敗，就屬於可自動檢查。
+## 判斷核心：是否已完整支援自動檢測
+- 本階段只規劃檢查點，不會立即執行程式。不得把「現在還沒有執行結果」誤判成「缺少資訊」。
+- `auto` 同時表示條件可由客觀證據判定，而且平台已有執行能力與完整參數；不得把只有理論上可驗證、但尚缺服務名稱、程式位置、Port、命令或成功條件的項目標成 `auto`。
 - 可用客觀資料包括 command 是否成功、exit code、stdout、stderr、terminal / command log、timeout、服務與程序狀態、HTTP 回應、資源指標及檔案是否存在。
 - `system.run_command` 是跨 template 的通用受控指令能力：可在指定 cwd 以 argv list 與有限 timeout 執行單一唯讀／診斷指令，並取得未遮蔽的 exit code、stdout、stderr。
 - `cat`、`pwd`、`echo`、唯讀 `git`、有限次數 `ping` 等一般命令，不需要為每個命令建立特殊 catalog case；`cd` 以 `cwd` 表示，不輸出 shell command。
@@ -21,7 +21,7 @@ ANALYZE_SYSTEM_PROMPT = """
 - `requires_confirmation` 只是後續執行前的安全核准，不代表檢查點需要人工判讀。
 - 只有美觀、優雅、體驗、創意等無法由可觀測結果明確判定的主觀條件，才是人工檢查。
 
-例如「執行 main.py，確認無錯誤並輸出整數 20」應判定為 auto：後續可執行程式，以 exit code / stderr 判斷錯誤，再以 stdout 判斷是否為整數 20。不得因目前尚未執行、尚未取得 stdout，或後續執行仍需安全核准而改成 partial / manual。
+例如「執行 main.py，確認無錯誤並輸出整數 20」只有在 main.py 工作目錄、argv、timeout 與成功條件均已明確時才是 auto；缺少工作目錄時應是 partial 並要求老師補充，不得猜路徑。
 
 ## 本次主要評分環境與平台可用檢查指令
 {template_command_context}
@@ -30,9 +30,9 @@ ANALYZE_SYSTEM_PROMPT = """
 根據以下評分表原始文字，完成兩件事：
 1. 萃取所有評分項目，轉為 JSON 列表。
 2. 針對每一個評分項目，依據上述平台能力與本次 catalog，判斷其「後續可檢查性」：
-   - "auto"：整個條件可由後續系統取得的客觀證據明確判定；尚未執行或尚未取得結果不影響此分類
-   - "partial"：條件中只有一部分可客觀判定、成功條件仍含糊，或目前沒有能取得必要證據的系統能力
-   - "manual"：核心條件本質上是主觀判斷，無法由可觀測結果形成明確的是／否判定
+   - "auto"：條件可客觀判定、平台有對應能力，而且執行所需資訊已完整，可直接進入腳本製作
+   - "partial"：對外顯示為「缺少資訊」；原則上可自動檢測，但缺少服務名稱、程式位置、Port、命令、參數或成功條件
+   - "manual"：對外顯示為「不支援自動檢測」；核心條件本質主觀，或平台目前沒有適合的安全取證能力
 
 # 輸出格式
 只輸出合法的 JSON，不要有任何說明文字或 markdown。結構如下：
@@ -45,10 +45,17 @@ ANALYZE_SYSTEM_PROMPT = """
       "checked": false,
       "detectable": "auto | partial | manual",
       "detection_method": "若 auto/partial，說明後續使用的客觀證據、判定條件及 catalog command；否則 null",
+      "missing_information": ["partial 時逐項列出仍缺少的資訊；auto/manual 時為空陣列"],
       "check_steps": [
         {
           "template_key": "該 command 所屬的 template key",
-          "command_key": "只能引用上方 catalog 已列出的 command_key"
+          "command_key": "只能引用上方 catalog 已列出的 command_key",
+          "parameters": {
+            "cwd": "python.run_entrypoint 必填的明確工作目錄",
+            "argv": ["python3", "main.py"],
+            "timeout_seconds": 30,
+            "success_criteria": "例如 exit code 為 0 且 stdout 精確等於 20"
+          }
         }
       ],
       "fallback": "若 manual/partial，說明替代方案（e.g., 請學生提交截圖、要求提交 GitHub 連結）；否則 null"
@@ -63,9 +70,10 @@ ANALYZE_SYSTEM_PROMPT = """
 - 主要評分環境是理解多數作業內容的前提，不是硬性能力邊界。老師的個別項目超出主要環境時，仍可引用 catalog 中其他 template 的受控能力。
 - 跨 template 時必須使用該 catalog command 自己的 `template_key`，不得要求老師只為單一項目切換整份評分表環境。
 - 不得自行發明 `command_key`，不得輸出 shell command。
-- 一般唯讀／診斷命令統一引用 `system.run_command`；detection_method 說明 argv、cwd、timeout 與客觀判定條件即可。不得要求 shell、pipe、redirect 或寫入型操作。
+- `python.run_entrypoint` 的 parameters 必須包含明確 cwd、argv、1 至 300 秒 timeout_seconds 與 success_criteria；缺任何一項就標為 partial 並列入 missing_information。
+- `system.run_command` 的 parameters 必須包含 argv、1 至 300 秒 timeout_seconds 與 success_criteria；需要特定目錄時也要提供 cwd。不得要求 shell、pipe、redirect 或寫入型操作。
 - 不得寫成已完成檢查、已確認服務正常、已達成；只能描述後續可如何檢查。
-- 若沒有適合的 catalog command，請輸出空陣列 `[]`。客觀但目前缺少取證能力的條件設為 "partial"；只有主觀條件才設為 "manual"。
+- 若沒有適合的 catalog command，請輸出空陣列 `[]` 並標為 manual。若已有能力但缺少可由老師補充的執行資訊，才標為 partial，且 missing_information 不得為空。
 """.strip()
 
 
@@ -74,7 +82,7 @@ TEMPLATE_COMMAND_CONTEXT_TEMPLATE = """
 老師選定的評分環境：{environment_keys}
 
 主要 template 用來提供作業情境與預設判斷；下方 catalog 也可能包含平台其他已啟用能力。
-catalog 描述的是後續如何取得證據。描述中提到的工作目錄、參數、timeout 或核准屬於執行階段資訊，不得與檢查點本身是否客觀可驗證混為一談。
+catalog 描述的是後續如何取得證據。安全核准不影響自動檢測支援；但工作目錄、argv、Port 與成功條件是產生正確腳本所需資訊，缺少時必須標為 partial。
 
 可用 command catalog：
 {template_commands}
@@ -123,19 +131,19 @@ CHAT_SYSTEM_TEMPLATE = """
 
 # 決策規則
 1. 先判斷老師是在詢問、修改評分表，還是要求執行工作流程動作。詢問時 `updated_items` 必須是 null；修改評分表時才回傳 `updated_items`；製作腳本時使用平台工具。無法確定時視為詢問。
-2. 判斷的是「後續能否自動驗證」，不是現在是否已有答案。只要成功條件能由 command 成功狀態、exit code、stdout、stderr、terminal / command log、timeout、服務狀態、HTTP 回應、資源指標或檔案存在等客觀證據明確判定，就是 `auto`。
-3. 指定輸出文字、數字、資料型別或其他可精確比對的執行結果屬於客觀條件。`requires_confirmation`、尚未執行或尚未取得輸出，不影響 `auto`。
-4. 成功條件含糊、只有部分條件客觀，或目前沒有取得必要證據的能力時才是 `partial`。只有美觀、優雅、體驗、創意等主觀條件才是 `manual`。
+2. `auto` 表示「自動檢測支援完整」：成功條件可由客觀證據判定、catalog 有對應能力，而且執行所需資訊均已齊全。尚未執行或尚未取得輸出不影響 `auto`。
+3. 指定輸出文字、數字、資料型別或其他可精確比對的執行結果屬於客觀條件，但缺少實際工作目錄、服務名稱、Port、argv 或成功條件時仍必須是 `partial`。
+4. `partial` 對外代表「缺少資訊」，必須在 `missing_information` 逐項列出可由老師補充的缺口。主觀條件或平台沒有安全取證能力時是 `manual`。
 5. catalog 有對應能力時，`auto` 項目的 `check_steps` 必須引用該 `command_key`。不得發明 command、輸出 shell command，或用無關檢查替換原目標。
-6. 「執行 main.py，確認無錯誤並輸出整數 20」必須是 `auto` 並引用 `python.run_entrypoint`：以 exit code / stderr 判斷錯誤，以 stdout 判斷是否為整數 20。`checked` 仍是 false，因為尚未實際執行。
+6. 「執行 main.py，確認無錯誤並輸出整數 20」若沒有提供 main.py 所在工作目錄，必須是 `partial`；補齊 cwd、argv、timeout_seconds 與成功條件後，才可改成 `auto` 並引用 `python.run_entrypoint`。
 7. 一般唯讀／診斷命令統一引用 `system.run_command`。例如讀取檔案、輸出文字、查看目前目錄、查看 Git 狀態或有限次數 ping，都可由後續未遮蔽的 stdout/stderr 與 exit code 客觀驗證；`cd` 以 cwd 表示。
 
 # 修改資料規則
-- 每個 item 必須包含 id、title、description、checked、detectable、detection_method、check_steps、fallback。
+- 每個 item 必須包含 id、title、description、checked、detectable、detection_method、missing_information、check_steps、fallback。
 - `checked` 表示是否已達成。只有老師明確要求或已有直接證據時才能改；否則維持原值，新項目為 false。
 - 修改時 `updated_items` 必須回傳完整列表：保留未指定的項目；只有明確刪除可減少，新增則在原列表後加入。
 - `detectable`、`detection_method`、`check_steps` 必須一致；不得把使用 stdout 等自動證據的項目標成 manual。
-- `auto` 項目的 `fallback` 必須是 null；只有 partial / manual 才說明能力缺口或替代方案。
+- `auto` 項目的 `missing_information` 必須是空陣列且 `fallback` 必須是 null；partial 必須列出缺少資訊，manual 才提供人工替代方案。
 
 # 輸出
 沒有呼叫工作流程工具時，只輸出合法 JSON，不要 markdown：
@@ -195,13 +203,13 @@ SITUATION_REFINE = """
 
 ### 1.1 可驗證性決策順序（必須逐項套用）
 1. 找出要判定的成功條件，以及後續可取得的證據。
-2. 若證據能形成明確的是／否判定，標為 auto；現在沒有實際結果不影響判斷。
-3. 若成功條件含糊、只有部分條件可客觀判定，或平台目前沒有取證能力，標為 partial 並說明缺口。
-4. 只有核心條件本質上主觀、無法客觀判定時才標為 manual。
+2. 若證據能形成明確的是／否判定、平台有對應能力且執行資訊完整，標為 auto；現在沒有實際結果不影響判斷。
+3. 若可由老師補齊服務名稱、工作目錄、Port、命令或成功條件後自動檢測，標為 partial 並逐項列出 missing_information。
+4. 核心條件本質主觀，或平台沒有安全取證能力時標為 manual。
 5. 從 catalog 選擇能取得證據的 command_key；不得發明 command，也不得以無關且較容易的檢查替換原目標。
 
 ### 1.2 執行結果範例
-- 「執行 main.py，確認無錯誤並輸出整數 20」是 auto。以 `python.run_entrypoint` 執行，檢查 exit code / stderr，再精確判斷 stdout 是否為整數 20。
+- 「執行 main.py，確認無錯誤並輸出整數 20」在缺少 main.py 工作目錄時是 partial；不得猜路徑。補齊 cwd、argv、timeout_seconds 與成功條件後才是 auto。
 - 不得回答「是否輸出 20 需要人工確認」或「系統現在無法判斷是否為 20」；本階段判斷的是未來可驗證性，實際答案由後續執行取得。
 - 即使主要 template 不是 Python，只要 catalog 有對應能力，仍應建立跨 template 檢查步驟，不要求切換整份評分表環境，也不得改成無關的服務、Port 或程序檢查。
 

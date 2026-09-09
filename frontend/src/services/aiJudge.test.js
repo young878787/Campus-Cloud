@@ -252,8 +252,9 @@ describe("AiJudgeService persistent sessions", () => {
     }
   });
 
-  test("重新評估提示會要求 AI 更新可偵測分類與評分計劃", () => {
-    expect(RUBRIC_REASSESS_PROMPT).toContain("可自動偵測程度");
+  test("重新評估提示會要求 AI 更新自動檢測支援狀態與評分計劃", () => {
+    expect(RUBRIC_REASSESS_PROMPT).toContain("自動檢測支援狀態");
+    expect(RUBRIC_REASSESS_PROMPT).toContain("缺少資訊");
     expect(RUBRIC_REASSESS_PROMPT).toContain("評分計劃書");
     expect(RUBRIC_REASSESS_PROMPT).toContain("不改變原始評分目標");
     expect(RUBRIC_REASSESS_PROMPT).toContain("工作目錄");

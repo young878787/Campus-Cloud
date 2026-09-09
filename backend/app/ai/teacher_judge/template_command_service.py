@@ -106,7 +106,7 @@ def validate_check_steps(
     normalized_items: list[dict[str, Any]] = []
     for item in items:
         next_item = dict(item)
-        valid_steps: list[dict[str, str]] = []
+        valid_steps: list[dict[str, Any]] = []
         raw_steps = item.get("check_steps")
         if isinstance(raw_steps, list):
             for raw_step in raw_steps:
@@ -117,13 +117,14 @@ def validate_check_steps(
                 command = valid_commands.get((step_template_key, command_key))
                 if command is None:
                     continue
-                valid_steps.append(
-                    {
-                        "template_key": command.template_key,
-                        "command_key": command.command_key,
-                        "command_label": command.command_label,
-                    }
-                )
+                step = {
+                    "template_key": command.template_key,
+                    "command_key": command.command_key,
+                    "command_label": command.command_label,
+                }
+                if isinstance(raw_step.get("parameters"), dict):
+                    step["parameters"] = raw_step["parameters"]
+                valid_steps.append(step)
         next_item["check_steps"] = valid_steps
         normalized_items.append(next_item)
     return normalized_items

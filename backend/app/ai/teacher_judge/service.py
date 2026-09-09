@@ -12,6 +12,7 @@ import httpx
 from fastapi import HTTPException
 
 from app.ai.teacher_judge._types import VLLMMetrics
+from app.ai.teacher_judge.automation_support import missing_step_information
 from app.ai.teacher_judge.config import settings
 from app.ai.teacher_judge.prompt import (
     ANALYZE_SYSTEM_PROMPT,
@@ -72,6 +73,7 @@ _SCRIPT_CREATION_PHRASES = (
     "generatecheckscript",
     "buildcheckscript",
 )
+
 _SCRIPT_CREATION_ACTIONS = (
     "製作",
     "生成",
@@ -169,12 +171,16 @@ def _normalize_check_steps(
             continue
 
         command_label = raw_step.get("command_label")
+        parameters = raw_step.get("parameters")
+        if not isinstance(parameters, dict):
+            parameters = {}
 
         normalized.append(
             TeacherJudgeRubricCheckStep(
                 template_key=step_template_key,
                 command_key=command_key,
                 command_label=str(command_label) if command_label else None,
+                parameters=parameters,
             )
         )
 
@@ -215,18 +221,47 @@ def _normalize_rubric_items(
 
         detection_method = raw.get("detection_method") or raw.get("detection")
         fallback = raw.get("fallback") or raw.get("suggestion")
+        raw_missing_information = raw.get("missing_information")
+        missing_information = (
+            list(
+                dict.fromkeys(
+                    str(value).strip()
+                    for value in raw_missing_information
+                    if isinstance(value, str) and value.strip()
+                )
+            )
+            if isinstance(raw_missing_information, list)
+            else []
+        )
         check_steps = _normalize_check_steps(
             raw.get("check_steps"),
             template_key=template_key,
             template_commands=template_commands,
         )
         if template_commands is not None and detectable == "auto" and not check_steps:
-            detectable = "partial"
+            detectable = "manual"
+            missing_information = []
             detection_method = (
                 str(detection_method).strip()
                 if detection_method is not None
                 else "目前沒有可引用的有效 command_key，缺少自動取得客觀證據的能力"
             )
+            fallback = fallback or "目前平台不支援此項目的安全自動檢測。"
+        if detectable == "auto" and (
+            detection_method is None or not str(detection_method).strip()
+        ):
+            detectable = "partial"
+            missing_information.append("檢測方式與客觀成功條件")
+        if detectable == "auto":
+            for step in check_steps:
+                missing_information.extend(missing_step_information(step))
+            if missing_information:
+                detectable = "partial"
+        if detectable == "partial" and not missing_information:
+            missing_information.append(
+                "完整的服務名稱、程式位置、連接埠或客觀成功條件"
+            )
+        missing_information = list(dict.fromkeys(missing_information))
         if strip_auto_fallback and detectable == "auto":
             fallback = None
 
@@ -241,6 +276,7 @@ def _normalize_rubric_items(
                 if detection_method is not None
                 else None,
                 fallback=str(fallback) if fallback is not None else None,
+                missing_information=missing_information,
                 check_steps=check_steps,
             )
         )

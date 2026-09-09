@@ -68,13 +68,57 @@ def _analysis() -> RubricAnalysis:
                 detectable="auto",
                 detection_method="檢查 localhost 5678",
                 fallback=None,
-                check_steps=[],
+                check_steps=[
+                    {
+                        "template_key": "linux",
+                        "command_key": "system.run_command",
+                        "parameters": {
+                            "argv": ["ss", "-lnt"],
+                            "timeout_seconds": 10,
+                            "success_criteria": "stdout 包含 5678 的 listening socket",
+                        },
+                    }
+                ],
             )
         ],
         total_items=1,
         auto_count=1,
         summary="n8n rubric",
     )
+
+
+@pytest.mark.asyncio
+async def test_create_artifact_blocks_non_auto_item_before_model_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = _session()
+    model_called = False
+
+    async def unexpected_build(**_kwargs):
+        nonlocal model_called
+        model_called = True
+        raise AssertionError("blocked rubric must not call the model")
+
+    monkeypatch.setattr(
+        script_artifact_service, "_build_reviewed_script_for_artifact", unexpected_build
+    )
+    analysis = _analysis()
+    analysis.items[0].detectable = "partial"
+    analysis.items[0].missing_information = ["n8n 服務的實際 Port"]
+
+    with pytest.raises(HTTPException) as exc_info:
+        await script_artifact_service.create_artifact(
+            session=session,
+            teaching_class_id=uuid.uuid4(),
+            name="blocked",
+            template_key="linux",
+            rubric_analysis=analysis,
+            created_by=uuid.uuid4(),
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail["code"] == "teacher_judge_script_not_ready"
+    assert model_called is False
 
 
 def _resource(*, vmid: int, user_id: uuid.UUID) -> models.Resource:
@@ -1166,7 +1210,10 @@ async def test_regenerate_failed_artifact_passes_previous_review_feedback(
         teaching_class_id=teaching_class_id,
         name="unsafe.pdf",
         template_key="linux",
-        rubric_snapshot_json={"template_key": "linux", "items": []},
+        rubric_snapshot_json={
+            **_analysis().model_dump(mode="json"),
+            "template_key": "linux",
+        },
         script_content="import subprocess\nsubprocess.run('echo hi', shell=True)",
         status=TeacherJudgeScriptStatus.review_failed,
         policy_check_result_json={

@@ -25,6 +25,10 @@ class TeacherJudgeRubricCheckStep(BaseModel):
         default=None,
         description="template command catalog 的顯示名稱",
     )
+    parameters: dict[str, Any] = Field(
+        default_factory=dict,
+        description="產生受管腳本所需的結構化執行參數，不得由腳本生成器猜測。",
+    )
 
 
 class TeacherJudgeRubricItem(BaseModel):
@@ -36,15 +40,19 @@ class TeacherJudgeRubricItem(BaseModel):
     checked: bool = Field(default=False, description="是否已達成（有做到就打勾）")
     detectable: Literal["auto", "partial", "manual"] = Field(
         default="manual",
-        description="可偵測性：auto | partial | manual",
+        description="自動檢測支援：auto=完整支援、partial=缺少資訊、manual=不支援",
     )
     detection_method: str | None = Field(
         default=None,
-        description="自動偵測方式說明（detectable=auto/partial 時填寫）",
+        description="自動檢測方式說明（detectable=auto/partial 時填寫）",
     )
     fallback: str | None = Field(
         default=None,
         description="無法自動偵測時的替代建議",
+    )
+    missing_information: list[str] = Field(
+        default_factory=list,
+        description="目前尚缺、補齊後才可能支援自動檢測的資訊。",
     )
     check_steps: list[TeacherJudgeRubricCheckStep] = Field(
         default_factory=list,

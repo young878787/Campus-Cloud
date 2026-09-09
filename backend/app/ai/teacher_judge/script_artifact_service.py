@@ -27,6 +27,7 @@ from app.ai.teacher_judge._types import (
     PreviousReviewFeedback,
     TemplateCommandSnapshot,
 )
+from app.ai.teacher_judge.automation_support import ensure_script_generation_supported
 from app.ai.teacher_judge.config import settings
 from app.ai.teacher_judge.file_service import source_file_snapshot
 from app.ai.teacher_judge.schemas import (
@@ -122,8 +123,8 @@ SCRIPT_GENERATION_SYSTEM_PROMPT = f"""
 - 腳本最後必須 print 單一 JSON，schema_version 固定為 {RESULT_SCHEMA_VERSION}，並使用 json.dumps(..., ensure_ascii=False)。
 - 輸出 JSON 的 metadata 必須包含 timestamp 與 platform。
 - 優先根據 rubric item 的 check_steps.command_key 對應 template_commands 產生收集項目。
-- `python.run_entrypoint` 是執行觀察能力，不是原始碼審查：只有 rubric item 已明確提供工作目錄、實際 Python 命令／參數與成功條件時才可執行。
-- `system.run_command` 是跨 template 的通用受控能力。cat、pwd、echo、唯讀 git、有限次數 ping 等命令使用同一能力，不要建立命令特例；`cd` 必須轉成 subprocess 的 `cwd`，不可啟動 shell。
+- `python.run_entrypoint` 是執行觀察能力，不是原始碼審查：只使用 check_steps.parameters 中已驗證的 cwd、argv、timeout_seconds 與 success_criteria，不得從自然語言猜測或補值。
+- `system.run_command` 是跨 template 的通用受控能力。只使用 check_steps.parameters 中已驗證的 argv、timeout_seconds、success_criteria 與可選 cwd；cat、pwd、echo、唯讀 git、有限次數 ping 等命令使用同一能力，不要建立命令特例。
 - `system.run_command` 只允許單一唯讀／診斷 argv；禁止 pipe、redirect、寫入型 Git 子命令及其他會改變環境的操作。
 - 執行 Python 入口時，必須使用 argv list、明確 `cwd`、有限 timeout，並把 exit code、stdout、stderr、未捕捉例外與 timeout 寫成該 check 的證據。
 - 若 rubric 缺少工作目錄、命令或「正常結束／常駐服務」判準，不得搜尋檔案系統或猜路徑；該 check 必須回傳 `unknown`，清楚寫出缺少的資訊。
@@ -175,7 +176,7 @@ AI_REVIEWER_SYSTEM_PROMPT = """
 
 ## 安全審查
 若腳本可能刪除、修改、修復、安裝、重啟或對外傳資料，approved 必須是 false。讀取檔案與原樣回傳受控命令的 stdout/stderr 本身不是拒絕理由。
-若腳本使用 `python.run_entrypoint`，只有在 rubric 已提供明確 cwd、argv、timeout 與成功條件，且程式只收集 exit code/stdout/stderr、沒有安裝或修復動作時才可核准；risk_level 至少為 medium。只有靜態政策與本 AI reviewer 都核准時，腳本才會進入可執行狀態。
+若腳本使用 `python.run_entrypoint`，確認它只採用 rubric check_steps.parameters 的 cwd、argv、timeout_seconds 與 success_criteria，且程式只收集 exit code/stdout/stderr、沒有安裝或修復動作；risk_level 至少為 medium。只有靜態政策與本 AI reviewer 都核准時，腳本才會進入可執行狀態。
 若腳本使用 `system.run_command`，確認它採 argv list、cwd、有限 timeout、無 shell/pipe/redirect，且只做唯讀／診斷操作；stdout/stderr 不需遮蔽。
 
 ## 錯誤記錄完整性
@@ -1296,6 +1297,7 @@ async def create_artifact(
         template_commands = get_enabled_template_commands(
             session, template_key, include_cross_template=True
         )
+    ensure_script_generation_supported(rubric_analysis, template_commands)
 
     # Single model_dump reused for both the artifact rubric snapshot and the
     # source file analysis_json (previously dumped twice with equal content).
@@ -1391,6 +1393,11 @@ async def regenerate_artifact(
         template_commands = get_enabled_template_commands(
             session, template_key, include_cross_template=True
         )
+
+    automation_analysis = rubric_analysis or TeacherJudgeRubricAnalysis.model_validate(
+        artifact.rubric_snapshot_json
+    )
+    ensure_script_generation_supported(automation_analysis, template_commands)
 
     # Reuse a single model_dump for snapshot + source analysis_json when a fresh
     # analysis is provided (same sharing rationale as create_artifact above).

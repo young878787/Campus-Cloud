@@ -161,13 +161,66 @@ export function SessionTitle({ children, title }) {
 
 /** 自動檢測支援標籤：auto=綠、partial=琥珀、manual=紅。 */
 const DETECTABLE_INFO = {
-  auto: { label: "可自動", icon: "check", className: styles.detBadge_auto },
-  partial: { label: "部分自動", icon: "change_history", className: styles.detBadge_partial },
-  manual: { label: "不行", icon: "close", className: styles.detBadge_manual },
+  auto: { label: "能自動檢測", icon: "check_circle", className: styles.detBadge_auto },
+  partial: { label: "缺少資訊", icon: "warning_amber", className: styles.detBadge_partial },
+  manual: { label: "不支援", icon: "block", className: styles.detBadge_manual },
 };
 
 function getDetectableInfo(detectable) {
   return DETECTABLE_INFO[detectable] ?? DETECTABLE_INFO.manual;
+}
+
+function hasCompleteParameterizedStep(step) {
+  const parameters = step?.parameters ?? {};
+  const hasArgv = Array.isArray(parameters.argv)
+    && parameters.argv.length > 0
+    && parameters.argv.every((part) => typeof part === "string" && part.trim());
+  const hasTimeout = Number.isInteger(parameters.timeout_seconds)
+    && parameters.timeout_seconds >= 1
+    && parameters.timeout_seconds <= 300;
+  const hasSuccessCriteria = typeof parameters.success_criteria === "string"
+    && parameters.success_criteria.trim();
+  if (step?.command_key === "python.run_entrypoint") {
+    return Boolean(typeof parameters.cwd === "string"
+      && parameters.cwd.trim()
+      && hasArgv
+      && hasTimeout
+      && hasSuccessCriteria);
+  }
+  if (step?.command_key === "system.run_command") {
+    return Boolean(hasArgv && hasTimeout && hasSuccessCriteria);
+  }
+  return true;
+}
+
+export function getScriptCreationBlocker({ analysis, pendingProposal = null, pendingReviewIds = new Set() }) {
+  const items = Array.isArray(analysis?.items) ? analysis.items : [];
+  if (pendingProposal) return "請先套用或保留目前的 AI 檢查項目提案";
+  if (items.length === 0) return "請先新增至少一個檢查項目";
+  const reviewIds = pendingReviewIds instanceof Set
+    ? pendingReviewIds
+    : new Set(Array.isArray(pendingReviewIds) ? pendingReviewIds : []);
+  if (analysis?.detectability_needs_review || reviewIds.size > 0) {
+    return "部分項目的自動檢測支援待更新，請先請 AI 重新確認";
+  }
+  const unsupportedCount = items.filter((item) => item.detectable === "manual").length;
+  const missingCount = items.filter((item) => (
+    item.detectable === "partial"
+    || (item.detectable === "auto" && (
+      !item.detection_method?.trim()
+      || !Array.isArray(item.check_steps)
+      || item.check_steps.length === 0
+      || item.check_steps.some((step) => !hasCompleteParameterizedStep(step))
+    ))
+  )).length;
+  if (missingCount || unsupportedCount) {
+    const details = [
+      missingCount ? `${missingCount} 項缺少資訊` : null,
+      unsupportedCount ? `${unsupportedCount} 項不支援自動檢測` : null,
+    ].filter(Boolean).join("、");
+    return `${details}；所有項目都能自動檢測後，才能製作檢查腳本`;
+  }
+  return null;
 }
 
 function formatDateTime(value) {
@@ -239,6 +292,7 @@ function comparableItem(item) {
     detectable: item.detectable ?? "manual",
     detection_method: item.detection_method ?? null,
     fallback: item.fallback ?? null,
+    missing_information: item.missing_information ?? [],
     check_steps: item.check_steps ?? [],
   });
 }
@@ -347,11 +401,13 @@ function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip, disab
 /* ── 可編輯檢查項目表格 ───────────────────────────────── */
 
 function DetectabilityBadge({ detectable, needsReview = false }) {
-  const detectableInfo = getDetectableInfo(detectable);
+  const detectableInfo = needsReview
+    ? DETECTABLE_INFO.partial
+    : getDetectableInfo(detectable);
   return (
     <span
       className={`${styles.detBadge} ${detectableInfo.className} ${needsReview ? styles.detBadge_stale : ""}`}
-      title={needsReview ? `${detectableInfo.label}（待更新）` : detectableInfo.label}
+      title={needsReview ? "缺少資訊（自動檢測支援待更新）" : detectableInfo.label}
     >
       <MIcon name={detectableInfo.icon} size={16} aria-hidden="true" />
       <span>{detectableInfo.label}</span>
@@ -364,7 +420,12 @@ function RubricTableRow({ item, index, onChange, onDelete, disabled, needsReview
   const [expanded, setExpanded] = useState(false);
   const checkSteps = item.check_steps ?? [];
   const detailId = `rubric-detail-${index}`;
-  const hasDetails = Boolean(item.detection_method || item.fallback || checkSteps.length);
+  const missingInformation = Array.isArray(item.missing_information)
+    ? item.missing_information.filter(Boolean)
+    : [];
+  const hasDetails = Boolean(
+    item.detection_method || item.fallback || checkSteps.length || missingInformation.length,
+  );
 
   return (
     <>
@@ -438,6 +499,14 @@ function RubricTableRow({ item, index, onChange, onDelete, disabled, needsReview
                 <p className={styles.rubricDetailEmpty}>AI 尚未提供檢測方式，這一項目前以人工確認為主。</p>
               ) : (
                 <div className={styles.detectGrid}>
+                  {item.detectable === "partial" && (
+                    <div className={`${styles.detectItem} ${styles.detectItemWide}`}>
+                      <span>缺少資訊</span>
+                      <p>{missingInformation.length
+                        ? missingInformation.join("、")
+                        : "請補充完整的服務名稱、程式位置、連接埠或客觀成功條件。"}</p>
+                    </div>
+                  )}
                   {item.detection_method && (
                     <div className={styles.detectItem}>
                       <span>檢測方式</span>
@@ -1814,8 +1883,9 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   }
 
   async function handleCreateScript({ analysisRevision = null } = {}) {
-    if (pendingProposal) {
-      const message = "請先套用或保留目前的 AI 檢查項目提案，再製作檢查腳本。";
+    const blocker = getScriptCreationBlocker({ analysis, pendingProposal, pendingReviewIds });
+    if (blocker) {
+      const message = `${blocker}。`;
       setScriptGenerationNotice({ status: "error", message });
       toast.error(message);
       return;
@@ -1872,6 +1942,11 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   }
 
   const items = analysis?.items ?? [];
+  const scriptCreationBlocker = getScriptCreationBlocker({
+    analysis,
+    pendingProposal,
+    pendingReviewIds,
+  });
 
   return (
     <div className={styles.tabBody}>
@@ -1885,6 +1960,13 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
         <div className={styles.noticeInfo}>
           <p><strong>尚未新增檢查項目</strong></p>
           <p>請先新增至少一個檢查項目，才能製作檢查腳本。</p>
+        </div>
+      )}
+
+      {analysis && items.length > 0 && scriptCreationBlocker && !pendingProposal && (
+        <div className={styles.noticeInfo} role="status">
+          <p><strong>尚未符合腳本製作條件</strong></p>
+          <p>{scriptCreationBlocker}。</p>
         </div>
       )}
 
@@ -1968,12 +2050,8 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
               onCreateScript={analysis ? handleCreateScript : undefined}
               isCreatingScript={isCreatingScript}
               scriptGenerationStatus={scriptGenerationStatus}
-              canCreateScript={Boolean(analysis) && items.length > 0 && !pendingProposal}
-              createScriptHint={pendingProposal
-                ? "請先套用或保留目前的 AI 檢查項目提案"
-                : items.length === 0
-                  ? "請先新增至少一個檢查項目"
-                  : undefined}
+              canCreateScript={Boolean(analysis) && !scriptCreationBlocker}
+              createScriptHint={scriptCreationBlocker ?? undefined}
             />
             {pendingProposal && analysis && <ProposalPanel
               proposal={pendingProposal}
