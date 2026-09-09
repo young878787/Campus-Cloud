@@ -8,6 +8,8 @@
 
 使用者補充：對話未能產生可套用檢查點、腳本生成／修正失敗、執行失敗或無法判定，三個階段都有遇到困難。因此修正範圍應涵蓋整條流程。
 
+2026-09-09 再補充兩項必要行為：只要存在尚未處理的 AI 提案，就不得製作新腳本；但老師仍須能繼續對話，補齊資料，並讓 AI 更新、補充或換成新提案。提案的待處理、套用、部分套用、保留目前版本及被新提案取代等結果都必須在重新整理後保留，不能只存在前端 state。
+
 ## 目前流程與合理的部分
 
 目前主要流程為：選擇評分表來源 → 對話產生修改提案 → 老師選擇並套用 → 製作腳本 → 靜態政策／品質檢查 → AI 安全複核 → 自動 approved → 選擇機器執行 → 驗證結果 JSON → AI 對齊評分項目並評分。
@@ -60,15 +62,100 @@ revision；若相容模型只回傳一般 JSON `reply` 而沒有 `tool_calls`，
 
 依據：[評分項目 schema](../backend/app/ai/teacher_judge/schemas.py)、[規劃 prompt](../backend/app/ai/teacher_judge/prompt.py)、[生成 prompt](../backend/app/ai/teacher_judge/script_artifact_service.py)。
 
-### 3. 尚未套用 AI 提案，也能製作腳本（P1）
+### 3. 尚未套用 AI 提案，也能製作腳本（P1，前端局部防呆不足）
 
-原始前端 `canCreateScript` 只判斷有 analysis 且項目數大於零，沒有把 `pendingProposal` 列入阻擋條件。原始 `handleCreateScript()` 會 flush 已編輯內容，但不會套用待確認的 AI 提案。session 生成端點讀取的是目前已保存的 `file.analysis_json`。
+目前工作區已在 `getScriptCreationBlocker()` 加入 `pendingProposal` 判斷，所以同一頁、同一次載入且前端仍記得提案時，按鈕會停用，`handleCreateScript()` 也會再擋一次。這只修到瀏覽器記憶體內的正常操作，尚未形成可靠的工作流程契約。
 
-可重現操作：已有項目 A → 要求 AI 改成 B → 收到待套用提案 → 未套用便按「製作檢查腳本」。此時生成來源仍是 A。這可能讓老師以為 AI 沒聽懂或生成內容不正確。
+已確認仍可繞過的原因如下：
 
-建議：有待處理提案時先引導「套用選取項目」或「保留目前版本」。生成請求帶入明確 revision／內容雜湊，由後端驗證；生成完成也應比對是否仍為當前版本。舊版本可保留供重現，但必須清楚標示與目前要求的差異。
+- AI 提案只保存在 assistant message 的 `metadata_json.rubric_proposal` 與 `base_revision`；session 沒有「目前待處理提案」指標，訊息也沒有待處理／已套用／已略過等狀態。
+- 切換 session 或來源時，前端先清空 `pendingProposal`；`listSessionMessages()` 載回訊息後只呼叫 `setMessages(rows)`，不會從歷史重建待處理提案。因此重新整理頁面就可能重新開放製作按鈕。
+- 老師在已有提案後繼續一般對話時，只要本輪 AI 沒回傳 `rubric_proposal`，`handleSendMessage()` 便把 `pendingProposal` 設成 `null`。也就是「問一個補充問題」本身就可能解除防呆。
+- 「保留目前版本」目前只清除本地 state，不會在後端留下已略過紀錄；另一個分頁或重新登入無法知道老師做過這個決定。
+- `_resolve_workflow_action()` 只看本輪模型是否同時回傳 proposal，無法看到先前仍待處理的提案。老師下一輪在聊天室要求製作腳本時，後端仍可能回 `ready`。
+- `POST /{session_id}/scripts` 只在 payload 有帶 `analysis_revision` 時才比對版本，完全不檢查提案狀態；省略 payload 或直接呼叫 API 可繞過 UI。
+- `bounded_history()` 只把歷史轉成 role/content，沒有把結構化提案帶回模型。AI 可能從文字猜到曾有建議，卻無法可靠地針對同一份候選內容補資料、修訂或換版。
 
-依據：[RubricsTab 與 ChatPanel](../frontend/src/pages/course-operations/class-workspace/AiJudgePanel.jsx)、[session 腳本生成端點](../backend/app/api/routes/teacher_judge_sessions.py)。
+因此真正的問題不是「按鈕少一個 disabled」，而是系統沒有持久化且可併發驗證的提案生命週期。
+
+#### 3.1 目標狀態與使用者行為
+
+每個 session 同時間只允許一份 active proposal，避免老師同時面對多份都可套用的候選；所有舊提案仍保留在對話歷史中。
+
+| 狀態 | 意義 | 可製作新腳本 | 可繼續對話 |
+| --- | --- | --- | --- |
+| `pending` | 最新提案尚未決定 | 否 | 是 |
+| `applied` | 全部選取內容已套用 | 是，仍須通過評分表完整性檢查 | 是 |
+| `partially_applied` | 只套用部分內容，其餘明確不採用 | 是，仍須通過評分表完整性檢查 | 是 |
+| `dismissed` | 老師選擇保留目前版本 | 是 | 是 |
+| `superseded` | 已由後續新提案取代 | 若無其他 `pending` 才可；通常由新版提案阻擋 | 是 |
+| `legacy_unknown` | 上線前舊提案，無法可靠推斷曾套用或略過 | 依遷移規則 | 是 |
+
+`pending` 的 `base_revision` 若已不同於目前 `analysis_revision`，提案仍是待處理，但標示為「評分表已變更，無法直接套用」。此時仍禁止製作腳本，老師可選擇保留目前版本，或請 AI 依目前評分表與舊提案產生新版。不要把 revision 不符自動解讀成老師已拒絕提案。
+
+老師在 `pending` 狀態仍可正常：
+
+1. 純詢問或補充背景；AI 沒產生新候選時，原提案維持 `pending`。
+2. 補齊 cwd、Port、服務名稱、argv 或成功條件；AI 回傳完整新候選時，舊提案成為 `superseded`，新提案成為唯一 `pending`。
+3. 要求修改、補充或「全部換一版」；後端把目前 active proposal 以獨立、server-owned context 提供給 AI，AI 必須回傳完整候選列表，不能只靠舊 assistant 文案猜測。
+4. 套用全部或選取部分；後端原子化更新評分表 revision 與提案結果。
+5. 選擇「保留目前版本」；後端持久化 `dismissed` 後才解除腳本防呆。
+
+#### 3.2 最小持久化契約
+
+不另建一套通用 workflow framework。沿用 `TeacherJudgeSessionMessage` 保存每次 AI 候選，在 `TeacherJudgeSession` 增加：
+
+- `active_proposal_message_id: UUID | null`：目前唯一待處理提案的 assistant message ID；做索引，但比照 `summary_through_message_id` 不建立循環外鍵。
+- `workflow_revision: int`：proposal 建立、取代、套用、略過、清除對話或切換來源時遞增，供長時間腳本生成做 compare-and-swap revalidation。
+
+proposal message 的 `metadata_json` 使用固定 `proposal_state` 結構，至少保存：
+
+- `status`、`base_revision`、完整 `candidate_items`。
+- `supersedes_message_id`（若是更新／補充／換新版）。
+- `resolved_at`、`resolved_by`、`result_revision`。
+- `selected_item_ids`（部分套用時）與 `superseded_by_message_id`。
+
+寫入 JSON 欄位時要建立並重新指派新 dict，避免 SQLAlchemy 未偵測到原地修改。session public 只需額外回傳 active message ID 與 `workflow_revision`；`GET /{session_id}/proposals/active` 與 chat response 回傳 message ID、status、base/current revision、是否可直接套用及完整候選。候選的儲存來源仍只有 message metadata，API 只是序列化該筆資料，避免 session 清單重複攜帶大 payload，也避免 active proposal 超出最近 50 則訊息後無法重建。
+
+#### 3.3 API 與交易邊界
+
+1. `create_message()` 在呼叫 AI 前載入 active proposal，把「已確認評分表」與「尚未套用候選」分成兩個清楚區塊傳入。一般回覆或模型失敗不改 proposal；只有合法且完整的 `updated_items` 才建立新 proposal，並在同一 transaction 將舊提案標為 `superseded`、更新 session pointer 與 `workflow_revision`。呼叫模型前後也須比對起始 `workflow_revision`，避免兩個分頁的對話回應倒序覆蓋 active proposal。
+2. 新增 session-scoped resolve endpoint，例如 `POST /{session_id}/proposals/{message_id}/resolve`。payload 僅接受 `action=apply|dismiss`、`selected_item_ids` 與 `expected_analysis_revision`。apply 必須確認 message 是目前 active proposal、base revision 等於目前評分表、選取 ID 合法，然後在同一 transaction 更新 `analysis_json`、遞增 `analysis_revision`、寫入 proposal 結果並清除 pointer。重送已處理提案回穩定 409，不重複套用。
+3. `POST /{session_id}/scripts` 在任何模型呼叫前，以後端 active pointer 阻擋 `pending`，回傳 409 `teacher_judge_proposal_pending`，包含 proposal message ID 與可顯示訊息；`analysis_revision` 改為 session UI 的必填值並須等於目前 revision。評分表空白／不完整仍沿用既有 422，狀態衝突與內容驗證不要混成同一錯誤。
+4. 腳本生成可能耗時數分鐘，不能只檢查起點。保存 artifact 前再用 `workflow_revision`、`active_proposal_message_id is null` 與 `analysis_revision` 做條件式 revalidation；若期間出現新提案或評分表變更，回 409 且不保存看似最新的 artifact。實作時將「建立內容」與「持久化 artifact」拆開，或在既有 service 加入 session context guard，不能在 `create_artifact()` 已 commit 後才補救。
+5. `_resolve_workflow_action()` 改查持久化 active proposal；聊天室要求製作腳本與按鈕請求共用相同 blocker 與 reason code。前端提示不是授權來源。
+6. 清除對話或切換來源時，必須在同一 transaction 清除 active pointer 並遞增 `workflow_revision`。UI 確認文字要說明尚未套用提案也會被捨棄；明確清除後不要求保留已刪除訊息的歷史。
+
+#### 3.4 前端收斂
+
+- `RubricsTab` 以後端 `active_proposal` 重建 proposal，不再把本地 `pendingProposal` 當 source of truth；重新整理、換分頁與另一個瀏覽器分頁都得到相同狀態。
+- `handleSendMessage()` 收到沒有新 proposal 的一般回覆時保留現有提案；收到新 proposal 時依 server 回傳 pointer 切換，不自行推斷 supersede。
+- `ProposalPanel` 對 active proposal 顯示「待確認」「評分表已變更」與版本資訊；對歷史 proposal 顯示「已套用」「部分套用」「保留原版」「已被新版取代」，已處理項目唯讀。
+- 保留聊天輸入能力，不因有 proposal 而禁用；只禁用「製作檢查腳本」。套用／保留動作送出期間才暫停重複提交。
+- `getScriptCreationBlocker()` 接收 server proposal state。若 API 仍回 409，前端立即同步 session/messages 並顯示持久通知，處理舊頁面或跨分頁競態。
+- 已核准的舊腳本仍保留其 rubric snapshot 與既有執行能力；本次不因新提案自動刪除、改寫或重跑舊 artifact。UI 只標示它不是依最新提案建立，避免擴大本次授權與資料影響。
+
+#### 3.5 舊資料與上線策略
+
+既有 proposal 沒有 resolution 事件，不能誠實推斷為已套用或已略過。migration 採一次性保守 reconciliation：每個 active session 只檢查最新 proposal；若其 `base_revision` 等於目前 file revision，設為 `pending` 並要求老師再做一次「套用」或「保留目前版本」，其餘舊提案標成 `legacy_unknown` 且不宣稱結果。這可能讓少數曾只在前端按過略過的老師多確認一次，但不會默默用錯版本製作腳本。
+
+此變更會新增 SQLModel 欄位，實作時須建立 Alembic migration，先確認目前 heads/current 與實際 DB target；不對不明或 production DB 直接試跑。
+
+#### 3.6 實作檔案與驗證矩陣
+
+| 邊界 | 預計修改 | 驗證重點 |
+| --- | --- | --- |
+| Model／migration | `backend/app/models/teacher_judge_session.py`、新 Alembic revision | nullable pointer、`workflow_revision` 預設值、legacy reconciliation、upgrade/downgrade 只在隔離測試 DB 驗證 |
+| Proposal domain | 在 `backend/app/ai/teacher_judge/` 新增單一聚焦的 proposal service，重用現有 rubric schema | 建立／取代／全部套用／部分套用／dismiss 的 transaction 與 idempotency；不要建立通用 workflow framework |
+| Session API | `backend/app/api/routes/teacher_judge_sessions.py`、`schemas.py`、`session_service.py` | instructor/class/session scope、archived read-only、active proposal 查詢、穩定 409、clear/source switch、腳本起點及保存前 revalidation |
+| AI context | `backend/app/ai/teacher_judge/service.py`、`prompt.py` | current rubric 與 pending candidate 分隔；一般問答保留 pending；補資料／更新／換版回完整候選；模型不得自行把 proposal 宣告成已套用 |
+| Frontend service／UI | `frontend/src/services/aiJudge.js`、`AiJudgePanel.jsx` 與樣式 | reload 恢復、聊天不被禁用、一般回覆不清 proposal、歷史狀態標籤、409 後重新同步、製作按鈕及 chat workflow action 一致阻擋 |
+| Backend tests | `backend/tests/test_teacher_judge_sessions.py`，必要時補 script artifact focused case | assert pending 時 `create_artifact`／模型生成未被呼叫；跨分頁 workflow revision、resolve 原子性、舊資料 reconciliation、清除與來源切換 |
+| Frontend tests | `AiJudgePanel.test.jsx`、service tests | pending blocker、active endpoint 還原、no-proposal response 保留、new proposal supersede、resolved history 唯讀與錯誤文案 |
+
+實作完成後先跑 Teacher Judge session/script focused pytest、變更檔 Ruff 與 mypy，再跑 AiJudgePanel/service Vitest 及 production build；migration 只對明確的隔離測試資料庫驗證。這些檢查仍不等於登入後的多分頁競態、真實 vLLM 或 VM E2E，最後需補一輪 authenticated browser 驗收：分頁 A 保留 pending、分頁 B 直接製作、補資料產生新版、重新整理、部分套用、再製作腳本。
+
+依據：[RubricsTab、ChatPanel 與腳本 blocker](../frontend/src/pages/course-operations/class-workspace/AiJudgePanel.jsx)、[前端 session API](../frontend/src/services/aiJudge.js)、[session 訊息與腳本端點](../backend/app/api/routes/teacher_judge_sessions.py)、[bounded history](../backend/app/ai/teacher_judge/session_service.py)、[session/message models](../backend/app/models/teacher_judge_session.py)。
 
 ### 4. 第一次生成的格式錯誤進不了自動修正（P1，已修正）
 
@@ -136,8 +223,11 @@ flowchart TD
     B --> C{所有項目均能自動檢測?}
     C -- 否 --> D[只詢問必要缺口]
     D --> B
-    C -- 是 --> E[確認提案與計畫版本]
-    E --> F[建立受控腳本並審查]
+    C -- 是 --> E{有待處理 AI 提案?}
+    E -- 是 --> M[繼續對話補資料或產生新版提案]
+    M --> N[套用全部或部分／保留目前版本]
+    N --> E
+    E -- 否 --> F[鎖定已確認 revision，建立受控腳本並審查]
     F --> G[在選定環境預檢與試跑]
     G --> H{證據足以判定?}
     H -- 否 --> I[分類原因並提供下一步]
@@ -151,12 +241,14 @@ flowchart TD
 
 「完成」表示每個項目都有可信判定，或明確的未解阻礙、負責處理的人與可執行下一步。不能把所有學生都通過當成系統應自動達成的目標，也不能將無法取證算成學生不會。
 
-UI 主動作應隨狀態切換：補充必要資訊 → 套用檢查項目 → 確認全部能自動檢測 → 產生並驗證 → 試跑 → 執行選定範圍 → 處理未完成項目。任何「缺少資訊／不支援／待更新」項目都會阻擋整份腳本製作，不產生只覆蓋部分項目的腳本。
+UI 主動作應隨狀態切換：補充必要資訊 → 檢視／更新 AI 提案 → 套用全部或部分／保留目前版本 → 確認全部能自動檢測 → 產生並驗證 → 試跑 → 執行選定範圍 → 處理未完成項目。任何 active proposal，或任一項為「缺少資訊／不支援／待更新」，都會阻擋整份新腳本製作，不產生依舊版或只覆蓋部分項目的腳本；active proposal 不阻擋老師繼續對話。
 
 ## 更直白的對話範例
 
 - 描述目標後：「我已整理成 2 個檢查項目：程式正常結束、輸出整數 20。還缺 main.py 所在的工作目錄。」
 - 提案待套用：「2 個項目已整理好，尚未套用。套用後即可產生腳本。」
+- 提案補充中：「我已依你補充的 Port 更新為第 2 版提案；第 1 版已保留在歷史中但不再可套用。」
+- 提案版本過期：「評分表已在提案後被修改。你可以請我依目前內容更新提案，或保留目前版本；完成其中一項後才能製作新腳本。」
 - 腳本審查通過：「腳本已通過審查，尚未試跑。下一步選一台機器驗證執行結果。」
 - 缺少 runtime：「這台機器找不到 python3，目前無法判定作業。補齊執行環境後可重試這台。」
 - 實際不符：「程式正常結束，但輸出是 19，未符合 20。這是作業結果不符，檢查已完成。」
@@ -166,7 +258,7 @@ UI 主動作應隨狀態切換：補充必要資訊 → 套用檢查項目 → �
 
 ## 修正順序與驗收
 
-第一階段先修正造成卡住或用錯版本的問題：待套用提案阻擋／版本確認、自動檢測支援三態、執行必填資料檢核與後端全項目生成關卡、初次生成格式錯誤的有限重試，以及持久化失敗原因與下一步。同步調整對話意圖與文案。
+第一階段先修正造成卡住或用錯版本的問題：建立 active proposal 持久狀態與歷史結果、讓已有提案時可繼續對話並以新版取代舊版、前後端阻擋新腳本、proposal resolve 原子交易、生成起點與保存前的 revision/workflow revalidation。既有自動檢測支援三態、執行必填資料檢核、後端全項目生成關卡、生成格式錯誤有限重試及持久化失敗原因維持不變。
 
 第二階段建立結構化計畫、平台固定 runner、rubric 與證據映射、客觀條件判定及預檢試跑，降低自由生成腳本的不確定性。
 
@@ -176,15 +268,20 @@ UI 主動作應隨狀態切換：補充必要資訊 → 套用檢查項目 → �
 
 1. 「可以幫我新增這些檢查嗎」能產生具體提案，不要求改用特定句型。
 2. main.py 缺 cwd、服務缺名稱或 HTTP 檢查缺 Port 時顯示橙色三角形「缺少資訊」，並且不呼叫模型、不建立 artifact。
-3. 有未套用提案時不會默默依舊版生成；生成期間改表也會標示版本落差。
-4. 第一次生成無效 JSON 時有有限恢復與階段紀錄，不直接遺失整次工作。
-5. 標準函式庫足以完成的檢查，不因未使用外部命令而被拒絕。
-6. 缺必要 checks、重複 ID、錯誤證據映射都會被驗證擋下。
-7. 學生輸出 19 與預期 20 不符；timeout 或權限不足則是待判定，兩者不混用。
-8. 同一批機器部分失敗時清楚呈現原因，後續只重試必要步驟與目標。
-9. AI 解讀失敗可沿用已保存證據，無須重新執行學生程式。
-10. 已完成的回報可追溯到目標、計畫版本、腳本版本、機器、證據與判定。
-11. 任一項為缺少資訊、不支援或待更新時，整份評分表不能製作腳本；直接呼叫 API 也會得到穩定的 422 阻擋回應。
+3. 產生提案後重新整理頁面、切換分頁或重新登入，active proposal 仍存在，製作按鈕仍停用；直接呼叫 session scripts API 得到穩定 409，且模型不會被呼叫。
+4. 已有提案時繼續問一般問題，原提案仍為 `pending`；補資料或要求更新／補充／換新提案時只產生一份新 active proposal，舊提案顯示 `superseded`。
+5. 全部套用、部分套用及保留目前版本都由後端持久化；重送、套用非 active 提案或 revision 不符不會重複／錯誤覆寫評分表。
+6. 腳本生成期間若另一分頁產生新 proposal 或更新評分表，保存前 revalidation 失敗，不建立使用舊上下文的新 artifact。
+7. 聊天室要求製作與按鈕製作共用同一 pending-proposal blocker；不能藉由下一輪無 proposal 回覆繞過。
+8. 清除對話或切換來源會原子化清除 active pointer；一般歷史則能辨認已套用、部分套用、已保留與已取代狀態。
+9. 第一次生成無效 JSON 時有有限恢復與階段紀錄，不直接遺失整次工作。
+10. 標準函式庫足以完成的檢查，不因未使用外部命令而被拒絕。
+11. 缺必要 checks、重複 ID、錯誤證據映射都會被驗證擋下。
+12. 學生輸出 19 與預期 20 不符；timeout 或權限不足則是待判定，兩者不混用。
+13. 同一批機器部分失敗時清楚呈現原因，後續只重試必要步驟與目標。
+14. AI 解讀失敗可沿用已保存證據，無須重新執行學生程式。
+15. 已完成的回報可追溯到目標、提案結果、評分表 revision、腳本版本、機器、證據與判定。
+16. 任一項為缺少資訊、不支援或待更新時，整份評分表不能製作腳本；直接呼叫 API 會得到穩定 422。active proposal 則使用明確的 409 狀態衝突，兩者可被前端分別處理。
 
 ## 驗證紀錄與限制
 
@@ -198,3 +295,4 @@ UI 主動作應隨狀態切換：補充必要資訊 → 套用檢查項目 → �
 - 本次已修改 Teacher Judge 對話／session 腳本建立契約、提示詞、前端聊天按鈕與狀態顯示，並新增對應 regression tests；未操作開始分析時發現的 teaching_classes.py 與 ClassWorkspacePage.jsx 既有變更。
 - 已執行 `backend` Teacher Judge focused tests（140 passed）、`ruff`、`mypy`、`frontend` 全套 Vitest（323 passed）及 production build；build 僅有既有 chunk size 警告。
 - 尚未以真實 vLLM tool parser、登入瀏覽器、資料庫服務或學生 VM 做端到端驗證；上述測試不能取代 live/authenticated E2E。
+- 2026-09-09 本次提案生命週期補充為 docs-only：已重新閱讀目前 `RubricsTab`、session message/script routes、`bounded_history()`、session/message models 與既有 tests，確認前端局部 blocker 已存在，但 reload、繼續一般對話、聊天室後續製作要求與直接 API 仍缺少持久化防線；尚未修改 model、migration、API、UI 或測試，也未執行實作後驗證。

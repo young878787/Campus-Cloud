@@ -10,6 +10,7 @@ import {
   getRubricDisplayName,
   getRubricCheckTitle,
   getRubricItemsValue,
+  getRubricReviewItemIds,
   getPendingRubricItemIds,
   getScriptCreationBlocker,
   getSessionMenuPosition,
@@ -326,6 +327,44 @@ describe("getScriptCreationBlocker", () => {
     expect(getScriptCreationBlocker({
       analysis: { items: [completeItem], detectability_needs_review: true },
     })).toContain("待更新");
+  });
+
+  test("待重新確認項目會從評分表狀態還原，讓提示與列標籤一致", () => {
+    const analysis = {
+      items: [completeItem],
+      detectability_needs_review: true,
+    };
+    expect([...getRubricReviewItemIds(analysis)]).toEqual(["python-run"]);
+
+    const html = renderToStaticMarkup(
+      <RubricTable
+        items={analysis.items}
+        needsReviewIds={getRubricReviewItemIds(analysis)}
+        onChange={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(html).toContain("待更新");
+    expect(html).toContain('title="缺少資訊（自動檢測支援待更新）"');
+  });
+
+  test("保存的待更新項目只標示對應列，不讓整張表變成待確認", () => {
+    const secondItem = { ...completeItem, id: "second-item", title: "第二項" };
+    const analysis = {
+      items: [completeItem, secondItem],
+      detectability_needs_review: true,
+      pending_review_item_ids: ["python-run"],
+    };
+
+    const html = renderToStaticMarkup(
+      <RubricTable
+        items={analysis.items}
+        needsReviewIds={getRubricReviewItemIds(analysis)}
+        onChange={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(html.match(/自動檢測支援待更新/g)).toHaveLength(1);
   });
 });
 

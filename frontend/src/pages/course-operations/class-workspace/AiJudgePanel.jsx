@@ -193,14 +193,34 @@ function hasCompleteParameterizedStep(step) {
   return true;
 }
 
+/**
+ * 解析評分表中尚未重新確認的項目。新資料使用明確的項目 ID；舊資料只有
+ * 整表旗標時，保守地將目前項目視為待確認，避免提示與表格列狀態不一致。
+ */
+export function getRubricReviewItemIds(analysis, candidateIds = null) {
+  const items = Array.isArray(analysis?.items) ? analysis.items : [];
+  const currentIds = new Set(items.map((item) => item?.id).filter(Boolean));
+  const candidates = candidateIds instanceof Set
+    ? new Set(candidateIds)
+    : new Set(Array.isArray(candidateIds) ? candidateIds : []);
+  const persisted = new Set(
+    analysis?.detectability_needs_review && Array.isArray(analysis?.pending_review_item_ids)
+      ? analysis.pending_review_item_ids.filter(Boolean)
+      : [],
+  );
+  const reviewIds = candidates.size > 0 ? candidates : persisted;
+  if (reviewIds.size === 0 && analysis?.detectability_needs_review) {
+    return currentIds;
+  }
+  return new Set([...reviewIds].filter((itemId) => currentIds.has(itemId)));
+}
+
 export function getScriptCreationBlocker({ analysis, pendingProposal = null, pendingReviewIds = new Set() }) {
   const items = Array.isArray(analysis?.items) ? analysis.items : [];
   if (pendingProposal) return "請先套用或保留目前的 AI 檢查項目提案";
   if (items.length === 0) return "請先新增至少一個檢查項目";
-  const reviewIds = pendingReviewIds instanceof Set
-    ? pendingReviewIds
-    : new Set(Array.isArray(pendingReviewIds) ? pendingReviewIds : []);
-  if (analysis?.detectability_needs_review || reviewIds.size > 0) {
+  const reviewIds = getRubricReviewItemIds(analysis, pendingReviewIds);
+  if (reviewIds.size > 0) {
     return "部分項目的自動檢測支援待更新，請先請 AI 重新確認";
   }
   const unsupportedCount = items.filter((item) => item.detectable === "manual").length;
@@ -1414,6 +1434,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
         lastSavedValuesRef.current.set(fileId, getRubricItemsValue(savedAnalysis));
         lastSavedItemsRef.current.set(fileId, Array.isArray(savedAnalysis.items) ? savedAnalysis.items : []);
         lastSavedNeedsReviewRef.current.set(fileId, Boolean(savedAnalysis.detectability_needs_review));
+        pendingReviewIdsByFileRef.current.set(fileId, getRubricReviewItemIds(savedAnalysis));
         setFiles((current) => current.map((entry) => (
           entry.id === updated.id ? updated : entry
         )));
@@ -1505,7 +1526,9 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     lastSavedValuesRef.current.set(file.id, getRubricItemsValue(file.analysis_json));
     lastSavedItemsRef.current.set(file.id, Array.isArray(file.analysis_json.items) ? file.analysis_json.items : []);
     lastSavedNeedsReviewRef.current.set(file.id, Boolean(file.analysis_json.detectability_needs_review));
-    setPendingReviewIds(new Set(pendingReviewIdsByFileRef.current.get(file.id) ?? []));
+    const savedReviewIds = getRubricReviewItemIds(file.analysis_json);
+    pendingReviewIdsByFileRef.current.set(file.id, savedReviewIds);
+    setPendingReviewIds(savedReviewIds);
     setAnalysisTemplateKey(file.template_key);
     setSelectedTemplateKey(file.template_key);
   }, [files, filesLoaded, judgeSession?.selected_file_id, sourceFileId]);
@@ -1526,7 +1549,12 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   /** 更新分析結果；persist 時同步寫回已保存的評分表 */
   function applyAnalysis(
     nextAnalysis,
-    { persist = false, immediate = false, detectabilityNeedsReview } = {},
+    {
+      persist = false,
+      immediate = false,
+      detectabilityNeedsReview,
+      reviewItemIds,
+    } = {},
   ) {
     const currentValue = getRubricItemsValue(nextAnalysis);
     const lastSavedValue = sourceFileId ? lastSavedValuesRef.current.get(sourceFileId) : undefined;
@@ -1537,8 +1565,13 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     const evaluatedNeedsReview = typeof detectabilityNeedsReview === "boolean"
       ? (detectabilityNeedsReview ? hasActualChange || lastSavedNeedsReview : false)
       : nextAnalysis.detectability_needs_review;
+    const nextReviewIds = getRubricReviewItemIds(nextAnalysis, reviewItemIds ?? pendingReviewIds);
     const evaluatedAnalysis = typeof evaluatedNeedsReview === "boolean"
-      ? { ...nextAnalysis, detectability_needs_review: evaluatedNeedsReview }
+      ? {
+          ...nextAnalysis,
+          detectability_needs_review: evaluatedNeedsReview,
+          pending_review_item_ids: evaluatedNeedsReview ? [...nextReviewIds] : [],
+        }
       : nextAnalysis;
     setAnalysis(evaluatedAnalysis);
     if (persist && sourceFileId) {
@@ -1613,8 +1646,9 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       lastSavedValuesRef.current.set(uploadedFile.id, getRubricItemsValue(uploadedFile.analysis_json));
       lastSavedItemsRef.current.set(uploadedFile.id, Array.isArray(uploadedFile.analysis_json?.items) ? uploadedFile.analysis_json.items : []);
       lastSavedNeedsReviewRef.current.set(uploadedFile.id, Boolean(uploadedFile.analysis_json?.detectability_needs_review));
-      pendingReviewIdsByFileRef.current.set(uploadedFile.id, new Set());
-      setPendingReviewIds(new Set());
+      const uploadedReviewIds = getRubricReviewItemIds(uploadedFile.analysis_json);
+      pendingReviewIdsByFileRef.current.set(uploadedFile.id, uploadedReviewIds);
+      setPendingReviewIds(uploadedReviewIds);
       setAnalysisTemplateKey(response.template_key ?? selectedTemplateKey);
       setSelectedTemplateKey(response.template_key ?? selectedTemplateKey);
       setFiles((current) => [
@@ -1731,6 +1765,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
             persist: true,
             immediate: true,
             detectabilityNeedsReview: false,
+            reviewItemIds: [],
           });
           if (saved) {
             if (sourceFileId) pendingReviewIdsByFileRef.current.set(sourceFileId, new Set());
@@ -1753,6 +1788,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
           persist: true,
           immediate: true,
           detectabilityNeedsReview: false,
+          reviewItemIds: [],
         });
         if (!saved) return;
         if (sourceFileId) pendingReviewIdsByFileRef.current.set(sourceFileId, new Set());
@@ -1810,6 +1846,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       persist: true,
       immediate: true,
       detectabilityNeedsReview: pendingIdsAfterApply.size > 0,
+      reviewItemIds: pendingIdsAfterApply,
     });
     if (!saved) return;
     if (sourceFileId) pendingReviewIdsByFileRef.current.set(sourceFileId, pendingIdsAfterApply);
@@ -1824,19 +1861,21 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   function handleItemChange(index, updatedItem) {
     const nextItems = [...analysis.items];
     nextItems[index] = updatedItem;
-    updatePendingReviewIds(nextItems);
+    const nextReviewIds = updatePendingReviewIds(nextItems);
     applyAnalysis(applyItems(analysis, nextItems), {
       persist: true,
       detectabilityNeedsReview: true,
+      reviewItemIds: nextReviewIds,
     });
   }
 
   function handleItemDelete(index) {
     const nextItems = analysis.items.filter((_, i) => i !== index);
-    updatePendingReviewIds(nextItems);
+    const nextReviewIds = updatePendingReviewIds(nextItems);
     applyAnalysis(applyItems(analysis, nextItems), {
       persist: true,
       detectabilityNeedsReview: true,
+      reviewItemIds: nextReviewIds,
     });
   }
 
@@ -1852,10 +1891,11 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       check_steps: [],
     };
     const nextItems = [...analysis.items, newItem];
-    updatePendingReviewIds(nextItems);
+    const nextReviewIds = updatePendingReviewIds(nextItems);
     applyAnalysis(applyItems(analysis, nextItems), {
       persist: true,
       detectabilityNeedsReview: true,
+      reviewItemIds: nextReviewIds,
     });
   }
 

@@ -73,6 +73,10 @@ class TeacherJudgeRubricAnalysis(BaseModel):
         default=False,
         description="評分項目異動後，既有可偵測性結果是否需要重新評估。",
     )
+    pending_review_item_ids: list[str] = Field(
+        default_factory=list,
+        description="尚未重新確認自動檢測支援的評分項目 ID。",
+    )
     summary: str = Field(default="", description="AI 整體說明（繁體中文）")
     raw_text: str = Field(
         default="", description="解析後的原始文件文字（供後續對話使用）"

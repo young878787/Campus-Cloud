@@ -328,6 +328,7 @@ def test_analysis_update_requires_current_revision() -> None:
 
     changed_analysis = _analysis("first")
     changed_analysis.detectability_needs_review = True
+    changed_analysis.pending_review_item_ids = ["item-1"]
     updated = file_service.update_file_analysis(
         session=session,
         teaching_class_id=teaching_class_id,
@@ -337,6 +338,7 @@ def test_analysis_update_requires_current_revision() -> None:
     )
     assert updated.analysis_revision == 2
     assert updated.analysis_json["detectability_needs_review"] is True
+    assert updated.analysis_json["pending_review_item_ids"] == ["item-1"]
     stored_before = session.get(TeacherJudgeFile, file.id)
     assert stored_before is not None
     before_json = stored_before.analysis_json
