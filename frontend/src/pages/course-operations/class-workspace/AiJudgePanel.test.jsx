@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 import {
   ChatPanel,
-  CreateCheckChooser,
+  CreateCheckDialog,
   RubricTable,
   ScriptGenerationNotice,
   SessionTitle,
@@ -207,15 +207,19 @@ describe("ChatPanel", () => {
   });
 });
 
-describe("CreateCheckChooser", () => {
-  test("新增檢查提供從零建立與已有文件兩條入口", () => {
+describe("CreateCheckDialog", () => {
+  test("新增檢查直接詢問名稱並說明會建立空白檢查表", () => {
     const html = renderToStaticMarkup(
-      <CreateCheckChooser onChoose={() => {}} onCancel={() => {}} />,
+      <CreateCheckDialog onClose={() => {}} onSubmit={() => {}} />,
     );
 
-    expect(html).toContain("從零開始建立");
-    expect(html).toContain("使用已有評分文件");
-    expect(html).toContain("選擇文件");
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('aria-modal="true"');
+    expect(html).toContain('id="create-check-name-input"');
+    expect(html).toContain("輸入名稱後，會直接建立一份空白檢查表");
+    expect(html).toContain("建立空白檢查");
+    expect(html).not.toContain("使用已有評分文件");
+    expect(html).not.toContain("選擇建立方式");
   });
 });
 

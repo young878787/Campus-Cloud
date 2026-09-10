@@ -94,6 +94,21 @@ describe("AiJudgeService persistent sessions", () => {
     });
   });
 
+  test("直接建立空白檢查會帶入指定名稱", async () => {
+    await AiJudgeService.createBlankSession("class-1", {
+      title: "期末環境檢查",
+      rubricName: "期末環境檢查",
+    });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(init.body)).toMatchObject({
+      title: "期末環境檢查",
+      creation_mode: "blank",
+      rubric_name: "期末環境檢查",
+      selected_file_id: null,
+    });
+  });
+
   test("existing 建立請求只綁定已保存的評分表", async () => {
     await AiJudgeService.createSession("class-1", {
       title: "既有文件檢查",
