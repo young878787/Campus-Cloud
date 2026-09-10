@@ -7,6 +7,7 @@ import SharedEmptyState from "../../../components/EmptyState/EmptyState";
 import { AiApiService } from "../../../services/aiApi";
 import { useConfirm } from "../../../components/ConfirmDialog/ConfirmProvider";
 import { useToast } from "../../../hooks/useToast";
+import useDialogPresence from "../../../hooks/useDialogPresence";
 import { focusInvalidField } from "../../../utils/focusField";
 import PageHeader from "../../../components/PageHeader/PageHeader";
 
@@ -437,6 +438,122 @@ function MyUsageTab() {
   );
 }
 
+/* ── Apply key dialog ── */
+function ApplyKeyModal({
+  closing = false,
+  busy = false,
+  apiKeyName,
+  onApiKeyNameChange,
+  purpose,
+  onPurposeChange,
+  purposeInvalid,
+  purposeInputRef,
+  duration,
+  onDurationChange,
+  durationOptions,
+  onClose,
+  onSubmit,
+}) {
+  const { t } = useTranslation("ai");
+
+  useEffect(() => {
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape" && !busy) onClose();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [busy, onClose]);
+
+  return (
+    <div
+      className={`${styles.dialogOverlay} ${closing ? styles.dialogOverlayOut : ""}`}
+      role="presentation"
+      onMouseDown={() => { if (!busy) onClose(); }}
+    >
+      <div
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-apply-dialog-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className={styles.dialogHeader}>
+          <div>
+            <h2 id="ai-apply-dialog-title" className={styles.dialogTitle} data-guide="ai-form">{t("AiApiPage.applyPanelTitle")}</h2>
+            <p className={styles.dialogDesc}>{t("AiApiPage.applyPanelDesc")}</p>
+          </div>
+          <button
+            type="button"
+            className={styles.dialogClose}
+            onClick={onClose}
+            disabled={busy}
+            aria-label={t("AiApiPage.close")}
+            data-guide="ai-apply-close"
+          >
+            <MIcon name="close" size={18} />
+          </button>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label className={styles.formLabel} htmlFor="ai-key-name">{t("AiApiPage.formLabelKeyName")}</label>
+          <input
+            id="ai-key-name"
+            type="text"
+            className={styles.formInput}
+            value={apiKeyName}
+            onChange={(e) => onApiKeyNameChange(e.target.value)}
+            placeholder={t("AiApiPage.formPlaceholderKeyName")}
+            maxLength={20}
+            data-guide="ai-apply-name"
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label className={styles.formLabel} htmlFor="ai-purpose">{t("AiApiPage.formLabelPurpose")}</label>
+          <textarea
+            id="ai-purpose"
+            ref={purposeInputRef}
+            className={`${styles.formTextarea} ${purposeInvalid ? styles.fieldInvalid : ""}`}
+            value={purpose}
+            onChange={(e) => onPurposeChange(e.target.value)}
+            placeholder={t("AiApiPage.formPlaceholderPurpose")}
+            rows={5}
+            data-guide="ai-apply-purpose"
+          />
+        </div>
+
+        <div className={styles.formGroup}>
+          <label className={styles.formLabel} htmlFor="ai-duration">{t("AiApiPage.formLabelDuration")}</label>
+          <select
+            id="ai-duration"
+            className={styles.formSelect}
+            value={duration}
+            onChange={(e) => onDurationChange(e.target.value)}
+            data-guide="ai-apply-duration"
+          >
+            {durationOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.dialogFooter}>
+          <span className={styles.formHint}>{t("AiApiPage.formHintPurpose")}</span>
+          <div className={styles.dialogActions}>
+            <button type="button" className={styles.btnOutline} onClick={onClose} disabled={busy}>
+              {t("AiApiPage.cancel")}
+            </button>
+            <button type="button" className={styles.btnPrimary} onClick={onSubmit} disabled={busy} data-guide="ai-submit">
+              <MIcon name="send" size={16} />
+              {busy ? t("AiApiPage.submitButtonSubmitting") : t("AiApiPage.submitButton")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ───────────────────────────── Main ───────────────────────────── */
 
 export default function AiApiPage() {
@@ -453,7 +570,6 @@ export default function AiApiPage() {
   ];
 
   const TABS = [
-    { key: "apply",   label: t("AiApiPage.tabApply"),   icon: "send" },
     { key: "keys",    label: "API Keys",                icon: "vpn_key" },
     { key: "records", label: t("AiApiPage.tabRecords"), icon: "history" },
     { key: "usage",   label: t("AiApiPage.tabUsage"),   icon: "trending_up" },
@@ -466,6 +582,8 @@ export default function AiApiPage() {
   const [submitting, setSubmitting] = useState(false);
   const [purposeInvalid, setPurposeInvalid] = useState(false);
   const purposeInputRef = useRef(null);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const applyDialog = useDialogPresence(showApplyModal);
 
   /* ── Data ── */
   const [credentials, setCredentials] = useState([]);
@@ -511,6 +629,7 @@ export default function AiApiPage() {
       setPurpose("");
       setApiKeyName("test");
       setDuration("never");
+      setShowApplyModal(false);
       toast.success(t("AiApiPage.submitSuccess"));
       load();
     } catch (e) {
@@ -557,79 +676,23 @@ export default function AiApiPage() {
 
       {/* ── Content ── */}
       <div className={styles.content}>
-        {/* ---- Tab: 申請 ---- */}
-        {activeTab === "apply" && (
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}>
-              <h2 className={styles.panelTitle} data-guide="ai-form">{t("AiApiPage.applyPanelTitle")}</h2>
-              <p className={styles.panelDesc}>{t("AiApiPage.applyPanelDesc")}</p>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.formLabel} htmlFor="ai-key-name">{t("AiApiPage.formLabelKeyName")}</label>
-              <input
-                id="ai-key-name"
-                type="text"
-                className={styles.formInput}
-                value={apiKeyName}
-                onChange={(e) => setApiKeyName(e.target.value)}
-                placeholder={t("AiApiPage.formPlaceholderKeyName")}
-                maxLength={20}
-                data-guide="ai-apply-name"
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.formLabel} htmlFor="ai-purpose">{t("AiApiPage.formLabelPurpose")}</label>
-              <textarea
-                id="ai-purpose"
-                ref={purposeInputRef}
-                className={`${styles.formTextarea} ${purposeInvalid ? styles.fieldInvalid : ""}`}
-                value={purpose}
-                onChange={(e) => { setPurpose(e.target.value); setPurposeInvalid(false); }}
-                placeholder={t("AiApiPage.formPlaceholderPurpose")}
-                rows={5}
-                data-guide="ai-apply-purpose"
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.formLabel} htmlFor="ai-duration">{t("AiApiPage.formLabelDuration")}</label>
-              <select
-                id="ai-duration"
-                className={styles.formSelect}
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                data-guide="ai-apply-duration"
-              >
-                {DURATION_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className={styles.formFooter}>
-              <span className={styles.formHint}>{t("AiApiPage.formHintPurpose")}</span>
-              <button
-                type="button"
-                className={styles.btnPrimary}
-                onClick={handleSubmit}
-                disabled={submitting}
-                data-guide="ai-submit"
-              >
-                <MIcon name="send" size={16} />
-                {submitting ? t("AiApiPage.submitButtonSubmitting") : t("AiApiPage.submitButton")}
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* ---- Tab: API Keys ---- */}
         {activeTab === "keys" && (
           <div className={styles.panel}>
-            <div className={styles.panelHeader}>
-              <h2 className={styles.panelTitle} data-guide="ai-keys-panel">{t("AiApiPage.keysPanelTitle")}</h2>
-              <p className={styles.panelDesc}>{t("AiApiPage.keysPanelDesc")}</p>
+            <div className={styles.panelHeaderRow}>
+              <div className={styles.panelHeader}>
+                <h2 className={styles.panelTitle} data-guide="ai-keys-panel">{t("AiApiPage.keysPanelTitle")}</h2>
+                <p className={styles.panelDesc}>{t("AiApiPage.keysPanelDesc")}</p>
+              </div>
+              <button
+                type="button"
+                className={styles.btnAddKey}
+                onClick={() => setShowApplyModal(true)}
+                data-guide="ai-add-key"
+              >
+                <MIcon name="add" size={16} />
+                {t("AiApiPage.addKeyButton")}
+              </button>
             </div>
             {loading ? (
               <LoadingState />
@@ -677,6 +740,25 @@ export default function AiApiPage() {
         {/* ---- Tab: 我的用量 ---- */}
         {activeTab === "usage" && <MyUsageTab />}
       </div>
+
+      {/* ── 新增金鑰彈窗 ── */}
+      {applyDialog.open && (
+        <ApplyKeyModal
+          closing={applyDialog.closing}
+          busy={submitting}
+          apiKeyName={apiKeyName}
+          onApiKeyNameChange={setApiKeyName}
+          purpose={purpose}
+          onPurposeChange={(value) => { setPurpose(value); setPurposeInvalid(false); }}
+          purposeInvalid={purposeInvalid}
+          purposeInputRef={purposeInputRef}
+          duration={duration}
+          onDurationChange={setDuration}
+          durationOptions={DURATION_OPTIONS}
+          onClose={() => setShowApplyModal(false)}
+          onSubmit={handleSubmit}
+        />
+      )}
     </div>
   );
 }

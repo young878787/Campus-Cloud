@@ -109,6 +109,15 @@
   gap: $spacing-4;
 }
 
+/* 標題列：左側標題說明、右側動作按鈕 */
+.panelHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: $spacing-8;
+}
+
 .panelTitle {
   font-size: $font-size-16;
   font-weight: 600;
@@ -207,6 +216,19 @@
 
 .btnPrimary {
   @extend %btn-base;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-dark);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+/* 「＋ 新增金鑰」按鈕（API Keys 標題右側） */
+.btnAddKey {
+  @extend %btn-base;
+  flex-shrink: 0;
   background: var(--color-primary);
   color: var(--color-text-on-primary);
 
@@ -580,4 +602,109 @@
   border: 1px dashed var(--color-border);
   border-radius: $radius-12;
   text-align: center;
+}
+
+/* ── 新增金鑰彈窗 ── */
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  @include flex-center;
+  padding: $spacing-16;
+  background: var(--color-overlay);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.15s ease;
+  transition: opacity 0.15s ease;
+}
+
+.dialogOverlayOut {
+  animation: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.dialog {
+  width: min(520px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  @include flex-column;
+  gap: $spacing-16;
+  padding: $spacing-24;
+  @include glass-surface($shadow: var(--shadow-lg));
+  border-radius: $radius-12;
+  animation: slideUp 0.18s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-16;
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: $font-size-18;
+  font-weight: $font-weight-700;
+  color: var(--color-text-primary);
+}
+
+.dialogDesc {
+  margin: 4px 0 0;
+  font-size: $font-size-14;
+  color: var(--color-text-muted);
+  line-height: $line-height-base;
+}
+
+.dialogClose {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: $radius-8;
+  @include flex-center;
+  color: var(--color-text-secondary);
+  transition: background $transition-base, color $transition-base;
+
+  &:hover:not(:disabled) {
+    background: var(--color-hover);
+    color: var(--color-text-primary);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.dialogFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: $spacing-8;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-8;
+  margin-left: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog,
+  .dialogOverlay {
+    animation: none;
+    transition: none;
+  }
 }
