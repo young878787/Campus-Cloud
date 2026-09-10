@@ -1,7 +1,8 @@
 /**
  * BootOptionsCard — 開機選項
- * 開機自動啟動（老師／管理員）、開機順序與 ISO 掛載（QEMU）。
- * 開機自動啟動會跟 TTL／閒置自動關機政策打架，卡片上會明講治理政策仍會關機。
+ * 開機順序與 ISO 掛載（QEMU）。
+ * 「主機開機時自動啟動」(onboot) 不開放設定：後端在每次開關機後自動對齊
+ * （開機→啟用、關機→停用），卡片上只用一行說明告知。
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -10,7 +11,6 @@ import styles from "../ResourceDetailPage.module.scss";
 import MIcon from "../../../../../components/MIcon";
 import LoadingState from "../../../../../components/LoadingState/LoadingState";
 import { useToast } from "../../../../../hooks/useToast";
-import { useConfirm } from "../../../../../components/ConfirmDialog/ConfirmProvider";
 import { ResourcesService } from "../../../../../services/resources";
 
 const KIND_ICON = { disk: "hard_drive", cdrom: "album", network: "lan", other: "memory" };
@@ -24,7 +24,6 @@ function formatSize(bytes) {
 export default function BootOptionsCard({ vmid, canManage }) {
   const { t } = useTranslation("personal");
   const toast = useToast();
-  const confirm = useConfirm();
   const [options, setOptions] = useState(null);
   const [isoImages, setIsoImages] = useState([]);
   const [order, setOrder] = useState([]);
@@ -69,18 +68,6 @@ export default function BootOptionsCard({ vmid, canManage }) {
     }
   }
 
-  async function toggleOnboot() {
-    if (!options) return;
-    if (!options.onboot) {
-      const ok = await confirm({
-        title: t("BootOptionsCard.onbootConfirmTitle"),
-        message: t("BootOptionsCard.onbootConfirmMessage"),
-      });
-      if (!ok) return;
-    }
-    await save({ onboot: !options.onboot }, "BootOptionsCard.onbootSaved");
-  }
-
   function move(index, delta) {
     setOrder((prev) => {
       const next = [...prev];
@@ -119,29 +106,10 @@ export default function BootOptionsCard({ vmid, canManage }) {
           <LoadingState text={t("BootOptionsCard.loading")} />
         ) : (
           <>
-            {/* 開機自動啟動 */}
-            <div className={styles.switchRow}>
-              <div className={styles.switchLabel}>
-                <strong>{t("BootOptionsCard.onbootLabel")}</strong>
-                <span>
-                  {options.can_edit_onboot
-                    ? t("BootOptionsCard.onbootHintEditable")
-                    : t("BootOptionsCard.onbootHintReadonly")}
-                </span>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={options.onboot}
-                className={`${styles.switch} ${options.onboot ? styles.switchOn : ""}`}
-                disabled={!options.can_edit_onboot || !canManage || busy}
-                onClick={toggleOnboot}
-                aria-label={t("BootOptionsCard.onbootLabel")}
-              />
-            </div>
-            <p className={`${styles.hintLine} ${styles.hintWarn}`}>
-              <MIcon name="policy" size={14} />
-              {t("BootOptionsCard.governanceNote")}
+            {/* 主機開機時自動啟動：系統自動管理，僅說明 */}
+            <p className={styles.hintLine}>
+              <MIcon name="restart_alt" size={14} />
+              {t("BootOptionsCard.onbootAutoNote")}
             </p>
 
             {/* 開機順序 */}

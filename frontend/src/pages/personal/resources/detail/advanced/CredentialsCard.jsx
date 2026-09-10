@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import styles from "../ResourceDetailPage.module.scss";
 import MIcon from "../../../../../components/MIcon";
@@ -315,14 +316,17 @@ export default function CredentialsCard({ vmid, canManage }) {
         )}
       </div>
 
-      {passwordPresence.open && (
-        <PasswordModal
-          closing={passwordPresence.closing}
-          loading={busy}
-          onClose={() => setShowPassword(false)}
-          onSubmit={handleResetPassword}
-        />
-      )}
+      {/* portal 到 body：卡片的 overflow:hidden + backdrop-filter 會把 fixed modal 困在卡片裡 */}
+      {passwordPresence.open &&
+        createPortal(
+          <PasswordModal
+            closing={passwordPresence.closing}
+            loading={busy}
+            onClose={() => setShowPassword(false)}
+            onSubmit={handleResetPassword}
+          />,
+          document.body,
+        )}
     </div>
   );
 }

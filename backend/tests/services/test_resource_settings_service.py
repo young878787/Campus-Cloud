@@ -55,15 +55,15 @@ def _info(rtype: str = "qemu") -> dict[str, Any]:
 def test_boot_options_skip_cloudinit_and_find_cdrom(
     fake_proxmox: SimpleNamespace,
 ) -> None:
-    opts = svc.get_boot_options(vmid=150, resource_info=_info(), can_edit_onboot=False)
+    opts = svc.get_boot_options(vmid=150, resource_info=_info())
 
     keys = {d.key for d in opts.boot_devices}
     assert keys == {"scsi0", "ide0", "net0"}  # ide2 是 cloud-init 磁碟，不列
     assert opts.cdrom_slot == "ide0"
     assert opts.cdrom_iso == "local:iso/ubuntu.iso"
     assert opts.boot_order == ["scsi0", "net0"]
-    assert opts.onboot is True
-    assert opts.can_edit_onboot is False
+    # onboot 由系統隨開關機自動對齊，不對外曝露、也不給使用者改
+    assert not hasattr(opts, "onboot")
 
 
 def test_update_boot_order_and_eject(fake_proxmox: SimpleNamespace) -> None:
@@ -73,23 +73,18 @@ def test_update_boot_order_and_eject(fake_proxmox: SimpleNamespace) -> None:
         resource_info=_info(),
         user_id=None,
         data=BootOptionsUpdate(boot_order=["ide0", "scsi0"], eject_cdrom=True),
-        can_edit_onboot=False,
     )
     assert fake_proxmox.updates == [
         {"boot": "order=ide0;scsi0", "ide0": "none,media=cdrom"}
     ]
 
 
-def test_onboot_requires_permission(fake_proxmox: SimpleNamespace) -> None:
-    with pytest.raises(BadRequestError):
-        svc.update_boot_options(
-            session=None,
-            vmid=150,
-            resource_info=_info(),
-            user_id=None,
-            data=BootOptionsUpdate(onboot=False),
-            can_edit_onboot=False,
-        )
+def test_onboot_not_accepted_in_update() -> None:
+    """onboot 已從 API 移除：只帶 onboot 等於沒有東西可更新。"""
+    with pytest.raises(ValueError):
+        BootOptionsUpdate(onboot=False)
+    update = BootOptionsUpdate(onboot=True, eject_cdrom=True)
+    assert "onboot" not in update.model_dump()
 
 
 def test_unknown_boot_device_rejected(fake_proxmox: SimpleNamespace) -> None:
@@ -100,14 +95,11 @@ def test_unknown_boot_device_rejected(fake_proxmox: SimpleNamespace) -> None:
             resource_info=_info(),
             user_id=None,
             data=BootOptionsUpdate(boot_order=["scsi9"]),
-            can_edit_onboot=True,
         )
 
 
 def test_lxc_has_no_boot_order(fake_proxmox: SimpleNamespace) -> None:
-    opts = svc.get_boot_options(
-        vmid=150, resource_info=_info("lxc"), can_edit_onboot=True
-    )
+    opts = svc.get_boot_options(vmid=150, resource_info=_info("lxc"))
     assert opts.supports_boot_order is False
     assert opts.supports_cdrom is False
     with pytest.raises(BadRequestError):
@@ -117,7 +109,6 @@ def test_lxc_has_no_boot_order(fake_proxmox: SimpleNamespace) -> None:
             resource_info=_info("lxc"),
             user_id=None,
             data=BootOptionsUpdate(boot_order=[]),
-            can_edit_onboot=True,
         )
 
 

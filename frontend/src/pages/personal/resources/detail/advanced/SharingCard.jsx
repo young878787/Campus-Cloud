@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import styles from "../ResourceDetailPage.module.scss";
@@ -213,15 +214,18 @@ export default function SharingCard({ vmid, resource, canManage, backTo }) {
         )}
       </div>
 
-      {transferPresence.open && (
-        <TransferModal
-          resource={resource}
-          closing={transferPresence.closing}
-          loading={busy}
-          onClose={() => setShowTransfer(false)}
-          onSubmit={handleTransfer}
-        />
-      )}
+      {/* portal 到 body：卡片的 overflow:hidden + backdrop-filter 會把 fixed modal 困在卡片裡 */}
+      {transferPresence.open &&
+        createPortal(
+          <TransferModal
+            resource={resource}
+            closing={transferPresence.closing}
+            loading={busy}
+            onClose={() => setShowTransfer(false)}
+            onSubmit={handleTransfer}
+          />,
+          document.body,
+        )}
     </div>
   );
 }

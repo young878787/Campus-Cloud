@@ -42,7 +42,7 @@ const navGroups = [
     icon: "router",
     items: [
       { key: "firewall",      labelKey: "Sidebar.itemFirewall",     icon: "security" },
-      /* 對外網址已併入「網域管理」（管理員）；使用者在資源詳情的「進階設定」設定自己的對外服務 */
+      /* 對外網址已併入「網域管理」（管理員）；使用者從防火牆拓撲頁或資源詳情「進階設定 › 防火牆」的連線對話框發布 */
     ],
   },
   {

@@ -178,24 +178,11 @@ def _build_resource_public(
             and teaching_class.status == TeachingClassStatus.active
         )
     ip_address = proxmox_service.get_ip_address(node, vmid, vm_type)
-    if ip_address:
-        if session is not None:
-            try:
-                resource_repo.update_ip_address(
-                    session=session, vmid=vmid, ip_address=ip_address
-                )
-            except Exception:
-                session.rollback()
-                logger.warning(
-                    "Failed to update cached IP address for vmid=%s ip_address=%s",
-                    vmid,
-                    ip_address,
-                    exc_info=True,
-                )
-    else:
-        # VM 離線時用 DB 快取
-        if session is not None:
-            ip_address = resource_repo.get_cached_ip_address(session=session, vmid=vmid)
+    if session is not None:
+        # 線上：寫回快取；離線：回退 DB 快取。DB 出錯時 sync_ip_cache 會 rollback。
+        ip_address = resource_repo.sync_ip_cache(
+            session=session, vmid=vmid, live_ip=ip_address
+        )
     quick_practice_limited = False
     if session is not None and db_resource and db_resource.request_id:
         source_request = session.get(VMRequest, db_resource.request_id)

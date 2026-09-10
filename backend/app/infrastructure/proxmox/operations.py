@@ -413,6 +413,39 @@ def list_iso_images(node: str) -> list[dict]:
 # Control (start / stop / reboot / shutdown / reset)
 # ---------------------------------------------------------------------------
 
+# 電源動作 → 該資源「應該」處於的開機狀態；onboot 跟著它走，不開放使用者自行設定：
+# 主機重開後只把本來就該開著的機器拉起來，關掉／暫停的機器不會偷偷復活。
+_ONBOOT_BY_ACTION: dict[str, int] = {
+    "start": 1,
+    "resume": 1,
+    "reboot": 1,
+    "reset": 1,
+    "stop": 0,
+    "shutdown": 0,
+    "suspend": 0,
+}
+
+
+def sync_onboot(
+    node: str, vmid: int, resource_type: ResourceType, action: str
+) -> None:
+    """依電源動作把 guest config 的 ``onboot`` 對齊到應有狀態（best-effort）。
+
+    寫入失敗（例如 guest 被 backup/snapshot 鎖住）只記 warning，不能讓
+    已成功送出的電源動作跟著報錯；下一次開關機會再對齊一次。
+    """
+    onboot = _ONBOOT_BY_ACTION.get(action)
+    if onboot is None:
+        return
+    try:
+        update_config(node, vmid, resource_type, onboot=onboot)
+    except Exception as exc:
+        logger.warning(
+            "Failed to sync onboot=%s for %s %s on %s after %s: %s",
+            onboot, resource_type, vmid, node, action, exc,
+        )
+
+
 def control(
     node: str,
     vmid: int,
@@ -426,12 +459,16 @@ def control(
     ``wait_timeout_seconds`` 有值時阻塞等待 PVE 任務結束：任務失敗拋
     ``ProxmoxError``（訊息含 task log tail，可辨識 vGPU 開機失敗等原因），
     逾時拋 ``TimeoutError``（任務在 PVE 端照跑）。預設 fire-and-forget。
+
+    電源動作送出成功後會順手把 ``onboot`` 對齊（start/resume/reboot/reset → 1，
+    stop/shutdown/suspend → 0），見 :func:`sync_onboot`。
     """
     upid = getattr(_resource_api(node, vmid, resource_type).status, action).post()
     if wait_timeout_seconds is not None and upid:
         basic_blocking_task_status(
             node, str(upid), timeout_seconds=wait_timeout_seconds
         )
+    sync_onboot(node, vmid, resource_type, action)
 
 
 def get_status(node: str, vmid: int, resource_type: ResourceType) -> dict:

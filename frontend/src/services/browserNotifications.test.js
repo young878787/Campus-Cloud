@@ -76,6 +76,26 @@ describe("requestPermission", () => {
   });
 });
 
+describe("不安全來源（http://IP 之類，非 https／localhost）", () => {
+  test("權限回 insecure、不向瀏覽器要權限、不建立通知", async () => {
+    const request = vi.fn(() => Promise.resolve("granted"));
+    windowMock.isSecureContext = false;
+    windowMock.Notification = fakeNotificationClass({ permission: "granted", request });
+    expect(getPermission()).toBe("insecure");
+    await expect(requestPermission()).resolves.toBe("insecure");
+    expect(request).not.toHaveBeenCalled();
+    expect(canNotify()).toBe(false);
+    expect(showNotification("x")).toBeNull();
+  });
+
+  test("安全來源不受影響", () => {
+    windowMock.isSecureContext = true;
+    windowMock.Notification = fakeNotificationClass({ permission: "granted" });
+    expect(getPermission()).toBe("granted");
+    expect(canNotify()).toBe(true);
+  });
+});
+
 describe("canNotify 與使用者偏好", () => {
   test("權限 granted 且未關閉偏好才可發", () => {
     windowMock.Notification = fakeNotificationClass({ permission: "granted" });

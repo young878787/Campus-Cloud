@@ -1,7 +1,10 @@
-"""資源進階設定：規格摘要、開機選項（onboot / 開機順序 / ISO）、標籤。
+"""資源進階設定：規格摘要、開機選項（開機順序 / ISO）、標籤。
 
 Proxmox 的 guest config 是這些設定的 source of truth，這裡只做讀寫與驗證，
 不在 DB 另存副本。
+
+``onboot``（主機開機時自動啟動）不由使用者設定：``proxmox operations.control``
+會在每次電源動作後自動對齊（開機→1、關機→0），這裡不再讀寫它。
 """
 
 from __future__ import annotations
@@ -42,17 +45,6 @@ def _rtype(resource_info: dict[str, Any]) -> str:
 
 def _is_running(resource_info: dict[str, Any]) -> bool:
     return str(resource_info.get("status") or "") == "running"
-
-
-def _as_bool(value: Any) -> bool:
-    if value is None:
-        return False
-    if isinstance(value, bool):
-        return value
-    try:
-        return int(value) == 1
-    except (TypeError, ValueError):
-        return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 # ─── 規格摘要 ─────────────────────────────────────────────────────────────────
@@ -144,7 +136,7 @@ def _collect_devices(
 
 
 def get_boot_options(
-    *, vmid: int, resource_info: dict[str, Any], can_edit_onboot: bool
+    *, vmid: int, resource_info: dict[str, Any]
 ) -> BootOptionsPublic:
     rtype = _rtype(resource_info)
     node = resource_info["node"]
@@ -154,13 +146,10 @@ def get_boot_options(
         logger.error("Failed to read config for %s: %s", vmid, exc)
         raise ProxmoxError(t("resource_settings.readConfigFailed", vmid=vmid))
 
-    onboot = _as_bool(config.get("onboot"))
     if rtype == "lxc":
         return BootOptionsPublic(
             vmid=vmid,
             resource_type="lxc",
-            onboot=onboot,
-            can_edit_onboot=can_edit_onboot,
             supports_boot_order=False,
             supports_cdrom=False,
             running=_is_running(resource_info),
@@ -175,8 +164,6 @@ def get_boot_options(
     return BootOptionsPublic(
         vmid=vmid,
         resource_type="qemu",
-        onboot=onboot,
-        can_edit_onboot=can_edit_onboot,
         supports_boot_order=True,
         boot_order=_parse_boot_order(config.get("boot")),
         boot_devices=devices,
@@ -227,13 +214,10 @@ def update_boot_options(
     resource_info: dict[str, Any],
     user_id: uuid.UUID,
     data: BootOptionsUpdate,
-    can_edit_onboot: bool,
 ) -> BootOptionsPublic:
     rtype = _rtype(resource_info)
     node = resource_info["node"]
 
-    if data.onboot is not None and not can_edit_onboot:
-        raise BadRequestError(t("resource_settings.onbootTeacherOnly"))
     if rtype == "lxc" and (
         data.boot_order is not None or data.cdrom_iso or data.eject_cdrom
     ):
@@ -248,10 +232,6 @@ def update_boot_options(
     params: dict[str, Any] = {}
     to_delete: list[str] = []
     changes: list[str] = []
-
-    if data.onboot is not None:
-        params["onboot"] = 1 if data.onboot else 0
-        changes.append(f"onboot={int(data.onboot)}")
 
     if rtype == "qemu":
         devices, current_slot = _collect_devices(config)
@@ -304,9 +284,7 @@ def update_boot_options(
         action="config_update",
         details=f"Boot options updated on {rtype} {vmid}: {', '.join(changes)}",
     )
-    return get_boot_options(
-        vmid=vmid, resource_info=resource_info, can_edit_onboot=can_edit_onboot
-    )
+    return get_boot_options(vmid=vmid, resource_info=resource_info)
 
 
 # ─── 標籤 ─────────────────────────────────────────────────────────────────────

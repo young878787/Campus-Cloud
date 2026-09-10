@@ -168,29 +168,11 @@ def resolve_vmid_ip(*, vmid: int, session: object | None = None) -> str | None:
         # Fallback to DB cache if PVE API fails
         pass
 
-    if ip and session is not None:
-        try:
-            resource_repo.update_ip_address(
-                session=session, vmid=vmid, ip_address=ip
-            )  # type: ignore[arg-type]
-        except Exception as exc:
-            logger.debug("VM %s IP 快取寫入失敗: %s", vmid, exc)
+    if session is None:
         return ip
 
-    if ip:
-        return ip
-
-    if session is not None:
-        try:
-            cached_ip = resource_repo.get_cached_ip_address(  # type: ignore[arg-type]
-                session=session, vmid=vmid
-            )
-            if cached_ip:
-                return cached_ip
-        except Exception as exc:
-            logger.debug("VM %s DB 快取讀取失敗: %s", vmid, exc)
-
-    return None
+    # 有即時 IP 就寫回快取；取不到就回退 DB 快取（DB 出錯會自行 rollback）
+    return resource_repo.sync_ip_cache(session=session, vmid=vmid, live_ip=ip)  # type: ignore[arg-type]
 
 
 def _build_traefik_dynamic_config(rules: list) -> str:

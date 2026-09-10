@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
@@ -17,8 +17,16 @@ import {
 } from "../../services/browserNotifications";
 import { CoursesService } from "../../services/courses";
 import { connectJobsWebSocket, JobsService } from "../../services/jobs";
+import {
+  isPushSupported,
+  isPushSubscribed,
+  sendTestPush,
+  subscribePush,
+  unsubscribePush,
+} from "../../services/webPush";
 import JobDetailDialog from "./JobDetailDialog";
 import { JOB_KIND_LABEL_KEYS } from "./JobRow";
+import { diffJobSnapshot } from "./jobSnapshotDiff";
 
 const NOTIFY_ONLY_MINE_KEY = "jobs:notifyOnlyMine";
 const DESKTOP_PROMPT_TOAST_ID = "desktop-notifications-prompt";
@@ -39,16 +47,11 @@ function loadReadReminderIds(user) {
   }
 }
 
-/* 從 running/pending/blocked → 終態時觸發 toast */
-const TERMINAL_STATUSES = new Set(["completed", "failed", "blocked", "cancelled"]);
-
-/** 終態轉換的通知內容；不需通知時回 null */
-function describeJobTransition(job, prevStatus, t) {
-  // 第一次看到（prev undefined）且本來就是終態 → 不通知（避免重整時轟炸）
-  if (prevStatus === undefined) return null;
-  if (prevStatus === job.status) return null;
-  if (!TERMINAL_STATUSES.has(job.status)) return null;
-
+/**
+ * 終態任務的通知內容；哪些任務算「剛轉成終態」由 jobSnapshotDiff 決定，
+ * 這裡只負責把狀態翻成文案。不認得的狀態回 null。
+ */
+function describeJobTransition(job, t) {
   const kindLabel = JOB_KIND_LABEL_KEYS[job.kind] ? t(JOB_KIND_LABEL_KEYS[job.kind]) : job.kind;
   const detail = job.message ?? job.title;
 
@@ -66,8 +69,25 @@ function describeJobTransition(job, prevStatus, t) {
   }
 }
 
-function notifyJobTransition(job, prevStatus, onView, t) {
-  const info = describeJobTransition(job, prevStatus, t);
+/* Service Worker → 頁面的訊息型別（與 public/sw.js 對應） */
+const SW_OPEN_JOB_MESSAGE = "skylab:open-job";
+const SW_NAVIGATE_MESSAGE = "skylab:navigate";
+
+/** 推播訂閱狀態：unknown（尚未查）| subscribed | unsubscribed | unsupported | disabled | error */
+function describePushResult(result) {
+  switch (result) {
+    case "subscribed":
+      return "subscribed";
+    case "unsupported":
+    case "disabled":
+      return result;
+    default:
+      return "unsubscribed";
+  }
+}
+
+function notifyJobTransition(job, onView, t, { desktopFallback = true } = {}) {
+  const info = describeJobTransition(job, t);
   if (!info) return;
 
   const action = { label: t("JobsProvider.viewAction"), onClick: () => onView(job.id) };
@@ -88,7 +108,8 @@ function notifyJobTransition(job, prevStatus, onView, t) {
 
   // 桌面（系統）通知只在使用者不在這個分頁／視窗時補一則，
   // 人在頁面上時 toast 已經看得到，避免同一件事跳兩次。
-  if (isPageInBackground()) {
+  // 已訂閱 Web Push 時背景通知交給後端推播（Service Worker 顯示），頁面不再自己發。
+  if (desktopFallback && isPageInBackground()) {
     showDesktopNotification(info.title, {
       body: info.description,
       tag: job.id,
@@ -129,8 +150,8 @@ export default function JobsProvider({ children }) {
   // 使用 ref 送進 WS callback，避免 closure 抓舊設定導致 effect 重連
   const filterRef = useRef({ enabled: false, myUserId: null });
   filterRef.current = { enabled: notifyOnlyMine && isAdmin, myUserId };
-  // 上一次 WS snapshot 中各 job 的狀態，用於 diff 觸發 toast
-  const prevStatusMapRef = useRef(null);
+  // 上一次 WS snapshot 的基準（各 job 狀態 + 時間高水位），用於 diff 觸發通知
+  const snapshotBaselineRef = useRef(null);
   // 上一次 WS snapshot 中的提醒 id，用於偵測「新出現」的提醒發桌面通知
   const prevReminderIdsRef = useRef(null);
 
@@ -141,6 +162,12 @@ export default function JobsProvider({ children }) {
   const reminderClickRef = useRef(() => {});
   const readReminderIdsRef = useRef(readReminderIds);
   readReminderIdsRef.current = readReminderIds;
+
+  /* Web Push（分頁關掉也能收到）：訂閱狀態；WS callback 用 ref 讀，決定要不要自己發背景通知 */
+  const [pushState, setPushState] = useState(() => (isPushSupported() ? "unknown" : "unsupported"));
+  const pushSubscribedRef = useRef(false);
+  pushSubscribedRef.current = pushState === "subscribed";
+  const [searchParams, setSearchParams] = useSearchParams();
 
   /* REST fallback：每 15 秒抓一次執行中任務（WS 為主） */
   const load = useCallback(async () => {
@@ -160,11 +187,11 @@ export default function JobsProvider({ children }) {
     return () => clearInterval(timer);
   }, [load]);
 
-  /* WebSocket 即時推送 */
+  /* WebSocket 即時推送。token 用函式取：access token 過期後 refresh 會換新值，
+     重連時要拿當下的，否則後端 1008 拒絕、前端每 5 秒重連卻永遠連不上。 */
   useEffect(() => {
-    const token = AuthStorage.getAccessToken();
-    if (!token) return;
-    return connectJobsWebSocket(token, (snapshot) => {
+    if (!AuthStorage.getAccessToken()) return;
+    return connectJobsWebSocket(() => AuthStorage.getAccessToken(), (snapshot) => {
       const all = snapshot?.items ?? [];
       setItems(all.filter((j) => j.status === "running"));
 
@@ -175,7 +202,7 @@ export default function JobsProvider({ children }) {
 
         // ── 新出現且未讀的提醒 → 桌面通知（首次 snapshot 只建 baseline）──
         const prevIds = prevReminderIdsRef.current;
-        if (prevIds !== null && isPageInBackground()) {
+        if (prevIds !== null && !pushSubscribedRef.current && isPageInBackground()) {
           for (const reminder of snapshot.reminders) {
             if (prevIds.has(reminder.id)) continue;
             if (readReminderIdsRef.current.includes(reminder.id)) continue;
@@ -189,22 +216,73 @@ export default function JobsProvider({ children }) {
         prevReminderIdsRef.current = new Set(snapshot.reminders.map((r) => r.id));
       }
 
-      // ── Diff: 比對上一次 snapshot 的狀態，發 toast ──
-      const prev = prevStatusMapRef.current;
-      const next = new Map();
-      for (const j of all) next.set(j.id, j.status);
-      // 只在已建立 baseline 後才比對（首次連線當下視為基準，不要彈通知）
-      if (prev !== null) {
-        const { enabled, myUserId } = filterRef.current;
-        for (const j of all) {
-          // admin 開「只通知自己」：跳過非本人的 job
-          if (enabled && j.user_id !== myUserId) continue;
-          notifyJobTransition(j, prev.get(j.id), setFocusJobId, t);
-        }
+      // ── Diff: 比對上一次 snapshot，找出剛轉成終態的任務 ──
+      // 首次連線只建立基準；之後除了狀態變化，也涵蓋「兩次推送之間
+      // 就建立並完成」的任務（首次看到即終態、時間晚於高水位），
+      // 否則範本轉換／刪除這類幾秒內結束的任務永遠不會通知。
+      const { transitions, baseline } = diffJobSnapshot(all, snapshotBaselineRef.current);
+      snapshotBaselineRef.current = baseline;
+      const { enabled, myUserId } = filterRef.current;
+      for (const j of transitions) {
+        // admin 開「只通知自己」：跳過非本人的 job
+        if (enabled && j.user_id !== myUserId) continue;
+        notifyJobTransition(j, setFocusJobId, t, { desktopFallback: !pushSubscribedRef.current });
       }
-      prevStatusMapRef.current = next;
     });
   }, []);
+
+  /* 由推播通知點進來：Service Worker 聚焦既有分頁後送訊息，或開新視窗帶 ?job= */
+  useEffect(() => {
+    const jobId = searchParams.get("job");
+    if (!jobId) return;
+    setFocusJobId(jobId);
+    const next = new URLSearchParams(searchParams);
+    next.delete("job");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.serviceWorker) return undefined;
+    const onMessage = (event) => {
+      const data = event.data;
+      if (!data || typeof data !== "object") return;
+      if (data.type === SW_OPEN_JOB_MESSAGE && data.jobId) {
+        setFocusJobId(data.jobId);
+      } else if (data.type === SW_NAVIGATE_MESSAGE && typeof data.url === "string") {
+        // 推播帶的是站內相對路徑；防禦性地去掉 origin 避免整頁重載
+        try {
+          const url = new URL(data.url, window.location.origin);
+          if (url.origin === window.location.origin) navigate(url.pathname + url.search + url.hash);
+        } catch {
+          // 非法 URL 直接忽略
+        }
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [navigate]);
+
+  /**
+   * 推播訂閱與後端對齊：權限已授予且偏好開啟時，登入後（或換帳號後）重新訂閱一次。
+   * subscribePush 會沿用瀏覽器既有訂閱、只向後端 upsert，所以重複呼叫沒有副作用；
+   * 這也讓同一台瀏覽器換帳號登入時，endpoint 歸屬跟著換到新使用者。
+   */
+  useEffect(() => {
+    if (!isPushSupported()) return undefined;
+    let cancelled = false;
+    (async () => {
+      if (getDesktopPermission() !== "granted" || !isDesktopPrefEnabled()) {
+        const subscribed = await isPushSubscribed();
+        if (!cancelled) setPushState(subscribed ? "subscribed" : "unsubscribed");
+        return;
+      }
+      const result = await subscribePush();
+      if (!cancelled) setPushState(describePushResult(result));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   /* 提醒（機器期限、審核結果、近期課堂任務）：登入後載入一次，popover 開啟時再刷新 */
   const refreshReminders = useCallback(async () => {
@@ -280,14 +358,32 @@ export default function JobsProvider({ children }) {
       setDesktopPref(true);
       setDesktopPrefEnabled(true);
       toast.dismiss(DESKTOP_PROMPT_TOAST_ID);
-      showDesktopNotification(t("JobsProvider.desktopEnabledTitle"), {
-        body: t("JobsProvider.desktopEnabledBody"),
-        tag: "skylab-desktop-notifications-enabled",
-      });
+      // 有推播就走整條鏈（後端 → 推播服務 → Service Worker）發示範通知，
+      // 順便驗證分頁關掉後也收得到；沒有推播才由頁面自己發
+      const pushResult = isPushSupported() ? await subscribePush() : "unsupported";
+      setPushState(describePushResult(pushResult));
+      let demoSent = false;
+      if (pushResult === "subscribed") {
+        try {
+          await sendTestPush();
+          demoSent = true;
+        } catch {
+          // 後端送不出去時退回頁面自己發
+        }
+      }
+      if (!demoSent) {
+        showDesktopNotification(t("JobsProvider.desktopEnabledTitle"), {
+          body: t("JobsProvider.desktopEnabledBody"),
+          tag: "skylab-desktop-notifications-enabled",
+        });
+      }
       toast.success(t("JobsProvider.desktopEnabledTitle"));
     } else if (result === "denied") {
       toast.dismiss(DESKTOP_PROMPT_TOAST_ID);
       toast.error(t("JobsProvider.desktopDenied"));
+    } else if (result === "insecure") {
+      toast.dismiss(DESKTOP_PROMPT_TOAST_ID);
+      toast.error(t("JobsProvider.desktopInsecure"));
     }
     return result;
   }, [t]);
@@ -295,6 +391,9 @@ export default function JobsProvider({ children }) {
   const disableDesktopNotifications = useCallback(() => {
     setDesktopPref(false);
     setDesktopPrefEnabled(false);
+    if (isPushSupported()) {
+      unsubscribePush().then(() => setPushState("unsubscribed"));
+    }
   }, []);
 
   /* 登入後詢問一次通知權限：只在瀏覽器還沒決定、且使用者沒按過「稍後再說」時 */
@@ -330,6 +429,8 @@ export default function JobsProvider({ children }) {
     enable: enableDesktopNotifications,
     disable: disableDesktopNotifications,
     sync: syncDesktopPermission,
+    // Web Push 狀態：subscribed 代表分頁關掉也收得到
+    push: pushState,
   };
 
   return (
