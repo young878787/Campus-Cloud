@@ -6,7 +6,6 @@ import json
 import uuid
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
-from pydantic import ValidationError
 from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, desc, select
@@ -36,7 +35,6 @@ from app.ai.teacher_judge.schemas import (
     TeacherJudgeSessionPublic,
     TeacherJudgeSessionScriptCreateRequest,
     TeacherJudgeSessionUpdateRequest,
-    TeacherJudgeWorkflowAction,
 )
 from app.ai.teacher_judge.script_artifact_service import create_artifact
 from app.ai.teacher_judge.script_executor_service import execute_script_run
@@ -111,59 +109,6 @@ def _access(db: SessionDep, class_id: uuid.UUID, user: InstructorUser) -> None:
             status_code=404, detail=t("teacherJudgeSessions.classNotFound")
         )
     require_teaching_access(user, teaching_class.owner_id)
-
-
-def _resolve_workflow_action(
-    *,
-    file: object | None,
-    proposal: list[dict[str, object]] | None,
-    raw_action: dict[str, object],
-) -> TeacherJudgeWorkflowAction:
-    """Turn a model request into a bounded, server-owned UI action."""
-
-    tool_call_id = raw_action.get("tool_call_id")
-    if proposal:
-        return TeacherJudgeWorkflowAction(
-            type="create_script",
-            status="blocked",
-            reason_code="rubric_proposal_pending",
-            message="目前有尚未套用的檢查項目提案，請先套用或保留目前版本。",
-            tool_call_id=str(tool_call_id) if tool_call_id else None,
-        )
-    if file is None:
-        return TeacherJudgeWorkflowAction(
-            type="create_script",
-            status="blocked",
-            reason_code="rubric_not_selected",
-            message="請先選擇或建立評分表，再製作檢查腳本。",
-            tool_call_id=str(tool_call_id) if tool_call_id else None,
-        )
-
-    analysis_json = getattr(file, "analysis_json", {})
-    try:
-        analysis = TeacherJudgeRubricAnalysis.model_validate(analysis_json)
-    except ValidationError:
-        analysis = None
-    if analysis is None or not analysis.items:
-        return TeacherJudgeWorkflowAction(
-            type="create_script",
-            status="blocked",
-            reason_code=("rubric_items_missing" if analysis is not None else "rubric_invalid"),
-            message=(
-                "目前評分表沒有檢查項目，請先新增至少一個項目。"
-                if analysis is not None
-                else "目前評分表資料尚未完成，請先修正評分項目後再製作檢查腳本。"
-            ),
-            tool_call_id=str(tool_call_id) if tool_call_id else None,
-        )
-
-    return TeacherJudgeWorkflowAction(
-        type="create_script",
-        status="ready",
-        message="已確認目前評分表，可以開始製作檢查腳本。",
-        analysis_revision=getattr(file, "analysis_revision", None),
-        tool_call_id=str(tool_call_id) if tool_call_id else None,
-    )
 
 
 def _validate_week(
@@ -561,33 +506,19 @@ async def create_message(
             template_commands=template_commands,
             environment_keys=file.environment_keys if file else None,
             attachment_context=attachment_context(attachments),
-            enable_workflow_tools=True,
         )
         # Without a selected rubric the conversation is general assistance only;
         # do not let an unconstrained model response create an unreviewed proposal.
         if file is None:
             proposal = None
-        raw_workflow_action = metrics.pop("workflow_action", None)
-        workflow_action: TeacherJudgeWorkflowAction | None = None
-        if isinstance(raw_workflow_action, dict):
-            workflow_action = _resolve_workflow_action(
-                file=file,
-                proposal=proposal,
-                raw_action=raw_workflow_action,
-            )
-            # Do not persist model prose such as "已啟動" as the source of
-            # truth.  The bounded action message reflects the server result;
-            # the frontend then starts the actual script request and reports
-            # its success or failure separately.
-            reply = workflow_action.message
         message_metadata: dict[str, object] = {
             "metrics": metrics,
             "base_revision": base_revision,
         }
+        if payload.is_refine:
+            message_metadata["ui_hidden"] = True
         if proposal:
             message_metadata["rubric_proposal"] = proposal
-        if workflow_action is not None:
-            message_metadata["workflow_action"] = workflow_action.model_dump()
         assistant = TeacherJudgeSessionMessage(
             session_id=item.id,
             role=TeacherJudgeMessageRole.assistant,
@@ -644,7 +575,7 @@ async def create_message(
         assistant_message=message_public(assistant),
         rubric_proposal=proposal,
         base_revision=base_revision,
-        workflow_action=workflow_action,
+        workflow_action=None,
     )
 
 

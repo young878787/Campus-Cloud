@@ -4,8 +4,10 @@ import {
   ChatPanel,
   CreateCheckDialog,
   RubricTable,
+  SaveAndCreateAction,
   ScriptGenerationNotice,
   SessionTitle,
+  applyProposalOperations,
   buildProposalDiff,
   getRubricDisplayName,
   getRubricCheckTitle,
@@ -40,7 +42,7 @@ describe("ChatPanel", () => {
     expect(html).toContain("清除內容");
   });
 
-  test("在聊天室提供 AI 一鍵整理與資料來源入口，並在停留時說明用途", () => {
+  test("聊天室只保留對話相關操作，不提供整理或製作入口", () => {
     const html = renderToStaticMarkup(
       <ChatPanel
         messages={[]}
@@ -51,8 +53,9 @@ describe("ChatPanel", () => {
       />,
     );
 
-    expect(html).toContain(">AI一鍵整理</button>");
-    expect(html).toContain('title="(好用) AI幫助你把評分表規則化，後續方便腳本生成"');
+    expect(html).not.toContain("AI一鍵整理");
+    expect(html).not.toContain("儲存並製作");
+    expect(html).not.toContain("製作檢查腳本");
     expect(html).toContain("資料來源");
     expect(html).toContain('aria-controls="ai-chat-data-sources"');
     expect(html).not.toContain("評分表來源");
@@ -98,40 +101,7 @@ describe("ChatPanel", () => {
     expect(html).toContain("已讀取");
   });
 
-  test("聊天室整合製作檢查腳本按鈕，有評分表時才可點擊", () => {
-    const withScript = renderToStaticMarkup(
-      <ChatPanel
-        messages={[]}
-        onSendMessage={() => {}}
-        isLoading={false}
-        hasRubric
-        onCreateScript={() => {}}
-        canCreateScript
-      />,
-    );
-
-    expect(withScript).toContain("製作檢查腳本");
-    expect(withScript).not.toContain("匯出 Excel");
-    expect(withScript).not.toContain("匯出中");
-
-    const withoutItems = renderToStaticMarkup(
-      <ChatPanel
-        messages={[]}
-        onSendMessage={() => {}}
-        isLoading={false}
-        hasRubric
-        onCreateScript={() => {}}
-        canCreateScript={false}
-        createScriptHint="請先新增至少一個檢查項目"
-      />,
-    );
-
-    expect(withoutItems).toContain("製作檢查腳本");
-    expect(withoutItems).toContain("disabled");
-    expect(withoutItems).toContain('title="請先新增至少一個檢查項目"');
-  });
-
-  test("沒有評分表時不提供製作檢查腳本入口", () => {
+  test("沒有評分表時仍不提供任何腳本操作入口", () => {
     const html = renderToStaticMarkup(
       <ChatPanel
         messages={[]}
@@ -144,47 +114,12 @@ describe("ChatPanel", () => {
     expect(html).not.toContain("匯出 Excel");
   });
 
-  test("製作中時顯示製作中狀態", () => {
-    const html = renderToStaticMarkup(
-      <ChatPanel
-        messages={[]}
-        onSendMessage={() => {}}
-        isLoading={false}
-        hasRubric
-        onCreateScript={() => {}}
-        isCreatingScript
-        canCreateScript
-      />,
-    );
-
-    expect(html).toContain("製作中...");
-  });
-
-  test("腳本製作中顯示可辨識的 workflow 狀態與進度動畫標記", () => {
-    const html = renderToStaticMarkup(
-      <ChatPanel
-        messages={[]}
-        onSendMessage={() => {}}
-        isLoading={false}
-        hasRubric
-        onCreateScript={() => {}}
-        isCreatingScript
-        scriptGenerationStatus="policy_review"
-        canCreateScript
-      />,
-    );
-
-    expect(html).toContain("安全檢查中…");
-    expect(html).toContain('aria-busy="true"');
-    expect(html).toContain('data-generation-status="policy_review"');
-  });
-
   test("腳本製作失敗會留下可辨識的頁面狀態，不只依賴 toast", () => {
     const html = renderToStaticMarkup(
       <ScriptGenerationNotice
         notice={{
           status: "error",
-          message: "上游服務逾時。可再次按「製作檢查腳本」重試。",
+          message: "上游服務逾時。可再次按「儲存並製作」重試。",
         }}
       />,
     );
@@ -220,6 +155,36 @@ describe("CreateCheckDialog", () => {
     expect(html).toContain("建立空白檢查");
     expect(html).not.toContain("使用已有評分文件");
     expect(html).not.toContain("選擇建立方式");
+  });
+});
+
+describe("SaveAndCreateAction", () => {
+  test("顯示於檢查表操作區並說明全綠後才製作", () => {
+    const html = renderToStaticMarkup(<SaveAndCreateAction onClick={() => {}} />);
+
+    expect(html).toContain("儲存並製作");
+    expect(html).toContain("AI 核對全部項目；全綠後會直接製作腳本");
+    expect(html).toContain("save");
+  });
+
+  test("核對期間停用按鈕並提供可辨識的忙碌狀態", () => {
+    const html = renderToStaticMarkup(
+      <SaveAndCreateAction onClick={() => {}} isProcessing status="reviewing" />,
+    );
+
+    expect(html).toContain("核對項目中…");
+    expect(html).toContain("disabled");
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('data-generation-status="reviewing"');
+  });
+
+  test("有待處理提案時停用並顯示原因", () => {
+    const html = renderToStaticMarkup(
+      <SaveAndCreateAction onClick={() => {}} blocker="請先套用目前提案" />,
+    );
+
+    expect(html).toContain("disabled");
+    expect(html).toContain('title="請先套用目前提案"');
   });
 });
 
@@ -420,6 +385,26 @@ describe("buildProposalDiff", () => {
       ["new", "add"],
       ["remove", "delete"],
     ]);
+  });
+
+  test("候選評分表只套用選定差異並保留未提及項目", () => {
+    const result = applyProposalOperations(
+      [
+        { id: "keep", title: "保留", description: "原內容" },
+        { id: "remove", title: "移除", description: "舊內容" },
+      ],
+      [
+        { id: "keep", title: "保留", description: "新內容", operation: "update" },
+        { id: "remove", operation: "delete" },
+      ],
+      new Set(["keep"]),
+    );
+
+    expect(result.items).toEqual([
+      { id: "keep", title: "保留", description: "新內容" },
+      { id: "remove", title: "移除", description: "舊內容" },
+    ]);
+    expect([...result.evaluatedIds]).toEqual(["keep"]);
   });
 });
 

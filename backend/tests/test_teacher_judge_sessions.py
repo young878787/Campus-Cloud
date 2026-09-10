@@ -387,7 +387,7 @@ async def test_message_without_rubric_is_saved_and_uses_general_chat(
 
 
 @pytest.mark.asyncio
-async def test_message_tool_action_is_server_validated_for_script_creation(
+async def test_message_does_not_enable_script_creation_workflow(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     db = _session()
@@ -420,17 +420,11 @@ async def test_message_tool_action_is_server_validated_for_script_creation(
     db.refresh(item)
 
     async def fake_chat(messages, rubric_context, **kwargs):
-        assert kwargs["enable_workflow_tools"] is True
+        assert kwargs.get("enable_workflow_tools") is not True
         return (
-            "我會使用目前的評分表製作檢查腳本。",
+            "請使用檢查表右下角的儲存並製作按鈕。",
             None,
-            {
-                "workflow_action": {
-                    "type": "create_script",
-                    "status": "requested",
-                    "tool_call_id": "call-1",
-                }
-            },
+            {},
         )
 
     monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
@@ -449,14 +443,9 @@ async def test_message_tool_action_is_server_validated_for_script_creation(
         SimpleNamespace(id=uuid.uuid4()),
     )
 
-    assert result.workflow_action is not None
-    assert result.workflow_action.status == "ready"
-    assert result.workflow_action.analysis_revision == rubric_file.analysis_revision
-    assert result.workflow_action.tool_call_id == "call-1"
-    assert result.assistant_message.content == result.workflow_action.message
-    assert result.assistant_message.metadata_json["workflow_action"]["type"] == (
-        "create_script"
-    )
+    assert result.workflow_action is None
+    assert result.assistant_message.content == "請使用檢查表右下角的儲存並製作按鈕。"
+    assert "workflow_action" not in result.assistant_message.metadata_json
 
 
 @pytest.mark.asyncio
@@ -580,6 +569,7 @@ async def test_refine_message_uses_the_rubric_polish_prompt_mode(
     assert result.assistant_message.content == "檢查完畢，評分表目前狀態良好。"
     assert result.rubric_proposal is None
     assert result.user_message.metadata_json["ui_hidden"] is True
+    assert result.assistant_message.metadata_json["ui_hidden"] is True
 
 
 @pytest.mark.asyncio

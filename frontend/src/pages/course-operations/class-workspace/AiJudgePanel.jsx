@@ -29,6 +29,14 @@ function Spinner({ size = 16 }) {
 }
 
 const SCRIPT_GENERATION_PROGRESS = {
+  saving: {
+    title: "正在儲存檢查項目",
+    message: "正在確認目前編輯已安全儲存。",
+  },
+  reviewing: {
+    title: "正在核對所有檢查項目",
+    message: "AI 正在逐項確認自動檢測方式與必要資訊。",
+  },
   queued: {
     title: "已收到製作要求",
     message: "正在準備建立檢查腳本。",
@@ -379,14 +387,40 @@ export function buildProposalDiff(currentItems, proposedItems) {
   return changes;
 }
 
+/** 將選定的 AI 差異套用成候選項目；未明確刪除的既有項目一律保留。 */
+export function applyProposalOperations(currentItems, proposalItems, selectedIds = null) {
+  const byId = new Map((Array.isArray(currentItems) ? currentItems : []).map((item) => [item.id, item]));
+  const evaluatedIds = new Set();
+  (Array.isArray(proposalItems) ? proposalItems : []).forEach((item, index) => {
+    const proposalId = item.id ?? `proposal-${index}`;
+    if (selectedIds instanceof Set && !selectedIds.has(proposalId)) return;
+    const operation = item.operation ?? item.action;
+    const cleanItem = { ...item };
+    delete cleanItem.operation;
+    delete cleanItem.action;
+    if (operation === "delete" || operation === "remove") {
+      if (item.id) evaluatedIds.add(item.id);
+      byId.delete(item.id);
+    } else if (item.id && byId.has(item.id)) {
+      evaluatedIds.add(item.id);
+      byId.set(item.id, { ...byId.get(item.id), ...cleanItem });
+    } else {
+      const id = item.id ?? `item-${Date.now()}-${byId.size}`;
+      evaluatedIds.add(id);
+      byId.set(id, { ...cleanItem, id });
+    }
+  });
+  return { items: [...byId.values()], evaluatedIds };
+}
+
 function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip, disabled, isRefine = false }) {
   if (!proposal?.length) return null;
   return (
     <div className={styles.proposalCard}>
       <div className={styles.proposalHeading}>
         <div className={styles.createCheckBody}>
-          <strong>{isRefine ? "AI一鍵整理提案" : "AI 評分表提案"}</strong>
-          <p>{isRefine ? "請逐項確認評分目標、描述、成功條件與檢查設定後再套用。" : "逐項確認後才會套用到目前的評分表。"}</p>
+          <strong>{isRefine ? "AI 核對提案" : "AI 評分表提案"}</strong>
+          <p>{isRefine ? "尚有項目未達全綠，請逐項確認問題與 AI 建議後再套用。" : "逐項確認後才會套用到目前的評分表。"}</p>
         </div>
         <span>{selectedIds.size}/{proposal.length} 項</span>
       </div>
@@ -617,11 +651,6 @@ export function ChatPanel({
   onRemoveAttachment,
   onUploadFile,
   isUploading = false,
-  onCreateScript,
-  isCreatingScript = false,
-  scriptGenerationStatus = null,
-  canCreateScript = false,
-  createScriptHint = "",
 }) {
   const [input, setInput] = useState("");
   const fileInputRef = useRef(null);
@@ -644,13 +673,6 @@ export function ChatPanel({
     event.target.value = "";
     if (file) onUploadFile?.(file);
   }
-
-  const scriptProgressLabel = {
-    queued: "準備製作…",
-    generating: "AI 製作中…",
-    policy_review: "安全檢查中…",
-    ai_review: "AI 複核中…",
-  }[scriptGenerationStatus] ?? "製作中...";
 
   return (
     <div className={styles.chatPanel}>
@@ -729,7 +751,7 @@ export function ChatPanel({
                   type="button"
                   className={styles.chatAttachmentRemove}
                   aria-label={`移除附件 ${attachment.original_filename}`}
-                  disabled={isLoading || isClearing || isUploading}
+                  disabled={isLoading || isClearing || isUploading || disabled}
                   onClick={() => onRemoveAttachment(attachment)}
                 >
                   <MIcon name="close" size={14} />
@@ -739,34 +761,10 @@ export function ChatPanel({
           </div>
         )}
         <div className={styles.chatActions}>
-          <button
-            type="button"
-            className={styles.btnSecondary}
-            disabled={isLoading || isClearing || isUploading || disabled || !hasRubric}
-            onClick={() => onSendMessage(RUBRIC_POLISH_PROMPT, true)}
-            title="(好用) AI幫助你把評分表規則化，後續方便腳本生成"
-          >
-            {isLoading ? <Spinner size={14} /> : <MIcon name="auto_fix_high" size={14} />}
-            AI一鍵整理
-          </button>
-          {onCreateScript && (
-            <button
-              type="button"
-              className={`${styles.btnPrimary} ${isCreatingScript ? styles.btnPrimaryProcessing : ""}`}
-              disabled={isLoading || isClearing || isUploading || disabled || isCreatingScript || !canCreateScript}
-              onClick={() => onCreateScript?.({ trigger: "button" })}
-              title={createScriptHint || undefined}
-              aria-busy={isCreatingScript}
-              data-generation-status={scriptGenerationStatus || undefined}
-            >
-              {isCreatingScript ? <Spinner size={14} /> : <MIcon name="terminal" size={14} />}
-              {isCreatingScript ? scriptProgressLabel : "製作檢查腳本"}
-            </button>
-          )}
           {onToggleSources && <button
             type="button"
             className={styles.btnSecondary}
-            disabled={isLoading || isClearing || isUploading}
+            disabled={isLoading || isClearing || isUploading || disabled}
             onClick={onToggleSources}
             aria-expanded={sourcesOpen}
             aria-controls="ai-chat-data-sources"
@@ -850,6 +848,38 @@ export function ChatPanel({
             : "提示：先用＋上傳文件；分析完成後，AI 才會提出可套用的檢查項目修改"}
         </p>
       </div>
+    </div>
+  );
+}
+
+export function SaveAndCreateAction({
+  onClick,
+  disabled = false,
+  blocker = null,
+  isProcessing = false,
+  status = null,
+}) {
+  const label = {
+    saving: "儲存中…",
+    reviewing: "核對項目中…",
+    queued: "準備製作…",
+    generating: "製作腳本中…",
+  }[status] ?? "儲存並製作";
+  return (
+    <div className={styles.rubricActionBar}>
+      <p>先儲存目前內容，再由 AI 核對全部項目；全綠後會直接製作腳本。</p>
+      <button
+        type="button"
+        className={`${styles.btnPrimary} ${isProcessing ? styles.btnPrimaryProcessing : ""}`}
+        disabled={disabled || isProcessing || Boolean(blocker)}
+        onClick={onClick}
+        title={blocker || undefined}
+        aria-busy={isProcessing}
+        data-generation-status={status || undefined}
+      >
+        {isProcessing ? <Spinner size={14} /> : <MIcon name="save" size={14} />}
+        {label}
+      </button>
     </div>
   );
 }
@@ -1465,26 +1495,6 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
         setSelectedProposalIds(new Set(proposal.map((item, index) => item.id ?? `proposal-${index}`)));
         setPendingProposalMeta(proposal.length ? { baseRevision: response.base_revision ?? analysisRevisionsRef.current.get(sourceFileId) } : null);
         setPendingProposalIsRefine(Boolean(proposal.length && isRefine));
-        const workflowAction = response.workflow_action;
-        if (workflowAction?.type === "create_script" && workflowAction.status === "ready") {
-          if (pendingProposal) {
-            const blockedMessage = "目前有尚未套用的檢查項目提案，請先套用或保留目前版本。";
-            setMessages((current) => {
-              const next = [...current];
-              const lastIndex = next.length - 1;
-              if (lastIndex >= 0 && next[lastIndex]?.role === "assistant") {
-                next[lastIndex] = { ...next[lastIndex], content: blockedMessage };
-              }
-              return next;
-            });
-            toast.error(blockedMessage);
-          } else {
-            setIsChatting(false);
-            await handleCreateScript({
-              analysisRevision: workflowAction.analysis_revision,
-            });
-          }
-        }
         if (isRefine && !Array.isArray(response.rubric_proposal)) {
           toast.error("AI 未回傳完整檢查項目列表，潤飾尚未套用，請稍後再試");
         } else if (isRefine && !proposal.length && analysis) {
@@ -1544,32 +1554,17 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       toast.error("評分表已經有新的修改，請重新請 AI 產生提案。");
       return;
     }
-    const selected = pendingProposal.filter((item, index) => selectedProposalIds.has(item.id ?? `proposal-${index}`));
-    const byId = new Map((analysis?.items ?? []).map((item) => [item.id, item]));
-    const evaluatedIds = new Set();
-    selected.forEach((item) => {
-      const operation = item.operation ?? item.action;
-      const cleanItem = { ...item };
-      delete cleanItem.operation;
-      delete cleanItem.action;
-      if (operation === "delete" || operation === "remove") {
-        if (item.id) evaluatedIds.add(item.id);
-        byId.delete(item.id);
-      } else if (item.id && byId.has(item.id)) {
-        evaluatedIds.add(item.id);
-        byId.set(item.id, { ...byId.get(item.id), ...cleanItem });
-      } else {
-        const id = item.id ?? `item-${Date.now()}-${byId.size}`;
-        evaluatedIds.add(id);
-        byId.set(id, { ...cleanItem, id });
-      }
-    });
+    const { items: nextItems, evaluatedIds } = applyProposalOperations(
+      analysis?.items ?? [],
+      pendingProposal,
+      selectedProposalIds,
+    );
     const currentPendingIds = sourceFileId
       ? pendingReviewIdsByFileRef.current.get(sourceFileId) ?? pendingReviewIds
       : pendingReviewIds;
     const pendingIdsAfterApply = new Set(currentPendingIds);
     evaluatedIds.forEach((id) => pendingIdsAfterApply.delete(id));
-    const saved = await applyAnalysis(applyItems(analysis, [...byId.values()]), {
+    const saved = await applyAnalysis(applyItems(analysis, nextItems), {
       persist: true,
       immediate: true,
       detectabilityNeedsReview: pendingIdsAfterApply.size > 0,
@@ -1629,20 +1624,13 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     }
   }
 
-  async function handleCreateScript({ analysisRevision = null } = {}) {
-    const blocker = getScriptCreationBlocker({ analysis, pendingProposal, pendingReviewIds });
-    if (blocker) {
-      const message = `${blocker}。`;
-      setScriptGenerationNotice({ status: "error", message });
-      toast.error(message);
-      return;
-    }
-    if (isCreatingScript) return;
+  async function handleSaveAndCreate() {
+    if (!judgeSession?.id || !sourceFileId || !analysis || isCreatingScript) return;
     setIsCreatingScript(true);
-    setScriptGenerationStatus("queued");
+    setScriptGenerationStatus("saving");
     setScriptGenerationNotice({
-      status: "queued",
-      message: "已收到製作要求，正在準備建立檢查腳本。",
+      status: "saving",
+      message: "正在儲存目前檢查項目。",
     });
     try {
       if (autosaveRef.current && !(await autosaveRef.current.flush())) {
@@ -1652,34 +1640,87 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
         });
         return;
       }
+      const baseRevision = analysisRevisionsRef.current.get(sourceFileId);
+      setScriptGenerationStatus("reviewing");
+      const response = await AiJudgeService.sendSessionMessage(
+        classId,
+        judgeSession.id,
+        RUBRIC_POLISH_PROMPT,
+        baseRevision,
+        { isRefine: true },
+      );
+      if (!Array.isArray(response.rubric_proposal)) {
+        throw new Error("AI 未回傳完整檢查項目列表，尚未變更目前檢查表");
+      }
+      const proposal = buildProposalDiff(analysis.items ?? [], response.rubric_proposal);
+      const { items: candidateItems } = applyProposalOperations(analysis.items ?? [], proposal);
+      const candidateAnalysis = {
+        ...applyItems(analysis, candidateItems),
+        detectability_needs_review: false,
+        pending_review_item_ids: [],
+      };
+      const blocker = getScriptCreationBlocker({
+        analysis: candidateAnalysis,
+        pendingProposal: null,
+        pendingReviewIds: new Set(),
+      });
+      if (blocker) {
+        setPendingProposal(proposal.length ? proposal : null);
+        setSelectedProposalIds(new Set(proposal.map((item, index) => item.id ?? `proposal-${index}`)));
+        setPendingProposalMeta(proposal.length ? { baseRevision } : null);
+        setPendingProposalIsRefine(Boolean(proposal.length));
+        const message = `${blocker}。請確認問題項目後再試一次。`;
+        setScriptGenerationNotice({ status: "error", message });
+        toast.error(message);
+        return;
+      }
+      const saved = await applyAnalysis(candidateAnalysis, {
+        persist: true,
+        immediate: true,
+        detectabilityNeedsReview: false,
+        reviewItemIds: [],
+      });
+      if (!saved) {
+        throw new Error("核對結果尚未成功儲存，因此尚未開始製作檢查腳本");
+      }
+      pendingReviewIdsByFileRef.current.set(sourceFileId, new Set());
+      setPendingReviewIds(new Set());
+      setPendingProposal(null);
+      setSelectedProposalIds(new Set());
+      setPendingProposalMeta(null);
+      setPendingProposalIsRefine(false);
+      const savedRevision = analysisRevisionsRef.current.get(sourceFileId);
+      setScriptGenerationStatus("queued");
+      setScriptGenerationNotice({
+        status: "queued",
+        message: "所有檢查項目皆已通過核對，正在準備建立檢查腳本。",
+      });
       setScriptGenerationStatus("generating");
-      const artifact = judgeSession?.id
-        ? await AiJudgeService.createSessionScript(classId, judgeSession.id, analysisRevision)
-        : await AiJudgeService.createScript(classId, {
-            name: uploadedFileName,
-            templateKey: analysisTemplateKey,
-            rubricSnapshot: analysis,
-            sourceFileId,
-          });
+      const artifact = await AiJudgeService.createSessionScript(
+        classId,
+        judgeSession.id,
+        savedRevision,
+      );
       if (artifact.status === "approved") {
         const message = "檢查腳本已通過靜態與 AI 檢查，可開始執行。";
         setScriptGenerationNotice({ status: "success", message });
         toast.success(message);
+        onScriptCreated?.(artifact);
       } else if (artifact.status === "review_failed") {
-        const message = "自動修正仍未通過；腳本與失敗原因已保留在腳本總覽。";
+        const message = "腳本自動修正後仍未通過審查；已保留目前檢查表，請確認問題後再試一次。";
         setScriptGenerationNotice({ status: "error", message });
         toast.error(message);
       } else {
         const message = "檢查腳本已產生，請到腳本總覽查看審查結果。";
         setScriptGenerationNotice({ status: "success", message });
         toast.success(message);
+        onScriptCreated?.(artifact);
       }
-      onScriptCreated?.(artifact);
     } catch (err) {
-      const message = err?.message ?? "製作檢查腳本失敗";
+      const message = err?.message ?? "儲存並製作檢查腳本失敗";
       setScriptGenerationNotice({
         status: "error",
-        message: `${message}。可再次按「製作檢查腳本」重試。`,
+        message: `${message}。目前檢查表已保留，可再次按「儲存並製作」重試。`,
       });
       toast.error(message);
     } finally {
@@ -1694,6 +1735,11 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     pendingProposal,
     pendingReviewIds,
   });
+  const saveAndCreateBlocker = pendingProposal
+    ? "請先套用或略過目前的 AI 檢查項目提案"
+    : items.length === 0
+      ? "請先新增至少一個檢查項目"
+      : null;
 
   return (
     <div className={styles.tabBody}>
@@ -1736,10 +1782,17 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
                     items={items}
                     onChange={handleItemChange}
                     onDelete={handleItemDelete}
-                    disabled={isChatting}
+                    disabled={isChatting || isCreatingScript}
                     needsReviewIds={pendingReviewIds}
                   />
                 </div>
+                <SaveAndCreateAction
+                  onClick={handleSaveAndCreate}
+                  disabled={isChatting || isClearingMessages || isUploading}
+                  blocker={saveAndCreateBlocker}
+                  isProcessing={isCreatingScript}
+                  status={scriptGenerationStatus}
+                />
               </div>
             </>
           ) : sidebar ? (
@@ -1770,6 +1823,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
               onClearMessages={handleClearMessages}
               isLoading={isChatting}
               isClearing={isClearingMessages}
+              disabled={isCreatingScript}
               hasRubric={Boolean(analysis)}
               onToggleSources={judgeSession?.id ? () => setSourcesOpen((current) => !current) : undefined}
               sourcesOpen={sourcesOpen}
@@ -1786,11 +1840,6 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
               onRemoveAttachment={handleRemoveAttachment}
               onUploadFile={!judgeSession?.id ? undefined : handleAddAttachment}
               isUploading={isUploading}
-              onCreateScript={analysis ? handleCreateScript : undefined}
-              isCreatingScript={isCreatingScript}
-              scriptGenerationStatus={scriptGenerationStatus}
-              canCreateScript={Boolean(analysis) && !scriptCreationBlocker}
-              createScriptHint={scriptCreationBlocker ?? undefined}
             />
             {pendingProposal && analysis && <ProposalPanel
               proposal={pendingProposal}
