@@ -10,11 +10,11 @@
 }
 .pageFocused { height: calc(100dvh - 120px); min-height: 420px; }
 
+/* 卡片底比照 style guide 與其他頁面：玻璃卡＋radius-16＋shadow-sm */
 @mixin surface-card {
   min-width: 0;
-  border: 1px solid var(--color-border);
-  border-radius: $radius-12;
-  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-hover));
+  @include glass-surface($shadow: var(--shadow-sm));
+  border-radius: $radius-16;
 }
 
 .page button:focus-visible { outline: 2px solid var(--color-primary-on-surface); outline-offset: 3px; }
@@ -51,14 +51,20 @@
   cursor: pointer;
   transition: border-color $transition-base, background $transition-base;
 }
-.statCard:hover { border-color: var(--color-primary-on-surface); background: var(--color-surface); }
+/* hover 疊色不蓋掉毛玻璃底（同申請審核列表列的疊法） */
+.statCard:hover {
+  border-color: var(--color-primary-on-surface);
+  background:
+    linear-gradient(var(--color-hover), var(--color-hover)),
+    var(--color-surface-glass);
+}
 .statIcon {
   @include flex-center;
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  border-radius: $radius-12;
-  color: var(--color-text-secondary);
+  border-radius: $radius-8;
+  color: var(--color-primary);
   background: var(--color-hover);
 }
 .statContent { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
@@ -165,7 +171,7 @@
   margin: (-$spacing-16) (-$spacing-16) 0;
   padding: 12px $spacing-16;
   border-bottom: 1px solid var(--color-border);
-  border-radius: $radius-12 $radius-12 0 0;
+  border-radius: $radius-16 $radius-16 0 0;
   background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
 }
 .assistantIdentity { display: flex; min-width: 0; align-items: center; gap: 12px; }

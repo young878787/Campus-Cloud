@@ -63,7 +63,8 @@ function describeJobTransition(job, t) {
     case "blocked":
       return { level: "warning", title: t("JobsProvider.jobBlocked", { kindLabel }), description: detail };
     case "cancelled":
-      return { level: "default", title: t("JobsProvider.jobCancelled", { kindLabel }), description: job.title };
+      /* info 藍：取消是中性事實通知，用 richColors 家族色才不會像樣式壞掉 */
+      return { level: "info", title: t("JobsProvider.jobCancelled", { kindLabel }), description: job.title };
     default:
       return null;
   }
@@ -101,6 +102,9 @@ function notifyJobTransition(job, onView, t, { desktopFallback = true } = {}) {
       break;
     case "warning":
       toast.warning(info.title, options);
+      break;
+    case "info":
+      toast.info(info.title, options);
       break;
     default:
       toast(info.title, options);

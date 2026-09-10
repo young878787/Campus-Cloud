@@ -25,8 +25,8 @@ import PageHeader from "../../../components/PageHeader/PageHeader";
 import i18n from "../../../i18n";
 
 const TABS = [
-  ["basic", "CourseTemplateEditorPage.tabBasicLabel"],
-  ["machines", "CourseTemplateEditorPage.tabMachinesLabel"],
+  ["basic", "CourseTemplateEditorPage.tabBasicLabel", "CourseTemplateEditorPage.stepBasicHint"],
+  ["machines", "CourseTemplateEditorPage.tabMachinesLabel", "CourseTemplateEditorPage.stepMachinesHint"],
 ];
 
 function makeEmptyTemplate() {
@@ -651,12 +651,28 @@ export default function CourseTemplateEditorPage() {
     finally { setSaving(false); }
   }
   if (loading) return <LoadingState fullPage text={t("CourseTemplateEditorPage.loadingTemplateText")} />;
-  return <div className={`${styles.page} ${closing ? styles.animSlideOutRight : styles.animSlideInRight}`}>
+  return <div className={`${styles.page} ${tab === "machines" ? styles.editorPageLocked : ""} ${closing ? styles.animSlideOutRight : styles.animSlideInRight}`}>
     <PageHeader title={isNew ? t("CourseTemplateEditorPage.createTemplateTitle") : template.name} subtitle={isNew ? t("CourseTemplateEditorPage.createTemplateSubtitle") : `v${template.version} · ${template.updatedAt}`}><div className={styles.pageActions}>{locked && <button type="button" className={styles.btnPrimary} disabled={saving} onClick={newVersion}><MIcon name="content_copy" size={16} />{t("CourseTemplateEditorPage.createNewVersionBtn")}</button>}<button type="button" className={`${styles.btnSecondary} ${styles.backBtn}`} onClick={() => leaveTo(returnTo ?? "/course-template-management")}><MIcon name="arrow_back" size={18} />{t("CourseTemplateEditorPage.backBtn")}</button></div></PageHeader>
     {returnTo && <p className={styles.persistentFeedback}><MIcon name="bookmark_added" size={17} /><span><strong>{t("CourseTemplateEditorPage.classDraftSavedTitle")}</strong>{t("CourseTemplateEditorPage.classDraftSavedDesc")}</span></p>}
-    <section className={styles.stepTabsBar}>
-      <nav className={styles.stepTabs}>{TABS.map(([key, labelKey], index) => <button type="button" key={key} className={tab === key ? styles.stepActive : ""} onClick={() => changeTab(key)}><span>{index + 1}</span><strong>{t(labelKey)}</strong></button>)}</nav>
-    </section>
+    <nav className={styles.envStepper}>
+        {TABS.map(([key, labelKey, hintKey], index) => {
+          const activeIndex = TABS.findIndex(([k]) => k === tab);
+          const done = index < activeIndex;
+          const isActive = key === tab;
+          return (
+            <button
+              type="button"
+              key={key}
+              className={`${styles.envStep} ${isActive ? styles.envStepActive : ""} ${done ? styles.envStepDone : ""}`}
+              aria-current={isActive ? "step" : undefined}
+              onClick={() => changeTab(key)}
+            >
+              <span className={styles.envStepCircle}>{done ? <MIcon name="check" size={16} /> : String(index + 1).padStart(2, "0")}</span>
+              <span className={styles.envStepText}><strong>{t(labelKey)}</strong><small>{t(hintKey)}</small></span>
+            </button>
+          );
+        })}
+    </nav>
     {tab === "basic" && <section className={styles.card}><div className={styles.cardHeader}><div><h2>{t("CourseTemplateEditorPage.tabBasicLabel")}</h2><p>{locked ? t("CourseTemplateEditorPage.lockedVersionNote") : t("CourseTemplateEditorPage.reusableEnvNote")}</p></div></div><div className={styles.formGrid}><label className={styles.field}><span>{t("CourseTemplateEditorPage.fieldEnvName")}</span><input ref={nameRef} className={invalidField === "name" ? styles.fieldInvalid : undefined} aria-invalid={invalidField === "name"} disabled={locked} value={template.name} onChange={(event) => { update({ name: event.target.value }); if (invalidField === "name") setInvalidField(""); }} placeholder={t("CourseTemplateEditorPage.envNamePlaceholder")} /></label><label className={styles.field}><span>{t("CourseTemplateEditorPage.fieldUsageScope")}</span><select disabled={locked} value={template.usageScope ?? "course"} onChange={(event) => update({ usageScope: event.target.value })}><option value="course">{t("CourseTemplateEditorPage.usageScopeCourseOnly")}</option><option value="quick_practice">{t("CourseTemplateEditorPage.usageScopeQuickPracticeOnly")}</option><option value="both">{t("CourseTemplateEditorPage.usageScopeBoth")}</option></select></label>{offersPractice && <label className={styles.field}><span>{t("CourseTemplateEditorPage.fieldMaxConcurrent")}</span><input disabled={locked} type="number" min={1} max={500} placeholder={t("CourseTemplateEditorPage.maxConcurrentPlaceholder")} value={template.maxConcurrentSessions ?? ""} onChange={(event) => update({ maxConcurrentSessions: event.target.value === "" ? null : Number(event.target.value) })} /></label>}{offersPractice && <label className={styles.field}><span>{t("CourseTemplateEditorPage.fieldAudience")}</span><select disabled={locked} value={audience} onChange={(event) => update({ audience: event.target.value })}><option value="class">{t("CourseTemplateEditorPage.audienceOptClass")}</option><option value="campus">{t("CourseTemplateEditorPage.audienceOptCampus")}</option><option value="owner">{t("CourseTemplateEditorPage.audienceOptOwner")}</option></select></label>}{offersPractice && audience === "class" && <div ref={audienceRef} tabIndex={-1} className={`${styles.field} ${styles.fieldFull} ${invalidField === "audienceClasses" ? styles.fieldInvalid : ""}`}><span>{t("CourseTemplateEditorPage.fieldAudienceClasses")}</span>{classes.length === 0 ? <p className={styles.inspectorHint}>{t("CourseTemplateEditorPage.noClassesHint")}</p> : <div className={styles.audienceClassList}>{classes.map((item) => <label key={item.id} className={styles.audienceClassItem}><input type="checkbox" disabled={locked} checked={(template.audienceClassIds ?? []).includes(String(item.id))} onChange={(event) => { update({ audienceClassIds: event.target.checked ? [...(template.audienceClassIds ?? []), String(item.id)] : (template.audienceClassIds ?? []).filter((id) => id !== String(item.id)) }); if (invalidField === "audienceClasses") setInvalidField(""); }} /><span>{item.name}<small>{item.code} · {item.term}</small></span></label>)}</div>}</div>}<label className={`${styles.field} ${styles.fieldFull}`}><span>{t("CourseTemplateEditorPage.fieldEnvDescription")}</span><textarea disabled={locked} rows={3} value={template.description ?? ""} onChange={(event) => update({ description: event.target.value })} /></label></div><div className={styles.actionFooter}><button type="button" className={styles.btnPrimary} onClick={() => changeTab("machines")}>{t("CourseTemplateEditorPage.viewMachineConfigBtn")}<MIcon name="arrow_forward" size={16} /></button></div></section>}
     {tab === "machines" && <MachineEditor value={template.nodes} edges={template.edges ?? []} publications={template.publications ?? []} onChange={(nodes) => update({ nodes })} onEdgesChange={(edges) => update({ edges })} onPublicationsChange={(publications) => update({ publications })} pveTemplates={pveTemplates} vmImages={vmImages} lxcImages={lxcImages} zones={zones} sourceNotice={sourceNotice} locked={locked} actions={!locked && <><button type="button" className={styles.btnSecondary} disabled={saving} onClick={save}><MIcon name="save" size={16} />{saving ? t("CourseTemplateEditorPage.savingEllipsis") : t("CourseTemplateEditorPage.saveDraftBtn")}</button><button type="button" className={styles.btnPrimary} disabled={isNew || saving} onClick={publish}><MIcon name="publish" size={16} />{t("CourseTemplateEditorPage.publishLabel")}</button></>} />}
   </div>;

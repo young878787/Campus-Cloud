@@ -21,6 +21,7 @@ import MIcon from "../../../components/MIcon";
 import SharedEmptyState from "../../../components/EmptyState/EmptyState";
 import LoadingState from "../../../components/LoadingState/LoadingState";
 import PageHeader from "../../../components/PageHeader/PageHeader";
+import { useConfirm } from "../../../components/ConfirmDialog/ConfirmProvider";
 
 /* ── Constants ── */
 const defaultT = (key) => i18n.t(key, { ns: "personal" });
@@ -99,6 +100,7 @@ const LIST_COLUMN_KEYS = [
   "RequestsPage.colOs",
   "RequestsPage.fieldAccount",
   "RequestsPage.colSpec",
+  "RequestsPage.colGpu",
   "RequestsPage.colReason",
   "RequestsPage.colRequestedAt",
   "RequestsPage.colPeriod",
@@ -144,13 +146,6 @@ function getOsDisplay(req) {
   return null;
 }
 
-function getFormInfoItems(req, t = defaultT) {
-  const items = [];
-  /* 帳號已改為列表欄位，這裡只留展開明細才需要的資訊 */
-  if (req.gpu_mapping_id)       items.push({ label: "GPU",    value: req.gpu_mapping_id });
-  return items;
-}
-
 function getMemDisplay(memMB) {
   if (memMB % 1024 === 0) return `${memMB / 1024} GB`;
   return `${(memMB / 1024).toFixed(1)} GB`;
@@ -184,49 +179,6 @@ function getSpecDisplay(req, t = defaultT) {
   return t("RequestsPage.specDisplay", { cores: req.cores, mem: getMemDisplay(req.memory), storage: req.storage });
 }
 
-/* ── Confirm Modal ── */
-function ConfirmModal({ title, desc, confirmLabel, danger = false, loading = false, onConfirm, onClose }) {
-  const { t } = useTranslation("personal");
-  const [closing, setClosing] = useState(false);
-
-  function close() {
-    if (closing) return;
-    setClosing(true);
-  }
-
-  function handleAnimationEnd() {
-    if (closing) onClose();
-  }
-
-  /* portal 到 body：祖先（.tableWrap）的 backdrop-filter 會讓 fixed 定位以它為
-     containing block，overlay 蓋不到全畫面還被 overflow 裁切 */
-  return createPortal(
-    <div
-      className={`${styles.modalOverlay} ${closing ? styles.modalOverlayOut : ""}`}
-      onClick={close}
-      onAnimationEnd={handleAnimationEnd}
-    >
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <span className={styles.modalTitle}>{title}</span>
-        {desc && <p className={styles.modalDesc}>{desc}</p>}
-        <div className={styles.modalActions}>
-          <button type="button" className={styles.btnSecondary} onClick={close}>
-            {t("ConfirmModal.cancel")}
-          </button>
-          <button
-            type="button"
-            className={danger ? styles.btnDanger : styles.btnPrimary}
-            disabled={loading}
-            onClick={onConfirm}
-          >
-            {loading ? t("ConfirmModal.processing") : (confirmLabel ?? t("ConfirmModal.confirm"))}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
 
 /* ── Error Log Modal ── */
 /* 管理員限定：原始開通錯誤 log 太長，不進表格也不進展開列，點狀態旁圖示開窗看 */
@@ -291,15 +243,13 @@ function RequestRow({ req, onUpdated }) {
   const showVmid = user?.is_superuser || user?.role === "admin" || user?.role === "teacher";
   /* 原始開通錯誤 log 是給管理員除錯用的，學生／老師只看狀態與操作 */
   const isAdmin = user?.is_superuser || user?.role === "admin";
-  const [expanded, setExpanded]           = useState(false);
-  const [cancelConfirm, setCancelConfirm] = useState(false);
+  const confirm = useConfirm();
   const [cancelling, setCancelling]       = useState(false);
   const [retrying, setRetrying]           = useState(false);
   const [logOpen, setLogOpen]             = useState(false);
 
   const type      = RESOURCE_TYPE_MAP[req.resource_type] ?? { label: req.resource_type, icon: "computer" };
   const osDisplay = getOsDisplay(req);
-  const formItems = getFormInfoItems(req, t);
   const startFmt  = formatDatetime(req.start_at);
   const endFmt    = formatDatetime(req.end_at);
 
@@ -307,10 +257,16 @@ function RequestRow({ req, onUpdated }) {
   const showFailureLog =
     isAdmin && (canRetry(req) || isProvisionedButFailed(req)) && req.provisioning_error;
   const showWaiting = isWaitingForResources(req);
-  const hasDetail = formItems.length > 0 || showRejection || showWaiting;
   const hasAction = canRetry(req) || canCancel(req) || isProvisionedButFailed(req);
 
   async function handleCancel() {
+    const ok = await confirm({
+      title: t("RequestRow.confirmCancelTitle"),
+      message: t("RequestRow.confirmCancelDesc", { hostname: req.hostname }),
+      confirmText: t("RequestRow.confirmCancelLabel"),
+      danger: true,
+    });
+    if (!ok) return;
     setCancelling(true);
     try {
       const updated = await VmRequestsService.cancel(req.id);
@@ -320,7 +276,6 @@ function RequestRow({ req, onUpdated }) {
       toast.error(err?.message ?? t("RequestRow.cancelFailed"));
     } finally {
       setCancelling(false);
-      setCancelConfirm(false);
     }
   }
 
@@ -339,29 +294,9 @@ function RequestRow({ req, onUpdated }) {
 
   return (
     <>
-      <tr
-        className={`${styles.tr} ${hasDetail ? styles.trClickable : ""} ${expanded ? styles.trExpanded : ""}`}
-        onClick={hasDetail ? (event) => {
-          /* 整列都可以開合，列內的按鈕（重試、撤銷…）各自處理自己的點擊 */
-          if (event.target.closest("button")) return;
-          setExpanded((v) => !v);
-        } : undefined}
-      >
+      <tr className={styles.tr}>
         <td className={styles.td}>
           <div className={styles.nameCell}>
-            {hasDetail ? (
-              <button
-                type="button"
-                className={styles.expandBtn}
-                aria-expanded={expanded}
-                aria-label={expanded ? t("RequestRow.collapseDetails") : t("RequestRow.expandDetails")}
-                onClick={() => setExpanded((v) => !v)}
-              >
-                <MIcon name={expanded ? "expand_more" : "chevron_right"} size={16} />
-              </button>
-            ) : (
-              <span className={styles.expandPlaceholder} aria-hidden="true" />
-            )}
             <div className={styles.nameIcon}>
               <MIcon name={type.icon} size={18} />
             </div>
@@ -384,6 +319,9 @@ function RequestRow({ req, onUpdated }) {
           <span className={styles.specCell}>{getSpecDisplay(req, t)}</span>
         </td>
         <td className={styles.td}>
+          <span className={styles.osCell} title={req.gpu_mapping_id ?? undefined}>{req.gpu_mapping_id ?? "—"}</span>
+        </td>
+        <td className={styles.td}>
           <span className={styles.reasonCell} title={req.reason || undefined}>
             {req.reason || "—"}
           </span>
@@ -402,6 +340,17 @@ function RequestRow({ req, onUpdated }) {
         <td className={styles.td}>
           <div className={styles.statusCell}>
             <StatusBadge req={req} />
+            {/* 展開明細已移除：退件備註／等待資源說明改掛在小圖示的 tooltip */}
+            {showRejection && (
+              <span className={styles.statusNote} title={req.review_comment}>
+                <MIcon name="comment" size={14} />
+              </span>
+            )}
+            {showWaiting && (
+              <span className={styles.statusNote} title={req.resource_warning}>
+                <MIcon name="hourglass_empty" size={14} />
+              </span>
+            )}
             {showFailureLog && (
               <button
                 type="button"
@@ -425,7 +374,7 @@ function RequestRow({ req, onUpdated }) {
               </button>
             )}
             {canCancel(req) && (
-              <button type="button" className={styles.cancelBtn} onClick={() => setCancelConfirm(true)}>
+              <button type="button" className={styles.cancelBtn} disabled={cancelling} onClick={handleCancel}>
                 <MIcon name="close" size={13} />
                 {t("RequestRow.cancelRequest")}
               </button>
@@ -440,43 +389,7 @@ function RequestRow({ req, onUpdated }) {
         </td>
       </tr>
 
-      {expanded && (
-        <tr className={styles.detailTr}>
-          <td className={styles.detailTd} colSpan={LIST_COLUMN_KEYS.length}>
-            <div className={styles.detailBody}>
-              {formItems.map(({ label, value }) => (
-                <InfoRow key={label} icon="tune" label={label} value={value} />
-              ))}
-              {showRejection && (
-                <div className={styles.reviewComment}>
-                  <MIcon name="comment" size={13} />
-                  <span>{req.review_comment}</span>
-                </div>
-              )}
-              {showWaiting && (
-                <div className={styles.reviewComment}>
-                  <MIcon name="hourglass_empty" size={13} />
-                  <span>{req.resource_warning}</span>
-                </div>
-              )}
-            </div>
-          </td>
-        </tr>
-      )}
-
       {logOpen && <ErrorLogModal req={req} onClose={() => setLogOpen(false)} />}
-
-      {cancelConfirm && (
-        <ConfirmModal
-          title={t("RequestRow.confirmCancelTitle")}
-          desc={t("RequestRow.confirmCancelDesc", { hostname: req.hostname })}
-          confirmLabel={t("RequestRow.confirmCancelLabel")}
-          danger
-          loading={cancelling}
-          onConfirm={handleCancel}
-          onClose={() => setCancelConfirm(false)}
-        />
-      )}
     </>
   );
 }
@@ -487,9 +400,8 @@ function SpecRequestRow({ req, onUpdated }) {
   const toast = useToast();
   const { user } = useAuth();
   const showVmid = user?.is_superuser || user?.role === "admin" || user?.role === "teacher";
+  const confirm = useConfirm();
   const [expanded, setExpanded]           = useState(false);
-  const [applyConfirm, setApplyConfirm]   = useState(false);
-  const [cancelConfirm, setCancelConfirm] = useState(false);
   const [busy, setBusy]                   = useState(false);
 
   const display     = specRequestDisplayStatus(req);
@@ -508,6 +420,12 @@ function SpecRequestRow({ req, onUpdated }) {
   const hasDetail = Boolean(reviewNote || applyNote || deletedByMachine || appliedAt);
 
   async function handleApply() {
+    const ok = await confirm({
+      title: t("SpecRequestRow.confirmApplyTitle"),
+      message: t("SpecRequestRow.confirmApplyDesc"),
+      confirmText: t("SpecRequestRow.confirmApplyLabel"),
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       const res = await SpecChangeRequestsService.apply(req.id);
@@ -517,11 +435,17 @@ function SpecRequestRow({ req, onUpdated }) {
       toast.error(err?.message ?? t("SpecRequestRow.applyFailed"));
     } finally {
       setBusy(false);
-      setApplyConfirm(false);
     }
   }
 
   async function handleCancel() {
+    const ok = await confirm({
+      title: t("SpecRequestRow.confirmCancelTitle"),
+      message: t("SpecRequestRow.confirmCancelDesc"),
+      confirmText: t("SpecRequestRow.confirmCancelLabel"),
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       const updated = await SpecChangeRequestsService.cancel(req.id);
@@ -531,7 +455,6 @@ function SpecRequestRow({ req, onUpdated }) {
       toast.error(err?.message ?? t("SpecRequestRow.cancelFailed"));
     } finally {
       setBusy(false);
-      setCancelConfirm(false);
     }
   }
 
@@ -589,13 +512,13 @@ function SpecRequestRow({ req, onUpdated }) {
           <div className={styles.rowActions}>
             {!hasAction && <span className={styles.emptyAction}>—</span>}
             {showApply && (
-              <button type="button" className={styles.applyBtn} disabled={busy} onClick={() => setApplyConfirm(true)}>
+              <button type="button" className={styles.applyBtn} disabled={busy} onClick={handleApply}>
                 <MIcon name="play_arrow" size={13} />
                 {display.key === "ready" ? t("SpecRequestRow.apply") : t("SpecRequestRow.reapply")}
               </button>
             )}
             {showCancel && (
-              <button type="button" className={styles.cancelBtn} disabled={busy} onClick={() => setCancelConfirm(true)}>
+              <button type="button" className={styles.cancelBtn} disabled={busy} onClick={handleCancel}>
                 <MIcon name="close" size={13} />
                 {t("SpecRequestRow.cancel")}
               </button>
@@ -632,28 +555,6 @@ function SpecRequestRow({ req, onUpdated }) {
         </tr>
       )}
 
-      {applyConfirm && (
-        <ConfirmModal
-          title={t("SpecRequestRow.confirmApplyTitle")}
-          desc={t("SpecRequestRow.confirmApplyDesc")}
-          confirmLabel={t("SpecRequestRow.confirmApplyLabel")}
-          loading={busy}
-          onConfirm={handleApply}
-          onClose={() => setApplyConfirm(false)}
-        />
-      )}
-
-      {cancelConfirm && (
-        <ConfirmModal
-          title={t("SpecRequestRow.confirmCancelTitle")}
-          desc={t("SpecRequestRow.confirmCancelDesc")}
-          confirmLabel={t("SpecRequestRow.confirmCancelLabel")}
-          danger
-          loading={busy}
-          onConfirm={handleCancel}
-          onClose={() => setCancelConfirm(false)}
-        />
-      )}
     </>
   );
 }
@@ -796,7 +697,7 @@ export default function RequestsPage() {
                   <thead>
                     <tr>
                       {LIST_COLUMN_KEYS.map((columnKey, idx) => (
-                        <th key={columnKey} className={idx === 0 ? `${styles.th} ${styles.thName}` : styles.th}>{t(columnKey)}</th>
+                        <th key={columnKey} className={styles.th}>{t(columnKey)}</th>
                       ))}
                     </tr>
                   </thead>

@@ -14,6 +14,7 @@ import {
 } from "../../services/aiContextualHelp";
 import MIcon from "../MIcon";
 import useDialogPresence from "../../hooks/useDialogPresence";
+import useBodyScrollLock from "../../hooks/useBodyScrollLock";
 import styles from "./AiFloatingChat.module.scss";
 
 /* title/suggestions 是模組層級常數，無法呼叫 hook，改存 key，實際 render 處再 t() */
@@ -332,6 +333,18 @@ function Message({ message, currentPath, onNavigate, onRecommend, onAnswer, onPl
 export default function AiFloatingChat({ open = false, onOpenChange = () => {} }) {
   // 關閉時先播放離場動畫再卸載面板
   const presence = useDialogPresence(open, 180);
+  /* <1440px 時面板是覆蓋層（fixed + backdrop），開啟期間鎖住底下頁面捲動；
+     寬螢幕的並排停靠模式不鎖 */
+  const [overlayMode, setOverlayMode] = useState(
+    () => window.matchMedia("(max-width: 1439px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1439px)");
+    const onChange = (event) => setOverlayMode(event.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  useBodyScrollLock(presence.open && overlayMode);
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();

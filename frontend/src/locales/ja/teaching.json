@@ -1010,5 +1010,7 @@
   "AiJudgePanel.waitingCollectionLabel": "回収待ち",
   "AiJudgePanel.weekOptionLabel": "第 {{week}} 週 ・{{title}}",
   "AiJudgePanel.whichWeekLabel": "どの週のタスクに入れますか？",
-  "CourseTemplateEditorPage.draftRestoredMsg": "保存されていない編集内容を復元しました"
+  "CourseTemplateEditorPage.draftRestoredMsg": "保存されていない編集内容を復元しました",
+  "CourseTemplateEditorPage.stepBasicHint": "名称・用途・対象",
+  "CourseTemplateEditorPage.stepMachinesHint": "ノードと接続設定"
 }

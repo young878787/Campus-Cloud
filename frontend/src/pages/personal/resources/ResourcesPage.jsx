@@ -23,6 +23,7 @@ import TerminalDialog from "./TerminalDialog";
 import VncDialog from "./VncDialog";
 import QuotaUsageBar from "../../../components/Teaching/QuotaUsageBar";
 import PageHeader from "../../../components/PageHeader/PageHeader";
+import { useConfirm } from "../../../components/ConfirmDialog/ConfirmProvider";
 import { QuickPracticeService } from "../../../services/quickPractice";
 import { buildEnvironmentGroups, groupedResourceKeys } from "../../../utils/environmentGroups";
 
@@ -83,46 +84,6 @@ function StatusBadge({ status }) {
 }
 
 /* ── Confirm Modal ── */
-function ConfirmModal({ title, desc, confirmLabel, danger = false, loading = false, onConfirm, onClose }) {
-  const { t } = useTranslation("personal");
-  const [closing, setClosing] = useState(false);
-
-  function close() {
-    if (closing) return;
-    setClosing(true);
-  }
-
-  function handleAnimationEnd() {
-    if (closing) onClose();
-  }
-
-  return (
-    <div
-      className={`${styles.modalOverlay} ${closing ? styles.modalOverlayOut : ""}`}
-      onClick={close}
-      onAnimationEnd={handleAnimationEnd}
-    >
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <span className={styles.modalTitle}>{title}</span>
-        {desc && <p className={styles.modalDesc}>{desc}</p>}
-        <div className={styles.modalActions}>
-          <button type="button" className={styles.btnSecondary} onClick={close}>
-            {t("ConfirmModal.cancel")}
-          </button>
-          <button
-            type="button"
-            className={danger ? styles.btnDanger : styles.btnPrimary}
-            disabled={loading}
-            onClick={onConfirm}
-          >
-            {loading ? t("ConfirmModal.processing") : (confirmLabel ?? t("ConfirmModal.confirm"))}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ── Creating placeholder row ── */
 
 /** 依申請階段決定 placeholder 的狀態顯示（開通中 / 超時 / 失敗…） */
@@ -155,7 +116,7 @@ function formatMemory(memoryMb) {
 function CreatingRow({ request, onCancelled }) {
   const { t } = useTranslation("personal");
   const toast = useToast();
-  const [cancelConfirm, setCancelConfirm] = useState(false);
+  const confirm = useConfirm();
   const [cancelling, setCancelling]       = useState(false);
 
   const type    = TYPE_MAP[request.resource_type === "lxc" ? "lxc" : "qemu"];
@@ -164,11 +125,17 @@ function CreatingRow({ request, onCancelled }) {
   const canCancel = request.provisioning_status !== "running";
 
   async function handleCancel() {
+    const ok = await confirm({
+      title: t("CreatingRow.confirmCancelTitle"),
+      message: t("CreatingRow.confirmCancelDesc", { hostname: request.hostname }),
+      confirmText: t("CreatingRow.confirmCancelLabel"),
+      danger: true,
+    });
+    if (!ok) return;
     setCancelling(true);
     try {
       await cancelVmRequest(request.id);
       toast.success(t("CreatingRow.cancelRequestSuccess", { hostname: request.hostname }));
-      setCancelConfirm(false);
       onCancelled();
     } catch (err) {
       toast.error(err?.message ?? t("CreatingRow.cancelRequestFailed"));
@@ -200,23 +167,11 @@ function CreatingRow({ request, onCancelled }) {
       <td className={styles.td}>{formatDatetime(request.start_at) ?? formatDatetime(request.created_at)}</td>
       <td className={styles.td}>{request.assigned_node ?? request.desired_node ?? t("CreatingRow.notAssigned")}</td>
       <td className={styles.td}>
-        <button type="button" className={styles.cancelBtn} disabled={!canCancel || cancelling} onClick={() => setCancelConfirm(true)}>
+        <button type="button" className={styles.cancelBtn} disabled={!canCancel || cancelling} onClick={handleCancel}>
           <MIcon name="cancel" size={14} />{t("CreatingRow.cancelRequest")}
         </button>
       </td>
     </tr>
-    {cancelConfirm && createPortal(
-      <ConfirmModal
-        title={t("CreatingRow.confirmCancelTitle")}
-        desc={t("CreatingRow.confirmCancelDesc", { hostname: request.hostname })}
-        confirmLabel={t("CreatingRow.confirmCancelLabel")}
-        danger
-        loading={cancelling}
-        onConfirm={handleCancel}
-        onClose={() => setCancelConfirm(false)}
-      />,
-      document.body,
-    )}
   </>;
 }
 
@@ -244,8 +199,8 @@ function ResourceRow({ resource, onUpdated, onDeleted }) {
     && resource.allocation_scope !== "teaching_class"
     && !resource.is_placeholder
     && resource.vmid > 0;
+  const confirm = useConfirm();
   const [actionLoading, setActionLoading] = useState(null);
-  const [deleteConfirm, setDeleteConfirm]  = useState(false);
   const [deleting, setDeleting]            = useState(false);
   const [menuOpen, setMenuOpen]            = useState(false);
   const [menuClosing, setMenuClosing]      = useState(false);
@@ -275,13 +230,22 @@ function ResourceRow({ resource, onUpdated, onDeleted }) {
   }
 
   async function handleDelete() {
+    if (deleting) return;
+    const ok = await confirm({
+      title: t("ResourceRow.confirmDeleteTitle"),
+      message: showVmid
+        ? t("ResourceRow.confirmDeleteDescWithVmid", { name: resource.name, vmid: resource.vmid })
+        : t("ResourceRow.confirmDeleteDescNoVmid", { name: resource.name }),
+      confirmText: t("ResourceRow.confirmDeleteLabel"),
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       await ResourcesService.delete(resource.vmid);
       onDeleted(resource.vmid);
     } finally {
       setDeleting(false);
-      setDeleteConfirm(false);
     }
   }
 
@@ -322,13 +286,12 @@ function ResourceRow({ resource, onUpdated, onDeleted }) {
           </button>
           {actionLoading && <MIcon name="hourglass_empty" size={16} />}
           <div className={styles.menuWrap}>
-            {menuOpen && <PowerMenu resource={resource} actionLoading={actionLoading} onControl={handleControl} onDeleteClick={resource.can_delete === false ? undefined : () => { closeMenu(); setDeleteConfirm(true); }} onConvertTemplate={canConvertTemplate ? () => { closeMenu(); setConvertOpen(true); } : undefined} onClose={closeMenu} anchorRef={menuBtnRef} closing={menuClosing} />}
+            {menuOpen && <PowerMenu resource={resource} actionLoading={actionLoading} onControl={handleControl} onDeleteClick={resource.can_delete === false ? undefined : () => { closeMenu(); handleDelete(); }} onConvertTemplate={canConvertTemplate ? () => { closeMenu(); setConvertOpen(true); } : undefined} onClose={closeMenu} anchorRef={menuBtnRef} closing={menuClosing} />}
             <button ref={menuBtnRef} type="button" className={`${styles.menuBtn} ${menuOpen ? styles.menuBtnActive : ""}`} onClick={() => menuOpen ? closeMenu() : setMenuOpen(true)} title={t("ResourceRow.moreActions")}><MIcon name="more_vert" size={18} /></button>
           </div>
         </div> : <span className={styles.deletedNote}>{STATUS_MAP[resource.status]?.labelKey ? t(STATUS_MAP[resource.status].labelKey) : resource.status}</span>}
       </td>
     </tr>
-    {deleteConfirm && createPortal(<ConfirmModal title={t("ResourceRow.confirmDeleteTitle")} desc={showVmid ? t("ResourceRow.confirmDeleteDescWithVmid", { name: resource.name, vmid: resource.vmid }) : t("ResourceRow.confirmDeleteDescNoVmid", { name: resource.name })} confirmLabel={t("ResourceRow.confirmDeleteLabel")} danger loading={deleting} onConfirm={handleDelete} onClose={() => setDeleteConfirm(false)} />, document.body)}
     {consoleOpen && isLxc && createPortal(<TerminalDialog resource={resource} onClose={() => setConsoleOpen(false)} />, document.body)}
     {consoleOpen && !isLxc && createPortal(<VncDialog resource={resource} onClose={() => setConsoleOpen(false)} />, document.body)}
     {convertDialog.open && createPortal(<TemplateConvertDialog resource={resource} closing={convertDialog.closing} onClose={() => setConvertOpen(false)} onDone={() => onDeleted(resource.vmid)} />, document.body)}
@@ -408,9 +371,9 @@ function EnvironmentMachineRow({ machine, groupStatus, onUpdated }) {
 
 function EnvironmentGroupRows({ group, onUpdated, onEnded }) {
   const { t } = useTranslation("personal");
+  const confirm = useConfirm();
   const [expanded, setExpanded] = useState(true);
   const [ending, setEnding] = useState(false);
-  const [endConfirm, setEndConfirm] = useState(false);
   const [groupAction, setGroupAction] = useState(null);
   const toast = useToast();
   const canEnd = group.kind === "quick_practice" && !["reclaiming", "reclaimed"].includes(group.status);
@@ -434,11 +397,17 @@ function EnvironmentGroupRows({ group, onUpdated, onEnded }) {
   }
 
   async function endPractice() {
+    const ok = await confirm({
+      title: t("EnvironmentGroupRows.confirmEndTitle"),
+      message: t("EnvironmentGroupRows.confirmEndDesc"),
+      confirmText: t("EnvironmentGroupRows.endPractice"),
+      danger: true,
+    });
+    if (!ok) return;
     setEnding(true);
     try {
       await QuickPracticeService.endSession(group.id);
       toast.success(t("EnvironmentGroupRows.endPracticeSuccess"));
-      setEndConfirm(false);
       onEnded?.();
     } catch (error) {
       toast.error(error?.message ?? t("EnvironmentGroupRows.endPracticeFailed"));
@@ -467,11 +436,10 @@ function EnvironmentGroupRows({ group, onUpdated, onEnded }) {
           <button type="button" className={styles.terminalBtn} disabled={Boolean(groupAction) || runningCount === group.machines.length} onClick={() => runGroupAction("start")}><MIcon name={groupAction === "start" ? "hourglass_empty" : "play_arrow"} size={14} />{t("EnvironmentGroupRows.startAll")}</button>
           <button type="button" className={styles.terminalBtn} disabled={Boolean(groupAction) || runningCount === 0} onClick={() => runGroupAction("shutdown")}><MIcon name={groupAction === "shutdown" ? "hourglass_empty" : "power_settings_new"} size={14} />{t("EnvironmentGroupRows.shutdownAll")}</button>
         </>}
-        {canEnd && <button type="button" className={styles.terminalBtn} disabled={ending} onClick={() => setEndConfirm(true)}><MIcon name="stop_circle" size={14} />{ending ? t("EnvironmentGroupRows.ending") : t("EnvironmentGroupRows.endPractice")}</button>}
+        {canEnd && <button type="button" className={styles.terminalBtn} disabled={ending} onClick={endPractice}><MIcon name="stop_circle" size={14} />{ending ? t("EnvironmentGroupRows.ending") : t("EnvironmentGroupRows.endPractice")}</button>}
       </div></td>
     </tr>
     {expanded && group.machines.map((machine) => <EnvironmentMachineRow key={machine.id} machine={machine} groupStatus={group.status} onUpdated={onUpdated} />)}
-    {endConfirm && createPortal(<ConfirmModal title={t("EnvironmentGroupRows.confirmEndTitle")} desc={t("EnvironmentGroupRows.confirmEndDesc")} confirmLabel={t("EnvironmentGroupRows.endPractice")} danger loading={ending} onConfirm={endPractice} onClose={() => setEndConfirm(false)} />, document.body)}
   </>;
 }
 

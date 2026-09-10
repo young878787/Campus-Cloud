@@ -171,9 +171,6 @@
   "ResourcesPage.emptyTitle": "まだリソースがありません",
   "ResourcesPage.errorTitle": "読み込みに失敗しました",
   "ResourcesPage.retry": "再試行",
-  "ConfirmModal.confirm": "確定",
-  "ConfirmModal.cancel": "キャンセル",
-  "ConfirmModal.processing": "処理中…",
   "CreatingRow.statusPendingReview": "審査中",
   "CreatingRow.statusProvisionFailed": "作成失敗",
   "CreatingRow.statusProvisioning": "作成中",
@@ -1096,5 +1093,8 @@
   "AdminDashboardPage.tierNowTitle": "今すぐ対応",
   "AdminDashboardPage.tierTodayTitle": "本日中に対応",
   "AdminDashboardPage.infraAlertDetail": "{{metric}} {{value}}%（しきい値 {{threshold}}%）",
-  "AdminDashboardPage.pveMetricdisk": "ディスク"
+  "AdminDashboardPage.pveMetricdisk": "ディスク",
+  "RequestFormPage.showPassword": "パスワードを表示",
+  "RequestFormPage.hidePassword": "パスワードを非表示",
+  "RequestsPage.colGpu": "GPU"
 }

@@ -171,9 +171,6 @@
   "ResourcesPage.emptyTitle": "尚無資源",
   "ResourcesPage.errorTitle": "載入失敗",
   "ResourcesPage.retry": "重試",
-  "ConfirmModal.confirm": "確定",
-  "ConfirmModal.cancel": "取消",
-  "ConfirmModal.processing": "處理中…",
   "CreatingRow.statusPendingReview": "審核中",
   "CreatingRow.statusProvisionFailed": "開通失敗",
   "CreatingRow.statusProvisioning": "開通中",
@@ -427,7 +424,7 @@
   "RequestFormPage.endDateLabel": "結束時間",
   "RequestFormPage.orUseAvailabilityCalendar": "或使用可用性月曆",
   "RequestFormPage.reasonTitle": "申請原因",
-  "RequestFormPage.reasonPlaceholder": "請描述您的申請用途...",
+  "RequestFormPage.reasonPlaceholder": "請描述您的申請用途，原因至少需要 10 個字符",
   "RequestFormPage.charCount": "{{count}} 字",
   "RequestFormPage.cancel": "取消",
   "RequestFormPage.submitting": "送出中…",
@@ -1096,5 +1093,8 @@
   "AdminDashboardPage.tierNowTitle": "現在就處理",
   "AdminDashboardPage.tierTodayTitle": "排進今天",
   "AdminDashboardPage.infraAlertDetail": "{{metric}} {{value}}%（門檻 {{threshold}}%）",
-  "AdminDashboardPage.pveMetricdisk": "磁碟"
+  "AdminDashboardPage.pveMetricdisk": "磁碟",
+  "RequestFormPage.showPassword": "顯示密碼",
+  "RequestFormPage.hidePassword": "隱藏密碼",
+  "RequestsPage.colGpu": "GPU"
 }

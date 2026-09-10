@@ -694,6 +694,56 @@
 .envTable td strong { color: var(--color-text-primary); font-weight: $font-weight-500; }
 .envTable td small { display: block; max-width: 420px; margin-top: 3px; color: var(--color-text-muted); font-size: $font-size-12; line-height: 1.35; }
 
+/* ── 學習環境編輯頁 Stepper：圓圈節點＋連接線（完成打勾／進行中高亮／未來灰圈） ── */
+/* flex: none：直欄版面裡不撐高；寬度收斂置中，連接線才不會拉過長 */
+.envStepper { display: flex; flex: none; width: min(560px, 100%); min-width: 0; margin-inline: auto; padding: 4px 0; }
+.envStep {
+  position: relative;
+  display: flex; flex: 1; min-width: 0; flex-direction: column; align-items: center; gap: 6px;
+  padding: 0 8px; border: 0; background: none; font: inherit; cursor: pointer;
+}
+/* 與前一步的連接線：畫在自己身上、往左跨到前一顆圓的邊緣 */
+.envStep::before {
+  content: ""; position: absolute; top: 15px; height: 2px; border-radius: 1px;
+  left: calc(-50% + 26px); right: calc(50% + 26px);
+  background: var(--color-border);
+  transition: background $transition-base;
+}
+.envStep:first-child::before { display: none; }
+.envStepActive::before, .envStepDone::before { background: var(--color-primary); }
+.envStepCircle {
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  border: 2px solid var(--color-border); color: var(--color-text-muted);
+  background: var(--color-surface);
+  font-size: $font-size-12; font-weight: $font-weight-700; font-variant-numeric: tabular-nums;
+  transition: border-color $transition-base, background $transition-base, color $transition-base, box-shadow $transition-base;
+}
+.envStep:hover .envStepCircle { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border)); }
+.envStepActive .envStepCircle { border-color: var(--color-primary); color: var(--color-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 14%, transparent); }
+.envStepDone .envStepCircle { border-color: var(--color-primary); color: var(--color-text-on-primary); background: var(--color-primary); }
+.envStepText { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 1px; }
+.envStepText strong { color: var(--color-text-secondary); font-size: $font-size-14; font-weight: $font-weight-500; white-space: nowrap; }
+.envStepActive .envStepText strong { color: var(--color-text-primary); font-weight: $font-weight-700; }
+.envStepText small { color: var(--color-text-muted); font-size: $font-size-12; white-space: nowrap; }
+
+/* ── 機器配置步驟鎖定視口高度：stepper 固定、工作區吃滿剩餘、畫布自適應，
+   儲存列不必捲動就看得到；視窗太矮退回自然捲動（比照申請審核頁的鎖高條件） ── */
+.editorPageLocked {
+  @include respond-to(lg) {
+    @media (min-height: 768px) {
+      flex: none;
+      height: calc(100dvh - var(--layout-py) * 2 - var(--footer-h) - #{$spacing-16});
+      overflow: hidden;
+
+      .templateMachineWorkspace { flex: 1; min-height: 0; }
+      .templateMachineWorkspace .actionFooter { margin-top: auto; }
+      .topologyWorkspace { flex: 1; min-height: 0; }
+      .topologyCanvas { height: auto; min-height: 240px; }
+      .topologyInspector { height: auto; max-height: none; }
+    }
+  }
+}
+
 /* ── 列表 ↔ 編輯頁換頁動畫（比照「我的申請」的表單開合） ── */
 @keyframes envSlideInRight  { from { opacity: 0; transform: translateX(40px); }  to { opacity: 1; transform: translateX(0); } }
 @keyframes envSlideOutRight { from { opacity: 1; transform: translateX(0); }     to { opacity: 0; transform: translateX(40px); } }

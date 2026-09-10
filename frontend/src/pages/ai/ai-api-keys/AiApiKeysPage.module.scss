@@ -10,7 +10,7 @@
 
   @media (min-width: $breakpoint-sidebar) { padding: 0; }
 
-  /* 桌面版鎖定視口高度，改由 list / detailPane 內部滾動；
+  /* 桌面版鎖定視口高度，改由 list 內部滾動；
      flex: none 讓 height 不被外層 column flex 演算法蓋掉 */
   @include respond-to(lg) {
     flex: none;
@@ -228,70 +228,53 @@
 }
 
 /* ── 左右分欄：左列表、右常駐詳細面板（仿 RequestReviewPage） ── */
-.keysGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: $spacing-16;
+/* 表格樣式比照「我的申請」：table-wrap 玻璃卡 + 標準 th/td */
+.tableWrap {
+  @include table-wrap;
 
-  @include respond-to(lg) {
-    grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
-    grid-template-rows: minmax(0, 1fr);
-    flex: 1;
-    min-height: 0;
-  }
-}
-
-.listPane,
-.detailPane {
-  @include flex-column;
-  gap: $spacing-16;
-
-  @include respond-to(lg) { min-height: 0; }
-}
-
-.detailPane {
-  padding: $spacing-24;
-  @include glass-surface($shadow: var(--shadow-sm));
-  border-radius: $radius-12;
-
-  @include respond-to(lg) { overflow-y: auto; }
-}
-
-.list {
-  @include flex-column;
-  gap: $spacing-8;
-
-  /* 桌面版列表內部滾動；padding 保留 rowActive 的外圈不被裁掉 */
+  /* 桌面版鎖高模式下由表格容器內部滾動 */
   @include respond-to(lg) {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 2px;
   }
 }
 
-.row {
-  width: 100%;
+.table {
+  @include table-base;
+  min-width: 880px;
+}
+
+.th {
+  @include table-th;
+}
+
+.tr {
+  @include table-tr;
+}
+
+.td {
+  @include table-td;
+  padding-block: 12px;
+}
+
+.nameCell {
   display: flex;
   align-items: center;
-  text-align: left;
-  gap: $spacing-16;
-  padding: 12px $spacing-16;
-  @include glass-surface($shadow: var(--shadow-sm));
-  border-radius: $radius-12;
-  cursor: pointer;
-  transition: background $transition-base, border-color $transition-base, box-shadow $transition-base;
-
-  &:hover {
-    background:
-      linear-gradient(var(--color-hover), var(--color-hover)),
-      var(--color-surface-glass);
-  }
+  gap: $spacing-8;
 }
 
-.rowActive {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 16%, transparent);
+/* 擁有者／申請用途：截斷保欄寬，全文靠 title */
+.cellText {
+  display: inline-block;
+  max-width: 200px;
+  vertical-align: middle;
+  font-size: $font-size-14;
+  @include text-truncate;
+}
+
+.cellMuted {
+  color: var(--color-text-muted);
 }
 
 .rowIcon {
@@ -307,11 +290,31 @@
 .rowMain {
   @include flex-column;
   gap: 2px;
-  flex: 1;
   min-width: 0;
 }
 
+/* 操作鈕樣式比照 AI API 審核頁：淡色底＋圖示＋文字 */
+.rowRevokeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: $radius-8;
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
+  font-size: $font-size-12;
+  font-weight: $font-weight-500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background $transition-base, color $transition-base;
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  }
+}
+
 .rowName {
+  max-width: 220px;
   font-size: $font-size-14;
   font-weight: $font-weight-500;
   color: var(--color-text-primary);
@@ -319,40 +322,13 @@
 }
 
 .rowMeta {
+  max-width: 220px;
   font-size: $font-size-12;
   color: var(--color-text-muted);
   @include text-truncate;
 }
 
-.rowSide {
-  @include flex-column;
-  align-items: flex-end;
-  gap: $spacing-4;
-  flex-shrink: 0;
-}
-
-.rowTime {
-  font-size: $font-size-12;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-.stateBox {
-  @include flex-column;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  gap: $spacing-8;
-  min-height: 120px;
-  padding: $spacing-24;
-  color: var(--color-text-secondary);
-}
-
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-.muted { color: var(--color-text-muted); }
-
-.badge,
-.roleBadge {
+.badge {
   @include badge-base;
   min-height: 24px;
   padding: 2px 9px;
@@ -363,9 +339,6 @@
 .badge_active { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); }
 .badge_inactive { background: color-mix(in srgb, var(--color-danger) 12%, transparent); color: var(--color-danger); }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-
-/* 身分標籤不做角色配色（綠/藍易與狀態徽章混淆），統一中性色 */
-.roleBadge { background: color-mix(in srgb, var(--color-status-neutral) 12%, transparent); color: var(--color-text-secondary); }
 
 .pagination {
   flex-shrink: 0;
@@ -390,24 +363,6 @@
 }
 
 .dialogOverlayOut { opacity: 0; pointer-events: none; }
-
-.detailHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: $spacing-16;
-}
-
-.detailHeading { min-width: 0; }
-.detailKicker { display: block; margin-bottom: $spacing-4; color: var(--color-text-muted); font-size: $font-size-12; }
-.detailTitle { overflow: hidden; color: var(--color-text-primary); font-size: $font-size-24; font-weight: $font-weight-700; text-overflow: ellipsis; white-space: nowrap; }
-
-.detailSection { padding-top: $spacing-16; border-top: 1px solid var(--color-divider); }
-.detailSection h3 { margin-bottom: 12px; color: var(--color-text-primary); font-size: $font-size-16; font-weight: $font-weight-700; }
-.detailGrid { display: grid; gap: 12px; margin: 0; }
-.detailItem { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: $spacing-8; align-items: baseline; }
-.detailItem dt { color: var(--color-text-muted); font-size: $font-size-12; }
-.detailItem dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: var(--color-text-primary); font-size: $font-size-14; }
 
 .dialogOverlay { align-items: center; justify-content: center; padding: $spacing-16; }
 .dialog {
@@ -436,7 +391,6 @@
   .filterButton { width: 100%; }
   .filterArea { width: 100%; }
   .filterPopover { left: 0; right: auto; width: 100%; }
-  .detailPane { padding: $spacing-16; }
 }
 
 @media (prefers-reduced-motion: reduce) {

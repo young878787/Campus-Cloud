@@ -653,8 +653,6 @@
   &:not(:last-child) { border-bottom: 1px solid var(--color-divider); }
 }
 
-.trFailed { background: color-mix(in srgb, var(--color-danger) 4%, transparent); }
-
 .td {
   @include table-td;
   font-variant-numeric: tabular-nums;

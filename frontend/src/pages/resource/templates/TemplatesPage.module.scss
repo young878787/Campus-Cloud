@@ -304,6 +304,7 @@
 }
 
 .modalTitle {
+  overflow-wrap: anywhere;
   display: inline-flex;
   align-items: center;
   gap: $spacing-8;
@@ -313,6 +314,7 @@
 }
 
 .modalDesc {
+  overflow-wrap: anywhere;
   font-size: $font-size-14;
   color: var(--color-text-secondary);
 }

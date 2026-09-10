@@ -597,12 +597,15 @@
   font-size: $font-size-16;
   font-weight: $font-weight-700;
   color: var(--color-text-primary);
+  overflow-wrap: anywhere;
 }
 
+/* 內文常插入主機名稱等連續長字串，強制可斷行以免撐破彈窗 */
 .modalDesc {
   font-size: $font-size-14;
   color: var(--color-text-secondary);
   line-height: $line-height-base;
+  overflow-wrap: anywhere;
 }
 
 .modalActions {

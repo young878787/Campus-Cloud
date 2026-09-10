@@ -1010,5 +1010,7 @@
   "AiJudgePanel.waitingCollectionLabel": "Awaiting collection",
   "AiJudgePanel.weekOptionLabel": "Week {{week}} · {{title}}",
   "AiJudgePanel.whichWeekLabel": "Which week's task should this go into?",
-  "CourseTemplateEditorPage.draftRestoredMsg": "Restored your unsaved edits"
+  "CourseTemplateEditorPage.draftRestoredMsg": "Restored your unsaved edits",
+  "CourseTemplateEditorPage.stepBasicHint": "Name, usage & audience",
+  "CourseTemplateEditorPage.stepMachinesHint": "Nodes, specs & links"
 }

@@ -276,6 +276,9 @@ export default function RequestReviewPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+  /* 切換列時詳情欄捲回頂端，避免殘留上一筆的捲動位置 */
+  const detailScrollRef = useRef(null);
+  useEffect(() => { detailScrollRef.current?.scrollTo({ top: 0 }); }, [selectedId]);
   const [context, setContext] = useState(null);
   const [contextLoading, setContextLoading] = useState(false);
   const [contextError, setContextError] = useState("");
@@ -539,7 +542,7 @@ export default function RequestReviewPage() {
               <div className={styles.stateBox}>{t("RequestReviewPage.selectARequest")}</div>
             ) : (
               <>
-                <div className={styles.detailScroll}>
+                <div className={styles.detailScroll} ref={detailScrollRef}>
                   <div className={styles.detailHeader}>
                     <h2>{selected.title}</h2>
                     <p>{selected.user}</p>

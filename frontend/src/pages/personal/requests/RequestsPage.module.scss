@@ -103,6 +103,13 @@
   padding-inline: 12px;
 }
 
+/* 狀態旁的補充說明圖示（退件備註／等待資源），全文放 tooltip */
+.statusNote {
+  display: inline-flex;
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
 .nameCell {
   display: flex;
   align-items: center;

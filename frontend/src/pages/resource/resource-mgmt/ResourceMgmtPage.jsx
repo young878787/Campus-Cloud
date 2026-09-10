@@ -15,6 +15,7 @@ import { ResourcesService } from "../../../services/resources";
 import TerminalDialog from "../../personal/resources/TerminalDialog";
 import VncDialog from "../../personal/resources/VncDialog";
 import PageHeader from "../../../components/PageHeader/PageHeader";
+import { useConfirm } from "../../../components/ConfirmDialog/ConfirmProvider";
 import { QuickPracticeService } from "../../../services/quickPractice";
 import { buildEnvironmentGroups, groupedResourceKeys } from "../../../utils/environmentGroups";
 
@@ -264,56 +265,14 @@ function EnvironmentGroupRows({ group, onUpdated, onRefresh }) {
   );
 }
 
-/* ── Confirm Modal ── */
-function ConfirmModal({ title, desc, confirmLabel, danger = false, loading = false, onConfirm, onClose }) {
-  const { t } = useTranslation("resource");
-  const [closing, setClosing] = useState(false);
-  const resolvedConfirmLabel = confirmLabel ?? t("ResourceMgmtPage.confirmDefault");
-
-  function close() {
-    if (closing) return;
-    setClosing(true);
-  }
-
-  function handleAnimationEnd() {
-    if (closing) onClose();
-  }
-
-  return (
-    <div
-      className={`${styles.modalOverlay} ${closing ? styles.modalOverlayOut : ""}`}
-      onClick={close}
-      onAnimationEnd={handleAnimationEnd}
-    >
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <span className={styles.modalTitle}>{title}</span>
-        {desc && <p className={styles.modalDesc}>{desc}</p>}
-        <div className={styles.modalActions}>
-          <button type="button" className={styles.btnSecondary} onClick={close}>
-            {t("ResourceMgmtPage.cancel")}
-          </button>
-          <button
-            type="button"
-            className={danger ? styles.btnDanger : styles.btnPrimary}
-            disabled={loading}
-            onClick={onConfirm}
-          >
-            {loading ? t("ResourceMgmtPage.processing") : resolvedConfirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ── 批次操作列（有勾選才顯示） ── */
 function BatchActionBar({ selectedVmids, onDone, onClear }) {
   const { t } = useTranslation("resource");
   const toast = useToast();
+  const confirm = useConfirm();
   const actionLabel = useActionLabel();
   const batchActions = useBatchActions();
   const [pending, setPending] = useState(null); // 進行中的 action
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const count = selectedVmids.length;
 
   async function run(action) {
@@ -331,8 +290,17 @@ function BatchActionBar({ selectedVmids, onDone, onClear }) {
       toast.error(err?.message ?? t("ResourceMgmtPage.batchActionFailed"));
     } finally {
       setPending(null);
-      setDeleteConfirm(false);
     }
+  }
+
+  async function confirmBatchDelete() {
+    const ok = await confirm({
+      title: t("ResourceMgmtPage.batchDeleteTitle", { count }),
+      message: t("ResourceMgmtPage.batchDeleteDesc"),
+      confirmText: t("ResourceMgmtPage.confirmDelete"),
+      danger: true,
+    });
+    if (ok) run("delete");
   }
 
   if (count === 0) return null;
@@ -358,7 +326,7 @@ function BatchActionBar({ selectedVmids, onDone, onClear }) {
         type="button"
         className={styles.btnDangerOutline}
         disabled={pending !== null}
-        onClick={() => setDeleteConfirm(true)}
+        onClick={confirmBatchDelete}
       >
         <MIcon name="delete" size={14} />
         {t("ResourceMgmtPage.delete")}
@@ -372,17 +340,6 @@ function BatchActionBar({ selectedVmids, onDone, onClear }) {
         {t("ResourceMgmtPage.clearSelection")}
       </button>
 
-      {deleteConfirm && (
-        <ConfirmModal
-          title={t("ResourceMgmtPage.batchDeleteTitle", { count })}
-          desc={t("ResourceMgmtPage.batchDeleteDesc")}
-          confirmLabel={pending === "delete" ? t("ResourceMgmtPage.deleting") : t("ResourceMgmtPage.confirmDelete")}
-          danger
-          loading={pending !== null}
-          onConfirm={() => run("delete")}
-          onClose={() => setDeleteConfirm(false)}
-        />
-      )}
     </div>
   );
 }
@@ -394,8 +351,8 @@ function ResourceRow({ resource, onUpdated, onDeleted, selected = false, onToggl
   const typeMap = useTypeMap();
   const statusMap = useStatusMap();
   const actionLabel = useActionLabel();
+  const confirm = useConfirm();
   const [actionLoading, setActionLoading] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting]           = useState(false);
   const [menuOpen, setMenuOpen]           = useState(false);
   const [menuClosing, setMenuClosing]     = useState(false);
@@ -432,6 +389,14 @@ function ResourceRow({ resource, onUpdated, onDeleted, selected = false, onToggl
   }
 
   async function handleDelete() {
+    if (deleting) return;
+    const ok = await confirm({
+      title: t("ResourceMgmtPage.deleteResourceTitle"),
+      message: t("ResourceMgmtPage.deleteResourceDesc", { name: resource.name, vmid: resource.vmid }),
+      confirmText: t("ResourceMgmtPage.delete"),
+      danger: true,
+    });
+    if (!ok) return;
     setDeleting(true);
     try {
       await ResourcesService.delete(resource.vmid);
@@ -441,7 +406,6 @@ function ResourceRow({ resource, onUpdated, onDeleted, selected = false, onToggl
       toast.error(err?.message ?? t("ResourceMgmtPage.deleteFailed"));
     } finally {
       setDeleting(false);
-      setDeleteConfirm(false);
     }
   }
 
@@ -532,7 +496,7 @@ function ResourceRow({ resource, onUpdated, onDeleted, selected = false, onToggl
                     resource={resource}
                     actionLoading={actionLoading}
                     onControl={handleControl}
-                    onDeleteClick={() => { closeMenu(); setDeleteConfirm(true); }}
+                    onDeleteClick={() => { closeMenu(); handleDelete(); }}
                     onConvertTemplate={canConvertTemplate ? () => { closeMenu(); setConvertOpen(true); } : undefined}
                     onClose={closeMenu}
                     anchorRef={menuBtnRef}
@@ -557,21 +521,6 @@ function ResourceRow({ resource, onUpdated, onDeleted, selected = false, onToggl
           )}
         </td>
       </tr>
-
-      {/* Portal 到 body：列在 <tbody> 內，div 直接掛這裡是不合法巢狀，
-          且 .tableWrap 的 backdrop-filter 會讓 fixed 遮罩只蓋住表格範圍 */}
-      {deleteConfirm && createPortal(
-        <ConfirmModal
-          title={t("ResourceMgmtPage.deleteResourceTitle")}
-          desc={t("ResourceMgmtPage.deleteResourceDesc", { name: resource.name, vmid: resource.vmid })}
-          confirmLabel={t("ResourceMgmtPage.delete")}
-          danger
-          loading={deleting}
-          onConfirm={handleDelete}
-          onClose={() => setDeleteConfirm(false)}
-        />,
-        document.body,
-      )}
 
       {consoleOpen && isLxc && createPortal(
         <TerminalDialog resource={resource} onClose={() => setConsoleOpen(false)} />,

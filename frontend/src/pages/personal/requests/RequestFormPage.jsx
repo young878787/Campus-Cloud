@@ -26,6 +26,32 @@ function normalizeHostname(value) {
 }
 
 /* ── Form field primitives ── */
+/* 密碼欄附顯示/隱藏切換（同登入頁的眼睛按鈕） */
+function PasswordInput({ value, onChange, placeholder }) {
+  const { t } = useTranslation("personal");
+  const [show, setShow] = useState(false);
+  return (
+    <div className={styles.passwordWrap}>
+      <input
+        className={styles.input}
+        type={show ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+      />
+      <button
+        type="button"
+        className={styles.eyeBtn}
+        onClick={() => setShow((v) => !v)}
+        tabIndex={-1}
+        aria-label={show ? t("RequestFormPage.hidePassword") : t("RequestFormPage.showPassword")}
+      >
+        <MIcon name={show ? "visibility_off" : "visibility"} size={18} />
+      </button>
+    </div>
+  );
+}
+
 function FieldGroup({ label, hint, required, error, children, labelRight, name }) {
   return (
     <div className={`${styles.formGroup} ${error ? styles.formGroupInvalid : ""}`} data-field={name}>
@@ -36,8 +62,9 @@ function FieldGroup({ label, hint, required, error, children, labelRight, name }
         </span>
         {labelRight && <span className={styles.labelValue}>{labelRight}</span>}
       </label>
-      {children}
+      {/* 提示放在控制項前面：擺在欄位下方會被使用者直接忽略 */}
       {hint  && <p className={styles.fieldHint}>{hint}</p>}
+      {children}
       {error && <p className={styles.fieldError}>{error}</p>}
     </div>
   );
@@ -1129,9 +1156,7 @@ export default function RequestFormPage({ onBack, className, initialPrefill = nu
                       ? t("RequestFormPage.windowsPasswordHint")
                       : undefined}
                   >
-                    <input
-                      className={styles.input}
-                      type="password"
+                    <PasswordInput
                       placeholder={t("RequestFormPage.passwordPlaceholder")}
                       value={form.password}
                       onChange={(e) => set("password", e.target.value)}
@@ -1144,9 +1169,7 @@ export default function RequestFormPage({ onBack, className, initialPrefill = nu
                   hint={selectedTpl
                     ? t("RequestFormPage.clonedPasswordHint")
                     : t("RequestFormPage.lxcPasswordHint")}>
-                  <input
-                    className={styles.input}
-                    type="password"
+                  <PasswordInput
                     placeholder={t("RequestFormPage.passwordPlaceholder")}
                     value={form.password}
                     onChange={(e) => set("password", e.target.value)}

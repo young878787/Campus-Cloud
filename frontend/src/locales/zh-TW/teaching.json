@@ -1010,5 +1010,7 @@
   "AiJudgePanel.waitingCollectionLabel": "等待回收",
   "AiJudgePanel.weekOptionLabel": "第 {{week}} 週 · {{title}}",
   "AiJudgePanel.whichWeekLabel": "放到哪一週任務？",
-  "CourseTemplateEditorPage.draftRestoredMsg": "已還原上次未儲存的編輯"
+  "CourseTemplateEditorPage.draftRestoredMsg": "已還原上次未儲存的編輯",
+  "CourseTemplateEditorPage.stepBasicHint": "名稱、用途與對象",
+  "CourseTemplateEditorPage.stepMachinesHint": "節點規格與連線"
 }

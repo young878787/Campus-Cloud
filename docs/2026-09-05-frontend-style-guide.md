@@ -314,10 +314,39 @@ import MIcon from "../components/MIcon";
 
 ### Dialog / Modal
 
-- Dialog 寬度四級：確認框／命名框 `max-width: 420px`；小型單欄表單 `max-width: 640px`；一般 `max-width: 1100px`；寬版（如 VNC）`1280px`
+- Dialog 寬度四級：確認框／命名框 `max-width: 400px`；小型單欄表單 `max-width: 640px`；一般 `max-width: 1100px`；寬版（如 VNC）`1280px`
 - 高度：`height: 88vh`
 - 全螢幕：使用 `:fullscreen` 偽類，設 `max-width: 100%; height: 100%; border-radius: 0`
 - 遮罩：`position: fixed; inset: 0; background: var(--color-overlay); backdrop-filter: blur(4px); z-index: 300`
+
+#### 確認彈窗（全站統一）
+
+危險操作／二選一確認**一律用共用的 `useConfirm()`**（`components/ConfirmDialog/ConfirmProvider`），
+不要在頁面內自建本地 ConfirmModal（2026-09-09 已全數整合，AiJudgePanel 的多動作對話框為唯一例外）：
+
+```jsx
+const confirm = useConfirm();
+if (!(await confirm({ title, message, confirmText, danger: true }))) return;
+// …按下確認後彈窗即關閉，進度用按鈕 disabled + toast 呈現，不在彈窗內轉圈
+```
+
+卡片樣式基準（與「我的申請」錯誤記錄 modal 同構的毛玻璃卡）：
+
+```scss
+.dialog {
+  width: 100%;
+  max-width: 400px;          // 錯誤 log 等寬內容款可放寬到 560px
+  @include glass-surface;    // 毛玻璃底，不用實色 surface + 邊框
+  border-radius: $radius-16;
+  padding: $spacing-24;
+  @include flex-column;
+  gap: $spacing-16;          // 標題／內文／按鈕列間距全交給 gap，不用 margin
+}
+```
+
+- 標題：`$font-size-16` / `$font-weight-700`，danger 帶紅色 `warning` 圖示、一般帶 `help` 圖示
+- 內文：`$font-size-14` 次要色，**必加 `overflow-wrap: anywhere`**（常插入主機名稱等連續長字串）
+- 進出場：遮罩 fadeIn 0.15s、卡片 slideUp 0.18s，Esc 可關閉
 
 ### 按鈕
 

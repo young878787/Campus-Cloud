@@ -12,6 +12,7 @@ import SubnetBanner from "../components/SubnetBanner/SubnetBanner";
 import SessionWarningDialog from "../components/SessionWarning/SessionWarningDialog";
 import useSessionWarning from "../hooks/useSessionWarning";
 import useDialogPresence from "../hooks/useDialogPresence";
+import useBodyScrollLock from "../hooks/useBodyScrollLock";
 import ErrorBoundary from "../components/ErrorBoundary/ErrorBoundary";
 import UserGuide from "../components/UserGuide/UserGuide";
 import { isAiJudgePath } from "./layoutRouteVisibility";
@@ -28,6 +29,8 @@ export default function DashboardLayout() {
   const { t } = useTranslation("common");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  /* 手機側欄抽屜開啟時鎖住底下頁面捲動 */
+  useBodyScrollLock(mobileOpen);
   const [compactFooter, setCompactFooter] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [requestForm, setRequestForm] = useState(null);

@@ -222,6 +222,9 @@ export default function BatchReviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+  /* 切換列時詳情欄捲回頂端，避免殘留上一筆的捲動位置 */
+  const detailPaneRef = useRef(null);
+  useEffect(() => { detailPaneRef.current?.scrollTo({ top: 0 }); }, [selectedId]);
   const [comment, setComment] = useState("");
   const [reviewing, setReviewing] = useState(false);
   /** jobId → "loading" | [start, end][]，點「查看時段」才載入 */
@@ -474,7 +477,7 @@ export default function BatchReviewPage() {
             )}
           </section>
 
-          <section className={styles.detailPane}>
+          <section className={styles.detailPane} ref={detailPaneRef}>
             {!selected ? (
               <div className={styles.stateBox}>{t("BatchReviewPage.selectABatch")}</div>
             ) : (

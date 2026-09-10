@@ -502,7 +502,7 @@ function DetailTable({ tab, calls, users, query, statusFilter, t }) {
           <th className={`${styles.th} ${styles.thRight}`}>{t("AiMonitoringPage.colDuration")}</th>
           <th className={styles.th}>{t("AiMonitoringPage.colStatus")}</th>
         </tr></thead>
-        <tbody>{visibleCalls.map((call) => <tr key={call.id} className={`${styles.tr} ${!isOkStatus(call.status) ? styles.trFailed : ""}`}>
+        <tbody>{visibleCalls.map((call) => <tr key={call.id} className={styles.tr}>
           <td className={styles.td}>{call.created_at ? new Date(call.created_at).toLocaleString("zh-TW") : "—"}</td>
           <td className={styles.td}><UserCell email={call.user_email} fullName={call.user_full_name} fallback={call.user_id} /></td>
           {tab === "proxy" ? <>
