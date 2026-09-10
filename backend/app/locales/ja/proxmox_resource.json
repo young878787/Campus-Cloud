@@ -18,7 +18,6 @@
   "resource_settings.updateConfigFailed": "リソース {vmid} の設定更新に失敗しました：{error}",
   "resource_settings.listIsoFailed": "ISO イメージを一覧できませんでした",
   "resource_settings.noFreeCdromSlot": "ISO をマウントできる空きの CD-ROM スロットがありません",
-  "resource_settings.onbootTeacherOnly": "起動時の自動開始は教師と管理者のみ変更できます",
   "resource_settings.lxcNoBootOrder": "コンテナには起動順序や ISO マウントの設定はありません",
   "resource_settings.unknownBootDevice": "存在しない起動デバイス：{device}",
   "resource_settings.isoNotFound": "ISO ストレージに {volid} が見つかりません",

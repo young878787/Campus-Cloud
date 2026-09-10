@@ -55,6 +55,7 @@ from .proxmox_config import ProxmoxConfig
 from .proxmox_connection import ProxmoxConnection
 from .proxmox_node import ProxmoxNode
 from .proxmox_storage import ProxmoxStorage
+from .push_subscription import PushSubscription, WebPushConfig
 from .quick_practice import QuickPracticeSession, QuickPracticeSessionMachine
 from .quota_config import QuotaConfig
 from .resource import Resource
@@ -151,6 +152,9 @@ __all__ = [
     "MiningIncidentStatus",
     # LDAP
     "LdapConfig",
+    # Web Push
+    "PushSubscription",
+    "WebPushConfig",
     # Spec Change Request
     "SpecChangeRequest",
     "SpecChangeRequestStatus",

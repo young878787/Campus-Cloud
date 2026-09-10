@@ -406,27 +406,11 @@ def _get_vm_ip(vmid: int, session: object = None) -> str | None:
             "VM %s 即時取 IP 失敗，將回退到 DB 快取: %s", vmid, e
         )
 
-    if ip and session is not None:
-        # 更新 DB 快取（fire-and-forget，忽略失敗）
-        try:
-            resource_repo.update_ip_address(session=session, vmid=vmid, ip_address=ip)  # type: ignore[arg-type]
-        except Exception as e:
-            logger.debug(f"VM {vmid} IP 快取寫入失敗: {e}")
+    if session is None:
         return ip
 
-    if ip:
-        return ip
-
-    # Proxmox 取不到 IP → 嘗試 DB 快取
-    if session is not None:
-        try:
-            cached_ip = resource_repo.get_cached_ip_address(session=session, vmid=vmid)  # type: ignore[arg-type]
-            if cached_ip:
-                logger.debug(f"VM {vmid} 使用 DB 快取 IP: {cached_ip}")
-                return cached_ip
-        except Exception as e:
-            logger.debug(f"VM {vmid} DB 快取讀取失敗: {e}")
-    return None
+    # 有即時 IP 就寫回快取；Proxmox 取不到就回退 DB 快取（DB 出錯會自行 rollback）
+    return resource_repo.sync_ip_cache(session=session, vmid=vmid, live_ip=ip)  # type: ignore[arg-type]
 
 
 def _parse_connection_comment(comment: str) -> dict | None:
@@ -1135,19 +1119,15 @@ def get_topology(user: User, session: Session) -> TopologyResponse:
             ip_address = proxmox_service.get_ip_address(
                 resource["node"], vmid, resource["type"]
             )
-            if ip_address:
-                resource_repo.update_ip_address(
-                    session=session, vmid=vmid, ip_address=ip_address
-                )
-            else:
-                # VM 離線時回退 DB 快取
-                cached_ip = resource_repo.get_cached_ip_address(session=session, vmid=vmid)
-                if cached_ip:
-                    ip_address = cached_ip
         except Exception as e:
             logger.debug(
-                "拓撲圖 VMID=%s IP 查詢失敗（將顯示為無 IP）: %s", vmid, e
+                "拓撲圖 VMID=%s 即時 IP 查詢失敗（改查 DB 快取）: %s", vmid, e
             )
+        # 有即時 IP 就寫回快取，否則回退 DB 快取。DB 出錯時 sync_ip_cache 會
+        # rollback，避免 session 帶著無效交易撐到後面的 _enrich_edges_from_db。
+        ip_address = resource_repo.sync_ip_cache(
+            session=session, vmid=vmid, live_ip=ip_address
+        )
 
         try:
             opts = get_firewall_options(resource["node"], vmid, resource["type"])

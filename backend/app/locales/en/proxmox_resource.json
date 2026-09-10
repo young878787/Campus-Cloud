@@ -18,7 +18,6 @@
   "resource_settings.updateConfigFailed": "Failed to update the configuration of resource {vmid}: {error}",
   "resource_settings.listIsoFailed": "Failed to list ISO images",
   "resource_settings.noFreeCdromSlot": "No free CD-ROM slot is available to mount an ISO",
-  "resource_settings.onbootTeacherOnly": "Only teachers and administrators can change start-on-boot",
   "resource_settings.lxcNoBootOrder": "Containers have no boot order or ISO mount to configure",
   "resource_settings.unknownBootDevice": "Unknown boot device: {device}",
   "resource_settings.isoNotFound": "{volid} was not found on the ISO storage",

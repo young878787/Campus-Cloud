@@ -10,7 +10,6 @@ import uuid
 from fastapi import APIRouter
 
 from app.api.deps import CurrentUser, ResourceInfoDep, SessionDep
-from app.core.permissions import Permission, has_permission
 from app.schemas import Message
 from app.schemas.resource_settings import (
     AuthorizedKeyRequest,
@@ -42,11 +41,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/resources", tags=["resource-settings"])
 
 
-def _can_edit_onboot(user) -> bool:
-    """開機自動啟動會跟 TTL／閒置自動關機政策打架，只開放給老師與管理員。"""
-    return has_permission(user, Permission.VM_REQUEST_USE_IMMEDIATE_MODE)
-
-
 # ─── 規格摘要 ─────────────────────────────────────────────────────────────────
 
 
@@ -56,17 +50,13 @@ def get_specs(vmid: int, resource_info: ResourceInfoDep):
 
 
 # ─── 開機選項 ─────────────────────────────────────────────────────────────────
+# 「主機開機時自動啟動」(onboot) 不開放設定：由 operations.control 在每次
+# 開關機後自動對齊（開機→1、關機→0）。
 
 
 @router.get("/{vmid}/boot-options", response_model=BootOptionsPublic)
-def get_boot_options(
-    vmid: int, resource_info: ResourceInfoDep, current_user: CurrentUser
-):
-    return settings_service.get_boot_options(
-        vmid=vmid,
-        resource_info=resource_info,
-        can_edit_onboot=_can_edit_onboot(current_user),
-    )
+def get_boot_options(vmid: int, resource_info: ResourceInfoDep):
+    return settings_service.get_boot_options(vmid=vmid, resource_info=resource_info)
 
 
 @router.put("/{vmid}/boot-options", response_model=BootOptionsPublic)
@@ -84,7 +74,6 @@ def update_boot_options(
         resource_info=resource_info,
         user_id=current_user.id,
         data=body,
-        can_edit_onboot=_can_edit_onboot(current_user),
     )
 
 

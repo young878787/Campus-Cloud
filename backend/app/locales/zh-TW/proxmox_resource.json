@@ -18,7 +18,6 @@
   "resource_settings.updateConfigFailed": "更新資源 {vmid} 的設定失敗：{error}",
   "resource_settings.listIsoFailed": "無法列出 ISO 映像",
   "resource_settings.noFreeCdromSlot": "沒有可用的光碟槽可以掛載 ISO",
-  "resource_settings.onbootTeacherOnly": "開機自動啟動只有老師與管理員能設定",
   "resource_settings.lxcNoBootOrder": "容器沒有開機順序與 ISO 掛載可以設定",
   "resource_settings.unknownBootDevice": "不存在的開機裝置：{device}",
   "resource_settings.isoNotFound": "ISO 儲存區裡找不到 {volid}",

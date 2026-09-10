@@ -15,9 +15,19 @@ export function isSupported() {
   return typeof window !== "undefined" && typeof window.Notification === "function";
 }
 
-/** "default" | "granted" | "denied" | "unsupported" */
+/**
+ * 是否為安全來源（https 或 localhost）。瀏覽器在不安全來源上不會詢問通知權限，
+ * Chrome 會直接把 permission 回成 "denied"；用 http://IP 存取的部署會踩到這點。
+ */
+export function isSecureOrigin() {
+  if (typeof window === "undefined") return false;
+  return window.isSecureContext !== false;
+}
+
+/** "default" | "granted" | "denied" | "insecure" | "unsupported" */
 export function getPermission() {
   if (!isSupported()) return "unsupported";
+  if (!isSecureOrigin()) return "insecure";
   return window.Notification.permission;
 }
 
@@ -60,6 +70,7 @@ export function dismissPrompt() {
  */
 export function requestPermission() {
   if (!isSupported()) return Promise.resolve("unsupported");
+  if (!isSecureOrigin()) return Promise.resolve("insecure");
   return new Promise((resolve) => {
     let settled = false;
     const done = (value) => {

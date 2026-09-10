@@ -37,12 +37,15 @@ class IsoImagePublic(BaseModel):
 
 
 class BootOptionsPublic(BaseModel):
+    """開機順序與 ISO 掛載。
+
+    ``onboot``（主機開機時自動啟動）不在這裡：它由系統跟著電源動作自動對齊
+    （開機→1、關機→0，見 ``infrastructure.proxmox.operations.sync_onboot``），
+    不開放使用者設定。
+    """
+
     vmid: int
     resource_type: ResourceTypeLiteral
-    onboot: bool = False
-    can_edit_onboot: bool = Field(
-        default=False, description="只有老師與管理員能改開機自動啟動"
-    )
     supports_boot_order: bool = False
     boot_order: list[str] = Field(default_factory=list)
     boot_devices: list[BootDevicePublic] = Field(default_factory=list)
@@ -57,7 +60,6 @@ _DEVICE_KEY_RE = re.compile(r"^(scsi|virtio|sata|ide|nvme|net)\d{1,2}$")
 
 
 class BootOptionsUpdate(BaseModel):
-    onboot: bool | None = None
     boot_order: list[str] | None = Field(
         default=None, description="開機順序（裝置鍵列表，空列表代表交給 Proxmox 預設）"
     )
@@ -83,8 +85,7 @@ class BootOptionsUpdate(BaseModel):
     @model_validator(mode="after")
     def _at_least_one(self) -> "BootOptionsUpdate":
         if (
-            self.onboot is None
-            and self.boot_order is None
+            self.boot_order is None
             and self.cdrom_iso is None
             and not self.eject_cdrom
         ):

@@ -147,12 +147,12 @@ export const ResourcesService = {
     return apiGet(`/api/v1/resources/${vmid}/specs`);
   },
 
-  /** 開機選項 → { onboot, boot_order, boot_devices, cdrom_iso, ... } */
+  /** 開機選項 → { boot_order, boot_devices, cdrom_iso, ... }（onboot 由後端隨開關機自動對齊，不在此） */
   getBootOptions(vmid) {
     return apiGet(`/api/v1/resources/${vmid}/boot-options`);
   },
 
-  /** 更新開機選項（body: { onboot?, boot_order?, cdrom_iso?, eject_cdrom? }） */
+  /** 更新開機選項（body: { boot_order?, cdrom_iso?, eject_cdrom? }） */
   updateBootOptions(vmid, body) {
     return apiPut(`/api/v1/resources/${vmid}/boot-options`, body);
   },

@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import styles from "../ResourceDetailPage.module.scss";
 import MIcon from "../../../../../components/MIcon";
@@ -237,15 +238,19 @@ export default function LifecycleCard({ vmid, resource, canManage, onChanged }) 
         </p>
       </div>
 
-      {presence.open && (
-        <ExtendModal
-          resource={resource ?? {}}
-          closing={presence.closing}
-          loading={busy}
-          onClose={() => setShowExtend(false)}
-          onSubmit={handleSubmit}
-        />
-      )}
+      {/* 卡片有 overflow:hidden + backdrop-filter，會把 position:fixed 的 modal 困在卡片裡，
+          所以 portal 到 body 讓它覆蓋整個頁面。 */}
+      {presence.open &&
+        createPortal(
+          <ExtendModal
+            resource={resource ?? {}}
+            closing={presence.closing}
+            loading={busy}
+            onClose={() => setShowExtend(false)}
+            onSubmit={handleSubmit}
+          />,
+          document.body,
+        )}
     </div>
   );
 }

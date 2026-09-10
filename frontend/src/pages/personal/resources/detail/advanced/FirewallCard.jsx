@@ -1,7 +1,8 @@
 /**
  * FirewallCard — 這台 VM 的防火牆
  * 上半是以這台 VM 為中心的迷你拓撲，下半是 Proxmox 原始規則表。
- * SkyLab: 開頭的受管規則上鎖（由對外服務／拓撲頁管理），其餘可自行新增、停用、刪除。
+ * SkyLab: 開頭的受管規則上鎖（由連線對話框／拓撲頁管理），其餘可自行新增、停用、刪除。
+ * 「新增規則」開的是共用的 ConnectionDialog（預設停在「自訂規則」分頁，也能切到「連線」做對外發布）。
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -9,11 +10,11 @@ import { useTranslation } from "react-i18next";
 import styles from "../ResourceDetailPage.module.scss";
 import MIcon from "../../../../../components/MIcon";
 import LoadingState from "../../../../../components/LoadingState/LoadingState";
+import ConnectionDialog from "../../../../../components/ConnectionDialog/ConnectionDialog";
 import useDialogPresence from "../../../../../hooks/useDialogPresence";
 import { useToast } from "../../../../../hooks/useToast";
 import { useConfirm } from "../../../../../components/ConfirmDialog/ConfirmProvider";
 import {
-  createVmRule,
   deleteVmRule,
   getVmOptions,
   getVmRules,
@@ -22,103 +23,7 @@ import {
 } from "../../../../../services/firewall";
 import MiniTopology from "./MiniTopology";
 
-const PROTOCOLS = ["tcp", "udp", "icmp"];
-
-function RuleModal({ closing, loading, onClose, onSubmit }) {
-  const { t } = useTranslation("personal");
-  const [form, setForm] = useState({
-    type: "in",
-    action: "ACCEPT",
-    proto: "tcp",
-    dport: "",
-    source: "",
-    comment: "",
-  });
-  const set = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
-
-  function submit(e) {
-    e.preventDefault();
-    const body = { type: form.type, action: form.action, enable: 1 };
-    if (form.proto) body.proto = form.proto;
-    if (form.dport.trim() && form.proto !== "icmp") body.dport = form.dport.trim();
-    if (form.source.trim()) body[form.type === "in" ? "source" : "dest"] = form.source.trim();
-    if (form.comment.trim()) body.comment = form.comment.trim();
-    onSubmit(body);
-  }
-
-  return (
-    <div className={`${styles.modalOverlay} ${closing ? styles.modalOverlayOut : ""}`} onMouseDown={onClose}>
-      <form className={`${styles.modal} ${styles.modalWide}`} onSubmit={submit} onMouseDown={(e) => e.stopPropagation()}>
-        <h2 className={styles.modalTitle}>{t("FirewallCard.addRuleTitle")}</h2>
-        <p className={styles.modalDesc}>{t("FirewallCard.addRuleDesc")}</p>
-        <div className={styles.formGrid}>
-          <div className={styles.field}>
-            <label htmlFor="fw-type">{t("FirewallCard.direction")}</label>
-            <select id="fw-type" value={form.type} onChange={(e) => set("type", e.target.value)}>
-              <option value="in">{t("FirewallCard.directionIn")}</option>
-              <option value="out">{t("FirewallCard.directionOut")}</option>
-            </select>
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="fw-action">{t("FirewallCard.action")}</label>
-            <select id="fw-action" value={form.action} onChange={(e) => set("action", e.target.value)}>
-              <option value="ACCEPT">{t("FirewallCard.actionAccept")}</option>
-              <option value="DROP">{t("FirewallCard.actionDrop")}</option>
-              <option value="REJECT">{t("FirewallCard.actionReject")}</option>
-            </select>
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="fw-proto">{t("FirewallCard.protocol")}</label>
-            <select id="fw-proto" value={form.proto} onChange={(e) => set("proto", e.target.value)}>
-              {PROTOCOLS.map((p) => <option key={p} value={p}>{p.toUpperCase()}</option>)}
-            </select>
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="fw-dport">{t("FirewallCard.port")}</label>
-            <input
-              id="fw-dport"
-              value={form.dport}
-              disabled={form.proto === "icmp"}
-              onChange={(e) => set("dport", e.target.value)}
-              placeholder={t("FirewallCard.portPlaceholder")}
-            />
-          </div>
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="fw-source">
-            {form.type === "in" ? t("FirewallCard.sourceLabel") : t("FirewallCard.destLabel")}
-          </label>
-          <input
-            id="fw-source"
-            value={form.source}
-            onChange={(e) => set("source", e.target.value)}
-            placeholder={t("FirewallCard.sourcePlaceholder")}
-          />
-          <span className={styles.fieldHint}>{t("FirewallCard.sourceHint")}</span>
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="fw-comment">{t("FirewallCard.comment")}</label>
-          <input
-            id="fw-comment"
-            value={form.comment}
-            onChange={(e) => set("comment", e.target.value)}
-            placeholder={t("FirewallCard.commentPlaceholder")}
-          />
-        </div>
-        <div className={styles.modalActions}>
-          <button type="button" className={styles.btnSecondary} onClick={onClose} disabled={loading}>
-            {t("FirewallCard.cancel")}
-          </button>
-          <button type="submit" className={styles.btnPrimary} disabled={loading}>
-            {loading ? t("FirewallCard.saving") : t("FirewallCard.addRule")}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-export default function FirewallCard({ vmid, canManage, refreshKey }) {
+export default function FirewallCard({ vmid, canManage }) {
   const { t } = useTranslation("personal");
   const toast = useToast();
   const confirm = useConfirm();
@@ -150,20 +55,15 @@ export default function FirewallCard({ vmid, canManage, refreshKey }) {
 
   useEffect(() => {
     load();
-  }, [load, refreshKey]);
+  }, [load]);
 
-  async function handleAdd(body) {
-    setBusy(true);
-    try {
-      await createVmRule(vmid, body);
-      toast.success(t("FirewallCard.ruleAdded"));
-      setShowAdd(false);
-      await load();
-    } catch (err) {
-      toast.error(err?.message ?? t("FirewallCard.saveFailed"));
-    } finally {
-      setBusy(false);
-    }
+  const thisVmName = topology?.nodes?.find((n) => n.vmid === vmid)?.name;
+
+  /* 對話框可能建了自訂規則，也可能建了連線（含對外發布），兩種都重載規則表與迷你拓撲 */
+  function handleDialogDone(result) {
+    toast.success(result?.kind === "rule" ? t("FirewallCard.ruleAdded") : t("FirewallCard.connectionAdded"));
+    setShowAdd(false);
+    load();
   }
 
   async function handleToggle(rule) {
@@ -329,12 +229,16 @@ export default function FirewallCard({ vmid, canManage, refreshKey }) {
         )}
       </div>
 
+      {/* 共用對話框自己 portal 到 body，不會被卡片的 overflow:hidden 困住 */}
       {addPresence.open && (
-        <RuleModal
+        <ConnectionDialog
+          fixedVmid={vmid}
+          fixedName={thisVmName}
+          initialTab="rule"
           closing={addPresence.closing}
-          loading={busy}
           onClose={() => setShowAdd(false)}
-          onSubmit={handleAdd}
+          onDone={handleDialogDone}
+          onChanged={load}
         />
       )}
     </div>

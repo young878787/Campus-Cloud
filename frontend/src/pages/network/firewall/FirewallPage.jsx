@@ -19,7 +19,6 @@ import "@xyflow/react/dist/style.css";
 
 import {
   getTopology,
-  createConnection,
   deleteConnection,
   saveLayout,
 } from "../../../services/firewall";
@@ -197,9 +196,8 @@ export default function FirewallPage() {
     .filter((n) => n.node_type !== "gateway")
     .map((n) => ({ key: String(n.vmid), vmid: n.vmid, name: n.name }));
 
-  /* ── 建立連線 ── */
-  const handleCreateConnection = async (data) => {
-    await createConnection(data);
+  /* ── 對話框送出成功（連線或自訂規則都由對話框自己呼叫 API）── */
+  const handleDialogDone = () => {
     setShowDialog(false);
     fetchTopology();
   };
@@ -338,14 +336,15 @@ export default function FirewallPage() {
         )}
       </div>
 
-      {/* ── 新增連線 Dialog ── */}
+      {/* ── 新增連線／自訂規則 Dialog（與資源頁共用同一份） ── */}
       {connDialog.open && (
         <ConnectionDialog
           key={dialogPreset ? `${dialogPreset.source}->${dialogPreset.target}` : "manual"}
           nodes={vmNodes}
           initialSource={dialogPreset?.source}
           initialTarget={dialogPreset?.target}
-          onConfirm={handleCreateConnection}
+          onDone={handleDialogDone}
+          onChanged={() => fetchTopology(true)}
           onClose={() => setShowDialog(false)}
           closing={connDialog.closing}
         />
