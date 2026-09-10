@@ -10,7 +10,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel, Field
-from sqlmodel import delete, select
+from sqlmodel import col, delete, func, select
 
 from app.api.deps import InstructorUser, SessionDep
 from app.core.authorizers import require_teaching_access
@@ -389,6 +389,93 @@ def _serialize(session: SessionDep, item: TeachingClass) -> dict:
     }
 
 
+# 列表頁只吃摘要欄位（班級數 × 週次數 筆查詢的 _serialize 會把首屏拖到數秒），
+# 所以另走一條批次路徑：每種關聯各一次查詢，數量用 COUNT 讓資料庫算完再回來。
+# 詳情頁仍走 _serialize，需要 students/拓撲/容量預估的那些欄位這裡一律不回。
+def _serialize_list(session: SessionDep, items: list[TeachingClass]) -> list[dict]:
+    if not items:
+        return []
+    class_ids = [item.id for item in items]
+
+    nodes_by_class: dict[uuid.UUID, list[dict]] = {}
+    for row in session.exec(
+        select(TeachingClassMachineNode)
+        .where(col(TeachingClassMachineNode.class_id).in_(class_ids))
+        .order_by(TeachingClassMachineNode.sort_order)
+    ).all():
+        nodes_by_class.setdefault(row.class_id, []).append(row.model_dump())
+
+    weeks_by_class: dict[uuid.UUID, list[dict]] = {}
+    for row in session.exec(
+        select(TeachingClassWeek)
+        .where(col(TeachingClassWeek.class_id).in_(class_ids))
+        .order_by(TeachingClassWeek.week_number)
+    ).all():
+        weeks_by_class.setdefault(row.class_id, []).append(row.model_dump())
+
+    member_counts = dict(
+        session.exec(
+            select(col(TeachingClassStudent.class_id), func.count())
+            .where(col(TeachingClassStudent.class_id).in_(class_ids))
+            .group_by(col(TeachingClassStudent.class_id))
+        ).all()
+    )
+
+    ready_counts = dict(
+        session.exec(
+            select(col(TeachingClassStudent.class_id), func.count())
+            .join(
+                TeachingClassStudentMachine,
+                col(TeachingClassStudentMachine.class_student_id)
+                == col(TeachingClassStudent.id),
+            )
+            .where(col(TeachingClassStudent.class_id).in_(class_ids))
+            .where(col(TeachingClassStudentMachine.status) == "completed")
+            .where(col(TeachingClassStudentMachine.vmid).is_not(None))
+            .group_by(col(TeachingClassStudent.class_id))
+        ).all()
+    )
+
+    version_ids = [item.course_version_id for item in items if item.course_version_id]
+    environment_by_version: dict[uuid.UUID, dict] = {}
+    if version_ids:
+        for version, environment in session.exec(
+            select(CourseEnvironmentVersion, CourseEnvironment)
+            .join(
+                CourseEnvironment,
+                col(CourseEnvironment.id)
+                == col(CourseEnvironmentVersion.environment_id),
+            )
+            .where(col(CourseEnvironmentVersion.id).in_(version_ids))
+        ).all():
+            environment_by_version[version.id] = {
+                "id": environment.id,
+                "version_id": version.id,
+                "name": environment.name,
+                "version": version.version,
+                "status": version.status,
+            }
+
+    rows = []
+    for item in items:
+        nodes = nodes_by_class.get(item.id, [])
+        members = member_counts.get(item.id, 0)
+        rows.append(
+            {
+                **item.model_dump(),
+                "member_count": members,
+                "machine_nodes": nodes,
+                "weeks": weeks_by_class.get(item.id, []),
+                "ready_machines": ready_counts.get(item.id, 0),
+                "total_machines": members * len(nodes),
+                "course_environment": environment_by_version.get(
+                    item.course_version_id
+                ),
+            }
+        )
+    return rows
+
+
 def _validate_schedule(item) -> None:
     if item.end_date < item.start_date or item.end_time <= item.start_time:
         raise BadRequestError(t("teachingClasses.scheduleInvalid"))
@@ -421,7 +508,7 @@ def list_classes(session: SessionDep, current_user: InstructorUser):
     query = select(TeachingClass).order_by(TeachingClass.updated_at.desc())
     if not current_user.is_superuser and current_user.role != "admin":
         query = query.where(TeachingClass.owner_id == current_user.id)
-    return [_serialize(session, row) for row in session.exec(query).all()]
+    return _serialize_list(session, list(session.exec(query).all()))
 
 
 @router.get("/{class_id}")

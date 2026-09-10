@@ -28,7 +28,10 @@ def test_admin_prompt_limits_scope_and_uses_operator_anomaly_rules():
     assert "判定規則是內部回答準則" in prompt
     assert "stopped 視為" in prompt
     assert "只有使用者明確詢問判定標準時才說明" in prompt
-    assert "整體狀態 → 異常 → 原因 → 建議" in prompt
+    assert "結論 → 主要證據 → 建議下一步" in prompt
+    assert "依使用者問的是狀態、清單還是原因決定格式" in prompt
+    assert "使用此工具不代表必須輸出完整報告" in prompt
+    assert "可能原因一律標「待確認」" in prompt
     assert "未詢問原因、" in prompt
     assert "不主動加入其他延伸段落" in prompt
 
