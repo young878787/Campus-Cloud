@@ -126,10 +126,15 @@ def test_cross_template_catalog_includes_generic_controlled_command() -> None:
 
     assert general.template_key == "linux"
     assert general.requires_confirmation is True
+    assert "平台已登錄的通用能力" in general.description
+    assert "適用所有通過平台政策的唯讀／診斷系統指令" in general.description
+    assert "只是一部分範例" in general.description
     assert "cat" in general.description
     assert "cwd" in general.description
     assert "stdout" in general.description
     assert "stderr" in general.description
+    assert "平台自動套用安全逾時上限" in general.description
+    assert "不是要求老師新增權限" in general.description
 
 
 def test_validate_check_steps_allows_catalog_backed_cross_template_step() -> None:
@@ -161,6 +166,138 @@ def test_validate_check_steps_allows_catalog_backed_cross_template_step() -> Non
             "command_label": "執行 Python 程式入口",
         }
     ]
+
+
+def test_validate_generic_command_applies_platform_timeout_default() -> None:
+    items = validate_check_steps(
+        "linux",
+        [
+            {
+                "check_steps": [
+                    {
+                        "template_key": "linux",
+                        "command_key": "system.run_command",
+                        "parameters": {
+                            "cwd": r"C:\Users\陳洋\Desktop\Campus-Cloud",
+                            "argv": ["cat", ".env"],
+                            "success_criteria": "exit code 為 0",
+                        },
+                    }
+                ]
+            }
+        ],
+        [GENERAL_COMMAND],
+    )
+
+    parameters = items[0]["check_steps"][0]["parameters"]
+    assert parameters == {
+        "cwd": r"C:\Users\陳洋\Desktop\Campus-Cloud",
+        "argv": ["cat", ".env"],
+        "success_criteria": "exit code 為 0",
+        "timeout_seconds": 30,
+    }
+
+
+def test_generic_command_internal_fields_are_not_teacher_missing_information() -> None:
+    normalized = teacher_judge_service._normalize_rubric_items(
+        [
+            {
+                "id": "item-1",
+                "title": "讀取環境設定",
+                "description": "在目前目錄讀取 .env。",
+                "detectable": "partial",
+                "detection_method": "以 exit code 判定檔案是否可讀",
+                "missing_information": [
+                    "唯讀命令與參數",
+                    "1 至 300 秒的逾時限制",
+                ],
+                "check_steps": [
+                    {
+                        "template_key": "linux",
+                        "command_key": "system.run_command",
+                        "parameters": {
+                            "cwd": r"C:\Users\陳洋\Desktop\Campus-Cloud",
+                            "argv": ["cat", ".env"],
+                            "success_criteria": "exit code 為 0",
+                        },
+                    }
+                ],
+            }
+        ],
+        template_key="linux",
+        template_commands=[GENERAL_COMMAND],
+    )
+
+    assert normalized[0].detectable == "auto"
+    assert normalized[0].missing_information == []
+    assert normalized[0].check_steps[0].parameters["timeout_seconds"] == 30
+
+
+def test_generic_command_missing_target_uses_teacher_facing_description() -> None:
+    normalized = teacher_judge_service._normalize_rubric_items(
+        [
+            {
+                "id": "item-1",
+                "title": "讀取資料",
+                "detectable": "partial",
+                "detection_method": "以 exit code 判定",
+                "missing_information": ["唯讀命令與參數"],
+                "check_steps": [
+                    {
+                        "template_key": "linux",
+                        "command_key": "system.run_command",
+                        "parameters": {"success_criteria": "exit code 為 0"},
+                    }
+                ],
+            }
+        ],
+        template_key="linux",
+        template_commands=[GENERAL_COMMAND],
+    )
+
+    assert normalized[0].detectable == "partial"
+    assert normalized[0].missing_information == [
+        "要檢查的檔案、服務或記錄範圍"
+    ]
+
+
+def test_cat_config_assignment_resolves_redundant_success_condition_gap() -> None:
+    normalized = teacher_judge_service._normalize_rubric_items(
+        [
+            {
+                "id": "item-1",
+                "title": "確認 Web URL 設定",
+                "description": "讀取 .env，確認有 web_URL=True 這條設定。",
+                "detectable": "partial",
+                "detection_method": "使用 cat 讀取 .env",
+                "missing_information": [
+                    "客觀成功條件",
+                    "「成功條件」尚未定義為「包含 web_URL=True 字樣」",
+                ],
+                "check_steps": [
+                    {
+                        "template_key": "linux",
+                        "command_key": "system.run_command",
+                        "parameters": {
+                            "cwd": r"C:\Users\陳洋\Desktop\Campus-Cloud",
+                            "argv": ["cat", ".env"],
+                        },
+                    }
+                ],
+            }
+        ],
+        template_key="linux",
+        template_commands=[GENERAL_COMMAND],
+    )
+
+    item = normalized[0]
+    assert item.detectable == "auto"
+    assert item.missing_information == []
+    assert item.check_steps[0].parameters["success_criteria"] == (
+        "exit code 為 0，且輸出中存在設定行 `web_URL=True`"
+        "（允許行首尾及等號周圍空白）"
+    )
+    assert item.check_steps[0].parameters["timeout_seconds"] == 30
 
 
 @pytest.mark.asyncio
@@ -372,7 +509,10 @@ async def test_chat_prompt_accepts_objectively_verifiable_main_py_checkpoint(
     system_prompt = captured_payload["messages"][0]["content"]
     assert "`auto` 表示「自動檢測支援完整」" in system_prompt
     assert "執行 main.py，確認無錯誤並輸出整數 20" in system_prompt
-    assert "缺少實際工作目錄、服務名稱、Port、argv 或成功條件" in system_prompt
+    assert (
+        "缺少無法由上下文得知的工作目錄、檔案、服務名稱、Port、記錄範圍或成功條件"
+        in system_prompt
+    )
     assert "主觀條件或平台沒有安全取證能力" in system_prompt
     assert "`auto` 項目的 `check_steps` 必須引用該 `command_key`" in system_prompt
     assert "`checked` 表示是否已達成" in system_prompt
@@ -444,6 +584,12 @@ async def test_chat_prompt_accepts_generic_cat_env_checkpoint(
 
     system_prompt = captured_payload["messages"][0]["content"]
     assert "system.run_command" in system_prompt
+    assert "平台已登錄、可供後續檢查腳本使用" in system_prompt
+    assert "本次 AI 對話只規劃評分項目與 check_steps" in system_prompt
+    assert "不需要老師再新增指令或權限" in system_prompt
+    assert "argv 與安全逾時由 AI／平台依 catalog 規劃" in system_prompt
+    assert r"C:\Users\陳洋\Desktop\Campus-Cloud>" in system_prompt
+    assert '["cat", ".env"]' in system_prompt
     assert "原樣收集 exit code、stdout、stderr" in system_prompt
     assert "cd 請以 cwd 表示" in system_prompt
     assert updated_items is not None

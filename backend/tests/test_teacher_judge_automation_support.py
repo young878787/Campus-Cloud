@@ -92,6 +92,58 @@ def test_all_items_with_complete_supported_steps_allow_script_generation() -> No
     ensure_script_generation_supported(analysis, [_command()])
 
 
+def test_generic_command_timeout_is_platform_owned_not_teacher_missing_info() -> None:
+    item = TeacherJudgeRubricItem(
+        id="item-1",
+        title="讀取環境設定",
+        description="在指定工作目錄讀取 .env。",
+        detectable="auto",
+        detection_method="以 exit code 判定檔案是否可讀",
+        check_steps=[
+            TeacherJudgeRubricCheckStep(
+                template_key="python",
+                command_key="system.run_command",
+                parameters={
+                    "cwd": r"C:\Users\陳洋\Desktop\Campus-Cloud",
+                    "argv": ["cat", ".env"],
+                    "success_criteria": "exit code 為 0",
+                },
+            )
+        ],
+    )
+
+    assert get_script_generation_blockers(
+        TeacherJudgeRubricAnalysis(items=[item]),
+        [_command("system.run_command")],
+    ) == []
+
+
+def test_generic_command_reports_target_instead_of_internal_argv_or_timeout() -> None:
+    item = TeacherJudgeRubricItem(
+        id="item-1",
+        title="讀取資料",
+        description="讀取尚未指定的資料。",
+        detectable="auto",
+        detection_method="以 exit code 判定",
+        check_steps=[
+            TeacherJudgeRubricCheckStep(
+                template_key="python",
+                command_key="system.run_command",
+                parameters={"success_criteria": "exit code 為 0"},
+            )
+        ],
+    )
+
+    blockers = get_script_generation_blockers(
+        TeacherJudgeRubricAnalysis(items=[item]),
+        [_command("system.run_command")],
+    )
+
+    assert blockers[0]["missing_information"] == [
+        "要檢查的檔案、服務或記錄範圍"
+    ]
+
+
 def test_stale_automation_support_blocks_script_generation() -> None:
     analysis = TeacherJudgeRubricAnalysis(
         items=[

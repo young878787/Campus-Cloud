@@ -21,7 +21,11 @@ from app.ai.teacher_judge import script_artifact_service as artifacts
 from app.ai.teacher_judge import script_executor_service as executor
 from app.ai.teacher_judge import script_result_analysis_service as analysis
 from app.ai.teacher_judge import service
-from app.ai.teacher_judge.prompt import CHAT_SYSTEM_TEMPLATE
+from app.ai.teacher_judge.prompt import (
+    ANALYZE_SYSTEM_PROMPT,
+    CHAT_SYSTEM_TEMPLATE,
+    SITUATION_NORMAL,
+)
 from app.ai.teacher_judge.schemas import TeacherJudgeRubricChatMessage
 from app.models.teacher_judge_script_artifact import (
     TeacherJudgeScriptArtifact,
@@ -54,6 +58,57 @@ def test_teacher_judge_prompt_exposes_script_workflow_intent_rules():
     assert "可以幫我產生腳本嗎" in CHAT_SYSTEM_TEMPLATE
     assert "腳本怎麼製作" in CHAT_SYSTEM_TEMPLATE
     assert "不要用 JSON 文字模擬工具呼叫" in CHAT_SYSTEM_TEMPLATE
+
+
+def test_teacher_judge_chat_prompt_is_scoped_and_clarifies_missing_information():
+    assert "使用者問 A，只回答 A" in CHAT_SYSTEM_TEMPLATE
+    assert "只詢問最少且具體的問題" in CHAT_SYSTEM_TEMPLATE
+    assert "不得猜測後繼續" in CHAT_SYSTEM_TEMPLATE
+    assert "不要補充未詢問的" in CHAT_SYSTEM_TEMPLATE
+    assert "只協助老師規劃、新增或調整評分項目" in CHAT_SYSTEM_TEMPLATE
+    assert "不會當場連線學生環境、讀取檔案或執行指令" in CHAT_SYSTEM_TEMPLATE
+    assert "不得回覆「未登錄的指令需求」" in CHAT_SYSTEM_TEMPLATE
+    assert "不得要求老師新增「讀取檔案」權限" in CHAT_SYSTEM_TEMPLATE
+    assert "你覺得...如何" not in SITUATION_NORMAL
+
+
+def test_teacher_judge_prompts_document_scoped_system_commands():
+    for prompt in (ANALYZE_SYSTEM_PROMPT, CHAT_SYSTEM_TEMPLATE):
+        assert "history` 是 shell builtin" in prompt
+    assert '["cat", "<檔名或路徑>"]' in ANALYZE_SYSTEM_PROMPT
+    assert '["systemctl", "list-units", "--type=service", "--all"]' in (
+        ANALYZE_SYSTEM_PROMPT
+    )
+    assert '["systemctl", "--failed"]' in ANALYZE_SYSTEM_PROMPT
+    assert (
+        '["journalctl", "--since", "1 hour ago", "-p", "err", '
+        '"--no-pager", "-n", "50"]' in ANALYZE_SYSTEM_PROMPT
+    )
+    assert "systemctl list-units --type=service --all" in CHAT_SYSTEM_TEMPLATE
+    assert "systemctl --failed" in CHAT_SYSTEM_TEMPLATE
+    assert (
+        'journalctl --since "1 hour ago" -p err --no-pager -n 50'
+        in CHAT_SYSTEM_TEMPLATE
+    )
+    assert "若連目前目錄也沒有，才詢問 `.env` 所在目錄" in CHAT_SYSTEM_TEMPLATE
+    assert "直接以 `system.run_command` 規劃提案" in CHAT_SYSTEM_TEMPLATE
+    assert "所有目前允許的唯讀／診斷系統指令" in ANALYZE_SYSTEM_PROMPT
+    assert "這項規則適用所有允許的唯讀／診斷系統指令" in (
+        ANALYZE_SYSTEM_PROMPT
+    )
+    assert "都只是範例，不是限定清單" in CHAT_SYSTEM_TEMPLATE
+    assert "確認有 `web_URL=True` 這條" in ANALYZE_SYSTEM_PROMPT
+    assert "不得要求整份 stdout 完全等於 `web_URL=True`" in (
+        ANALYZE_SYSTEM_PROMPT
+    )
+    assert "確認有／包含／存在 X" in CHAT_SYSTEM_TEMPLATE
+    assert "只有老師明確說「輸出必須完全等於 X／只能輸出 X」" in (
+        CHAT_SYSTEM_TEMPLATE
+    )
+    assert "允許行首尾及等號周圍空白" in CHAT_SYSTEM_TEMPLATE
+    assert "教師已說要確認該設定存在時，這句話本身就是成功條件" in (
+        CHAT_SYSTEM_TEMPLATE
+    )
 
 
 @pytest.mark.parametrize("content", ["null", "[]", '"text"'])

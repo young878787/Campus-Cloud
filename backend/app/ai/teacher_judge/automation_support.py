@@ -54,9 +54,7 @@ def missing_step_information(step: TeacherJudgeRubricCheckStep) -> list[str]:
             missing.append("客觀成功條件")
     elif step.command_key == "system.run_command":
         if not _non_empty_argv(parameters.get("argv")):
-            missing.append("唯讀命令與參數")
-        if not _valid_timeout(parameters.get("timeout_seconds")):
-            missing.append("1 至 300 秒的逾時限制")
+            missing.append("要檢查的檔案、服務或記錄範圍")
         if not isinstance(parameters.get("success_criteria"), str) or not str(
             parameters.get("success_criteria")
         ).strip():

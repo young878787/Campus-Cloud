@@ -39,6 +39,23 @@ from app.models.teacher_judge_template_command import TeacherJudgeTemplateComman
 
 logger = logging.getLogger(__name__)
 
+_PLATFORM_OWNED_SYSTEM_COMMAND_INFORMATION = {
+    "唯讀命令與參數",
+    "1 至 300 秒的逾時限制",
+}
+_CONFIG_ASSIGNMENT_PATTERN = re.compile(
+    r"(?<![\w.-])([A-Za-z_][A-Za-z0-9_.-]*)\s*=\s*([A-Za-z0-9_./:+-]+)"
+)
+
+
+def _config_assignment_from_item_text(*values: Any) -> str | None:
+    """Extract one explicit key=value condition without inventing a target value."""
+    text = "\n".join(str(value) for value in values if value is not None)
+    match = _CONFIG_ASSIGNMENT_PATTERN.search(text)
+    if match is None:
+        return None
+    return f"{match.group(1)}={match.group(2)}"
+
 
 CREATE_SCRIPT_TOOL = {
     "type": "function",
@@ -238,6 +255,66 @@ def _normalize_rubric_items(
             template_key=template_key,
             template_commands=template_commands,
         )
+        system_command_steps = [
+            step for step in check_steps if step.command_key == "system.run_command"
+        ]
+        removed_platform_owned_information = False
+        resolved_config_success_condition = False
+        if system_command_steps:
+            assignment = _config_assignment_from_item_text(
+                title,
+                description,
+                detection_method,
+                *missing_information,
+            )
+            for step in system_command_steps:
+                argv = step.parameters.get("argv")
+                is_cat_command = (
+                    isinstance(argv, list)
+                    and bool(argv)
+                    and isinstance(argv[0], str)
+                    and argv[0].strip().rsplit("/", 1)[-1] == "cat"
+                )
+                if assignment and is_cat_command:
+                    success_criteria = step.parameters.get("success_criteria")
+                    if not isinstance(success_criteria, str) or not success_criteria.strip():
+                        step.parameters["success_criteria"] = (
+                            "exit code 為 0，且輸出中存在設定行 "
+                            f"`{assignment}`（允許行首尾及等號周圍空白）"
+                        )
+                    resolved_config_success_condition = True
+            if resolved_config_success_condition:
+                missing_information = [
+                    value
+                    for value in missing_information
+                    if "成功條件" not in value
+                ]
+                if detection_method is None or not str(detection_method).strip():
+                    detection_method = (
+                        "讀取指定檔案，確認命令成功且存在相符的設定行"
+                    )
+            filtered_missing_information = [
+                value
+                for value in missing_information
+                if value not in _PLATFORM_OWNED_SYSTEM_COMMAND_INFORMATION
+            ]
+            removed_platform_owned_information = (
+                filtered_missing_information != missing_information
+            )
+            missing_information = filtered_missing_information
+            for step in system_command_steps:
+                missing_information.extend(missing_step_information(step))
+            if (
+                detectable == "partial"
+                and (
+                    removed_platform_owned_information
+                    or resolved_config_success_condition
+                )
+                and not missing_information
+                and detection_method is not None
+                and str(detection_method).strip()
+            ):
+                detectable = "auto"
         if template_commands is not None and detectable == "auto" and not check_steps:
             detectable = "manual"
             missing_information = []

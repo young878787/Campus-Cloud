@@ -254,6 +254,18 @@ async def test_generate_script_content_sends_commands_feedback_and_safety_prompt
     assert "python.run_entrypoint" in system_prompt
     assert "不得搜尋檔案系統或猜路徑" in system_prompt
     assert "exit code、stdout、stderr" in system_prompt
+    assert '["cat", "<相對檔名或路徑>"]' in system_prompt
+    assert "適用所有通過平台政策的唯讀／診斷系統指令" in system_prompt
+    assert "不限於列出的範例" in system_prompt
+    assert "只有明確要求完全相等時才比較整份 stdout" in system_prompt
+    assert "設定行如 `web_URL=True`" in system_prompt
+    assert "不得要求整份輸出只有該字串" in system_prompt
+    assert "安全預設 30 秒" in system_prompt
+    assert "不是啟動延遲" in system_prompt
+    assert '["systemctl", "list-units", "--type=service", "--all"]' in system_prompt
+    assert '["systemctl", "--failed"]' in system_prompt
+    assert '["journalctl", "--since", "1 hour ago", "-p", "err", "--no-pager", "-n", "50"]' in system_prompt
+    assert "history` 是 shell builtin" in system_prompt
     assert user_payload["template_commands"][0]["command_key"] == "n8n.port_check"
     assert user_payload["previous_review_feedback"]["policy_issues"] == [
         "禁止使用 shell=True 執行指令"
@@ -2613,6 +2625,7 @@ print(json.dumps({"schema_version": "teacher_judge_result.v1", "metadata": {"tim
     "argv",
     [
         '["bash", "-c", "echo hello"]',
+        '["bash", "-lc", "history"]',
         '["sh", "-c", "cat .env"]',
         '["git", "commit", "-m", "change"]',
     ],
@@ -2631,6 +2644,9 @@ def test_script_policy_blocks_shell_launchers_and_writing_git(argv: str) -> None
         '["echo", "hello"]',
         '["git", "status", "--short"]',
         '["ping", "-c", "1", "127.0.0.1"]',
+        '["systemctl", "list-units", "--type=service", "--all"]',
+        '["systemctl", "--failed"]',
+        '["journalctl", "--since", "1 hour ago", "-p", "err", "--no-pager", "-n", "50"]',
     ],
 )
 def test_script_policy_allows_generic_read_only_commands(argv: str) -> None:
