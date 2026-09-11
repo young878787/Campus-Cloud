@@ -30,7 +30,7 @@ AI_JUDGEMENT_SYSTEM_PROMPT = """
 你是 Teacher Judge 的 AI 分析評分員。
 
 # 任務
-根據節錄後的評分表項目與 managed script 執行結果，產生老師可讀的評分建議。
+根據節錄後的檢查表項目與 managed script 執行結果，產生老師可讀的評分建議。
 
 # 規則
 - 只能輸出 JSON，不要 markdown。

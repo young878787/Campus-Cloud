@@ -1957,7 +1957,7 @@ async def test_execute_script_run_saves_valid_target_result(
                     "status": "completed",
                     "score": 5,
                     "max_score": 5,
-                    "summary": "符合評分表要求。",
+                    "summary": "符合檢查表要求。",
                     "item_judgements": [],
                 },
             }

@@ -61,7 +61,7 @@ def _safe_filename(filename: str) -> str:
 def _display_name_from_filename(filename: str) -> str:
     """Return a readable rubric name while keeping the original filename separate."""
     stem = Path(filename or "").stem.strip()
-    return stem or "評分表"
+    return stem or "檢查表"
 
 
 def _suffix(filename: str) -> str:
@@ -115,7 +115,7 @@ def _file_to_public(file: TeacherJudgeFile) -> TeacherJudgeFilePublic:
         file_hash=file.file_hash,
         template_key=file.template_key,
         source_type=cast(TeacherJudgeFileSourceTypeLiteral, file.source_type),
-        display_name=file.display_name or file.original_filename or "評分表",
+        display_name=file.display_name or file.original_filename or "檢查表",
         environment_keys=list(file.environment_keys or [file.template_key]),
         analysis_revision=file.analysis_revision,
         analysis_json=file.analysis_json,
@@ -539,7 +539,7 @@ def clone_file_asset(
             teaching_class_id=teaching_class_id,
             original_filename=source.original_filename,
         )
-    display_name = source.display_name or source.original_filename or "評分表"
+    display_name = source.display_name or source.original_filename or "檢查表"
     clone = TeacherJudgeFile(
         teaching_class_id=teaching_class_id,
         uploaded_by=created_by,

@@ -61,7 +61,7 @@ class TeacherJudgeRubricItem(BaseModel):
 
 
 class TeacherJudgeRubricAnalysis(BaseModel):
-    """AI 分析評分表後的結構化結果。"""
+    """AI 分析檢查表後的結構化結果。"""
 
     items: list[TeacherJudgeRubricItem] = Field(default_factory=list)
     total_items: int = Field(default=0)
@@ -95,10 +95,10 @@ class TeacherJudgeRubricChatRequest(BaseModel):
 
     messages: list[TeacherJudgeRubricChatMessage] = Field(..., min_length=1)
     rubric_context: str = Field(
-        default="", description="目前評分表的 JSON 字串（作為背景知識）"
+        default="", description="目前檢查表的 JSON 字串（作為背景知識）"
     )
     is_refine: bool = Field(
-        default=False, description="True = 以目前評分表執行整表潤飾模式"
+        default=False, description="True = 以目前檢查表執行整表潤飾模式"
     )
     template_key: str = Field(
         default="linux",
@@ -119,7 +119,7 @@ class TeacherJudgeRubricChatResponse(BaseModel):
 
 
 class TeacherJudgeRubricUploadResponse(BaseModel):
-    """上傳評分表回應。"""
+    """上傳檢查表回應。"""
 
     analysis: TeacherJudgeRubricAnalysis
     ai_metrics: dict[str, Any]
@@ -251,7 +251,7 @@ class TeacherJudgeSessionMessageCreateRequest(BaseModel):
     attachment_ids: list[uuid.UUID] = Field(default_factory=list, max_length=5)
     is_refine: bool = Field(
         default=False,
-        description="True = 以目前評分表執行整表潤飾",
+        description="True = 以目前檢查表執行整表潤飾",
     )
 
 

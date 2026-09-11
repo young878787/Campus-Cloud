@@ -167,7 +167,7 @@ def create_session(
                 session=session,
                 teaching_class_id=teaching_class_id,
                 created_by=current_user.id,
-                display_name=payload.rubric_name or "評分表",
+                display_name=payload.rubric_name or "檢查表",
                 environment_keys=payload.environment_keys or [],
             )
             selected_file_id = rubric.id
@@ -512,7 +512,7 @@ async def create_message(
         # do not let an unconstrained model response create an unreviewed proposal.
         if file is None and proposal:
             reply = (
-                "這項需求已具備自動檢查條件，但目前尚未選擇評分表來源，"
+                "這項需求已具備自動檢查條件，但目前尚未選擇檢查表來源，"
                 "因此無法建立可套用提案。請先選擇來源後再送出需求。"
             )
             proposal = None
@@ -614,7 +614,7 @@ async def create_session_script(
     if not rubric_analysis.items:
         raise HTTPException(
             status_code=422,
-            detail="目前評分表沒有檢查項目，請先新增至少一個項目。",
+            detail="目前檢查表沒有檢查項目，請先新增至少一個項目。",
         )
     artifact = await create_artifact(
         session=session,

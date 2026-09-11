@@ -32,7 +32,7 @@ def export_to_excel(items: list[TeacherJudgeRubricItem], summary: str = "") -> b
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "評分表"
+    ws.title = "檢查表"
 
     header_font = Font(bold=True, size=11)
     headers = [

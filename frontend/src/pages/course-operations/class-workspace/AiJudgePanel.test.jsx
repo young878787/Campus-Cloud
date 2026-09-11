@@ -61,7 +61,7 @@ describe("ChatPanel", () => {
     expect(html).toContain('aria-controls="ai-chat-data-sources"');
     expect(html).toContain("描述想檢查的需求");
     expect(html).toContain("同意提案後才會正式保存");
-    expect(html).not.toContain("評分表來源");
+    expect(html).not.toContain("檢查表來源");
     expect(html).not.toContain("自動檢測支援");
   });
 
@@ -104,7 +104,7 @@ describe("ChatPanel", () => {
     expect(html).toContain("已讀取");
   });
 
-  test("沒有評分表時仍不提供任何腳本操作入口", () => {
+  test("沒有檢查表時仍不提供任何腳本操作入口", () => {
     const html = renderToStaticMarkup(
       <ChatPanel
         messages={[]}
@@ -332,7 +332,7 @@ describe("getScriptCreationBlocker", () => {
     })).toContain("待更新");
   });
 
-  test("待重新確認項目會從評分表狀態還原，讓提示與列標籤一致", () => {
+  test("待重新確認項目會從檢查表狀態還原，讓提示與列標籤一致", () => {
     const analysis = {
       items: [completeItem],
       detectability_needs_review: true,
@@ -421,7 +421,7 @@ describe("buildProposalDiff", () => {
     ]);
   });
 
-  test("候選評分表只套用選定差異並保留未提及項目", () => {
+  test("候選檢查表只套用選定差異並保留未提及項目", () => {
     const result = applyProposalOperations(
       [
         { id: "keep", title: "保留", description: "原內容" },
@@ -444,10 +444,10 @@ describe("buildProposalDiff", () => {
 
 describe("uploaded rubric naming", () => {
   test("匯入檔名移除副檔名，且檢查名稱保留檔名主體並限制長度", () => {
-    expect(getRubricDisplayName({ name: "AI評分表審核系統_Python服務Running狀態檢測_簡短版.docx" }))
-      .toBe("AI評分表審核系統_Python服務Running狀態檢測_簡短版");
-    expect(getRubricCheckTitle({ original_filename: "保存的評分表.docx" })).toBe("保存的評分表");
-    expect(getRubricCheckTitle({ display_name: "自訂評分表", original_filename: "保存的評分表.docx" })).toBe("自訂評分表");
+    expect(getRubricDisplayName({ name: "AI檢查表審核系統_Python服務Running狀態檢測_簡短版.docx" }))
+      .toBe("AI檢查表審核系統_Python服務Running狀態檢測_簡短版");
+    expect(getRubricCheckTitle({ original_filename: "保存的檢查表.docx" })).toBe("保存的檢查表");
+    expect(getRubricCheckTitle({ display_name: "自訂檢查表", original_filename: "保存的檢查表.docx" })).toBe("自訂檢查表");
     expect(getRubricCheckTitle({ name: "  " })).toBe("未命名檢查");
     expect(getRubricCheckTitle({ name: "a".repeat(300) })).toHaveLength(255);
   });

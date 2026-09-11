@@ -47,7 +47,7 @@ async def upload_rubric(
     template_key: str = Form(default="linux"),
 ):
     """
-    上傳評分表文件（.docx / .pdf），AI 解析並回傳結構化評分分析。
+    上傳檢查表文件（.docx / .pdf），AI 解析並回傳結構化評分分析。
 
     限制：Teacher / Admin 角色可使用。
     """
@@ -142,9 +142,9 @@ async def chat(
     chat_request: TeacherJudgeRubricChatRequest,
 ):
     """
-    與 AI 對話，精煉評分表。
+    與 AI 對話，精煉檢查表。
 
-    rubric_context 帶入目前評分表的 JSON 字串。
+    rubric_context 帶入目前檢查表的 JSON 字串。
     限制：Teacher / Admin 角色可使用。
     """
     template_key = chat_request.template_key.strip().lower() or "linux"

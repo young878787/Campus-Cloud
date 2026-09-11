@@ -13,13 +13,13 @@ describe("createRubricAnalysisAutosave", () => {
 
     autosave.schedule({ title: "評" });
     autosave.schedule({ title: "評分" });
-    autosave.schedule({ title: "評分表" });
+    autosave.schedule({ title: "檢查表" });
 
     expect(save).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(650);
 
     expect(save).toHaveBeenCalledTimes(1);
-    expect(save).toHaveBeenCalledWith({ title: "評分表" });
+    expect(save).toHaveBeenCalledWith({ title: "檢查表" });
     expect(autosave.isPending()).toBe(false);
   });
 

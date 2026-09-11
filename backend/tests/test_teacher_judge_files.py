@@ -142,7 +142,7 @@ def test_uploaded_file_display_name_uses_filename_stem(
         session=session,
         teaching_class_id=uuid.uuid4(),
         uploaded_by=uuid.uuid4(),
-        original_filename="AI評分表審核系統_Python服務Running狀態檢測_簡短版.docx",
+        original_filename="AI檢查表審核系統_Python服務Running狀態檢測_簡短版.docx",
         file_hash="a" * 64,
         template_key="python",
         file_bytes=b"document",
@@ -151,7 +151,7 @@ def test_uploaded_file_display_name_uses_filename_stem(
     )
 
     assert saved.original_filename.endswith(".docx")
-    assert saved.display_name == "AI評分表審核系統_Python服務Running狀態檢測_簡短版"
+    assert saved.display_name == "AI檢查表審核系統_Python服務Running狀態檢測_簡短版"
 
 
 def test_copy_strategy_creates_filename_copy(
@@ -266,7 +266,7 @@ def test_blank_file_has_created_source_metadata() -> None:
         session=session,
         teaching_class_id=teaching_class_id,
         created_by=uuid.uuid4(),
-        display_name="Python 期中評分表",
+        display_name="Python 期中檢查表",
         environment_keys=["python", "linux", "python"],
     )
 
@@ -277,7 +277,7 @@ def test_blank_file_has_created_source_metadata() -> None:
     assert file.source_type == "created"
     assert file.original_filename is None
     assert file.file_hash is None
-    assert file.display_name == "Python 期中評分表"
+    assert file.display_name == "Python 期中檢查表"
     assert file.environment_keys == ["python", "linux"]
     assert file.template_key == "python"
     assert file.analysis_revision == 1
@@ -305,7 +305,7 @@ def test_blank_file_accepts_postgresql_environment() -> None:
         session=session,
         teaching_class_id=uuid.uuid4(),
         created_by=uuid.uuid4(),
-        display_name="PostgreSQL 評分表",
+        display_name="PostgreSQL 檢查表",
         environment_keys=["postgresql"],
     )
 

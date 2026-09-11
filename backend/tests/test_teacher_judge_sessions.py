@@ -282,7 +282,7 @@ def test_fork_created_session_clones_rubric_without_history() -> None:
         session=db,
         teaching_class_id=class_id,
         created_by=owner_id,
-        display_name="原始評分表",
+        display_name="原始檢查表",
         environment_keys=["python"],
     )
     db.commit()
@@ -425,7 +425,7 @@ async def test_message_without_rubric_does_not_claim_proposal_was_created(
     )
 
     assert result.rubric_proposal is None
-    assert "尚未選擇評分表來源" in result.assistant_message.content
+    assert "尚未選擇檢查表來源" in result.assistant_message.content
     assert "已放入提案" not in result.assistant_message.content
 
 
@@ -587,11 +587,11 @@ async def test_refine_message_uses_the_rubric_polish_prompt_mode(
     db.refresh(item)
 
     async def fake_chat(messages, rubric_context, **kwargs):
-        assert messages[-1].content == "請審核並潤飾目前的評分表"
+        assert messages[-1].content == "請審核並潤飾目前的檢查表"
         assert '"items": []' in rubric_context
         assert kwargs["is_refine"] is True
         assert kwargs["ready_proposals_only"] is False
-        return "檢查完畢，評分表目前狀態良好。", None, {}
+        return "檢查完畢，檢查表目前狀態良好。", None, {}
 
     monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
     monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
@@ -603,14 +603,14 @@ async def test_refine_message_uses_the_rubric_polish_prompt_mode(
         class_id,
         item.id,
         TeacherJudgeSessionMessageCreateRequest(
-            content="請審核並潤飾目前的評分表",
+            content="請審核並潤飾目前的檢查表",
             is_refine=True,
         ),
         db,
         SimpleNamespace(id=uuid.uuid4()),
     )
 
-    assert result.assistant_message.content == "檢查完畢，評分表目前狀態良好。"
+    assert result.assistant_message.content == "檢查完畢，檢查表目前狀態良好。"
     assert result.rubric_proposal is None
     assert result.user_message.metadata_json["ui_hidden"] is True
     assert result.assistant_message.metadata_json["ui_hidden"] is True
@@ -643,7 +643,7 @@ async def test_message_rejects_stale_rubric_revision_before_ai_call(
             class_id,
             item.id,
             TeacherJudgeSessionMessageCreateRequest(
-                content="請更新評分表",
+                content="請更新檢查表",
                 analysis_revision=99,
             ),
             db,

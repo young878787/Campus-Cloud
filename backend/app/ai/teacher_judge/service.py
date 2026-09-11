@@ -483,7 +483,7 @@ def _proposal_unavailable_reply(
         )
 
     if normalized_items:
-        return "目前評分表已包含相同內容，沒有新的變更需要套用。"
+        return "目前檢查表已包含相同內容，沒有新的變更需要套用。"
     return "我這次沒有成功整理出可套用的提案，請再試一次。"
 
 
@@ -586,7 +586,7 @@ async def analyze_rubric(
 
     logger.info(f"Starting rubric analysis, text length: {len(raw_text)} characters")
 
-    user_content = f"# 評分表原文\n\n{raw_text}"
+    user_content = f"# 檢查表原文\n\n{raw_text}"
     template_command_context = TEMPLATE_COMMAND_CONTEXT_TEMPLATE.format(
         template_key=template_key,
         environment_keys=", ".join(environment_keys or [template_key]),
@@ -687,7 +687,7 @@ async def summarize_conversation(
             "role": "user",
             "content": (
                 "請依以上資料輸出短的繁體中文工作摘要。只輸出摘要文字；"
-                "不要修改評分表、提出 proposal、輸出 JSON 或補充說明。"
+                "不要修改檢查表、提出 proposal、輸出 JSON 或補充說明。"
             ),
         }
     )
@@ -724,7 +724,7 @@ async def chat_with_rubric(
     """
     Multi-turn chat with rubric context injected into system prompt.
     Returns (reply_text, updated_items_or_None, metrics).
-    - is_refine: True 表示針對目前評分表執行「全表潤飾」模式。
+    - is_refine: True 表示針對目前檢查表執行「全表潤飾」模式。
     - updated_items: complete list for legacy/direct-update callers, or normalized
       Ready operations when ``ready_proposals_only`` is enabled; None when no
       applicable change remains.
@@ -744,7 +744,7 @@ async def chat_with_rubric(
     )
     system_prompt = (
         CHAT_SYSTEM_TEMPLATE.replace(
-            "{rubric_context}", rubric_context or "（尚未上傳評分表）"
+            "{rubric_context}", rubric_context or "（尚未上傳檢查表）"
         )
         .replace("{rubric_item_count}", str(context_item_count))
         .replace(
@@ -786,7 +786,7 @@ async def chat_with_rubric(
                     f"{attachment_context}\n\n"
                     "【附件處理要求】若上一則教師訊息是在描述、補充或要求分析附件中的檢查需求，"
                     "請直接逐條核查，不要求教師再使用「新增」句型。"
-                    "「幫我增加這些項目」就是把附件中的項目加入目前評分表的明確指令。"
+                    "「幫我增加這些項目」就是把附件中的項目加入目前檢查表的明確指令。"
                     "附件中有 Ready 變更時請依提案輸出模式回傳 updated_items；"
                     "不要只確認已讀取，也不要要求教師重新貼上附件。"
                 ),

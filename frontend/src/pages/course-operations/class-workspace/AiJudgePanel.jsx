@@ -201,7 +201,7 @@ function hasCompleteParameterizedStep(step) {
 }
 
 /**
- * 解析評分表中尚未重新確認的項目。新資料使用明確的項目 ID；舊資料只有
+ * 解析檢查表中尚未重新確認的項目。新資料使用明確的項目 ID；舊資料只有
  * 整表旗標時，保守地將目前項目視為待確認，避免提示與表格列狀態不一致。
  */
 export function getRubricReviewItemIds(analysis, candidateIds = null) {
@@ -258,10 +258,10 @@ function formatDateTime(value) {
 const RUBRIC_FILE_EXTENSION = /\.(?:md|txt|doc|docx|pdf)$/i;
 
 /**
- * 評分表的可讀名稱不應把匯入文件的副檔名帶進工作區標題；原始檔名仍
+ * 檢查表的可讀名稱不應把匯入文件的副檔名帶進工作區標題；原始檔名仍
  * 保留在 `original_filename`，供衝突判斷與下載使用。
  */
-export function getRubricDisplayName(file, fallback = "評分表") {
+export function getRubricDisplayName(file, fallback = "檢查表") {
   const rawName = typeof file === "string"
     ? file
     : [file?.name, file?.display_name, file?.original_filename]
@@ -631,7 +631,7 @@ export function RubricTable({ items, onChange, onDelete, disabled, needsReviewId
   return (
     <div className={styles.rubricTableWrap}>
       <table className={styles.rubricTable}>
-        <caption className={styles.srOnly}>可編輯的 AI 檢查評分表</caption>
+        <caption className={styles.srOnly}>可編輯的 AI 檢查表</caption>
         <thead>
           <tr>
             <th scope="col" className={styles.rubricDetailToggleHeader}>
@@ -708,7 +708,7 @@ export function ChatPanel({
         {visibleMessages.length === 0 ? (
           <div className={styles.chatEmpty}>
             <MIcon name="smart_toy" size={32} />
-            <p>{hasRubric ? "與 AI 對話來精煉你的評分表" : "先和 AI 討論你的檢查需求"}</p>
+            <p>{hasRubric ? "與 AI 對話來精煉你的檢查表" : "先和 AI 討論你的檢查需求"}</p>
             <p className={styles.chatEmptyMeta}>
               {hasRubric
                 ? "可以詢問修改建議，或直接下達調整指令"
@@ -1149,14 +1149,14 @@ function RubricSourceRail({ classId, judgeSession, onSessionUpdated, onClose, em
       </div>
       {loading ? <p className={styles.mutedText}>載入來源中…</p> : visibleFiles.length > 0 ? (
         <div className={styles.sourceList}>
-           {visibleFiles.map((file) => <div key={file.id} className={`${styles.sourceRow} ${file.id === selectedFileId ? styles.sourceRowSelected : ""}`}><div className={styles.sourceSelect} aria-current="true"><span className={styles.sourceIndicator} aria-hidden="true"><MIcon name="radio_button_checked" size={17} /></span><span className={styles.sourceText}><b>{getRubricDisplayName(file, "未命名評分表")}</b><small>{(file.environment_keys?.length ? file.environment_keys : [file.template_key]).map(getTemplateLabel).join("、")} · {file.analysis_json?.items?.length ?? 0} 項 · {formatDateTime(file.updated_at)} · {file.source_type === "created" ? "建立於系統" : "已上傳"}</small><em>已選用</em></span></div><div className={styles.sourceActions}><button type="button" className={styles.iconBtn} aria-label={`管理 ${getRubricDisplayName(file)}`} title="管理資料來源" aria-haspopup="menu" aria-expanded={openMenuId === file.id} onClick={(event) => { event.stopPropagation(); setOpenMenuId((current) => current === file.id ? null : file.id); }}><MIcon name="more_vert" size={18} /></button>{sourceMenuKeep.item === file.id && <div className={`${styles.sourceMenu} ${sourceMenuKeep.closing ? styles.sessionMenuOut : ""}`} role="menu">{file.source_type !== "created" && <button type="button" role="menuitem" onClick={() => download(file)}><MIcon name="download" size={15} />下載原始文件</button>}<button type="button" role="menuitem" className={styles.menuDanger} disabled={busyId === file.id} onClick={() => remove(file)}><MIcon name="delete" size={15} />刪除來源</button></div>}</div></div>)}
+           {visibleFiles.map((file) => <div key={file.id} className={`${styles.sourceRow} ${file.id === selectedFileId ? styles.sourceRowSelected : ""}`}><div className={styles.sourceSelect} aria-current="true"><span className={styles.sourceIndicator} aria-hidden="true"><MIcon name="radio_button_checked" size={17} /></span><span className={styles.sourceText}><b>{getRubricDisplayName(file, "未命名檢查表")}</b><small>{(file.environment_keys?.length ? file.environment_keys : [file.template_key]).map(getTemplateLabel).join("、")} · {file.analysis_json?.items?.length ?? 0} 項 · {formatDateTime(file.updated_at)} · {file.source_type === "created" ? "建立於系統" : "已上傳"}</small><em>已選用</em></span></div><div className={styles.sourceActions}><button type="button" className={styles.iconBtn} aria-label={`管理 ${getRubricDisplayName(file)}`} title="管理資料來源" aria-haspopup="menu" aria-expanded={openMenuId === file.id} onClick={(event) => { event.stopPropagation(); setOpenMenuId((current) => current === file.id ? null : file.id); }}><MIcon name="more_vert" size={18} /></button>{sourceMenuKeep.item === file.id && <div className={`${styles.sourceMenu} ${sourceMenuKeep.closing ? styles.sessionMenuOut : ""}`} role="menu">{file.source_type !== "created" && <button type="button" role="menuitem" onClick={() => download(file)}><MIcon name="download" size={15} />下載原始文件</button>}<button type="button" role="menuitem" className={styles.menuDanger} disabled={busyId === file.id} onClick={() => remove(file)}><MIcon name="delete" size={15} />刪除來源</button></div>}</div></div>)}
         </div>
       ) : <div className={styles.sourceEmpty}><MIcon name="description" size={24} /><p>{selectedFileId ? "目前資料來源已無法使用，請用聊天室輸入框旁的＋重新上傳。" : "請用聊天室輸入框旁的＋上傳文件。"}</p></div>}
     </aside>
   );
 }
 
-/* ── Tab 1：評分表 ──────────────────────────────────────── */
+/* ── Tab 1：檢查表 ──────────────────────────────────────── */
 
 function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, sidebar = null, tabsBar = null }) {
   const toast = useToast();
@@ -1235,7 +1235,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       onError(error) {
         if (error?.status === 409) {
           clearPendingProposal();
-          toastRef.current.error("評分表已經有新的修改，請重新請 AI 產生提案。");
+          toastRef.current.error("檢查表已經有新的修改，請重新請 AI 產生提案。");
           void AiJudgeService.listFiles(classIdRef.current)
             .then((rows) => {
               setFiles(rows);
@@ -1244,7 +1244,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
             .catch(() => {});
           return;
         }
-        toastRef.current.error(error?.message ?? "更新評分表失敗");
+        toastRef.current.error(error?.message ?? "更新檢查表失敗");
       },
     });
     autosaveRef.current = autosave;
@@ -1350,7 +1350,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     };
   }
 
-  /** 更新分析結果；persist 時同步寫回已保存的評分表 */
+  /** 更新分析結果；persist 時同步寫回已保存的檢查表 */
   function applyAnalysis(
     nextAnalysis,
     {
@@ -1554,7 +1554,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
           if (saved) {
             if (sourceFileId) pendingReviewIdsByFileRef.current.set(sourceFileId, new Set());
             setPendingReviewIds(new Set());
-            toast.success("潤飾完成，評分表目前無需修改。");
+            toast.success("潤飾完成，檢查表目前無需修改。");
           }
         }
         return;
@@ -1577,7 +1577,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
         if (!saved) return;
         if (sourceFileId) pendingReviewIdsByFileRef.current.set(sourceFileId, new Set());
         setPendingReviewIds(new Set());
-        toast.success(isRefine ? "潤飾完成，評分表已更新。" : "評估表已更新");
+        toast.success(isRefine ? "潤飾完成，檢查表已更新。" : "評估表已更新");
       } else if (isRefine) {
         toast.error("AI 未回傳完整檢查項目列表，潤飾尚未套用，請稍後再試");
       }
@@ -1595,7 +1595,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     const currentRevision = sourceFileId ? analysisRevisionsRef.current.get(sourceFileId) : null;
     if (pendingProposalMeta?.baseRevision && currentRevision !== pendingProposalMeta.baseRevision) {
       clearPendingProposal();
-      toast.error("評分表已經有新的修改，請重新請 AI 產生提案。");
+      toast.error("檢查表已經有新的修改，請重新請 AI 產生提案。");
       return;
     }
     const previousAnalysis = analysis;
@@ -1681,7 +1681,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       if (autosaveRef.current && !(await autosaveRef.current.flush())) {
         setScriptGenerationNotice({
           status: "error",
-          message: "評分表尚未成功儲存，因此尚未開始製作檢查腳本。",
+          message: "檢查表尚未成功儲存，因此尚未開始製作檢查腳本。",
         });
         return;
       }
@@ -1861,7 +1861,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
               </div>
               <div className={styles.mainEmpty}>
                 <MIcon name="description" size={30} />
-                <p>尚未選擇評分表來源，請先上傳文件或與 AI 討論。</p>
+                <p>尚未選擇檢查表來源，請先上傳文件或與 AI 討論。</p>
               </div>
             </div>
           ) : null}
@@ -1905,7 +1905,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
 
       {conflictDialog.open && (
         <ConfirmModal
-          title="已有同名評分表"
+          title="已有同名檢查表"
           description={`「${conflictDialog.item.name}」已存在。請選擇覆蓋原本文件，或建立一份副本後重新分析。`}
           closing={conflictDialog.closing}
           onClose={() => {
@@ -2017,7 +2017,7 @@ function RetrySummary({ script }) {
         <strong className={styles.dangerText}>{stopReason}</strong>
       </p>
       <p>
-        Agent 已自動重試 {retryCount} 次；仍未通過時，請檢查下列原因，回到評分表調整後重新製作檢查腳本。
+        Agent 已自動重試 {retryCount} 次；仍未通過時，請檢查下列原因，回到檢查表調整後重新製作檢查腳本。
       </p>
       {attempts.length > 0 && (
         <ul className={styles.reviewIssues}>
@@ -2193,7 +2193,7 @@ function ScriptsTab({
       ) : scripts.length === 0 ? (
         <div className={styles.card}>
           <p className={styles.mutedText}>
-            尚未建立檢查腳本。請先建立或上傳資料文件，完成評分表調整後再製作檢查腳本。
+            尚未建立檢查腳本。請先建立或上傳資料文件，完成檢查表調整後再製作檢查腳本。
           </p>
         </div>
       ) : (
@@ -3112,7 +3112,7 @@ function TeacherWorkspacePanel({ classId, members }) {
     setSessions((current) => [copy, ...current.filter((entry) => entry.id !== copy.id)]);
     setActiveSessionId(copy.id);
     setActiveTab("rubrics");
-    toast.success(`已建立「${copy.title}」，可開始調整評分表。`);
+    toast.success(`已建立「${copy.title}」，可開始調整檢查表。`);
   }
 
   async function renameSession(event) {
@@ -3239,7 +3239,7 @@ function TeacherWorkspacePanel({ classId, members }) {
     <div className={styles.panel}>
       <div className={styles.panelHeading}>
         <h2 className={styles.panelTitle}><MIcon name="checklist" size={20} />AI 檢查</h2>
-        <p className={styles.panelDesc}>建立評分表、準備檢查腳本，並查看班級機器的執行結果。</p>
+        <p className={styles.panelDesc}>建立檢查表、準備檢查腳本，並查看班級機器的執行結果。</p>
       </div>
 
       {activeSession ? (
