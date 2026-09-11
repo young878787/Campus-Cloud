@@ -294,6 +294,25 @@
   &:hover { background: var(--color-hover); }
 }
 
+/* 已汰換／已過期的金鑰：灰色＋刪除線，明確標示棄用 */
+.credCardDeprecated {
+  opacity: 0.72;
+  border-style: dashed;
+  background: transparent;
+
+  &:hover { background: transparent; }
+}
+
+.credNameDeprecated {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.credValueDeprecated {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
 .credHeader {
   @include flex-column;
   gap: $spacing-8;
@@ -422,6 +441,37 @@
   &:first-child { padding-top: 0; }
 }
 
+/* 申請狀態整列上色：待審＝黃、已通過＝綠、已拒絕＝紅 */
+.requestRow_pending,
+.requestRow_approved,
+.requestRow_rejected {
+  border-radius: $radius-8;
+  padding-left: $spacing-8;
+}
+
+.requestRow_pending {
+  box-shadow: inset 3px 0 0 var(--color-pending);
+  background: color-mix(in srgb, var(--color-pending) 6%, transparent);
+}
+
+.requestRow_approved {
+  box-shadow: inset 3px 0 0 var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 6%, transparent);
+}
+
+.requestRow_rejected {
+  box-shadow: inset 3px 0 0 var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 6%, transparent);
+}
+
+.requestName_pending  { color: var(--color-pending); }
+.requestName_approved { color: var(--color-success); }
+.requestName_rejected { color: var(--color-danger); }
+
+.requestPurpose_pending  { color: var(--color-pending); opacity: 0.85; }
+.requestPurpose_approved { color: var(--color-success); opacity: 0.85; }
+.requestPurpose_rejected { color: var(--color-danger);  opacity: 0.85; }
+
 .requestInfo {
   display: flex;
   align-items: center;
@@ -543,6 +593,71 @@
   font-size: $font-size-24;
   font-weight: $font-weight-700;
   color: var(--color-text-primary);
+}
+
+/* ── 細項呼叫紀錄 ── */
+.usageRecordList {
+  @include flex-column;
+}
+
+.usageRecordRow {
+  @include flex-column;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-divider);
+
+  &:last-child { border-bottom: none; }
+  &:first-child { padding-top: 0; }
+}
+
+.usageRecordTop {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-8;
+}
+
+.usageRecordType {
+  font-size: $font-size-12;
+  color: var(--color-text-secondary);
+}
+
+.usageRecordModel {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: $font-size-12;
+  color: var(--color-text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.usageRecordMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 $spacing-16;
+  font-size: $font-size-12;
+  color: var(--color-text-muted);
+}
+
+.usageRecordsMoreRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: $spacing-8;
+}
+
+/* ── 用量徽章（狀態） ── */
+.badge_success {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+}
+
+.badge_error {
+  background: color-mix(in srgb, var(--color-danger)  12%, transparent);
+  color: var(--color-danger);
 }
 
 .usageBreakdown {

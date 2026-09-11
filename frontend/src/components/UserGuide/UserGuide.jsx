@@ -261,13 +261,13 @@ const PAGE_GUIDES = {
         textKey: "UserGuide.aiApi.step14.text",
       },
       {
-        selector: '[data-guide="ai-proxy-usage"]',
+        selector: '[data-guide="ai-route-usage"]',
         activateSelector: '[data-guide-tab="usage"]',
         titleKey: "UserGuide.aiApi.step15.title",
         textKey: "UserGuide.aiApi.step15.text",
       },
       {
-        selector: '[data-guide="ai-template-usage"]',
+        selector: '[data-guide="ai-usage-records"]',
         activateSelector: '[data-guide-tab="usage"]',
         titleKey: "UserGuide.aiApi.step16.title",
         textKey: "UserGuide.aiApi.step16.text",
