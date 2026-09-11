@@ -441,9 +441,8 @@
   &:first-child { padding-top: 0; }
 }
 
-/* 申請狀態整列上色：待審＝黃、已通過＝綠、已拒絕＝紅 */
+/* 申請狀態整列上色：待審＝黃、已拒絕＝紅（已通過維持一般樣式） */
 .requestRow_pending,
-.requestRow_approved,
 .requestRow_rejected {
   border-radius: $radius-8;
   padding-left: $spacing-8;
@@ -454,22 +453,15 @@
   background: color-mix(in srgb, var(--color-pending) 6%, transparent);
 }
 
-.requestRow_approved {
-  box-shadow: inset 3px 0 0 var(--color-success);
-  background: color-mix(in srgb, var(--color-success) 6%, transparent);
-}
-
 .requestRow_rejected {
   box-shadow: inset 3px 0 0 var(--color-danger);
   background: color-mix(in srgb, var(--color-danger) 6%, transparent);
 }
 
 .requestName_pending  { color: var(--color-pending); }
-.requestName_approved { color: var(--color-success); }
 .requestName_rejected { color: var(--color-danger); }
 
 .requestPurpose_pending  { color: var(--color-pending); opacity: 0.85; }
-.requestPurpose_approved { color: var(--color-success); opacity: 0.85; }
 .requestPurpose_rejected { color: var(--color-danger);  opacity: 0.85; }
 
 .requestInfo {
