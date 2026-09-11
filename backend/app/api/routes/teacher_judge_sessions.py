@@ -506,10 +506,15 @@ async def create_message(
             template_commands=template_commands,
             environment_keys=file.environment_keys if file else None,
             attachment_context=attachment_context(attachments),
+            ready_proposals_only=not payload.is_refine,
         )
         # Without a selected rubric the conversation is general assistance only;
         # do not let an unconstrained model response create an unreviewed proposal.
-        if file is None:
+        if file is None and proposal:
+            reply = (
+                "這項需求已具備自動檢查條件，但目前尚未選擇評分表來源，"
+                "因此無法建立可套用提案。請先選擇來源後再送出需求。"
+            )
             proposal = None
         message_metadata: dict[str, object] = {
             "metrics": metrics,
@@ -529,10 +534,15 @@ async def create_message(
             metadata_json=message_metadata,
         )
     except HTTPException as exc:
+        error_detail = (
+            exc.detail.get("message", exc.detail)
+            if isinstance(exc.detail, dict)
+            else exc.detail
+        )
         assistant = TeacherJudgeSessionMessage(
             session_id=item.id,
             role=TeacherJudgeMessageRole.assistant,
-            content=f"AI 回覆失敗：{exc.detail}",
+            content=f"AI 回覆失敗：{error_detail}",
             message_type=TeacherJudgeMessageType.system_notice,
             metadata_json={"status": "failed"},
         )
@@ -575,7 +585,6 @@ async def create_message(
         assistant_message=message_public(assistant),
         rubric_proposal=proposal,
         base_revision=base_revision,
-        workflow_action=None,
     )
 
 

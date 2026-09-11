@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import styles from "./AiJudgePanel.module.scss";
@@ -308,6 +308,7 @@ function proposalOperationLabel(item) {
   const operation = item.operation ?? item.action;
   if (operation === "delete" || operation === "remove") return "刪除";
   if (operation === "update" || operation === "modify") return "修改";
+  if (operation === "add" || operation === "create") return "新增";
   return item.id ? "修改" : "新增";
 }
 
@@ -413,41 +414,68 @@ export function applyProposalOperations(currentItems, proposalItems, selectedIds
   return { items: [...byId.values()], evaluatedIds };
 }
 
-function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip, disabled, isRefine = false }) {
+export function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip, disabled, isRefine = false }) {
+  const contentId = useId();
+  const [expanded, setExpanded] = useState(true);
+
+  useEffect(() => {
+    setExpanded(true);
+  }, [proposal]);
+
   if (!proposal?.length) return null;
   return (
-    <div className={styles.proposalCard}>
-      <div className={styles.proposalHeading}>
-        <div className={styles.createCheckBody}>
-          <strong>{isRefine ? "AI 核對提案" : "AI 評分表提案"}</strong>
-          <p>{isRefine ? "尚有項目未達全綠，請逐項確認問題與 AI 建議後再套用。" : "逐項確認後才會套用到目前的評分表。"}</p>
+    <section className={styles.proposalPreview} aria-label="AI 提案" aria-live="polite">
+      <button
+        type="button"
+        className={styles.proposalToggle}
+        aria-expanded={expanded}
+        aria-controls={contentId}
+        onClick={() => setExpanded((current) => !current)}
+      >
+        <span className={styles.proposalHeading}>
+          <strong>{isRefine ? "AI 核對提案" : "AI 提案"}</strong>
+          <small>
+            {isRefine ? "待確認" : "Ready"} {proposal.length} · 已選 {selectedIds.size}
+          </small>
+        </span>
+        <span className={styles.proposalToggleAction}>
+          {expanded ? "收合" : "展開"}
+          <MIcon name={expanded ? "expand_less" : "expand_more"} size={18} />
+        </span>
+      </button>
+      {expanded && (
+        <div id={contentId} className={styles.proposalContent}>
+          <p className={styles.proposalDescription}>
+            {isRefine
+              ? "尚有項目未達全綠，請確認 AI 核對結果後再套用。"
+              : "只有同意套用的項目才會正式保存到目前檢查表。"}
+          </p>
+          <div className={styles.proposalList}>
+            {proposal.map((item, index) => {
+              const id = item.id ?? `proposal-${index}`;
+              return (
+                <label className={styles.proposalRow} key={id}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(id)}
+                    disabled={disabled}
+                    onChange={() => onToggle(id)}
+                  />
+                  <span>
+                    <b>{item.title || "未命名項目"}</b>
+                    <small><em>{proposalOperationLabel(item)}</em>{item.description || "AI 建議新增或調整此檢查項目"}</small>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <div className={styles.proposalActions}>
+            <button type="button" className={styles.btnSecondary} disabled={disabled} onClick={onSkip}>忽略</button>
+            <button type="button" className={styles.btnPrimary} disabled={disabled || selectedIds.size === 0} onClick={onApply}>同意套用</button>
+          </div>
         </div>
-        <span>{selectedIds.size}/{proposal.length} 項</span>
-      </div>
-      <div className={styles.proposalList}>
-        {proposal.map((item, index) => {
-          const id = item.id ?? `proposal-${index}`;
-          return (
-            <label className={styles.proposalRow} key={id}>
-              <input
-                type="checkbox"
-                checked={selectedIds.has(id)}
-                disabled={disabled}
-                onChange={() => onToggle(id)}
-              />
-              <span>
-                <b>{item.title || "未命名項目"}</b>
-                <small><em>{proposalOperationLabel(item)}</em>{item.description || "AI 建議新增或調整此檢查項目"}</small>
-              </span>
-            </label>
-          );
-        })}
-      </div>
-      <div className={styles.proposalActions}>
-        <button type="button" className={styles.btnSecondary} disabled={disabled} onClick={onSkip}>略過</button>
-        <button type="button" className={styles.btnPrimary} disabled={disabled || selectedIds.size === 0} onClick={onApply}>套用選取</button>
-      </div>
-    </div>
+      )}
+    </section>
   );
 }
 
@@ -844,7 +872,7 @@ export function ChatPanel({
         </form>
         <p className={styles.chatHint}>
           {hasRubric
-            ? "提示：詢問問題不會修改評估表，需明確指令（如「幫我改」「新增」）才會執行變更"
+            ? "提示：描述想檢查的需求，AI 會先核查必要資訊；同意提案後才會正式保存"
             : "提示：先用＋上傳文件；分析完成後，AI 才會提出可套用的檢查項目修改"}
         </p>
       </div>
@@ -1168,6 +1196,14 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
   const toastRef = useRef(toast);
   classIdRef.current = classId;
   toastRef.current = toast;
+
+  function clearPendingProposal() {
+    setPendingProposal(null);
+    setSelectedProposalIds(new Set());
+    setPendingProposalMeta(null);
+    setPendingProposalIsRefine(false);
+  }
+
   useEffect(() => {
     if (!sourcesOpen) return undefined;
     function closeOnEscape(event) {
@@ -1197,6 +1233,17 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
         )));
       },
       onError(error) {
+        if (error?.status === 409) {
+          clearPendingProposal();
+          toastRef.current.error("評分表已經有新的修改，請重新請 AI 產生提案。");
+          void AiJudgeService.listFiles(classIdRef.current)
+            .then((rows) => {
+              setFiles(rows);
+              setFilesLoaded(true);
+            })
+            .catch(() => {});
+          return;
+        }
         toastRef.current.error(error?.message ?? "更新評分表失敗");
       },
     });
@@ -1547,13 +1594,11 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     if (autosaveRef.current && !(await autosaveRef.current.flush())) return;
     const currentRevision = sourceFileId ? analysisRevisionsRef.current.get(sourceFileId) : null;
     if (pendingProposalMeta?.baseRevision && currentRevision !== pendingProposalMeta.baseRevision) {
-      setPendingProposal(null);
-      setSelectedProposalIds(new Set());
-      setPendingProposalMeta(null);
-      setPendingProposalIsRefine(false);
+      clearPendingProposal();
       toast.error("評分表已經有新的修改，請重新請 AI 產生提案。");
       return;
     }
+    const previousAnalysis = analysis;
     const { items: nextItems, evaluatedIds } = applyProposalOperations(
       analysis?.items ?? [],
       pendingProposal,
@@ -1570,13 +1615,13 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       detectabilityNeedsReview: pendingIdsAfterApply.size > 0,
       reviewItemIds: pendingIdsAfterApply,
     });
-    if (!saved) return;
+    if (!saved) {
+      setAnalysis(previousAnalysis);
+      return;
+    }
     if (sourceFileId) pendingReviewIdsByFileRef.current.set(sourceFileId, pendingIdsAfterApply);
     setPendingReviewIds(pendingIdsAfterApply);
-    setPendingProposal(null);
-    setSelectedProposalIds(new Set());
-    setPendingProposalMeta(null);
-    setPendingProposalIsRefine(false);
+    clearPendingProposal();
     toast.success("已套用 AI 提出的檢查項目修改");
   }
 
@@ -1777,6 +1822,19 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
                 <div className={`${styles.cardHead} ${sidebar ? styles.checkHead : ""}`}>
                   <h4 className={styles.cardTitle}>檢查項目（{items.length}）</h4>
                 </div>
+                {pendingProposal && <ProposalPanel
+                  proposal={pendingProposal}
+                  selectedIds={selectedProposalIds}
+                  onToggle={(id) => setSelectedProposalIds((current) => {
+                    const next = new Set(current);
+                    if (next.has(id)) next.delete(id); else next.add(id);
+                    return next;
+                  })}
+                  onApply={applyPendingProposal}
+                  onSkip={clearPendingProposal}
+                  isRefine={pendingProposalIsRefine}
+                  disabled={isChatting || isClearingMessages}
+                />}
                 <div className={sidebar ? styles.checkRubricBody : undefined}>
                   <RubricTable
                     items={items}
@@ -1841,24 +1899,6 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
               onUploadFile={!judgeSession?.id ? undefined : handleAddAttachment}
               isUploading={isUploading}
             />
-            {pendingProposal && analysis && <ProposalPanel
-              proposal={pendingProposal}
-              selectedIds={selectedProposalIds}
-              onToggle={(id) => setSelectedProposalIds((current) => {
-                const next = new Set(current);
-                if (next.has(id)) next.delete(id); else next.add(id);
-                return next;
-              })}
-              onApply={applyPendingProposal}
-              onSkip={() => {
-               setPendingProposal(null);
-               setSelectedProposalIds(new Set());
-               setPendingProposalMeta(null);
-                setPendingProposalIsRefine(false);
-              }}
-              isRefine={pendingProposalIsRefine}
-              disabled={isChatting || isClearingMessages}
-            />}
           </div>
         </div>
       </div>

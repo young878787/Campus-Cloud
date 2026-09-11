@@ -1699,11 +1699,6 @@
     }
   }
 
-  .proposalCard {
-    flex: 0 0 auto;
-    max-height: 260px;
-    overflow-y: auto;
-  }
 }
 
 /* ── 執行結果／腳本總覽雙欄同高（沿用三欄設計語言） ── */
@@ -1754,39 +1749,83 @@
   }
 }
 
-.proposalCard {
-  display: grid;
-  gap: $spacing-16;
-  margin-top: $spacing-16;
-  padding: $spacing-16;
-  border: 1px solid var(--color-primary);
+.proposalPreview {
+  flex: 0 0 auto;
+  margin-bottom: $spacing-16;
+  border: 1px solid var(--color-divider);
   border-radius: $radius-8;
-  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+  background: transparent;
+}
 
-  p {
-    margin: 3px 0 0;
-    color: var(--color-text-muted);
-    font-size: $font-size-12;
+.proposalToggle {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-16;
+  padding: $spacing-8 $spacing-16;
+  border: 0;
+  border-radius: inherit;
+  color: var(--color-text-primary);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--color-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
 }
 
 .proposalHeading {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: $spacing-16;
+  min-width: 0;
+  align-items: center;
+  gap: $spacing-8;
+
+  small {
+    padding: 2px 7px;
+    border-radius: $radius-pill;
+    color: var(--color-primary-on-surface);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    font-size: $font-size-10;
+    font-weight: $font-weight-700;
+  }
 }
 
-.proposalHeading > span {
+.proposalToggleAction {
+  display: inline-flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
   color: var(--color-text-secondary);
   font-size: $font-size-12;
   font-weight: $font-weight-700;
 }
 
-.proposalList {
+.proposalContent {
   display: grid;
   gap: $spacing-8;
+  padding: 0 $spacing-16 $spacing-16;
+  border-top: 1px solid var(--color-divider);
+}
+
+.proposalDescription {
+  margin: $spacing-8 0 0;
+  color: var(--color-text-muted);
+  font-size: $font-size-12;
+  line-height: 1.5;
+}
+
+.proposalList {
+  display: grid;
+  gap: 0;
   max-height: 280px;
   overflow-y: auto;
 }
@@ -1795,11 +1834,19 @@
   display: flex;
   align-items: flex-start;
   gap: $spacing-8;
-  padding: $spacing-8;
-  border: 1px solid var(--color-border);
-  border-radius: $radius-8;
-  background: var(--color-surface);
+  padding: $spacing-8 0;
+  border-bottom: 1px solid var(--color-divider);
+  background: transparent;
   cursor: pointer;
+
+  &:first-child {
+    padding-top: 0;
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
 
   input {
     margin-top: 3px;
@@ -1821,6 +1868,16 @@
   display: flex;
   justify-content: flex-end;
   gap: $spacing-8;
+
+  @media (max-width: 640px) {
+    align-items: stretch;
+    flex-direction: column-reverse;
+
+    button {
+      justify-content: center;
+      width: 100%;
+    }
+  }
 }
 
 .runHistory {

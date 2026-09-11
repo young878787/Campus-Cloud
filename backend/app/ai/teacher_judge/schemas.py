@@ -149,8 +149,6 @@ TeacherJudgeSessionStatusLiteral = Literal["active", "archived"]
 TeacherJudgeAttachmentStatusLiteral = Literal["ready", "failed"]
 TeacherJudgeMessageRoleLiteral = Literal["user", "assistant"]
 TeacherJudgeMessageTypeLiteral = Literal["chat", "rubric_proposal", "system_notice"]
-TeacherJudgeWorkflowActionTypeLiteral = Literal["create_script"]
-TeacherJudgeWorkflowActionStatusLiteral = Literal["ready", "blocked"]
 TeacherJudgeSessionCreationModeLiteral = Literal["blank", "existing"]
 TeacherJudgeFileSourceTypeLiteral = Literal["uploaded", "created"]
 
@@ -269,23 +267,11 @@ class TeacherJudgeSessionMessagePublic(BaseModel):
     created_at: str
 
 
-class TeacherJudgeWorkflowAction(BaseModel):
-    """Server-validated action requested by the Teacher Judge conversation."""
-
-    type: TeacherJudgeWorkflowActionTypeLiteral
-    status: TeacherJudgeWorkflowActionStatusLiteral
-    message: str
-    reason_code: str | None = None
-    analysis_revision: int | None = Field(default=None, ge=1)
-    tool_call_id: str | None = None
-
-
 class TeacherJudgeSessionChatResponse(BaseModel):
     user_message: TeacherJudgeSessionMessagePublic
     assistant_message: TeacherJudgeSessionMessagePublic
     rubric_proposal: list[dict[str, Any]] | None = None
     base_revision: int | None = None
-    workflow_action: TeacherJudgeWorkflowAction | None = None
 
 
 class TeacherJudgeSessionAttachmentPublic(BaseModel):

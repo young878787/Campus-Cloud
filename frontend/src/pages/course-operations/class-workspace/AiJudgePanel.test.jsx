@@ -4,6 +4,7 @@ import {
   ChatPanel,
   CreateCheckDialog,
   RubricTable,
+  ProposalPanel,
   SaveAndCreateAction,
   ScriptGenerationNotice,
   SessionTitle,
@@ -58,6 +59,8 @@ describe("ChatPanel", () => {
     expect(html).not.toContain("製作檢查腳本");
     expect(html).toContain("資料來源");
     expect(html).toContain('aria-controls="ai-chat-data-sources"');
+    expect(html).toContain("描述想檢查的需求");
+    expect(html).toContain("同意提案後才會正式保存");
     expect(html).not.toContain("評分表來源");
     expect(html).not.toContain("自動檢測支援");
   });
@@ -155,6 +158,37 @@ describe("CreateCheckDialog", () => {
     expect(html).toContain("建立空白檢查");
     expect(html).not.toContain("使用已有評分文件");
     expect(html).not.toContain("選擇建立方式");
+  });
+});
+
+describe("ProposalPanel", () => {
+  test("以可展開透明預覽呈現 Ready 操作與正式套用文案", () => {
+    const html = renderToStaticMarkup(
+      <ProposalPanel
+        proposal={[
+          { id: "item-add", title: "main.py 輸出檢查", operation: "add" },
+          { id: "item-update", title: "資料庫健康檢查", operation: "update" },
+          { id: "item-delete", title: "舊版 Port 檢查", operation: "delete" },
+        ]}
+        selectedIds={new Set(["item-add", "item-update", "item-delete"])}
+        onToggle={() => {}}
+        onApply={() => {}}
+        onSkip={() => {}}
+        disabled={false}
+      />,
+    );
+
+    expect(html).toContain('aria-label="AI 提案"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain("Ready 3");
+    expect(html).toContain("新增");
+    expect(html).toContain("修改");
+    expect(html).toContain("刪除");
+    expect(html).toContain("忽略");
+    expect(html).toContain("同意套用");
+    expect(html).not.toContain("略過");
+    expect(html).not.toContain("套用選取");
   });
 });
 

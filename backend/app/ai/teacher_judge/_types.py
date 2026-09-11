@@ -121,7 +121,6 @@ class VLLMMetrics(TypedDict):
     total_tokens: int
     elapsed_seconds: float
     tokens_per_second: float
-    workflow_action: NotRequired[dict[str, Any]]
 
 
 # ── Template Command Snapshot ─────────────────────────────────────────────────

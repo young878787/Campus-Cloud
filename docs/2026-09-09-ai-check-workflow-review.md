@@ -2,6 +2,13 @@
 
 分析日期：2026-09-09。範圍：目前工作區中的 Teacher Judge 對話、評分表、受管腳本生成、審查、執行與結果判讀。
 
+> **2026-09-10 更新：**聊天需求核查改採 Requirement → Ready Proposal → 老師同意後
+> Apply 的輕量設計。Proposal 移到「檢查項目」預覽區，但 Requirement 與未 Apply 草稿暫不
+> 寫入資料庫，繼續沿用前端 `pendingProposal`、現有 rubric 與 `analysis_revision`。對話記憶
+> 只協助 AI 在草稿消失後重新建立候選，不視為精確恢復。詳細且具優先權的實作契約請見
+> [Teacher Judge Requirement 對話核查流程計畫](teacher-judge-requirement-workflow-plan.md)。
+> 本文件第 3.1～3.6 節的資料庫 Proposal lifecycle 設計僅保留作為問題沿革，本次不實作。
+
 結論：功能目的合理，但目前的完成單位偏向「產生評分表／腳本／執行紀錄」，尚未形成「確認教學目標是否達成，或明確指出阻礙並接續處理」的完整流程。對話語氣只是其中一層；真正需要補的是執行規格、工作流程狀態與失敗回饋。
 
 這是程式碼審查及本機驗證器實驗，沒有呼叫正式 AI、連線學生 VM 或重現使用者的特定失敗紀錄。因此以下區分確定的程式行為與需要實際紀錄確認的原因。

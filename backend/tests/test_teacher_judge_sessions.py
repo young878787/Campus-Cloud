@@ -387,6 +387,49 @@ async def test_message_without_rubric_is_saved_and_uses_general_chat(
 
 
 @pytest.mark.asyncio
+async def test_message_without_rubric_does_not_claim_proposal_was_created(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    class_id = uuid.uuid4()
+    item = TeacherJudgeSession(teaching_class_id=class_id, title="Chat first")
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+
+    async def fake_chat(*args, **kwargs):
+        return (
+            "檔案格式檢查：Ready，已放入提案。",
+            [
+                {
+                    "id": "item-file-format",
+                    "title": "檔案格式檢查",
+                    "operation": "add",
+                }
+            ],
+            {},
+        )
+
+    monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
+    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
+    monkeypatch.setattr(
+        teacher_judge_sessions, "get_enabled_template_commands", lambda *args, **kwargs: []
+    )
+
+    result = await teacher_judge_sessions.create_message(
+        class_id,
+        item.id,
+        TeacherJudgeSessionMessageCreateRequest(content="檢查檔案格式"),
+        db,
+        SimpleNamespace(id=uuid.uuid4()),
+    )
+
+    assert result.rubric_proposal is None
+    assert "尚未選擇評分表來源" in result.assistant_message.content
+    assert "已放入提案" not in result.assistant_message.content
+
+
+@pytest.mark.asyncio
 async def test_message_does_not_enable_script_creation_workflow(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -420,7 +463,8 @@ async def test_message_does_not_enable_script_creation_workflow(
     db.refresh(item)
 
     async def fake_chat(messages, rubric_context, **kwargs):
-        assert kwargs.get("enable_workflow_tools") is not True
+        assert "enable_workflow_tools" not in kwargs
+        assert kwargs["ready_proposals_only"] is True
         return (
             "請使用檢查表右下角的儲存並製作按鈕。",
             None,
@@ -443,7 +487,6 @@ async def test_message_does_not_enable_script_creation_workflow(
         SimpleNamespace(id=uuid.uuid4()),
     )
 
-    assert result.workflow_action is None
     assert result.assistant_message.content == "請使用檢查表右下角的儲存並製作按鈕。"
     assert "workflow_action" not in result.assistant_message.metadata_json
 
@@ -547,6 +590,7 @@ async def test_refine_message_uses_the_rubric_polish_prompt_mode(
         assert messages[-1].content == "請審核並潤飾目前的評分表"
         assert '"items": []' in rubric_context
         assert kwargs["is_refine"] is True
+        assert kwargs["ready_proposals_only"] is False
         return "檢查完畢，評分表目前狀態良好。", None, {}
 
     monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)

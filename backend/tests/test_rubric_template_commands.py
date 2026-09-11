@@ -646,7 +646,12 @@ async def test_chat_prompt_treats_attachment_as_concrete_rubric_content(
     assert "不要因目前項目數為 0 就回覆尚未提供內容" in system_prompt
     assert "附件表格的每一列可轉成一個評分項目" in system_prompt
     assert captured_payload["messages"][-1]["role"] == "user"
-    assert "請從附件擷取內容並回傳完整 updated_items" in captured_payload["messages"][-1]["content"]
+    assert "請直接逐條核查，不要求教師再使用「新增」句型" in (
+        captured_payload["messages"][-1]["content"]
+    )
+    assert "附件中有 Ready 變更時請依提案輸出模式回傳 updated_items" in (
+        captured_payload["messages"][-1]["content"]
+    )
     assert updated_items is not None
     assert updated_items[0]["title"] == "服務 Port"
 
