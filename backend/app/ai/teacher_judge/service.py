@@ -15,7 +15,6 @@ from app.ai.teacher_judge._types import VLLMMetrics
 from app.ai.teacher_judge.automation_support import missing_step_information
 from app.ai.teacher_judge.config import settings
 from app.ai.teacher_judge.prompt import (
-    ANALYZE_SYSTEM_PROMPT,
     CHAT_SYSTEM_TEMPLATE,
     DIRECT_RUBRIC_UPDATE_INSTRUCTION,
     SESSION_REQUIREMENT_PROPOSAL_INSTRUCTION,
@@ -25,7 +24,6 @@ from app.ai.teacher_judge.prompt import (
     TEMPLATE_COMMAND_CONTEXT_TEMPLATE,
 )
 from app.ai.teacher_judge.schemas import (
-    TeacherJudgeRubricAnalysis,
     TeacherJudgeRubricChatMessage,
     TeacherJudgeRubricCheckStep,
     TeacherJudgeRubricItem,
@@ -57,11 +55,6 @@ def _config_assignment_from_item_text(*values: Any) -> str | None:
     if match is None:
         return None
     return f"{match.group(1)}={match.group(2)}"
-
-
-async def close_http_client() -> None:
-    """Close Teacher Judge AI client; kept for older callers/tests."""
-    await teacher_judge_client.aclose()
 
 
 def _normalize_check_steps(
@@ -114,7 +107,6 @@ def _normalize_rubric_items(
     raw_items: Any,
     template_key: str | None = None,
     template_commands: list[TeacherJudgeTemplateCommand] | None = None,
-    force_checked_false: bool = False,
     strip_auto_fallback: bool = True,
 ) -> list[TeacherJudgeRubricItem]:
     """Best-effort normalization for AI-returned item payloads."""
@@ -129,11 +121,7 @@ def _normalize_rubric_items(
         item_id = str(raw.get("id") or f"item-{i + 1}")
         title = str(raw.get("title") or raw.get("name") or "").strip() or "未命名項目"
         description = str(raw.get("description") or raw.get("desc") or "")
-        checked = (
-            False
-            if force_checked_false
-            else safe_bool(raw.get("checked", raw.get("is_checked")), default=False)
-        )
+        checked = safe_bool(raw.get("checked", raw.get("is_checked")), default=False)
 
         detectable_raw = str(raw.get("detectable") or "manual").strip().lower()
         if detectable_raw not in {"auto", "partial", "manual"}:
@@ -574,89 +562,6 @@ async def _call_vllm(
         ) from exc
 
 
-async def analyze_rubric(
-    raw_text: str,
-    template_key: str = "linux",
-    template_commands: list[TeacherJudgeTemplateCommand] | None = None,
-    environment_keys: list[str] | None = None,
-) -> tuple[TeacherJudgeRubricAnalysis, VLLMMetrics]:
-    """Send raw document text to AI, return structured rubric analysis."""
-    if not settings.VLLM_MODEL_NAME:
-        raise HTTPException(status_code=503, detail=t("service.model_not_configured"))
-
-    logger.info(f"Starting rubric analysis, text length: {len(raw_text)} characters")
-
-    user_content = f"# 檢查表原文\n\n{raw_text}"
-    template_command_context = TEMPLATE_COMMAND_CONTEXT_TEMPLATE.format(
-        template_key=template_key,
-        environment_keys=", ".join(environment_keys or [template_key]),
-        template_commands=format_template_commands_for_prompt(template_commands or []),
-    )
-    analyze_system_prompt = ANALYZE_SYSTEM_PROMPT.replace(
-        "{template_command_context}",
-        template_command_context,
-    )
-
-    payload = apply_thinking_control(
-        {
-            "model": settings.VLLM_MODEL_NAME,
-            "messages": [
-                {"role": "system", "content": analyze_system_prompt},
-                {"role": "user", "content": user_content},
-            ],
-            "max_tokens": settings.VLLM_MAX_TOKENS,
-            "temperature": 0.2,
-            "top_p": settings.VLLM_TOP_P,
-            "response_format": {"type": "json_object"},
-        },
-        settings.VLLM_ENABLE_THINKING,
-    )
-
-    content, metrics = await _call_vllm(
-        payload, timeout=float(settings.VLLM_TIMEOUT)
-    )
-
-    try:
-        data = json.loads(content)
-    except json.JSONDecodeError as exc:
-        logger.error(f"Failed to parse AI response as JSON: {exc}")
-        raise HTTPException(
-            status_code=502, detail=t("service.json_parse_failed", exc=exc)
-        ) from exc
-
-    if not isinstance(data, dict) or not isinstance(data.get("items"), list):
-        raise HTTPException(status_code=502, detail=t("analysis.invalid_format"))
-    items_raw = data["items"]
-    items = _normalize_rubric_items(
-        items_raw,
-        template_key=template_key,
-        template_commands=template_commands,
-        force_checked_false=True,
-    )
-
-    total_items = len(items)
-    checked_count = sum(1 for item in items if item.checked)
-    auto_count = sum(1 for item in items if item.detectable == "auto")
-    partial_count = sum(1 for item in items if item.detectable == "partial")
-    manual_count = sum(1 for item in items if item.detectable == "manual")
-
-    logger.info(
-        f"Analysis complete: {total_items} items, {checked_count} checked (auto: {auto_count}, partial: {partial_count}, manual: {manual_count})"
-    )
-
-    analysis = TeacherJudgeRubricAnalysis(
-        items=items,
-        total_items=total_items,
-        checked_count=checked_count,
-        auto_count=auto_count,
-        partial_count=partial_count,
-        manual_count=manual_count,
-        summary=str(data.get("summary") or ""),
-        raw_text=raw_text,
-    )
-    return analysis, metrics
-
-
 async def summarize_conversation(
     messages: list[TeacherJudgeRubricChatMessage],
     previous_summary: str = "",
@@ -719,15 +624,13 @@ async def chat_with_rubric(
     template_commands: list[TeacherJudgeTemplateCommand] | None = None,
     environment_keys: list[str] | None = None,
     attachment_context: str | None = None,
-    ready_proposals_only: bool = False,
 ) -> tuple[str, list[dict[str, Any]] | None, VLLMMetrics]:
     """
     Multi-turn chat with rubric context injected into system prompt.
     Returns (reply_text, updated_items_or_None, metrics).
     - is_refine: True 表示針對目前檢查表執行「全表潤飾」模式。
-    - updated_items: complete list for legacy/direct-update callers, or normalized
-      Ready operations when ``ready_proposals_only`` is enabled; None when no
-      applicable change remains.
+    - updated_items: complete list in refine mode; otherwise normalized Ready
+      operations, or None when no applicable change remains.
     """
     if not settings.VLLM_MODEL_NAME:
         raise HTTPException(status_code=503, detail=t("service.model_not_configured"))
@@ -754,9 +657,9 @@ async def chat_with_rubric(
         .replace("{situation_instruction}", situation)
         .replace(
             "{proposal_mode_instruction}",
-            SESSION_REQUIREMENT_PROPOSAL_INSTRUCTION
-            if ready_proposals_only and not is_refine
-            else DIRECT_RUBRIC_UPDATE_INSTRUCTION,
+            DIRECT_RUBRIC_UPDATE_INSTRUCTION
+            if is_refine
+            else SESSION_REQUIREMENT_PROPOSAL_INSTRUCTION,
         )
         .replace(
             "{template_command_context}",
@@ -849,7 +752,7 @@ async def chat_with_rubric(
                 template_commands=template_commands,
             )
             if response_normalized:
-                if ready_proposals_only and not is_refine:
+                if not is_refine:
                     ready_changes = _ready_proposal_changes(
                         response_raw_updated,
                         response_normalized,
@@ -881,8 +784,7 @@ async def chat_with_rubric(
     ) = parse_chat_update(content)
 
     should_repair_proposal = (
-        ready_proposals_only
-        and not is_refine
+        not is_refine
         and updated_items is None
         and (
             proposal_status is None
@@ -937,8 +839,7 @@ async def chat_with_rubric(
         )
 
     if (
-        ready_proposals_only
-        and not is_refine
+        not is_refine
         and updated_items is None
         and _proposal_status_claims_ready(proposal_status, reply_text)
     ):

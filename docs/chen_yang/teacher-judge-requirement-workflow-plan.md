@@ -1,6 +1,10 @@
 # Teacher Judge Requirement 對話核查流程計畫
 
-更新日期：2026-09-10。
+更新日期：2026-09-11。
+
+狀態：已由 `docs/chen_yang/2026-09-11-teacher-judge-ai-chat-convergence-plan.md` 承接並
+完成入口收斂。本文件保留 Requirement 拆分、Proposal 暫存與 Apply 邊界的歷史決策；
+目前文件與文字需求皆由 session AI Chat 接收，不再使用 direct rubric upload/chat。
 
 本文件是 AI 檢查聊天室的目前實作計畫，取代舊的「AI 回傳修改後，在聊天室下方顯示
 同意更新表單」呈現方式。這一版刻意維持輕量：不保存 Requirement 或草稿、不修改資料庫，
@@ -254,4 +258,3 @@ Vitest、Vite build、Impeccable detector 與 `git diff --check`。
 另需 authenticated browser 驗收：單條補資料、多條拆解、部分 Ready、透明 Proposal 展開、
 add／update／delete、Apply revision conflict、重新整理後由對話重建。這些測試不等於真實
 vLLM、PVE／SSH 或學生 VM 端到端已驗證。
-

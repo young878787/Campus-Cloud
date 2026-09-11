@@ -22,7 +22,6 @@ from app.ai.teacher_judge import script_executor_service as executor
 from app.ai.teacher_judge import script_result_analysis_service as analysis
 from app.ai.teacher_judge import service
 from app.ai.teacher_judge.prompt import (
-    ANALYZE_SYSTEM_PROMPT,
     CHAT_SYSTEM_TEMPLATE,
     SITUATION_NORMAL,
 )
@@ -133,17 +132,7 @@ def test_proposal_repair_instruction_explains_invalid_step_to_model_only() -> No
 
 
 def test_teacher_judge_prompts_document_scoped_system_commands():
-    for prompt in (ANALYZE_SYSTEM_PROMPT, CHAT_SYSTEM_TEMPLATE):
-        assert "history` 是 shell builtin" in prompt
-    assert '["cat", "<檔名或路徑>"]' in ANALYZE_SYSTEM_PROMPT
-    assert '["systemctl", "list-units", "--type=service", "--all"]' in (
-        ANALYZE_SYSTEM_PROMPT
-    )
-    assert '["systemctl", "--failed"]' in ANALYZE_SYSTEM_PROMPT
-    assert (
-        '["journalctl", "--since", "1 hour ago", "-p", "err", '
-        '"--no-pager", "-n", "50"]' in ANALYZE_SYSTEM_PROMPT
-    )
+    assert "history` 是 shell builtin" in CHAT_SYSTEM_TEMPLATE
     assert "systemctl list-units --type=service --all" in CHAT_SYSTEM_TEMPLATE
     assert "systemctl --failed" in CHAT_SYSTEM_TEMPLATE
     assert (
@@ -152,15 +141,7 @@ def test_teacher_judge_prompts_document_scoped_system_commands():
     )
     assert "若連目前目錄也沒有，才詢問 `.env` 所在目錄" in CHAT_SYSTEM_TEMPLATE
     assert "直接以 `system.run_command` 規劃提案" in CHAT_SYSTEM_TEMPLATE
-    assert "所有目前允許的唯讀／診斷系統指令" in ANALYZE_SYSTEM_PROMPT
-    assert "這項規則適用所有允許的唯讀／診斷系統指令" in (
-        ANALYZE_SYSTEM_PROMPT
-    )
     assert "都只是範例，不是限定清單" in CHAT_SYSTEM_TEMPLATE
-    assert "確認有 `web_URL=True` 這條" in ANALYZE_SYSTEM_PROMPT
-    assert "不得要求整份 stdout 完全等於 `web_URL=True`" in (
-        ANALYZE_SYSTEM_PROMPT
-    )
     assert "確認有／包含／存在 X" in CHAT_SYSTEM_TEMPLATE
     assert "只有老師明確說「輸出必須完全等於 X／只能輸出 X」" in (
         CHAT_SYSTEM_TEMPLATE
@@ -172,7 +153,7 @@ def test_teacher_judge_prompts_document_scoped_system_commands():
 
 
 @pytest.mark.parametrize("content", ["null", "[]", '"text"'])
-async def test_non_object_rubric_and_script_outputs_fail_cleanly(monkeypatch, content):
+async def test_non_object_chat_and_script_outputs_fail_cleanly(monkeypatch, content):
     monkeypatch.setattr(system_ai_env, "vllm_model_name", "test-model")
 
     async def fake_call(*args, **kwargs):
@@ -180,9 +161,6 @@ async def test_non_object_rubric_and_script_outputs_fail_cleanly(monkeypatch, co
 
     monkeypatch.setattr(service, "_call_vllm", fake_call)
     monkeypatch.setattr(artifacts, "_call_vllm", fake_call)
-    with pytest.raises(HTTPException) as error:
-        await service.analyze_rubric("rubric")
-    assert error.value.status_code == 502
     with pytest.raises(HTTPException) as error:
         await artifacts.fix_script_content(script_content="pass", fix_hints=[])
     assert error.value.status_code == 502
@@ -325,7 +303,6 @@ async def test_teacher_judge_session_proposal_keeps_only_ready_changes(monkeypat
         ),
         template_key="python",
         template_commands=[proposal_command],
-        ready_proposals_only=True,
     )
 
     assert "缺少 Port" in reply
@@ -423,7 +400,6 @@ async def test_teacher_judge_repairs_ready_reply_without_structured_proposal(
         json.dumps({"items": []}),
         template_key="linux",
         template_commands=[command],
-        ready_proposals_only=True,
     )
 
     assert len(calls) == 2
@@ -460,7 +436,6 @@ async def test_teacher_judge_repairs_missing_status_without_turning_question_int
         [TeacherJudgeRubricChatMessage(role="user", content="可以讀取檔案嗎？")],
         json.dumps({"items": []}),
         template_commands=[],
-        ready_proposals_only=True,
     )
 
     assert call_count == 2
@@ -502,7 +477,6 @@ async def test_teacher_judge_does_not_keep_false_ready_reply_after_failed_repair
         [TeacherJudgeRubricChatMessage(role="user", content="檢查檔案格式")],
         json.dumps({"items": []}),
         template_commands=[],
-        ready_proposals_only=True,
     )
 
     assert proposal is None
@@ -572,7 +546,6 @@ async def test_teacher_judge_invalid_ready_step_asks_for_missing_details(
         ],
         json.dumps({"items": []}),
         template_commands=[command],
-        ready_proposals_only=True,
     )
 
     assert call_count == 3
@@ -624,7 +597,6 @@ async def test_teacher_judge_session_proposal_preserves_explicit_delete(monkeypa
             },
             ensure_ascii=False,
         ),
-        ready_proposals_only=True,
     )
 
     assert proposal is not None

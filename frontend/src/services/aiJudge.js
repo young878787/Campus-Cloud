@@ -38,16 +38,6 @@ export function getTemplateLabel(templateKey) {
   );
 }
 
-/** 把 rubric 分析結果轉成 AI 對話用的 context 字串 */
-export function rubricToContext(analysis) {
-  return JSON.stringify({
-    items: analysis.items,
-    total_items: analysis.total_items,
-    checked_count: analysis.checked_count,
-    summary: analysis.summary,
-  });
-}
-
 /** refine action 的內部指令仍保留在 session 歷史，但不在教師聊天室呈現。 */
 export function shouldDisplayChatMessage(message) {
   const isKnownInternalPrompt = [RUBRIC_POLISH_PROMPT, RUBRIC_REASSESS_PROMPT].includes(
@@ -207,26 +197,6 @@ export const AiJudgeService = {
     return apiGet(`/api/v1/teaching-classes/${classId}/judge/files/`);
   },
 
-  /**
-   * 上傳檢查表文件並觸發 AI 分析；environmentKeys 的第一項為主要情境。
-   * 同名檔案已存在時後端回 409，可帶 conflictStrategy（"overwrite" | "copy"）重送。
-   */
-  uploadFile(classId, file, templateKey, conflictStrategy, environmentKeys = null) {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("template_key", templateKey);
-    const selectedEnvironments = Array.isArray(environmentKeys) && environmentKeys.length
-      ? environmentKeys
-      : [templateKey];
-    selectedEnvironments.forEach((key) => formData.append("environment_keys", key));
-    if (conflictStrategy) formData.append("conflict_strategy", conflictStrategy);
-    return apiPostMultipart(
-      `/api/v1/teaching-classes/${classId}/judge/files/`,
-      formData,
-      { timeoutMs: TEACHER_JUDGE_REQUEST_TIMEOUT_MS },
-    );
-  },
-
   /** 更新已保存檢查表的分析結果（項目編輯後持久化） */
   updateFileAnalysis(classId, fileId, analysis, expectedRevision = null) {
     const payload = { analysis };
@@ -239,45 +209,12 @@ export const AiJudgeService = {
     );
   },
 
-  updateFileMetadata(classId, fileId, metadata) {
-    return apiPatch(
-      `/api/v1/teaching-classes/${classId}/judge/files/${fileId}`,
-      metadata,
-    );
-  },
-
-  createBlankFile(classId, { displayName, environmentKeys }) {
-    return apiPost(`/api/v1/teaching-classes/${classId}/judge/files/blank`, {
-      display_name: displayName,
-      environment_keys: environmentKeys,
-    });
-  },
-
   /** 下載檢查表原始檔 */
   downloadFile(classId, fileId) {
     return apiGetBlob(`/api/v1/teaching-classes/${classId}/judge/files/${fileId}/download`);
   },
 
-  /** 刪除檢查表（原始檔＋分析結果） */
-  deleteFile(classId, fileId) {
-    return apiDelete(`/api/v1/teaching-classes/${classId}/judge/files/${fileId}`);
-  },
-
-  /* ── AI 對話與匯出 ── */
-
-  /** 與 AI 對話精煉檢查表；isRefine 為全表潤飾 */
-  chat({ messages, rubricContext, isRefine = false, templateKey = "linux" }) {
-    return apiPost(
-      "/api/v1/rubric/chat",
-      {
-        messages,
-        rubric_context: rubricContext,
-        is_refine: isRefine,
-        template_key: templateKey,
-      },
-      { timeoutMs: TEACHER_JUDGE_REQUEST_TIMEOUT_MS },
-    );
-  },
+  /* ── 匯出 ── */
 
   /** 將評分項目匯出成 Excel（回傳 Blob） */
   downloadExcel(items, summary) {

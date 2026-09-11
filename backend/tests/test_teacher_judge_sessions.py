@@ -464,7 +464,7 @@ async def test_message_does_not_enable_script_creation_workflow(
 
     async def fake_chat(messages, rubric_context, **kwargs):
         assert "enable_workflow_tools" not in kwargs
-        assert kwargs["ready_proposals_only"] is True
+        assert "ready_proposals_only" not in kwargs
         return (
             "請使用檢查表右下角的儲存並製作按鈕。",
             None,
@@ -571,6 +571,70 @@ async def test_message_can_send_parsed_attachment_without_text(
 
 
 @pytest.mark.asyncio
+async def test_attachment_proposal_is_ephemeral_until_explicit_apply(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    class_id = uuid.uuid4()
+    rubric_file = _file(db, class_id)
+    item = TeacherJudgeSession(
+        teaching_class_id=class_id,
+        title="Attachment proposal",
+        selected_file_id=rubric_file.id,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    original_analysis = dict(rubric_file.analysis_json)
+    original_revision = rubric_file.analysis_revision
+    proposal = [
+        {
+            "op": "add",
+            "item": {
+                "id": "item-1",
+                "title": "檢查 Port 8080",
+                "description": "確認服務監聽 8080",
+                "checked": False,
+                "detectable": "auto",
+                "detection_method": "檢查 listening socket",
+                "missing_information": [],
+                "check_steps": [],
+                "fallback": None,
+            },
+        }
+    ]
+
+    async def fake_chat(*_args, **_kwargs):
+        return "已建立一項可確認的提案。", proposal, {"total_tokens": 1}
+
+    monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
+    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
+    monkeypatch.setattr(
+        teacher_judge_sessions, "get_enabled_template_commands", lambda *args, **kwargs: []
+    )
+
+    result = await teacher_judge_sessions.create_message(
+        class_id,
+        item.id,
+        TeacherJudgeSessionMessageCreateRequest(
+            content="請從附件加入 Port 8080 檢查",
+            analysis_revision=original_revision,
+        ),
+        db,
+        SimpleNamespace(id=uuid.uuid4()),
+    )
+
+    assert result.rubric_proposal == proposal
+    assert result.base_revision == original_revision
+    assert "rubric_proposal" not in result.assistant_message.metadata_json
+    assert "base_revision" not in result.assistant_message.metadata_json
+    assert result.assistant_message.message_type == "chat"
+    db.refresh(rubric_file)
+    assert rubric_file.analysis_revision == original_revision
+    assert rubric_file.analysis_json == original_analysis
+
+
+@pytest.mark.asyncio
 async def test_refine_message_uses_the_rubric_polish_prompt_mode(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -590,7 +654,7 @@ async def test_refine_message_uses_the_rubric_polish_prompt_mode(
         assert messages[-1].content == "請審核並潤飾目前的檢查表"
         assert '"items": []' in rubric_context
         assert kwargs["is_refine"] is True
-        assert kwargs["ready_proposals_only"] is False
+        assert "ready_proposals_only" not in kwargs
         return "檢查完畢，檢查表目前狀態良好。", None, {}
 
     monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)

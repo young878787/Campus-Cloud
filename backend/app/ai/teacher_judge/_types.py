@@ -112,7 +112,7 @@ class PreviousReviewFeedback(TypedDict, total=False):
 
 
 # ── VLLM Metrics ──────────────────────────────────────────────────────────────
-# Returned by _call_vllm(); passed through analyze_rubric / chat_with_rubric.
+# Returned by _call_vllm(); passed through chat and summary workflows.
 
 
 class VLLMMetrics(TypedDict):

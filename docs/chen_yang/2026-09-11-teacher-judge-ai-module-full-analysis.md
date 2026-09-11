@@ -2,12 +2,28 @@
 
 日期：2026-09-11。
 
-本文件記錄 `backend/app/ai/teacher_judge/` 模組的完整架構探索、五條 AI 生產線、
-提示詞／功能衝突清單，以及「AI 運作多線不線性」的根因結論。分析基於當時工作樹
-狀態（含尚未提交的 requirement 核查流程實作，詳見
-`docs/teacher-judge-requirement-workflow-plan.md`）。
+本文件保留收斂前的完整架構探索與衝突證據。2026-09-11 已依
+`docs/chen_yang/2026-09-11-teacher-judge-ai-chat-convergence-plan.md` 完成第一輪減法；
+下方「收斂前快照」不再代表目前可用入口。
 
-## 1. 模組全景
+## 0. 收斂後現況
+
+Teacher Judge 不新增抽象 pipeline，保留四種責任清楚的流程：
+
+| 流程 | 唯一入口與資料邊界 |
+| --- | --- |
+| AI Chat | session message；文字與文件附件使用同一個 `chat_with_rubric()`，普通聊天不產生 Proposal，多項需求拆成 Ready operations |
+| Script Generation | 「儲存並製作」；只讀老師已 Apply 的 `analysis_json` 與 persisted `analysis_revision` |
+| Execution & Judgement | 既有受管腳本、核准、PVE/SSH runtime revalidation 與 AI judgement，不讀取未 Apply Proposal |
+| Summary | 既有有界聊天歷史與背景摘要，不保存或還原暫存 Proposal |
+
+已移除的新資料入口包括 direct file upload/analyze、legacy `/rubric/upload`、legacy
+`/rubric/chat`、前端同名檔衝突流程與獨立刪除來源入口。歷史 uploaded file row 與原始
+檔案仍可讀、下載及 fork；沒有資料 migration，也沒有刪除既有資料。
+
+## 收斂前分析快照
+
+### 1. 模組全景
 
 規模：`backend/app/ai/teacher_judge/` 共 21 檔、約 8,700 行 Python；
 前端 `AiJudgePanel.jsx` 單檔 3,115 行；API 路由 4 檔；DB models 8 表；AI prompt 7 組。
@@ -65,7 +81,7 @@ Models
 
 另有 `attachment_context()` 開頭的反注入前導句（資料不是指令）。
 
-## 2. 五條 AI 生產線
+### 2. 五條 AI 生產線
 
 | 線 | 觸發 | 流程 |
 | --- | --- | --- |
@@ -79,7 +95,7 @@ Models
 （提案例外保留）× 附件資料回注 × legacy 直更 vs 提案模式。Prompt 是動態拼接的，
 單一函式 `chat_with_rubric` 1,193 行承擔全部分支。
 
-## 3. 提示詞／功能衝突清單
+### 3. 提示詞／功能衝突清單
 
 ### 3.1 死碼與契約脫節（優先處理）
 
@@ -144,7 +160,7 @@ Models
     `_proposal_unavailable_reply` 文案覆蓋；項目數驟減時再用 ⚠️ emoji 文案覆寫——
     AI 回覆有兩層事後改寫，老師看到的與模型說的可能不同。
 
-## 4. 「多線不線性」根因結論
+### 4. 「多線不線性」根因結論
 
 1. **一條老師流程 = 五條 AI 線 × 7 prompt × 8 處驗證 × 3 套重試**，每條線自帶 normalization。
 2. **狀態分裂**：Proposal 只存 React state（不持久化），正式表在 DB `analysis_json`，
@@ -172,9 +188,10 @@ Models
    catalog/argv/history/timeout 規則整併成單一來源（必要時由程式注入共享片段）。
 3. **單一判定來源**：抽出一個「rubric item 可自動檢查判定」模組，前端改消費
    後端判定結果（或共用 schema 欄位），不要前後端各算各的。
-4. **收斂入口**：評估廢除 legacy `/rubric/*` 路由與 `services/rubric_service.py`、
-   `infrastructure/ai/rubric.py` re-export shim；run 建立統一走 scripts 路由，
-   移除 sessions 路由對私有 `_run_to_public` 的 import。
+4. **已收斂（2026-09-11）**：AI 輸入只走 session chat；已移除 legacy
+   `/rubric/upload|chat`、direct file mutation routes、`services/rubric_service.py`、
+   `infrastructure/ai/rubric.py` 與 `schemas/rubric.py`。run 路由與私有 import 不在本次
+   AI Chat 合併範圍，維持既有行為。
 5. **重試語意文件化**：三層重試（chat repair / script gate / executor model retry）
    各自的次數、停止條件、failure signature 寫進本文件或 docstring，避免行為漂移。
 

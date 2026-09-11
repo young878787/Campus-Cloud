@@ -506,7 +506,6 @@ async def create_message(
             template_commands=template_commands,
             environment_keys=file.environment_keys if file else None,
             attachment_context=attachment_context(attachments),
-            ready_proposals_only=not payload.is_refine,
         )
         # Without a selected rubric the conversation is general assistance only;
         # do not let an unconstrained model response create an unreviewed proposal.
@@ -516,21 +515,14 @@ async def create_message(
                 "因此無法建立可套用提案。請先選擇來源後再送出需求。"
             )
             proposal = None
-        message_metadata: dict[str, object] = {
-            "metrics": metrics,
-            "base_revision": base_revision,
-        }
+        message_metadata: dict[str, object] = {"metrics": metrics}
         if payload.is_refine:
             message_metadata["ui_hidden"] = True
-        if proposal:
-            message_metadata["rubric_proposal"] = proposal
         assistant = TeacherJudgeSessionMessage(
             session_id=item.id,
             role=TeacherJudgeMessageRole.assistant,
             content=redact_message_content(reply),
-            message_type=TeacherJudgeMessageType.rubric_proposal
-            if proposal
-            else TeacherJudgeMessageType.chat,
+            message_type=TeacherJudgeMessageType.chat,
             metadata_json=message_metadata,
         )
     except HTTPException as exc:

@@ -18,7 +18,10 @@ from app.ai.teacher_judge import (
     script_run_service,
     target_ip_resolver,
 )
-from app.ai.teacher_judge.schemas import RubricAnalysis, RubricItem
+from app.ai.teacher_judge.schemas import (
+    TeacherJudgeRubricAnalysis,
+    TeacherJudgeRubricItem,
+)
 from app.ai.teacher_judge.script_policy import (
     check_script_policy,
     validate_managed_script_output,
@@ -82,10 +85,10 @@ def _session() -> Session:
     return Session(engine)
 
 
-def _analysis() -> RubricAnalysis:
-    return RubricAnalysis(
+def _analysis() -> TeacherJudgeRubricAnalysis:
+    return TeacherJudgeRubricAnalysis(
         items=[
-            RubricItem(
+            TeacherJudgeRubricItem(
                 id="item-1",
                 title="n8n Web UI",
                 description="確認 n8n 可存取",

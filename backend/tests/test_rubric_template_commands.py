@@ -2,22 +2,20 @@ from __future__ import annotations
 
 import json
 import uuid
-from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.ai.teacher_judge import service as teacher_judge_service
-from app.ai.teacher_judge.schemas import RubricItem
+from app.ai.teacher_judge.schemas import TeacherJudgeRubricItem
 from app.ai.teacher_judge.template_command_service import (
     GENERAL_COMMAND,
     format_template_commands_for_prompt,
     get_enabled_template_commands,
     validate_check_steps,
 )
-from app.api.routes import rubric as rubric_route
 from app.models.teacher_judge_template_command import TeacherJudgeTemplateCommand
 
 
@@ -301,72 +299,6 @@ def test_cat_config_assignment_resolves_redundant_success_condition_gap() -> Non
 
 
 @pytest.mark.asyncio
-async def test_analyze_rubric_injects_catalog_and_normalizes_check_steps(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    command = TeacherJudgeTemplateCommand(
-        template_key="n8n",
-        command_key="n8n.port_check",
-        command_label="n8n 連接埠檢查",
-        category="port",
-        command_template="ss -lntp | grep ':5678'",
-        description="檢查 n8n 預設 5678 連接埠是否正在監聽。",
-    )
-    captured_payload = {}
-
-    async def fake_call_vllm(payload, timeout=60.0):
-        captured_payload.update(payload)
-        return (
-            json.dumps(
-                {
-                    "items": [
-                        {
-                            "id": "item-1",
-                            "title": "n8n 服務可啟動",
-                            "checked": True,
-                            "detectable": "auto",
-                            "detection_method": "檢查 n8n port",
-                            "check_steps": [
-                                {
-                                    "template_key": "n8n",
-                                    "command_key": "n8n.port_check",
-                                },
-                                {
-                                    "template_key": "n8n",
-                                    "command_key": "n8n.missing",
-                                },
-                            ],
-                        }
-                    ],
-                    "summary": "ok",
-                }
-            ),
-            {"total_tokens": 1},
-        )
-
-    monkeypatch.setattr(teacher_judge_service, "_call_vllm", fake_call_vllm)
-    _patch_teacher_judge_vllm_settings(monkeypatch)
-
-    analysis, _metrics = await teacher_judge_service.analyze_rubric(
-        "rubric text",
-        template_key="n8n",
-        template_commands=[command],
-        environment_keys=["n8n", "python"],
-    )
-
-    system_prompt = captured_payload["messages"][0]["content"]
-    assert "目前主要 template：n8n" in system_prompt
-    assert "老師選定的評分環境：n8n, python" in system_prompt
-    assert "n8n.port_check" in system_prompt
-    assert "ss -lntp" not in system_prompt
-    assert "不得自行發明" in system_prompt
-    assert analysis.items[0].check_steps[0].command_key == "n8n.port_check"
-    assert analysis.items[0].check_steps[0].command_label == "n8n 連接埠檢查"
-    assert len(analysis.items[0].check_steps) == 1
-    assert analysis.items[0].checked is False
-
-
-@pytest.mark.asyncio
 async def test_chat_with_rubric_validates_returned_check_steps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -414,6 +346,7 @@ async def test_chat_with_rubric_validates_returned_check_steps(
     _reply, updated_items, _metrics = await teacher_judge_service.chat_with_rubric(
         messages=[SimpleNamespace(role="user", content="照這樣改")],
         rubric_context=json.dumps({"items": [{"id": "item-1"}]}),
+        is_refine=True,
         template_key="n8n",
         template_commands=[command],
     )
@@ -670,7 +603,7 @@ def test_normalize_marks_auto_without_valid_check_steps_as_unsupported() -> None
     )
 
     assert items == [
-        RubricItem(
+        TeacherJudgeRubricItem(
             id="item-1",
             title="未知檢查",
             description="",
@@ -756,52 +689,6 @@ def test_normalize_python_code_quality_stays_manual() -> None:
 
     assert items[0].detectable == "manual"
     assert items[0].check_steps == []
-
-
-@pytest.mark.asyncio
-async def test_upload_rubric_defaults_linux_template(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    session = _session_with_commands()
-
-    async def fake_analyze_rubric(raw_text, template_key, template_commands):
-        assert raw_text == "parsed text"
-        assert template_key == "linux"
-        assert [command.command_key for command in template_commands] == [
-            "system.run_command",
-            "n8n.port_check"
-        ]
-        return (
-            SimpleNamespace(model_dump=lambda: {"items": []}),
-            {"total_tokens": 0},
-        )
-
-    monkeypatch.setattr(rubric_route, "parse_document", lambda *_args: "parsed text")
-    monkeypatch.setattr(rubric_route, "analyze_rubric", fake_analyze_rubric)
-
-    response = await rubric_route.upload_rubric(
-        current_user=SimpleNamespace(id=uuid.uuid4(), email="teacher@example.com"),
-        session=session,
-        file=UploadFile(filename="rubric.pdf", file=BytesIO(b"pdf")),
-        template_key="linux",
-    )
-
-    assert response["template_key"] == "linux"
-
-
-@pytest.mark.asyncio
-async def test_upload_rubric_rejects_unknown_template() -> None:
-    session = _session_with_commands()
-
-    with pytest.raises(HTTPException) as exc_info:
-        await rubric_route.upload_rubric(
-            current_user=SimpleNamespace(email="teacher@example.com"),
-            session=session,
-            file=UploadFile(filename="rubric.pdf", file=BytesIO(b"pdf")),
-            template_key="unknown",
-        )
-
-    assert exc_info.value.status_code == 400
 
 
 def test_prompt_formatter_handles_empty_catalog() -> None:

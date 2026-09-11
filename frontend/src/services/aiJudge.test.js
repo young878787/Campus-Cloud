@@ -46,21 +46,6 @@ describe("AiJudgeService persistent sessions", () => {
     expect(getTemplateLabel("postgresql")).toBe("PostgreSQL");
   });
 
-  test("上傳檢查表會帶上主要與候選評分環境", async () => {
-    const file = new File(["rubric"], "rubric.pdf", { type: "application/pdf" });
-    await AiJudgeService.uploadFile(
-      "class-1",
-      file,
-      "python",
-      null,
-      ["python", "linux"],
-    );
-
-    const [, init] = fetchMock.mock.calls[0];
-    expect(init.body.get("template_key")).toBe("python");
-    expect(init.body.getAll("environment_keys")).toEqual(["python", "linux"]);
-  });
-
   test("blank 建立請求會帶上檢查表名稱與多選環境", async () => {
     await AiJudgeService.createSession("class-1", {
       title: "期中環境檢查",
