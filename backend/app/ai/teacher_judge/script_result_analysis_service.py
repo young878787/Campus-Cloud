@@ -36,7 +36,7 @@ AI_JUDGEMENT_SYSTEM_PROMPT = """
 - 只能輸出 JSON，不要 markdown。
 - 你不能發明事實，只能根據 script_result.checks、errors、summary 與 metadata 判斷。
 - script check status 是事實證據；你的工作是把 evidence 對齊檢查項目，說明核對狀態。
-- item_judgements 必須涵蓋每個 rubric item id；沒有 rubric_items 時才使用 script check id。
+- item_judgements 必須涵蓋每個需要腳本核對的 rubric item id；沒有 check 的 `manual + teacher` 項目可由系統標記為待導師核查。
 - evidence_refs 放 script_result.checks[].id。
 - 所有 rubric_items 都是本次檢查範圍，不可只回答前幾題；保留 item id。
 - evidence_refs 只能引用本次 checks 已存在的 id，不得自行發明。
@@ -120,6 +120,18 @@ def _rubric_excerpt(
     return [_compact_rubric_item(item) for item in raw_items if isinstance(item, dict)]
 
 
+def _teacher_review_only_ids(rubric_items: list[dict[str, Any]]) -> set[str]:
+    return {
+        item_id
+        for item in rubric_items
+        if isinstance(item, dict)
+        and str(item.get("detectable") or "") == "manual"
+        and str(item.get("judgement_mode") or "ai") == "teacher"
+        and not item.get("check_steps")
+        and (item_id := str(item.get("id") or "").strip())
+    }
+
+
 def _validate_ai_judgement(parsed: dict[str, Any], payload: dict[str, Any]) -> None:
     """Reject structurally valid JSON whose references cannot support a check result."""
 
@@ -152,9 +164,11 @@ def _validate_ai_judgement(parsed: dict[str, Any], payload: dict[str, Any]) -> N
     judgement_modes = {
         item["id"]: str(item.get("judgement_mode") or "ai") for item in rubric_items
     }
+    teacher_review_only_ids = _teacher_review_only_ids(rubric_items)
+    required_rubric_ids = rubric_ids - teacher_review_only_ids
     allowed_ids = rubric_ids or set(checks_by_id)
     items = parsed["item_judgements"]
-    if allowed_ids and not items:
+    if required_rubric_ids and not items:
         invalid()
     seen: set[str] = set()
     for item in items:
@@ -183,7 +197,7 @@ def _validate_ai_judgement(parsed: dict[str, Any], payload: dict[str, Any]) -> N
         if judgement_modes.get(item_id) == "teacher" and status != "unknown":
             invalid()
         seen.add(item_id)
-    if rubric_ids - seen:
+    if required_rubric_ids - seen:
         invalid()
 
 
@@ -226,6 +240,26 @@ def _normalize_ai_judgement(
     item_judgements = _normalize_item_judgements(parsed.get("item_judgements"))
     for item in item_judgements:
         item["judgement_mode"] = judgement_modes.get(item["item_id"], "ai")
+    judged_ids = {item["item_id"] for item in item_judgements}
+    for item in rubric_items or []:
+        if not isinstance(item, dict):
+            continue
+        item_id = str(item.get("id") or "").strip()
+        if (
+            item_id
+            and item_id not in judged_ids
+            and item_id in _teacher_review_only_ids(rubric_items or [])
+        ):
+            item_judgements.append(
+                {
+                    "item_id": item_id,
+                    "title": str(item.get("title") or "")[:240],
+                    "status": "unknown",
+                    "evidence_refs": [],
+                    "comment": "此項沒有腳本取證，待導師核查。",
+                    "judgement_mode": "teacher",
+                }
+            )
     teacher_review_item_ids = [
         item_id for item_id, mode in judgement_modes.items() if mode == "teacher"
     ]

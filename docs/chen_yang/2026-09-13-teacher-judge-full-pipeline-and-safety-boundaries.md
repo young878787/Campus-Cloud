@@ -30,6 +30,42 @@
 
 安全哲學一句話：**對話層防「prompt injection 與幻覺提案」，腳本層防「生成碼越權執行」，兩層之間用 `analysis_revision` 樂觀鎖交接。**
 
+### 0-B 預計調整的 chat 流程（目標狀態 Mermaid 圖）
+
+```mermaid
+flowchart TD
+    A["老師發起評分項目"] --> B["AI 審核<br/>語意限制：不得更動機器<br/>禁 sudo / rm 等高危指令"]
+    B --> C{"評估：有缺資料？"}
+    C -- "有缺" --> D["請老師補充資料"]
+    D --> A
+    C -- "沒缺" --> E["發起提案<br/>rubric_proposal（暫存）"]
+    E --> F{"導師同意變更？"}
+    F -- "不同意" --> H["提案作廢，留在對話"]
+    H --> A
+    F -- "同意" --> G["導師編輯既有項目或新增<br/>套用提案 revision+1"]
+    G --> I["儲存 → 建立腳本"]
+    I --> J{"最後一道安全限制<br/>潤飾檢查：缺資訊 / 安全問題？"}
+    J -- "有缺失" --> K["返回訊息給老師"]
+    K --> L["老師調整後重送"]
+    L --> I
+    J -- "沒缺" --> M["製作腳本完成<br/>approved 可執行"]
+
+    style B fill:#fff3e0,stroke:#e65100
+    style J fill:#fff3e0,stroke:#e65100
+    style M fill:#e8f5e9,stroke:#1b5e20
+```
+
+| 節點 | 對應實作（現行程式碼） | 章節 |
+|---|---|---|
+| 老師發起評分項目 | `create_message` → `chat_with_rubric` | §階段 1 |
+| AI 審核（語意/高危指令限制） | `validate_check_steps_with_issues` 白名單 + prompt 約束（§階段 2、§3） | §階段 2 |
+| 有缺 → 請老師補充 | `proposal_status=needs_information` + `conversation_focus` 跨輪注入 | §階段 3 |
+| 發起提案 | `_proposal_changes` → `rubric_proposal` response 欄位 | §階段 4 |
+| 導師同意 → 編輯/新增 → 儲存 | 前端套用 → `update_file_analysis`（revision+1） | §階段 4/5 |
+| 儲存 → 建立腳本 | `create_artifact` → `build_reviewed_script` | §4-1/4-7 |
+| 最後一道安全限制 | 靜態閘（policy+quality）+ coverage 閘 + AI reviewer；失敗 → fix patch / 重新生成 / `review_failed` | §4-7~4-12、§5 #18-23 |
+| 製作腳本完成 | `_resolve_status` → approved | §4-2' |
+
 ---
 
 ## 1. API 端點地圖

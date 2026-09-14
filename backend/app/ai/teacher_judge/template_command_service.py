@@ -33,10 +33,10 @@ GENERAL_COMMAND = TeacherJudgeTemplateCommand(
     category="inspection",
     command_template="argv + cwd + timeout",
     description=(
-        "平台已登錄的通用唯讀診斷能力。依檢查目的選擇 Linux 或 Windows "
-        "常見 CLI，以單一 argv 在指定工作目錄執行，並收集 exit code、stdout、"
-        "stderr。禁止修改系統狀態、高風險或破壞性操作；能以低權限取得資訊時"
-        "不得要求提權。平台會套用安全逾時，老師不需指定技術參數或新增權限。"
+        "平台已登錄的通用唯讀診斷能力：依檢查目的選擇 Linux 或 Windows 常見 CLI，"
+        "以單一 argv 在指定工作目錄執行，"
+        "收集 exit code、stdout、stderr。此項目只供能力參考，不是提案白名單；"
+        "平台會套用安全限制與逾時，老師不需指定技術參數或新增權限。"
     ),
     risk_level="executes_command",
     requires_confirmation=True,

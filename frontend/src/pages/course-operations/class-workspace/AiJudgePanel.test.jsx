@@ -10,11 +10,13 @@ import {
   SessionTitle,
   applyProposalOperations,
   buildProposalDiff,
+  getRemainingProposalState,
   getRubricDisplayName,
   getRubricCheckTitle,
   getRubricItemsValue,
   getRubricReviewItemIds,
   getPendingRubricItemIds,
+  getUnresolvedItemResults,
   resolveDetectabilityNeedsReview,
   getScriptCreationBlocker,
   getSessionMenuPosition,
@@ -206,7 +208,7 @@ describe("ProposalPanel", () => {
     expect(html).not.toContain("套用選取");
   });
 
-  test("附件逐項結果依來源順序顯示，不可套用項目不提供勾選框", () => {
+  test("附件逐項結果依來源順序顯示，缺資料項目不再出現預留區", () => {
     const itemResults = [
       {
         source_index: 1,
@@ -252,12 +254,67 @@ describe("ProposalPanel", () => {
       />,
     );
 
-    expect(html.indexOf("第 1 列")).toBeLessThan(html.indexOf("第 2 列"));
-    expect(html.indexOf("第 2 列")).toBeLessThan(html.indexOf("第 3 列"));
-    expect(html).toContain("缺少資訊");
-    expect(html).toContain("要檢查的服務或連接埠範圍");
+    expect(html.indexOf("第 1 列")).toBeLessThan(html.indexOf("第 3 列"));
+    expect(html).not.toContain("缺少資訊");
+    expect(html).not.toContain("要檢查的服務或連接埠範圍");
+    expect(html).not.toContain("第 2 列");
     expect(html.match(/type="checkbox"/g)).toHaveLength(2);
     expect(html).toContain("同意套用");
+  });
+
+  test("僅缺資料結果不再顯示提案面板，缺口由回覆訊息引導補充", () => {
+    const unresolved = [
+      {
+        source_index: 2,
+        source_label: "第 2 列",
+        title: "檢查 Web 服務",
+        status: "needs_information",
+        operation: null,
+        missing_information: ["服務 Port"],
+      },
+    ];
+    const html = renderToStaticMarkup(
+      <ProposalPanel
+        proposal={null}
+        selectedIds={new Set()}
+        onToggle={() => {}}
+        onApply={() => {}}
+        onSkip={() => {}}
+        disabled={false}
+        itemResults={unresolved}
+      />,
+    );
+
+    expect(html).toBe("");
+  });
+});
+
+describe("partial proposal state", () => {
+  test("套用 Ready 後只移除已套用 operation，保留缺資料結果", () => {
+    const ready = {
+      id: "ready-1",
+      title: "Python 版本",
+      operation: "add",
+    };
+    const results = [
+      { title: "Python 版本", status: "ready", operation: ready },
+      {
+        title: "Web 服務",
+        status: "needs_information",
+        operation: null,
+        missing_information: ["服務 Port"],
+      },
+    ];
+
+    const remaining = getRemainingProposalState(
+      [ready],
+      results,
+      new Set(["ready-1"]),
+    );
+
+    expect(remaining.remainingProposal).toEqual([]);
+    expect(remaining.remainingResults).toEqual([results[1]]);
+    expect(getUnresolvedItemResults(remaining.remainingResults)).toEqual([results[1]]);
   });
 });
 
@@ -398,6 +455,17 @@ describe("getScriptCreationBlocker", () => {
     expect(getScriptCreationBlocker({ analysis: { items: [completeItem] } })).toBeNull();
   });
 
+  test("缺資料逐項結果不阻擋製作腳本，缺口由回覆訊息引導補充", () => {
+    expect(getScriptCreationBlocker({
+      analysis: { items: [completeItem] },
+      pendingItemResults: [{
+        title: "Web 服務",
+        status: "needs_information",
+        missing_information: ["服務 Port"],
+      }],
+    })).toBeNull();
+  });
+
   test("後端導師判定模式不受客觀答案攔截", () => {
     const teacherReviewItem = {
       ...completeItem,
@@ -415,6 +483,19 @@ describe("getScriptCreationBlocker", () => {
     expect(getScriptCreationBlocker({ analysis: { items: [teacherReviewItem] } })).toBeNull();
   });
 
+  test("manual 導師核查項目不阻擋腳本製作", () => {
+    const teacherReviewItem = {
+      ...completeItem,
+      detectable: "manual",
+      judgement_mode: "teacher",
+      description: "收集原始碼供老師判斷。",
+      detection_method: null,
+      check_steps: [],
+    };
+
+    expect(getScriptCreationBlocker({ analysis: { items: [teacherReviewItem] } })).toBeNull();
+  });
+
   test("缺少資訊或需要人工審核時阻擋整份腳本", () => {
     const blocker = getScriptCreationBlocker({
       analysis: {
@@ -426,7 +507,7 @@ describe("getScriptCreationBlocker", () => {
     });
 
     expect(blocker).toContain("1 項缺少資訊");
-    expect(blocker).toContain("1 項需要導師核查或無法執行");
+    expect(blocker).toContain("1 項無法自動取證");
   });
 
   test("異動後尚未重新確認時阻擋腳本", () => {

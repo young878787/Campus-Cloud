@@ -9,8 +9,14 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from app.ai.teacher_judge import attachment_service, file_service, session_service
+from app.ai.teacher_judge import (
+    attachment_service,
+    chat_workflow,
+    file_service,
+    session_service,
+)
 from app.ai.teacher_judge import service as teacher_judge_service
+from app.ai.teacher_judge.chat_workflow import SessionTurnResult
 from app.ai.teacher_judge.schemas import (
     TeacherJudgeRubricAnalysis,
     TeacherJudgeSessionCreateRequest,
@@ -359,19 +365,15 @@ async def test_message_without_rubric_is_saved_and_uses_general_chat(
     db.commit()
     db.refresh(item)
 
-    async def fake_chat(messages, rubric_context, **kwargs):
-        assert "保留 Python 檢查" in messages[0].content
-        assert messages[-1].content == "先討論檢查需求"
-        assert rubric_context == "{}"
-        assert kwargs["is_refine"] is False
-        assert kwargs["template_key"] == "linux"
-        return "可以，先描述目標環境。", None, {}
+    async def fake_turn(_db, session_item, file, payload, _user, **kwargs):
+        assert session_item.id == item.id
+        assert file is None
+        assert payload.content == "先討論檢查需求"
+        assert kwargs["user_message"].content == "先討論檢查需求"
+        return SessionTurnResult("可以，先描述目標環境。", None, {}, None, None)
 
     monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
-    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
-    monkeypatch.setattr(
-        teacher_judge_sessions, "get_enabled_template_commands", lambda *args, **kwargs: []
-    )
+    monkeypatch.setattr(teacher_judge_sessions, "run_session_turn", fake_turn)
 
     result = await teacher_judge_sessions.create_message(
         class_id,
@@ -398,24 +400,22 @@ async def test_message_without_rubric_does_not_claim_proposal_was_created(
     db.commit()
     db.refresh(item)
 
-    async def fake_chat(*args, **kwargs):
-        return (
-            "檔案格式檢查：Ready，已放入提案。",
-            [
+    async def fake_chat_turn(*args, **kwargs):
+        assert kwargs["rubric_available"] is False
+        return teacher_judge_service.TeacherJudgeChatResult(
+            reply="檔案格式檢查：Ready，已放入提案。",
+            proposal=[
                 {
                     "id": "item-file-format",
                     "title": "檔案格式檢查",
                     "operation": "add",
                 }
             ],
-            {},
+            metrics={},
         )
 
     monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
-    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
-    monkeypatch.setattr(
-        teacher_judge_sessions, "get_enabled_template_commands", lambda *args, **kwargs: []
-    )
+    monkeypatch.setattr(chat_workflow, "run_chat_turn", fake_chat_turn)
 
     result = await teacher_judge_sessions.create_message(
         class_id,
@@ -463,22 +463,17 @@ async def test_message_does_not_enable_script_creation_workflow(
     db.commit()
     db.refresh(item)
 
-    async def fake_chat(messages, rubric_context, **kwargs):
-        assert "enable_workflow_tools" not in kwargs
-        assert "ready_proposals_only" not in kwargs
-        return (
+    async def fake_turn(*args, **kwargs):
+        return SessionTurnResult(
             "請使用檢查表右下角的儲存並製作按鈕。",
             None,
             {},
+            None,
+            None,
         )
 
     monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
-    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
-    monkeypatch.setattr(
-        teacher_judge_sessions,
-        "get_enabled_template_commands",
-        lambda *args, **kwargs: [],
-    )
+    monkeypatch.setattr(teacher_judge_sessions, "run_session_turn", fake_turn)
 
     result = await teacher_judge_sessions.create_message(
         class_id,
@@ -554,12 +549,7 @@ async def test_message_can_send_parsed_attachment_without_text(
             item_results=[],
         )
 
-    monkeypatch.setattr(
-        teacher_judge_sessions, "analyze_attachments_itemwise", fake_itemwise
-    )
-    monkeypatch.setattr(
-        teacher_judge_sessions, "get_enabled_template_commands", lambda *args, **kwargs: []
-    )
+    monkeypatch.setattr(teacher_judge_service, "analyze_attachments_itemwise", fake_itemwise)
 
     result = await teacher_judge_sessions.create_message(
         class_id,
@@ -610,17 +600,18 @@ async def test_attachment_proposal_is_ephemeral_until_explicit_apply(
             },
         }
     ]
-    captured_chat_kwargs = {}
+    captured_turn = {}
 
-    async def fake_chat(*_args, **kwargs):
-        captured_chat_kwargs.update(kwargs)
-        return "已建立一項可確認的提案。", proposal, {"total_tokens": 1}
+    async def fake_turn(_db, _item, file, payload, _user, **kwargs):
+        captured_turn["file"] = file
+        captured_turn["payload"] = payload
+        captured_turn.update(kwargs)
+        return SessionTurnResult(
+            "已建立一項可確認的提案。", proposal, {"total_tokens": 1}, None, None
+        )
 
     monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
-    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
-    monkeypatch.setattr(
-        teacher_judge_sessions, "get_enabled_template_commands", lambda *args, **kwargs: []
-    )
+    monkeypatch.setattr(teacher_judge_sessions, "run_session_turn", fake_turn)
 
     result = await teacher_judge_sessions.create_message(
         class_id,
@@ -635,8 +626,8 @@ async def test_attachment_proposal_is_ephemeral_until_explicit_apply(
 
     assert result.rubric_proposal == proposal
     assert result.base_revision == original_revision
-    assert captured_chat_kwargs["analysis_revision"] == original_revision
-    assert captured_chat_kwargs["rubric_available"] is True
+    assert captured_turn["file"].analysis_revision == original_revision
+    assert captured_turn["payload"].analysis_revision == original_revision
     assert "rubric_proposal" not in result.assistant_message.metadata_json
     assert "base_revision" not in result.assistant_message.metadata_json
     assert result.assistant_message.message_type == "chat"
@@ -717,12 +708,7 @@ async def test_attachment_message_runs_itemwise_analysis_and_records_results(
             ],
         )
 
-    monkeypatch.setattr(
-        teacher_judge_sessions, "analyze_attachments_itemwise", fake_itemwise
-    )
-    monkeypatch.setattr(
-        teacher_judge_sessions, "get_enabled_template_commands", lambda *a, **k: []
-    )
+    monkeypatch.setattr(teacher_judge_service, "analyze_attachments_itemwise", fake_itemwise)
 
     result = await teacher_judge_sessions.create_message(
         class_id,
@@ -747,6 +733,77 @@ async def test_attachment_message_runs_itemwise_analysis_and_records_results(
 
 
 @pytest.mark.asyncio
+async def test_message_persists_normal_item_statuses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _session()
+    class_id = uuid.uuid4()
+    rubric_file = _file(db, class_id)
+    item = TeacherJudgeSession(
+        teaching_class_id=class_id,
+        title="Normal item statuses",
+        selected_file_id=rubric_file.id,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    ready_operation = {
+        "id": "item-ready",
+        "title": "檢查 Python 版本",
+        "operation": "add",
+        "detectable": "auto",
+    }
+
+    async def fake_turn(*args, **kwargs):
+        return SessionTurnResult(
+            reply="已整理可用項目，Web 服務仍缺 Port。",
+            proposal=[ready_operation],
+            metrics={"total_tokens": 1},
+            conversation_focus=None,
+            item_results=[
+                {
+                    "item_id": "item-ready",
+                    "title": "檢查 Python 版本",
+                    "status": "ready",
+                    "operation": ready_operation,
+                    "missing_information": [],
+                    "detail": "",
+                },
+                {
+                    "item_id": "item-port",
+                    "title": "Web 服務回傳 200",
+                    "status": "needs_information",
+                    "operation": None,
+                    "missing_information": ["服務 Port"],
+                    "detail": "",
+                },
+            ],
+        )
+
+    monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
+    monkeypatch.setattr(teacher_judge_sessions, "run_session_turn", fake_turn)
+
+    result = await teacher_judge_sessions.create_message(
+        class_id,
+        item.id,
+        TeacherJudgeSessionMessageCreateRequest(
+            content="檢查 Python 版本；檢查 Web 服務"
+        ),
+        db,
+        SimpleNamespace(id=uuid.uuid4()),
+    )
+
+    assert result.rubric_proposal == [ready_operation]
+    item_results = result.assistant_message.metadata_json["item_results"]
+    assert [row["status"] for row in item_results] == [
+        "ready",
+        "needs_information",
+    ]
+    assert item_results[1]["operation"] is None
+    assert item_results[1]["missing_information"] == ["服務 Port"]
+
+
+@pytest.mark.asyncio
 async def test_refine_message_uses_the_rubric_polish_prompt_mode(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -762,18 +819,17 @@ async def test_refine_message_uses_the_rubric_polish_prompt_mode(
     db.commit()
     db.refresh(item)
 
-    async def fake_chat(messages, rubric_context, **kwargs):
+    async def fake_chat_turn(messages, rubric_context, **kwargs):
         assert messages[-1].content == "請審核並潤飾目前的檢查表"
         assert '"items": []' in rubric_context
-        assert kwargs["is_refine"] is True
-        assert "ready_proposals_only" not in kwargs
-        return "檢查完畢，檢查表目前狀態良好。", None, {}
+        assert kwargs["preset"].name == "refine"
+        assert kwargs["preset"].require_rubric is True
+        return teacher_judge_service.TeacherJudgeChatResult(
+            "檢查完畢，檢查表目前狀態良好。", None, {}
+        )
 
     monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
-    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
-    monkeypatch.setattr(
-        teacher_judge_sessions, "get_enabled_template_commands", lambda *args, **kwargs: []
-    )
+    monkeypatch.setattr(chat_workflow, "run_chat_turn", fake_chat_turn)
 
     result = await teacher_judge_sessions.create_message(
         class_id,
@@ -812,7 +868,7 @@ async def test_message_rejects_stale_rubric_revision_before_ai_call(
     async def should_not_call_ai(*args, **kwargs):
         raise AssertionError("stale requests must fail before AI call")
 
-    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", should_not_call_ai)
+    monkeypatch.setattr(teacher_judge_sessions, "run_session_turn", should_not_call_ai)
 
     with pytest.raises(HTTPException) as exc_info:
         await teacher_judge_sessions.create_message(
@@ -857,20 +913,14 @@ async def test_chat_does_not_save_old_answer_after_source_switch(
     db.commit()
     db.refresh(item)
     monkeypatch.setattr(teacher_judge_sessions, "_access", lambda *args: None)
-    monkeypatch.setattr(
-        teacher_judge_sessions,
-        "get_enabled_template_commands",
-        lambda *args, **kwargs: [],
-    )
-
-    async def fake_chat(*args, **kwargs):
+    async def fake_turn(*args, **kwargs):
         session_service.clear_session_messages(db, item)
         item.selected_file_id = second_file.id
         db.add(item)
         db.commit()
-        return "不應保存的舊回答", None, {}
+        return SessionTurnResult("不應保存的舊回答", None, {}, None, None)
 
-    monkeypatch.setattr(teacher_judge_sessions, "chat_with_rubric", fake_chat)
+    monkeypatch.setattr(teacher_judge_sessions, "run_session_turn", fake_turn)
 
     with pytest.raises(HTTPException) as exc_info:
         await teacher_judge_sessions.create_message(

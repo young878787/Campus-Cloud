@@ -67,6 +67,25 @@ def _rubric_index(
     return rubric_ids, titles
 
 
+def _is_teacher_review_only(item: dict[str, Any]) -> bool:
+    """Manual teacher items have no generated check and need no coverage row."""
+    return (
+        str(item.get("detectable") or "") == "manual"
+        and str(item.get("judgement_mode") or "ai") == "teacher"
+        and not item.get("check_steps")
+    )
+
+
+def _required_coverage_ids(rubric_items: list[dict[str, Any]]) -> set[str]:
+    return {
+        item_id
+        for item in rubric_items
+        if isinstance(item, dict)
+        and not _is_teacher_review_only(item)
+        and (item_id := str(item.get("id") or "").strip())
+    }
+
+
 def _merge_mappings(mappings: list[CoverageMapping]) -> list[CoverageMapping]:
     merged: dict[str, CoverageMapping] = {}
     for mapping in mappings:
@@ -95,6 +114,7 @@ def validate_coverage(
 
     script_check_ids = collect_record_check_ids(script_content)
     rubric_ids, titles = _rubric_index(rubric_items)
+    required_rubric_ids = _required_coverage_ids(rubric_items)
 
     mappings = _merge_mappings(coverage)
     covered: set[str] = set()
@@ -126,7 +146,7 @@ def validate_coverage(
         issues.append(issue)
         fix_hints.append({"type": "fix_coverage_refs", "description": issue})
 
-    uncovered = sorted(rubric_ids - covered)
+    uncovered = sorted(required_rubric_ids - covered)
     if uncovered:
         described = "、".join(
             f"{item_id}（{titles.get(item_id) or '未命名項目'}）"

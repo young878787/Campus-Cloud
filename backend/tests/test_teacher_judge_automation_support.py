@@ -78,6 +78,31 @@ def test_manual_item_blocks_the_whole_script() -> None:
     assert exc_info.value.detail["items"][0]["status"] == "manual"
 
 
+def test_manual_teacher_item_does_not_block_script_generation() -> None:
+    item = _item(detectable="manual")
+    item.judgement_mode = "teacher"
+
+    assert get_script_generation_blockers(
+        TeacherJudgeRubricAnalysis(items=[item]), [_command()]
+    ) == []
+    ensure_script_generation_supported(
+        TeacherJudgeRubricAnalysis(items=[item]), [_command()]
+    )
+
+
+def test_manual_teacher_item_without_description_still_blocks() -> None:
+    item = _item(detectable="manual")
+    item.judgement_mode = "teacher"
+    item.description = ""
+
+    blockers = get_script_generation_blockers(
+        TeacherJudgeRubricAnalysis(items=[item]), [_command()]
+    )
+
+    assert blockers[0]["status"] == "missing_info"
+    assert blockers[0]["missing_information"] == ["檢查對象與導師核查內容"]
+
+
 def test_all_items_with_complete_supported_steps_allow_script_generation() -> None:
     item = _item(
         parameters={

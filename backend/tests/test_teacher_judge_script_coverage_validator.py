@@ -114,6 +114,28 @@ def test_validate_coverage_ignores_unmapped_extra_script_checks() -> None:
     assert result["issues"] == []
 
 
+def test_validate_coverage_excludes_manual_teacher_item_without_check() -> None:
+    result = validate_coverage(
+        coverage=[
+            {"check_id": "runtime.python_version", "rubric_item_ids": ["item-1"]},
+        ],
+        script_content=COLLECTION_SCRIPT,
+        rubric_items=[
+            {"id": "item-1", "title": "程式正常結束"},
+            {
+                "id": "teacher-item",
+                "title": "程式架構品質",
+                "detectable": "manual",
+                "judgement_mode": "teacher",
+                "check_steps": [],
+            },
+        ],
+    )
+
+    assert result["approved"] is True
+    assert result["uncovered_items"] == []
+
+
 def test_parse_coverage_payload_normalizes_valid_entries() -> None:
     parsed = parse_coverage_payload(
         [

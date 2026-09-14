@@ -88,6 +88,21 @@ def _item_missing_information(
     return list(dict.fromkeys(value for value in missing if value))
 
 
+def _teacher_review_missing_information(item: TeacherJudgeRubricItem) -> list[str]:
+    """Return information a teacher still needs for a manual review item.
+
+    A manual teacher item has no executable check by design, so command-step
+    requirements do not apply. The teacher still needs a named target and a
+    usable description of what to inspect.
+    """
+    missing: list[str] = []
+    if not item.title.strip():
+        missing.append("檢查項目名稱")
+    if not item.description.strip():
+        missing.append("檢查對象與導師核查內容")
+    return missing
+
+
 def get_script_generation_blockers(
     analysis: TeacherJudgeRubricAnalysis,
     commands: list[TeacherJudgeTemplateCommand],
@@ -122,6 +137,22 @@ def get_script_generation_blockers(
 
     for item in analysis.items:
         if item.detectable == "manual":
+            if item.judgement_mode == "teacher":
+                missing = _teacher_review_missing_information(item)
+                if not missing:
+                    # A teacher-review-only item does not enter the generated
+                    # script and therefore must not block other executable items.
+                    continue
+                blockers.append(
+                    {
+                        "item_id": item.id,
+                        "title": item.title,
+                        "status": "missing_info",
+                        "missing_information": missing,
+                        "reason_code": "automatic_detection_information_missing",
+                    }
+                )
+                continue
             blockers.append(
                 {
                     "item_id": item.id,

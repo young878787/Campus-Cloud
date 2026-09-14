@@ -143,9 +143,9 @@ def test_cross_template_catalog_includes_generic_controlled_command() -> None:
     assert "指定工作目錄" in general.description
     assert "stdout" in general.description
     assert "stderr" in general.description
-    assert "禁止修改系統狀態" in general.description
-    assert "能以低權限取得資訊時不得要求提權" in general.description
-    assert "平台會套用安全逾時" in general.description
+    assert "禁止修改系統狀態" not in general.description
+    assert "能以低權限取得資訊時不得要求提權" not in general.description
+    assert "平台會套用安全限制與逾時" in general.description
     assert "不需指定技術參數或新增權限" in general.description
     assert "cat" not in general.description
 
@@ -2239,7 +2239,7 @@ async def test_complete_manual_system_info_candidate_reselects_generic_capabilit
         assert payload["temperature"] == 0.0
         assert len(payload["messages"]) == 2
         assert json.loads(repair_instruction)["task"] == (
-            "repair_manual_capability_selection"
+            "repair_model_payload"
         )
         assert "已提供 system.run_command" in repair_instruction
         assert "只有確實無法用安全唯讀命令取得" in repair_instruction
@@ -2393,9 +2393,10 @@ def test_itemwise_result_missing_information_falls_back_to_item_gaps() -> None:
 
 
 @pytest.mark.asyncio
-async def test_invalid_step_then_manual_uses_distinct_capability_repair(
+async def test_invalid_step_uses_single_focused_repair_with_all_facts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """One ``model_payload_invalid`` round carries every validation fact."""
     calls = []
 
     def response(item: dict[str, object]) -> tuple[str, dict[str, object]]:
@@ -2450,21 +2451,16 @@ async def test_invalid_step_then_manual_uses_distinct_capability_repair(
                     ],
                 }
             )
-        if len(calls) == 2:
-            assert "check_steps 沒有通過驗證" in payload["messages"][-1]["content"]
-            return response(
-                {
-                    **common_item,
-                    "detectable": "manual",
-                    "check_steps": [],
-                    "fallback": "由老師自行查看。",
-                }
-            )
         assert payload["temperature"] == 0.0
         assert len(payload["messages"]) == 2
         focused_context = json.loads(payload["messages"][-1]["content"])
-        assert focused_context["task"] == "repair_manual_capability_selection"
-        assert "已提供 system.run_command" in focused_context["validation_instruction"]
+        assert focused_context["task"] == "repair_model_payload"
+        validation_instruction = focused_context["validation_instruction"]
+        assert "check_steps 沒有通過驗證" in validation_instruction
+        assert "linux/system.run_command" in validation_instruction
+        assert "這份清單不是提案限制" in validation_instruction
+        assert "請改用system.run_command" in validation_instruction
+        assert "單一非空 argv list" in validation_instruction
         return response(
             {
                 **common_item,
@@ -2489,7 +2485,7 @@ async def test_invalid_step_then_manual_uses_distinct_capability_repair(
         template_commands=[GENERAL_COMMAND],
     )
 
-    assert len(calls) == 3
+    assert len(calls) == 2
     assert "整理成提案" in reply
     assert proposal is not None
     assert proposal[0]["check_steps"][0]["command_key"] == "system.run_command"

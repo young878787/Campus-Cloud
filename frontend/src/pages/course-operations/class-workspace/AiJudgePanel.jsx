@@ -228,7 +228,37 @@ export function getRubricReviewItemIds(analysis, candidateIds = null) {
   return new Set([...reviewIds].filter((itemId) => currentIds.has(itemId)));
 }
 
-export function getScriptCreationBlocker({ analysis, pendingProposal = null, pendingReviewIds = new Set() }) {
+const UNRESOLVED_ITEM_RESULT_STATUSES = new Set([
+  "needs_information",
+  "unsupported",
+  "analysis_error",
+]);
+
+/** 套用 Ready 子集後仍缺資料的逐項結果；缺口資訊由回覆訊息引導老師補充。 */
+export function getUnresolvedItemResults(itemResults) {
+  return (Array.isArray(itemResults) ? itemResults : []).filter((result) => (
+    UNRESOLVED_ITEM_RESULT_STATUSES.has(String(result?.status ?? "").toLowerCase())
+  ));
+}
+
+/** 套用部分提案後，保留未勾選與尚未完成的逐項結果供下一步處理。 */
+export function getRemainingProposalState(proposal, itemResults, appliedIds = new Set()) {
+  const applied = appliedIds instanceof Set ? appliedIds : new Set(appliedIds ?? []);
+  const proposalItems = Array.isArray(proposal) ? proposal : [];
+  const remainingProposal = proposalItems.filter((item, index) => (
+    !applied.has(item?.id ?? `proposal-${index}`)
+  ));
+  const remainingResults = (Array.isArray(itemResults) ? itemResults : []).filter((result) => (
+    !result?.operation?.id || !applied.has(result.operation.id)
+  ));
+  return { remainingProposal, remainingResults };
+}
+
+export function getScriptCreationBlocker({
+  analysis,
+  pendingProposal = null,
+  pendingReviewIds = new Set(),
+}) {
   const items = Array.isArray(analysis?.items) ? analysis.items : [];
   if (pendingProposal) return "請先套用或保留目前的 AI 檢查項目提案";
   if (items.length === 0) return "請先透過 AI 產生至少一個檢查項目";
@@ -236,9 +266,14 @@ export function getScriptCreationBlocker({ analysis, pendingProposal = null, pen
   if (reviewIds.size > 0) {
     return "部分項目的自動檢測支援待更新，請先請 AI 重新確認";
   }
-  const unsupportedCount = items.filter((item) => item.detectable === "manual").length;
+  const unsupportedCount = items.filter((item) => (
+    item.detectable === "manual" && item.judgement_mode !== "teacher"
+  )).length;
   const missingCount = items.filter((item) => (
     item.detectable === "partial"
+    || (item.detectable === "manual" && item.judgement_mode === "teacher" && (
+      !item.title?.trim() || !item.description?.trim()
+    ))
     || (item.detectable === "auto" && (
       !item.detection_method?.trim()
       || !Array.isArray(item.check_steps)
@@ -251,7 +286,7 @@ export function getScriptCreationBlocker({ analysis, pendingProposal = null, pen
   if (missingCount || unsupportedCount) {
     const details = [
       missingCount ? `${missingCount} 項缺少資訊` : null,
-      unsupportedCount ? `${unsupportedCount} 項需要導師核查或無法執行` : null,
+      unsupportedCount ? `${unsupportedCount} 項無法自動取證` : null,
     ].filter(Boolean).join("、");
     return `${details}；所有項目都顯示「可以」後，才能製作檢查腳本`;
   }
@@ -440,18 +475,13 @@ export function applyProposalOperations(currentItems, proposalItems, selectedIds
       byId.set(item.id, { ...byId.get(item.id), ...cleanItem });
     } else {
       const id = item.id ?? `item-${Date.now()}-${byId.size}`;
+      evaluatedIds.add(proposalId);
       evaluatedIds.add(id);
       byId.set(id, { ...cleanItem, id });
     }
   });
   return { items: [...byId.values()], evaluatedIds };
 }
-
-const ITEMWISE_STATUS_INFO = {
-  needs_information: { label: "缺少資訊", className: styles.detBadge_partial },
-  unsupported: { label: "無法自動檢查", className: styles.detBadge_manual },
-  analysis_error: { label: "分析失敗", className: styles.detBadge_manual },
-};
 
 export function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip, disabled, isRefine = false, itemResults = null }) {
   const contentId = useId();
@@ -461,9 +491,10 @@ export function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip
     setExpanded(true);
   }, [proposal, itemResults]);
 
-  if (!proposal?.length) return null;
+  const hasProposal = Boolean(proposal?.length);
+  if (!hasProposal) return null;
+  const proposalById = new Map((proposal ?? []).map((item, index) => [item.id ?? `proposal-${index}`, item]));
   const results = Array.isArray(itemResults) && itemResults.length ? itemResults : null;
-  const proposalById = new Map(proposal.map((item, index) => [item.id ?? `proposal-${index}`, item]));
   return (
     <section className={styles.proposalPreview} aria-label="AI 提案" aria-live="polite">
       <button
@@ -475,9 +506,7 @@ export function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip
       >
         <span className={styles.proposalHeading}>
           <strong>{isRefine ? "AI 核對提案" : "AI 提案"}</strong>
-          <small>
-            {isRefine ? "待確認" : "Ready"} {proposal.length} · 已選 {selectedIds.size}
-          </small>
+          <small>{`${isRefine ? "待確認" : "Ready"} ${proposal.length} · 已選 ${selectedIds.size}`}</small>
         </span>
         <span className={styles.proposalToggleAction}>
           {expanded ? "收合" : "展開"}
@@ -494,41 +523,25 @@ export function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip
           <div className={styles.proposalList}>
             {results
               ? results.map((result, index) => {
+                  // 缺資料／不支援的逐項結果不在提案面板留預留區；缺口資訊
+                  // 由 AI 回覆訊息逐項引導老師補充，這裡只呈現可套用的提案。
                   const operationId = result.operation?.id;
                   const selectable = (result.status === "ready" || result.status === "teacher_review") && operationId && proposalById.has(operationId);
-                  if (selectable) {
-                    const item = proposalById.get(operationId);
-                    return (
-                      <label className={styles.proposalRow} key={operationId}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(operationId)}
-                          disabled={disabled}
-                          onChange={() => onToggle(operationId)}
-                        />
-                        <span>
-                          <b>{result.source_label ? `${result.source_label}·` : ""}{item.title || "未命名項目"}</b>
-                          <small><em>{proposalOperationLabel(item)}</em>{item.description || "AI 建議新增或調整此檢查項目"}</small>
-                        </span>
-                      </label>
-                    );
-                  }
-                  const info = ITEMWISE_STATUS_INFO[result.status] ?? ITEMWISE_STATUS_INFO.analysis_error;
-                  const gaps = Array.isArray(result.missing_information) ? result.missing_information.filter(Boolean) : [];
-                  const reason = gaps.length
-                    ? gaps.join("、")
-                    : (result.status === "unsupported" ? result.detail || "" : "");
+                  if (!selectable) return null;
+                  const item = proposalById.get(operationId);
                   return (
-                    <div className={styles.proposalRow} key={`${result.source_index ?? index}-${result.title ?? ""}`}>
-                      <span className={`${styles.detBadge} ${styles[info.className]}`}>
-                        <MIcon name={result.status === "needs_information" ? "warning_amber" : "cancel"} size={16} aria-hidden="true" />
-                        <span>{info.label}</span>
-                      </span>
+                    <label className={styles.proposalRow} key={operationId ?? `proposal-${index}`}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(operationId)}
+                        disabled={disabled}
+                        onChange={() => onToggle(operationId)}
+                      />
                       <span>
-                        <b>{result.source_label ? `${result.source_label}·` : ""}{result.title || "未命名項目"}</b>
-                        {reason && <small><em>{reason}</em></small>}
+                        <b>{result.source_label ? `${result.source_label}·` : ""}{item.title || "未命名項目"}</b>
+                        <small><em>{proposalOperationLabel(item)}</em>{item.description || "AI 建議新增或調整此檢查項目"}</small>
                       </span>
-                    </div>
+                    </label>
                   );
                 })
               : proposal.map((item, index) => {
@@ -550,8 +563,12 @@ export function ProposalPanel({ proposal, selectedIds, onToggle, onApply, onSkip
                 })}
           </div>
           <div className={styles.proposalActions}>
-            <button type="button" className={styles.btnSecondary} disabled={disabled} onClick={onSkip}>忽略</button>
-            <button type="button" className={styles.btnPrimary} disabled={disabled || selectedIds.size === 0} onClick={onApply}>同意套用</button>
+            <button type="button" className={styles.btnSecondary} disabled={disabled} onClick={onSkip}>
+              忽略
+            </button>
+            {hasProposal && (
+              <button type="button" className={styles.btnPrimary} disabled={disabled || selectedIds.size === 0} onClick={onApply}>同意套用</button>
+            )}
           </div>
         </div>
       )}
@@ -1309,6 +1326,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     setSelectedProposalIds(new Set());
     setPendingProposalMeta(null);
     setPendingProposalIsRefine(false);
+    setPendingItemResults(null);
     if (!judgeSession?.id) return undefined;
     AiJudgeService.listSessionMessages(classId, judgeSession.id)
       .then((rows) => {
@@ -1333,6 +1351,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       setSelectedProposalIds(new Set());
       setPendingProposalMeta(null);
       setPendingProposalIsRefine(false);
+      setPendingItemResults(null);
     }
 
     if (!judgeSession?.selected_file_id) {
@@ -1543,9 +1562,11 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
       return;
     }
     const previousAnalysis = analysis;
+    const proposalBeforeApply = pendingProposal;
+    const itemResultsBeforeApply = pendingItemResults;
     const { items: nextItems, evaluatedIds } = applyProposalOperations(
       analysis?.items ?? [],
-      pendingProposal,
+      proposalBeforeApply,
       selectedProposalIds,
     );
     const currentPendingIds = sourceFileId
@@ -1565,8 +1586,33 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     }
     if (sourceFileId) pendingReviewIdsByFileRef.current.set(sourceFileId, pendingIdsAfterApply);
     setPendingReviewIds(pendingIdsAfterApply);
-    clearPendingProposal();
-    toast.success("已套用 AI 提出的檢查項目修改");
+    const remaining = getRemainingProposalState(
+      proposalBeforeApply,
+      itemResultsBeforeApply,
+      evaluatedIds,
+    );
+    setPendingProposal(remaining.remainingProposal.length ? remaining.remainingProposal : null);
+    setSelectedProposalIds(new Set(
+      remaining.remainingProposal.map((proposalItem, index) => proposalItem.id ?? `proposal-${index}`),
+    ));
+    setPendingProposalMeta(remaining.remainingProposal.length
+      ? {
+          ...(pendingProposalMeta ?? {}),
+          baseRevision: sourceFileId
+            ? analysisRevisionsRef.current.get(sourceFileId)
+            : pendingProposalMeta?.baseRevision,
+        }
+      : null);
+    setPendingProposalIsRefine(Boolean(remaining.remainingProposal.length && pendingProposalIsRefine));
+    // 缺資料的逐項結果不再以提案面板預留區顯示；套用 Ready 後直接清除，
+    // 缺口資訊留在 AI 回覆訊息中引導老師補充。
+    setPendingItemResults(null);
+    const unresolvedCount = getUnresolvedItemResults(remaining.remainingResults).length;
+    toast.success(
+      unresolvedCount > 0
+        ? `已套用可用的 AI 提案，仍有 ${unresolvedCount} 項需要補充資訊`
+        : "已套用 AI 提出的檢查項目修改",
+    );
   }
 
   function handleItemChange(index, updatedItem) {
@@ -1730,6 +1776,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
     : items.length === 0
       ? "請先新增至少一個檢查項目"
       : null;
+  const hasPendingItemResults = Boolean(pendingProposal);
 
   return (
     <div className={styles.tabBody}>
@@ -1746,7 +1793,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
         </div>
       )}
 
-      {analysis && items.length > 0 && scriptCreationBlocker && !pendingProposal && (
+      {analysis && items.length > 0 && scriptCreationBlocker && !hasPendingItemResults && (
         <div className={styles.noticeInfo} role="status">
           <p><strong>尚未符合腳本製作條件</strong></p>
           <p>{scriptCreationBlocker}。</p>
@@ -1767,7 +1814,7 @@ function RubricsTab({ classId, judgeSession, onSessionUpdated, onScriptCreated, 
                 <div className={`${styles.cardHead} ${sidebar ? styles.checkHead : ""}`}>
                   <h4 className={styles.cardTitle}>檢查項目（{items.length}）</h4>
                 </div>
-                {pendingProposal && <ProposalPanel
+                {hasPendingItemResults && <ProposalPanel
                   proposal={pendingProposal}
                   selectedIds={selectedProposalIds}
                   onToggle={(id) => setSelectedProposalIds((current) => {

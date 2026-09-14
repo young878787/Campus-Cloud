@@ -163,7 +163,7 @@ SCRIPT_GENERATION_SYSTEM_PROMPT = f"""
 - 一個 check 可支持多個 rubric item；一個 rubric item 也可由多個 check 支持。
 - check_id 必須與 script_content 中 record_check 使用的 id 完全一致。
 - rubric_item_ids 必須是 rubric snapshot 中真實存在的 item id。
-- 每個 rubric item 都必須至少被一個 check 覆蓋；若某項目真的無法取證，仍不得虛構映射，讓驗證明確回報缺口。
+- 每個需要腳本核對的 rubric item 都必須至少被一個 check 覆蓋；`detectable=manual` 且 `judgement_mode=teacher`、沒有 check_steps 的項目不進入腳本與 coverage，執行結果交由導師核查，不得虛構映射。
 
 # 簡潔程式碼骨架
 - 產生單檔 Python script；不要建立 class、plugin 架構、retry framework 或多層抽象。
@@ -1088,7 +1088,9 @@ async def build_reviewed_script(
 
         # ── rubric coverage 閘門 ──
         # 生成回應必須附上 coverage 映射；映射引用的 check/rubric id 必須真實
-        # 存在，且每個 rubric item 都至少被一個 check 覆蓋。patch 產生的腳本
+        # 存在，且每個需要腳本核對的 rubric item 都至少被一個 check 覆蓋。
+        # manual+teacher 且沒有 check_steps 的項目交由導師核查，不進 coverage。
+        # patch 產生的腳本
         # 先以實際 record_check ids 對帳，再驗證完整性。
         if coverage is None:
             missing_issue = "模型未提供 rubric 覆蓋映射（coverage）"

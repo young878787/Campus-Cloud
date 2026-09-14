@@ -935,6 +935,44 @@ async def test_teacher_judgement_rejects_ai_pass(monkeypatch):
         await analysis._call_ai_judgement(payload)
 
 
+async def test_manual_teacher_item_without_check_is_synthesized_as_teacher_review(
+    monkeypatch,
+):
+    monkeypatch.setattr(system_ai_env, "vllm_model_name", "test-model")
+    payload = {
+        "rubric_items": [
+            {
+                "id": "manual-item",
+                "title": "程式架構品質",
+                "description": "收集原始碼供老師判斷。",
+                "detectable": "manual",
+                "judgement_mode": "teacher",
+                "check_steps": [],
+            }
+        ],
+        "script_result": {"checks": []},
+    }
+
+    async def fake_call(*args, **kwargs):
+        return json.dumps({"summary": "已完成可執行項目核對", "item_judgements": []}), {}
+
+    monkeypatch.setattr(analysis, "_call_vllm", fake_call)
+    judgement = await analysis._call_ai_judgement(payload)
+
+    assert judgement["requires_teacher_review"] is True
+    assert judgement["teacher_review_item_ids"] == ["manual-item"]
+    assert judgement["item_judgements"] == [
+        {
+            "item_id": "manual-item",
+            "title": "程式架構品質",
+            "status": "unknown",
+            "evidence_refs": [],
+            "comment": "此項沒有腳本取證，待導師核查。",
+            "judgement_mode": "teacher",
+        }
+    ]
+
+
 async def test_judgement_cannot_silently_omit_rubric_items(monkeypatch):
     monkeypatch.setattr(system_ai_env, "vllm_model_name", "test-model")
     payload = _analysis_payload()

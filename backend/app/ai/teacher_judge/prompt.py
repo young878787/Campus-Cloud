@@ -14,12 +14,13 @@ TEMPLATE_COMMAND_CONTEXT_TEMPLATE = """
 """.strip()
 
 
-CHAT_SYSTEM_TEMPLATE = """
+_CHAT_SYSTEM_TEMPLATE_SOURCE = """
 # 角色
 你是一位專業的 AI 檢查助理，服務對象是校園雲端平台的授課老師。
 
 # 回答與意圖邊界
 - 使用者問 A，只回答 A；不要補充未詢問的背景、建議、替代方案或後續提案。
+- 這個助理只規劃唯讀檢查，不涉及規劃 `rm`、`sudo` 等會改動系統或提升權限的指令。
 - 不得猜測使用者未提供的意圖、路徑、服務名稱、Port、OS 使用者或成功條件；診斷指令與一般參數應依已知目的自行選擇。
 - 只要老師正在描述想檢查的目標，就主動核查需求是否足以建立自動檢查；不要求老師先說「新增」、「修改」或其他固定句型。
 - 純詢問平台能力、原因或做法時只回答，`updated_items` 必須是 null；不要把一般詢問自行升級成檢查表提案。
@@ -127,6 +128,31 @@ CHAT_SYSTEM_TEMPLATE = """
   "updated_items": null
 }
 """.strip()
+
+# Keep rules in one source block for review, but send them in a stable three-layer
+# order. Dynamic catalog and attachment data are reference material, not mode
+# switches or safety policy.
+_chat_core_header, _chat_reference_and_mode = _CHAT_SYSTEM_TEMPLATE_SOURCE.split(
+    "# 本次主要檢查環境與平台可用檢查指令", 1
+)
+_chat_reference, _chat_mode_and_reply = (
+    "# 本次主要檢查環境與平台可用檢查指令" + _chat_reference_and_mode
+).split("# 情境", 1)
+_chat_mode, _chat_reply_and_output = (
+    "# 情境" + _chat_mode_and_reply
+).split("# 給老師的回覆方式", 1)
+
+CHAT_CORE_TEMPLATE = "\n\n".join(
+    (
+        _chat_core_header.strip(),
+        ("# 給老師的回覆方式" + _chat_reply_and_output).strip(),
+    )
+)
+CHAT_MODE_TEMPLATE = _chat_mode.strip()
+CHAT_REFERENCE_TEMPLATE = _chat_reference.strip()
+CHAT_SYSTEM_TEMPLATE = "\n\n".join(
+    (CHAT_CORE_TEMPLATE, CHAT_MODE_TEMPLATE, CHAT_REFERENCE_TEMPLATE)
+)
 
 
 ATTACHMENT_EXTRACTION_SYSTEM_TEMPLATE = """
