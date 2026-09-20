@@ -7,6 +7,7 @@ import copy
 import json
 import logging
 import re
+import shlex
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -15,10 +16,15 @@ from typing import Any, Literal, cast
 
 import httpx
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from app.ai.teacher_judge._types import VLLMMetrics
 from app.ai.teacher_judge.automation_support import missing_step_information
 from app.ai.teacher_judge.config import settings
+from app.ai.teacher_judge.deterministic_compiler import (
+    is_typed_plan,
+    validate_check_plan,
+)
 from app.ai.teacher_judge.machine_context import (
     PEER_IP_TOKEN,
     canonicalize_machine_node_key,
@@ -233,12 +239,116 @@ _CHECKLIST_STEP_PARAMETERS_PROPERTIES: dict[str, Any] = {
     },
 }
 
-# New writes use a flat executable-step contract. Legacy fields are accepted by
-# the read/normalize path but are intentionally absent from the proposal tool.
+_CHECKLIST_TYPED_COLLECTOR_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "type": {
+            "type": "string",
+            "enum": [
+                "command",
+                "file_text",
+                "file_stat",
+                "localhost_http",
+                "peer_ping",
+            ],
+        },
+        **_CHECKLIST_STEP_PARAMETERS_PROPERTIES,
+        "path": {"type": "string"},
+        "read_mode": {"type": "string", "enum": ["full", "head", "tail"]},
+        "lines": {"type": "integer", "minimum": 1, "maximum": 10000},
+        "max_chars": {"type": "integer", "minimum": 1, "maximum": 12000},
+        "encoding": {"type": "string"},
+        "method": {"type": "string", "enum": ["GET", "HEAD"]},
+        "url": {"type": "string"},
+    },
+    "required": ["type"],
+    "anyOf": [
+        {
+            "properties": {"type": {"const": "command"}},
+            "required": ["type", "argv"],
+        },
+        {
+            "properties": {"type": {"const": "file_text"}},
+            "required": ["type", "path"],
+        },
+        {
+            "properties": {"type": {"const": "file_stat"}},
+            "required": ["type", "path"],
+        },
+        {
+            "properties": {"type": {"const": "localhost_http"}},
+            "required": ["type", "url"],
+        },
+        {
+            "properties": {"type": {"const": "peer_ping"}},
+            "required": ["type"],
+        },
+    ],
+    "additionalProperties": False,
+}
+
+_CHECKLIST_TYPED_ASSERTION_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "type": {
+            "type": "string",
+            "enum": [
+                "returncode_equals",
+                "text_equals",
+                "text_contains",
+                "number_compare",
+                "json_path_equals",
+                "exists",
+            ],
+        },
+        "expected": {},
+        "operator": {
+            "type": "string",
+            "enum": ["eq", "ne", "gt", "gte", "lt", "lte"],
+        },
+        "path": {"type": "string"},
+        "normalize": {"type": "string", "enum": ["strip"]},
+        "case_sensitive": {"type": "boolean"},
+    },
+    "required": ["type", "expected"],
+    "anyOf": [
+        {
+            "properties": {
+                "type": {
+                    "enum": [
+                        "returncode_equals",
+                        "text_equals",
+                        "text_contains",
+                        "exists",
+                    ]
+                }
+            },
+            "required": ["type", "expected"],
+        },
+        {
+            "properties": {"type": {"const": "number_compare"}},
+            "required": ["type", "expected", "operator"],
+        },
+        {
+            "properties": {"type": {"const": "json_path_equals"}},
+            "required": ["type", "expected", "path"],
+        },
+    ],
+    "additionalProperties": False,
+}
+
+# New proposal writes use one typed executable-step contract. Legacy flat and
+# catalog-backed fields remain readable only through the normalization path and
+# are intentionally absent from the model-facing proposal tool.
 _CHECKLIST_STEP_TOOL_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "properties": _CHECKLIST_STEP_PARAMETERS_PROPERTIES,
-    "required": ["argv"],
+    "properties": {
+        "id": {"type": "string", "description": "typed check ID；同一份 plan 內唯一"},
+        "title": {"type": "string", "description": "typed check 顯示名稱"},
+        "collector": _CHECKLIST_TYPED_COLLECTOR_SCHEMA,
+        "assertion": _CHECKLIST_TYPED_ASSERTION_SCHEMA,
+    },
+    "required": ["id", "collector"],
     "additionalProperties": False,
 }
 
@@ -266,8 +376,8 @@ _PROPOSAL_FILL_PROPERTIES: dict[str, Any] = {
     },
     "judgement_mode": {
         "type": "string",
-        "enum": ["ai", "teacher"],
-        "description": "結果核對方式：ai=系統自動核對、teacher=導師依腳本證據核查",
+        "enum": ["system", "teacher"],
+        "description": "結果核對方式：system=固定 assertion、teacher=導師核查",
     },
     "detection_method": {
         "type": ["string", "null"],
@@ -285,7 +395,7 @@ _PROPOSAL_FILL_PROPERTIES: dict[str, Any] = {
     "check_steps": {
         "type": "array",
         "items": _CHECKLIST_STEP_TOOL_SCHEMA,
-        "description": "auto 項目的受控唯讀檢查步驟；每步提供單一 argv，可選 cwd 與 timeout_seconds",
+        "description": "auto 項目的 typed collector/assertion 檢查步驟",
     },
 }
 
@@ -534,6 +644,15 @@ def _normalize_check_steps(
         if not isinstance(raw_step, dict):
             continue
 
+        if isinstance(raw_step.get("collector"), dict):
+            try:
+                normalized.append(TeacherJudgeRubricCheckStep.model_validate(raw_step))
+            except Exception:
+                # A malformed typed step is intentionally dropped here; the
+                # proposal path will report its structured validation issue.
+                continue
+            continue
+
         command_key = str(raw_step.get("command_key") or "").strip()
         step_template_key = str(raw_step.get("template_key") or template_key or "").strip()
         raw_parameters = raw_step.get("parameters")
@@ -624,10 +743,16 @@ def _normalize_rubric_items(
             "Literal['auto', 'partial', 'manual']", detectable_raw
         )
         judgement_mode_raw = str(raw.get("judgement_mode") or "ai").strip().lower()
-        if judgement_mode_raw not in {"ai", "teacher"}:
+        if judgement_mode_raw not in {"system", "ai", "teacher"}:
             judgement_mode_raw = "ai"
-        judgement_mode: Literal["ai", "teacher"] = cast(
-            "Literal['ai', 'teacher']", judgement_mode_raw
+        typed_steps_declared = any(
+            isinstance(step, dict) and isinstance(step.get("collector"), dict)
+            for step in (raw.get("check_steps") or [])
+        )
+        if typed_steps_declared and judgement_mode_raw == "ai":
+            judgement_mode_raw = "system"
+        judgement_mode: Literal["system", "ai", "teacher"] = cast(
+            "Literal['system', 'ai', 'teacher']", judgement_mode_raw
         )
 
         detection_method = raw.get("detection_method") or raw.get("detection")
@@ -652,6 +777,21 @@ def _normalize_rubric_items(
             template_key=template_key,
             template_commands=template_commands,
         )
+        typed_step_labels = [
+            (step.title or step.id or step.collector.type).strip()
+            for step in check_steps
+            if step.collector is not None
+        ]
+        if (
+            (detection_method is None or not str(detection_method).strip())
+            and typed_step_labels
+        ):
+            judgement_text = (
+                "收集證據後交由老師核查"
+                if judgement_mode == "teacher"
+                else "收集證據並套用固定判定條件"
+            )
+            detection_method = f"{judgement_text}：{'、'.join(typed_step_labels)}"
         system_command_steps = [
             step for step in check_steps if step.command_key == "system.run_command"
         ]
@@ -835,7 +975,8 @@ def _proposal_candidate_rejection(
         return (
             f"「{normalized.title}」被標成 manual 且沒有列出缺口，"
             "但目前平台已提供 system.run_command，可規劃單一安全唯讀 argv。"
-            "若可由唯讀查詢取得證據，請改為 auto 並提供 argv，預設以 judgement_mode=ai 為目標；"
+            "若可由唯讀查詢取得證據，請改為 auto 並提供 typed collector/assertion，"
+            "預設以 judgement_mode=system 為目標；"
             "只有老師已明確表示想自己檢查時才使用 judgement_mode=teacher；"
             "只有確實無法取得任何證據時，才維持 manual 並在 missing_information 說明原因。"
         )
@@ -859,6 +1000,114 @@ def _proposal_candidate_rejection(
             "不要為缺少資訊或不支援的項目建立提案；請改在 reply 中說明缺少的內容。"
         )
     return None
+
+
+def _proposal_check_plan_issues(
+    normalized: TeacherJudgeRubricItem,
+    raw: dict[str, Any],
+    *,
+    require_typed_steps: bool,
+    require_target_node: bool,
+) -> list[dict[str, str]]:
+    """Validate a new typed proposal with the same gate used by compilation.
+
+    Legacy rows remain readable and may be edited without touching their
+    existing check_steps.  A create call, or an edit that replaces check_steps,
+    must use the canonical typed contract and pass the deterministic compiler
+    before it can be staged.
+    """
+
+    raw_detectable = str(raw.get("detectable") or "").strip().casefold()
+    if raw_detectable != "auto":
+        return []
+
+    raw_mode = str(raw.get("judgement_mode") or "").strip().casefold()
+    issues: list[dict[str, str]] = []
+    if require_typed_steps and raw_mode == "ai":
+        issues.append(
+            {
+                "path": "judgement_mode",
+                "message": "新提案只允許 system/teacher；ai 僅供舊資料讀取相容",
+            }
+        )
+
+    raw_steps = raw.get("check_steps")
+    if require_typed_steps and (
+        not isinstance(raw_steps, list)
+        or not raw_steps
+        or any(
+            not isinstance(step, dict)
+            or not isinstance(step.get("collector"), dict)
+            for step in raw_steps
+        )
+    ):
+        issues.append(
+            {
+                "path": "check_steps",
+                "message": "新提案的每個 check step 都必須使用 id + collector typed contract",
+            }
+        )
+        return issues
+
+    snapshot = {"items": [normalized.model_dump(mode="json")]}
+    if not is_typed_plan(snapshot):
+        if require_typed_steps:
+            for index, raw_step in enumerate(raw_steps or []):
+                if not isinstance(raw_step, dict):
+                    continue
+                try:
+                    TeacherJudgeRubricCheckStep.model_validate(raw_step)
+                except ValidationError as exc:
+                    for error in exc.errors(include_url=False):
+                        location = ".".join(str(part) for part in error.get("loc") or [])
+                        issues.append(
+                            {
+                                "path": (
+                                    f"check_steps[{index}].{location}"
+                                    if location
+                                    else f"check_steps[{index}]"
+                                ),
+                                "message": str(
+                                    error.get("msg")
+                                    or "typed check step 無法解析"
+                                ),
+                            }
+                        )
+            if not issues:
+                issues.append(
+                    {
+                        "path": "check_steps",
+                        "message": "typed check_steps 無法形成完整 Check Plan",
+                    }
+                )
+        return issues
+
+    validation = validate_check_plan(snapshot)
+    for issue in validation.get("issues") or []:
+        if isinstance(issue, dict):
+            issue_path = str(issue.get("path") or "check_steps")
+            if not require_target_node and issue_path.endswith(".target_node_key"):
+                continue
+            issues.append(
+                {
+                    "path": issue_path,
+                    "message": str(issue.get("message") or "typed Check Plan 驗證失敗"),
+                }
+            )
+    return issues
+
+
+def _check_plan_rejection_text(
+    title: str,
+    issues: list[dict[str, str]],
+) -> str:
+    details = "；".join(
+        f"{issue['path']}: {issue['message']}" for issue in issues[:4]
+    )
+    return (
+        f"「{title}」的 typed Check Plan 沒有通過驗證：{details}。"
+        "這是提案內容的內部契約錯誤，不是老師缺少資訊；請依欄位路徑修正後重試。"
+    )
 
 
 _PROPOSAL_COMPARE_FIELDS = (
@@ -974,8 +1223,12 @@ def _recovered_catalog_item_titles(
             for step in raw.get("check_steps") or []
             if isinstance(step, dict)
         }
-        normalized_command_keys = {step.command_key for step in item.check_steps}
-        if not normalized_command_keys.issubset(raw_command_keys):
+        normalized_command_keys = {
+            step.command_key for step in item.check_steps if step.command_key
+        }
+        if normalized_command_keys and not normalized_command_keys.issubset(
+            raw_command_keys
+        ):
             recovered.append(item.title)
     return recovered
 
@@ -1604,11 +1857,185 @@ def _canonicalize_proposal_machine_fields(
     if machine_entries is None:
         return raw_item
     result = dict(raw_item)
+    available_node_keys = [
+        str(entry.get("node_key") or "").strip()
+        for entry in machine_entries
+        if str(entry.get("node_key") or "").strip()
+    ]
+    if not result.get("target_node_key") and len(available_node_keys) == 1:
+        result["target_node_key"] = available_node_keys[0]
     for field_name in ("target_node_key", "peer_node_key"):
         if field_name in result:
             result[field_name] = canonicalize_machine_node_key(
                 result.get(field_name), machine_entries
             )
+    return result
+
+
+def _proposal_step_id(raw_step: dict[str, Any], index: int) -> str:
+    source = str(
+        raw_step.get("command_key")
+        or raw_step.get("id")
+        or "command"
+    ).strip().casefold()
+    normalized = re.sub(r"[^a-z0-9_.-]+", "-", source).strip("-.") or "command"
+    return f"{normalized}.{index + 1}"
+
+
+def _legacy_success_assertion(parameters: dict[str, Any]) -> dict[str, Any] | None:
+    """Convert only unambiguous legacy success prose into a typed assertion."""
+
+    raw_criteria = parameters.get("success_criteria")
+    criteria = str(raw_criteria or "").strip()
+    if not criteria:
+        return {"type": "returncode_equals", "expected": 0}
+    normalized = criteria.casefold()
+    stdout_equals = re.search(r"stdout\s*(?:等於|為|==|=)\s*(.+)$", criteria, re.I)
+    if stdout_equals:
+        return {
+            "type": "text_equals",
+            "expected": stdout_equals.group(1).strip(),
+            "normalize": "strip",
+        }
+    stdout_contains = re.search(
+        r"(?:stdout|輸出)\s*(?:包含|含|contains?)\s*(.+)$",
+        criteria,
+        re.I,
+    )
+    if stdout_contains:
+        return {
+            "type": "text_contains",
+            "expected": stdout_contains.group(1).strip(),
+            "case_sensitive": True,
+        }
+    if re.fullmatch(
+        r"\s*(?:exit\s*code|returncode|回傳碼|結束碼)\s*(?:為|等於|==|=)?\s*0\s*",
+        normalized,
+    ):
+        return {"type": "returncode_equals", "expected": 0}
+    return None
+
+
+def _legacy_proposal_step_to_typed(
+    raw_step: dict[str, Any],
+    *,
+    index: int,
+    judgement_mode: str,
+    template_key: str,
+    template_commands: list[TeacherJudgeTemplateCommand] | None,
+) -> dict[str, Any] | None:
+    """Convert a complete legacy command step at the proposal write boundary."""
+
+    raw_parameters = raw_step.get("parameters")
+    parameters = dict(raw_parameters) if isinstance(raw_parameters, dict) else {}
+    for key in ("argv", "cwd", "timeout_seconds"):
+        if key in raw_step and raw_step[key] is not None:
+            parameters.setdefault(key, raw_step[key])
+
+    argv = parameters.get("argv")
+    if not (
+        isinstance(argv, list)
+        and argv
+        and all(isinstance(part, str) and part.strip() for part in argv)
+    ):
+        command_key = str(raw_step.get("command_key") or "").strip()
+        requested_template = str(
+            raw_step.get("template_key") or template_key or ""
+        ).strip()
+        matching = [
+            command
+            for command in template_commands or []
+            if command.command_key == command_key
+            and (
+                not requested_template
+                or command.template_key == requested_template
+                or len(
+                    [
+                        candidate
+                        for candidate in template_commands or []
+                        if candidate.command_key == command_key
+                    ]
+                )
+                == 1
+            )
+        ]
+        if len(matching) != 1 or command_key == "system.run_command":
+            return None
+        command_template = matching[0].command_template.strip()
+        if any(marker in command_template for marker in ("|", ">", "<", ";", "&&", "||", "$(", "`")):
+            return None
+        try:
+            argv = shlex.split(command_template, posix=True)
+        except ValueError:
+            return None
+        if not argv:
+            return None
+
+    timeout = coerce_timeout_seconds(parameters.get("timeout_seconds"))
+    collector: dict[str, Any]
+    if PEER_IP_TOKEN in argv:
+        collector = {
+            "type": "peer_ping",
+            "timeout_seconds": timeout or DEFAULT_SYSTEM_COMMAND_TIMEOUT_SECONDS,
+        }
+    else:
+        collector = {
+            "type": "command",
+            "argv": argv,
+            "timeout_seconds": timeout or DEFAULT_SYSTEM_COMMAND_TIMEOUT_SECONDS,
+        }
+        cwd = parameters.get("cwd")
+        if isinstance(cwd, str) and cwd.strip():
+            collector["cwd"] = cwd.strip()
+
+    typed: dict[str, Any] = {
+        "id": _proposal_step_id(raw_step, index),
+        "collector": collector,
+    }
+    title = str(raw_step.get("title") or raw_step.get("command_label") or "").strip()
+    if title:
+        typed["title"] = title
+    if judgement_mode != "teacher":
+        assertion = _legacy_success_assertion(parameters)
+        if assertion is None:
+            return None
+        typed["assertion"] = assertion
+    return typed
+
+
+def _canonicalize_proposal_write_contract(
+    raw_item: dict[str, Any],
+    *,
+    template_key: str,
+    template_commands: list[TeacherJudgeTemplateCommand] | None,
+) -> dict[str, Any]:
+    """Canonicalize complete legacy proposal input before any new persistence."""
+
+    result = dict(raw_item)
+    mode = str(result.get("judgement_mode") or "system").strip().casefold()
+    if mode == "ai":
+        mode = "system"
+        result["judgement_mode"] = "system"
+    raw_steps = result.get("check_steps")
+    if not isinstance(raw_steps, list):
+        return result
+    converted: list[Any] = []
+    for index, raw_step in enumerate(raw_steps):
+        if not isinstance(raw_step, dict):
+            converted.append(raw_step)
+            continue
+        if isinstance(raw_step.get("collector"), dict):
+            converted.append(raw_step)
+            continue
+        typed = _legacy_proposal_step_to_typed(
+            raw_step,
+            index=index,
+            judgement_mode=mode,
+            template_key=template_key,
+            template_commands=template_commands,
+        )
+        converted.append(typed if typed is not None else raw_step)
+    result["check_steps"] = converted
     return result
 
 
@@ -1715,6 +2142,11 @@ def _execute_checklist_tool(
             raw_item = _canonicalize_proposal_machine_fields(
                 {**arguments, "id": item_id, "title": title}, machine_entries
             )
+            raw_item = _canonicalize_proposal_write_contract(
+                raw_item,
+                template_key=template_key,
+                template_commands=template_commands,
+            )
         except ValueError as exc:
             return {"error": str(exc)}
         candidate_list = _normalize_rubric_items(
@@ -1725,6 +2157,31 @@ def _execute_checklist_tool(
         if not candidate_list:
             return {"error": "無法解析 create_checklist_item 的欄位，請重新呼叫。"}
         candidate = candidate_list[0]
+        plan_issues = _proposal_check_plan_issues(
+            candidate,
+            raw_item,
+            require_typed_steps=True,
+            require_target_node=machine_entries is not None,
+        )
+        if plan_issues:
+            plan_rejection = _check_plan_rejection_text(title, plan_issues)
+            rejected_ops.append((candidate, raw_item, plan_rejection))
+            tool_calls.append(
+                {
+                    "tool": name,
+                    "status": "rejected",
+                    "item_id": item_id,
+                    "title": title,
+                    "reason": plan_rejection,
+                    "error_code": "teacher_judge_check_plan_invalid",
+                    "issues": plan_issues,
+                },
+            )
+            return {
+                "error": plan_rejection,
+                "error_code": "teacher_judge_check_plan_invalid",
+                "issues": plan_issues,
+            }
         rejection = _proposal_candidate_rejection(
             candidate,
             raw_item,
@@ -1801,6 +2258,12 @@ def _execute_checklist_tool(
             raw_candidate = _canonicalize_proposal_machine_fields(
                 {**current_raw, **patch}, machine_entries
             )
+            if "check_steps" in arguments:
+                raw_candidate = _canonicalize_proposal_write_contract(
+                    raw_candidate,
+                    template_key=template_key,
+                    template_commands=template_commands,
+                )
         except ValueError as exc:
             return {"error": str(exc)}
         candidate_list = _normalize_rubric_items(
@@ -1815,6 +2278,36 @@ def _execute_checklist_tool(
         if not candidate_list:
             return {"error": "無法解析 edit_checklist_item 的欄位，請重新呼叫。"}
         candidate = candidate_list[0]
+        plan_issues = _proposal_check_plan_issues(
+            candidate,
+            raw_candidate,
+            require_typed_steps=(
+                "check_steps" in arguments
+                or any(step.collector is not None for step in candidate.check_steps)
+            ),
+            require_target_node=machine_entries is not None,
+        )
+        if plan_issues:
+            plan_rejection = _check_plan_rejection_text(
+                str(candidate.title), plan_issues
+            )
+            rejected_ops.append((candidate, raw_candidate, plan_rejection))
+            tool_calls.append(
+                {
+                    "tool": name,
+                    "status": "rejected",
+                    "item_id": item_id,
+                    "title": str(candidate.title),
+                    "reason": plan_rejection,
+                    "error_code": "teacher_judge_check_plan_invalid",
+                    "issues": plan_issues,
+                },
+            )
+            return {
+                "error": plan_rejection,
+                "error_code": "teacher_judge_check_plan_invalid",
+                "issues": plan_issues,
+            }
         current_normalized = _normalize_rubric_items(
             [current_raw],
             template_key=template_key,
@@ -1946,6 +2439,8 @@ async def _run_proposal_tool_loop(
     final_content = ""
     reminder_count = 0
     forced_tool_choice: dict[str, Any] | None = None
+    failed_fingerprints: set[str] = set()
+    repeated_failure = False
     for _ in range(max_rounds):
         round_payload = {**base_request, "messages": list(messages)}
         if forced_tool_choice is not None:
@@ -2040,6 +2535,26 @@ async def _run_proposal_tool_loop(
                 tool_calls=tool_outcomes,
             )
             if isinstance(result, dict) and result.get("error"):
+                fingerprint_payload = {
+                    "tool": tool_name,
+                    "title": arguments.get("title"),
+                    "item_id": arguments.get("id"),
+                    "error_code": result.get("error_code"),
+                    "issues": result.get("issues"),
+                    "error": result.get("error")
+                    if not result.get("error_code")
+                    else None,
+                }
+                fingerprint = json.dumps(
+                    fingerprint_payload,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                )
+                if fingerprint in failed_fingerprints:
+                    repeated_failure = True
+                else:
+                    failed_fingerprints.add(fingerprint)
                 logger.warning(
                     "Teacher Judge tool %s failed argument validation: %s",
                     tool_name or "(missing name)",
@@ -2059,6 +2574,11 @@ async def _run_proposal_tool_loop(
                     "content": json.dumps(result, ensure_ascii=False),
                 },
             )
+        if repeated_failure:
+            logger.warning(
+                "Teacher Judge stopped repeated tool validation failure after one repair attempt"
+            )
+            break
     else:
         # Round budget exhausted while the model kept calling tools; force one
         # plain reply round without tools so the teacher always gets an answer.
@@ -2069,6 +2589,19 @@ async def _run_proposal_tool_loop(
             len(staged_ops),
             len(rejected_ops),
         )
+        reply_payload = {**base_request, "messages": list(messages)}
+        reply_payload.pop("tools", None)
+        reply_payload.pop("tool_choice", None)
+        request = apply_thinking_control(reply_payload, settings.VLLM_ENABLE_THINKING)
+        raw_message, round_metrics = await _call_vllm_message(
+            request, timeout=float(settings.VLLM_TIMEOUT)
+        )
+        metrics = _merge_vllm_metrics(metrics, round_metrics)
+        final_content, _ = _extract_fenced_tool_calls(
+            str(_assistant_message(raw_message).get("content") or "")
+        )
+
+    if repeated_failure:
         reply_payload = {**base_request, "messages": list(messages)}
         reply_payload.pop("tools", None)
         reply_payload.pop("tool_choice", None)
@@ -2327,11 +2860,17 @@ async def chat_with_rubric(
                     f"{entry[0].title}: {entry[2]}" for entry in rejected_ops
                 ),
             )
-            reply_text = _proposal_unavailable_reply(
-                [entry[0] for entry in rejected_ops],
-                [entry[1] for entry in rejected_ops],
-                template_commands,
-            )
+            if any("typed Check Plan" in entry[2] for entry in rejected_ops):
+                reply_text = (
+                    "這次未建立提案：AI 產生的檢查步驟未通過平台驗證。"
+                    "這不是您缺少資訊；請再試一次，若持續發生請由管理員檢查 AI 輸出。"
+                )
+            else:
+                reply_text = _proposal_unavailable_reply(
+                    [entry[0] for entry in rejected_ops],
+                    [entry[1] for entry in rejected_ops],
+                    template_commands,
+                )
         elif rubric_available:
             reply_text = _proposal_unavailable_reply([], [], template_commands)
         else:

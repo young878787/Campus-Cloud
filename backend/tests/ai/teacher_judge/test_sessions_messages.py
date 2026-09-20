@@ -658,6 +658,8 @@ async def test_refine_message_uses_the_rubric_polish_prompt_mode(
         assert messages[-1].content == "請審核並潤飾目前的檢查表"
         assert '"items": []' in rubric_context
         assert kwargs["is_refine"] is True
+        assert kwargs["template_key"] == rubric_file.template_key
+        assert kwargs["environment_keys"] == rubric_file.environment_keys
         assert "ready_proposals_only" not in kwargs
         return "檢查完畢，檢查表目前狀態良好。", None, {}
 

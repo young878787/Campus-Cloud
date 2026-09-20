@@ -32,6 +32,23 @@ from tests.ai.teacher_judge.helpers import (
 )
 
 
+def test_proposal_tool_exposes_only_typed_check_steps() -> None:
+    schema = teacher_judge_service._CHECKLIST_STEP_TOOL_SCHEMA
+
+    assert schema["required"] == ["id", "collector"]
+    assert "anyOf" not in schema
+    assert "argv" not in schema["properties"]
+    collector_schema = schema["properties"]["collector"]
+    assert any(
+        branch.get("properties", {}).get("type", {}).get("const") == "command"
+        and "argv" in branch.get("required", [])
+        for branch in collector_schema["anyOf"]
+    )
+    assert teacher_judge_service._PROPOSAL_FILL_PROPERTIES["judgement_mode"][
+        "enum"
+    ] == ["system", "teacher"]
+
+
 def _python_entrypoint_command() -> TeacherJudgeTemplateCommand:
     return TeacherJudgeTemplateCommand(
         template_key="python",
@@ -129,7 +146,8 @@ async def test_teacher_judgement_requirement_can_form_proposal_without_objective
     assert proposal is not None
     assert proposal[0]["detectable"] == "auto"
     assert proposal[0]["judgement_mode"] == "teacher"
-    assert "success_criteria" not in proposal[0]["check_steps"][0]["parameters"]
+    assert proposal[0]["check_steps"][0]["collector"]["argv"] == ["cat", "main.py"]
+    assert "assertion" not in proposal[0]["check_steps"][0]
 
 
 def test_normalize_marks_auto_without_valid_check_steps_as_unsupported() -> None:
@@ -311,8 +329,9 @@ async def test_edit_patch_with_incomplete_parameters_returns_retry_hint(
 
     assert len(calls) == 4
     rejected_result = json.loads(calls[2]["messages"][-1]["content"])
-    assert "可由你自行補齊" in rejected_result["error"]
-    assert "argv" in rejected_result["error"]
+    assert rejected_result["error_code"] == "teacher_judge_check_plan_invalid"
+    assert rejected_result["issues"][0]["path"] == "check_steps"
+    assert "typed Check Plan" in rejected_result["error"]
     assert "請改在 reply 中說明缺少的內容" not in rejected_result["error"]
     staged_result = json.loads(calls[3]["messages"][-1]["content"])
     assert staged_result["staged"] == "update"
@@ -494,9 +513,8 @@ async def test_complete_manual_system_info_candidate_reselects_generic_capabilit
     assert "整理成提案" in reply
     assert proposal is not None
     assert proposal[0]["detectable"] == "auto"
-    assert proposal[0]["judgement_mode"] == "ai"
-    assert proposal[0]["check_steps"][0]["command_key"] == "system.run_command"
-    assert proposal[0]["check_steps"][0]["parameters"]["argv"] == ["uname", "-a"]
+    assert proposal[0]["judgement_mode"] == "system"
+    assert proposal[0]["check_steps"][0]["collector"]["argv"] == ["uname", "-a"]
 
 
 @pytest.mark.asyncio
@@ -571,12 +589,69 @@ async def test_invalid_step_then_manual_uses_distinct_capability_repair(
 
     assert len(calls) == 4
     step_error = json.loads(calls[1]["messages"][-1]["content"])
-    assert "check_steps 沒有通過驗證" in step_error["error"]
+    assert "typed Check Plan 沒有通過驗證" in step_error["error"]
+    assert step_error["error_code"] == "teacher_judge_check_plan_invalid"
     capability_error = json.loads(calls[2]["messages"][-1]["content"])
     assert "已提供 system.run_command" in capability_error["error"]
     assert "整理成提案" in reply
     assert proposal is not None
-    assert proposal[0]["check_steps"][0]["command_key"] == "system.run_command"
+    assert proposal[0]["check_steps"][0]["collector"]["argv"] == ["uname", "-a"]
+
+
+@pytest.mark.asyncio
+async def test_repeated_typed_validation_failure_stops_after_one_repair(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invalid_call = tool_call_message(
+        "create_checklist_item",
+        {
+            "title": "檢查 Python 版本是否為 3.11",
+            "detectable": "auto",
+            "judgement_mode": "system",
+            "check_steps": [
+                {
+                    "id": "runtime.python_version",
+                    "collector": {
+                        "type": "command",
+                    },
+                    "assertion": {
+                        "type": "text_contains",
+                        "expected": "Python 3.11",
+                    },
+                }
+            ],
+        },
+    )
+    calls, fake_call_vllm = scripted_vllm(
+        [
+            invalid_call,
+            invalid_call,
+            reply_message("這次未能建立提案。", "none"),
+        ]
+    )
+    monkeypatch.setattr(teacher_judge_service, "_call_vllm_message", fake_call_vllm)
+    patch_teacher_judge_vllm_settings(monkeypatch)
+
+    result = await teacher_judge_service.chat_with_rubric(
+        messages=[SimpleNamespace(role="user", content="檢查 Python 版本是否為 3.11")],
+        rubric_context=json.dumps({"items": []}),
+        template_commands=[],
+        rubric_available=True,
+    )
+
+    assert len(calls) == 3
+    assert all("tools" in call for call in calls[:2])
+    assert "tools" not in calls[2]
+    assert result.proposal is None
+    rejected = [
+        outcome
+        for outcome in result.tool_calls or []
+        if outcome.get("status") == "rejected"
+    ]
+    assert len(rejected) == 1
+    assert rejected[0]["error_code"] == "teacher_judge_check_plan_invalid"
+    assert rejected[0]["issues"][0]["path"] == "check_steps[0].collector"
+    assert "argv" in rejected[0]["issues"][0]["message"]
 
 
 @pytest.mark.asyncio

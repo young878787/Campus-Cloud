@@ -962,6 +962,8 @@ def _item_result_status(checks: list[dict[str, Any]]) -> str:
         return "warning"
     if not checks or "unknown" in statuses:
         return "unknown"
+    if "collected" in statuses:
+        return "collected" if statuses == {"collected"} else "unknown"
     if statuses == {"skipped"}:
         return "skipped"
     return "pass"
@@ -1006,6 +1008,9 @@ def project_run_items(
             _redact_peer_ips(checks, peer_ips or set()),
         )
         peer_node_key = str(raw_item.get("peer_node_key") or "") or None
+        judgement_mode = str(raw_item.get("judgement_mode") or "ai").strip().lower()
+        if judgement_mode == "ai":
+            judgement_mode = "system"
         peer_state = (peer_resolution or {}).get(peer_node_key or "")
         peer_available = not peer_node_key or (
             isinstance(peer_state, dict)
@@ -1020,7 +1025,7 @@ def project_run_items(
             {
                 "rubric_item_id": item_id,
                 "title": str(raw_item.get("title") or item_id),
-                "judgement_mode": str(raw_item.get("judgement_mode") or "ai"),
+                "judgement_mode": judgement_mode,
                 "status": item_status,
                 "peer_node_key": peer_node_key,
                 "peer_display_label": display_labels.get(peer_node_key or ""),

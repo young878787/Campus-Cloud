@@ -55,6 +55,7 @@ class AIReviewResult(TypedDict):
     risk_level: Literal["low", "medium", "high"]
     issues: list[str]
     suggested_fix: str | None
+    mode: NotRequired[str]
 
 
 # ── Gate Merge Result ─────────────────────────────────────────────────────────

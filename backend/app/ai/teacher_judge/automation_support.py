@@ -45,6 +45,10 @@ def missing_step_information(
     step: TeacherJudgeRubricCheckStep,
 ) -> list[str]:
     """Return required structured inputs missing from a parameterized command step."""
+    if step.collector is not None:
+        # Typed collector requirements are validated by the deterministic
+        # compiler.  Do not reinterpret them as legacy command parameters.
+        return []
     parameters = step.parameters
     missing: list[str] = []
 

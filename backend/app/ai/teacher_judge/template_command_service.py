@@ -196,6 +196,32 @@ def validate_check_steps_with_issues(
                         CheckStepIssue("model", item_id, "invalid_step", "檢查步驟不是物件")
                     )
                     continue
+
+                # Typed Check Plan steps are already platform-neutral and do
+                # not belong to the legacy template command catalog.  Validate
+                # their public shape here, while leaving security and
+                # cross-field policy to the deterministic compiler.
+                if isinstance(raw_step.get("collector"), dict):
+                    try:
+                        from app.ai.teacher_judge.schemas import (
+                            TeacherJudgeRubricCheckStep,
+                        )
+
+                        typed_step = TeacherJudgeRubricCheckStep.model_validate(
+                            raw_step
+                        )
+                    except Exception as exc:
+                        issues.append(
+                            CheckStepIssue(
+                                "model",
+                                item_id,
+                                "invalid_typed_step",
+                                f"typed check step 無法解析: {exc}",
+                            )
+                        )
+                        continue
+                    valid_steps.append(typed_step.model_dump(mode="json"))
+                    continue
                 raw_parameters = raw_step.get("parameters")
                 parameters = (
                     dict(raw_parameters) if isinstance(raw_parameters, dict) else {}

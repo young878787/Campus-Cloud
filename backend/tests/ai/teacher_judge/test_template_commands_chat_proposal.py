@@ -77,7 +77,16 @@ async def test_proposal_canonicalizes_executor_and_peer_p_labels(
     assert proposal is not None
     assert proposal[0]["target_node_key"] == "db"
     assert proposal[0]["peer_node_key"] == "web"
-    assert proposal[0]["check_steps"][0]["argv"][-1] == "{{peer.ip}}"
+    assert proposal[0]["judgement_mode"] == "system"
+    assert proposal[0]["check_steps"][0]["collector"] == {
+        "type": "peer_ping",
+        "timeout_seconds": 30,
+    }
+    assert proposal[0]["check_steps"][0]["assertion"] == {
+        "type": "returncode_equals",
+        "expected": 0,
+        "case_sensitive": True,
+    }
 
 
 @pytest.mark.asyncio
@@ -126,8 +135,8 @@ async def test_uncatalogued_tool_with_complete_argv_still_forms_proposal(
     assert len(calls) == 2
     assert "整理成提案" in reply
     assert proposal is not None
-    assert proposal[0]["check_steps"][0]["command_key"] == "system.run_command"
-    assert proposal[0]["check_steps"][0]["parameters"]["argv"] == [
+    assert proposal[0]["judgement_mode"] == "system"
+    assert proposal[0]["check_steps"][0]["collector"]["argv"] == [
         "jq",
         "--version",
     ]
@@ -362,7 +371,10 @@ async def test_missing_success_criteria_no_longer_rejects_auto_proposal(
     assert result.proposal is not None
     assert len(result.proposal) == 1
     assert result.proposal[0]["detectable"] == "auto"
-    assert "success_criteria" not in result.proposal[0]["check_steps"][0]["parameters"]
+    assert result.proposal[0]["check_steps"][0]["assertion"]["type"] == (
+        "returncode_equals"
+    )
+    assert "parameters" not in result.proposal[0]["check_steps"][0]
     tool_outcomes = result.tool_calls or []
     rejected = [entry for entry in tool_outcomes if entry.get("status") == "rejected"]
     staged = [entry for entry in tool_outcomes if entry.get("status") == "staged"]
@@ -426,12 +438,18 @@ async def test_explicit_env_assignment_forms_proposal_when_model_claims_missing_
                     "detection_method": "讀取指定檔案並比對設定行。",
                     "check_steps": [
                         {
-                            "template_key": "linux",
-                            "command_key": "system.run_command",
-                            "parameters": {
-                                "argv": ["cat", "--", "/home/student/.env"],
-                                "timeout_seconds": 30,
-                                "success_criteria": "輸出含 web_url=True",
+                            "id": "config.web_url",
+                            "collector": {
+                                "type": "file_text",
+                                "path": "/home/student/.env",
+                                "read_mode": "full",
+                                "max_chars": 12000,
+                                "encoding": "utf-8",
+                            },
+                            "assertion": {
+                                "type": "text_contains",
+                                "expected": "web_url=True",
+                                "case_sensitive": True,
                             },
                         }
                     ],
@@ -466,11 +484,12 @@ async def test_explicit_env_assignment_forms_proposal_when_model_claims_missing_
     assert "管理員" not in reply
     assert proposal is not None
     assert proposal[0]["operation"] == "add"
-    assert proposal[0]["check_steps"][0]["parameters"]["argv"] == [
-        "cat",
-        "--",
-        "/home/student/.env",
-    ]
+    assert proposal[0]["check_steps"][0]["collector"]["path"] == (
+        "/home/student/.env"
+    )
+    assert proposal[0]["check_steps"][0]["assertion"]["expected"] == (
+        "web_url=True"
+    )
 
 
 @pytest.mark.asyncio
@@ -529,19 +548,14 @@ async def test_chat_with_rubric_validates_returned_check_steps(
         template_commands=[command],
     )
 
-    assert updated_items is not None
+    assert updated_items == []
     system_prompt = captured_payload["messages"][0]["content"]
     assert "目前主要 template：n8n" in system_prompt
     assert "n8n.http_check" in system_prompt
     assert "curl -I" not in system_prompt
-    assert updated_items[0]["check_steps"] == [
-        {
-            "template_key": "n8n",
-            "command_key": "n8n.http_check",
-            "command_label": "n8n HTTP 檢查",
-            "parameters": {},
-        }
-    ]
+    tool_result = json.loads(calls[2]["messages"][-1]["content"])
+    assert tool_result["error_code"] == "teacher_judge_check_plan_invalid"
+    assert tool_result["issues"][0]["path"] == "check_steps"
 
 
 @pytest.mark.asyncio
@@ -791,8 +805,8 @@ async def test_boolean_detectable_and_flat_generic_argv_form_proposal(
     assert len(calls) == 2
     assert proposal is not None
     assert proposal[0]["detectable"] == "auto"
-    assert proposal[0]["check_steps"][0]["command_key"] == "system.run_command"
-    assert proposal[0]["check_steps"][0]["parameters"]["argv"] == [
+    assert proposal[0]["check_steps"][0]["collector"]["argv"] == [
         "python3",
         "--version",
     ]
+    assert "command_key" not in proposal[0]["check_steps"][0]

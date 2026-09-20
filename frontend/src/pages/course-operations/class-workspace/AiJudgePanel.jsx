@@ -2537,6 +2537,7 @@ const CHECK_STATUS_META = {
   fail: { icon: "cancel", label: "未通過", className: styles.checkIconFail },
   warning: { icon: "warning", label: "需注意", className: styles.checkIconWarn },
   unknown: { icon: "help", label: "待導師核查", className: styles.checkIconWarn },
+  collected: { icon: "assignment", label: "待導師核查", className: styles.checkIconWarn },
   skipped: { icon: "remove_circle_outline", label: "略過", className: styles.checkIconSkip },
 };
 
@@ -2549,6 +2550,7 @@ function checkStatusMeta(status) {
 }
 
 function parseCheckRaw(raw) {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) return raw;
   if (typeof raw !== "string" || !raw) return null;
   try {
     const parsed = JSON.parse(raw);
@@ -2559,6 +2561,14 @@ function parseCheckRaw(raw) {
     // raw 不一定是 JSON（契約允許普通字串），fallback 顯示原文
   }
   return null;
+}
+
+function checkEvidenceText(evidence) {
+  if (typeof evidence === "string") return evidence;
+  if (evidence && typeof evidence === "object" && !Array.isArray(evidence)) {
+    return evidence.summary || evidence.content || JSON.stringify(evidence);
+  }
+  return evidence == null ? "—" : String(evidence);
 }
 
 function ReturnCodeBadge({ returncode }) {
@@ -2660,11 +2670,11 @@ function CheckResultsTable({ checks }) {
                 <MIcon name={meta.icon} size={16} />
               </span>
               <span className={styles.checkTitle}>{check?.title ?? check?.id ?? "收集項目"}</span>
-              <span className={styles.checkEvidence}>{check?.evidence || "—"}</span>
+              <span className={styles.checkEvidence}>{checkEvidenceText(check?.evidence)}</span>
             </button>
             {isOpen && (
               <div className={styles.checkDetail}>
-                {check?.evidence && <p>{check.evidence}</p>}
+                {check?.evidence && <p>{checkEvidenceText(check.evidence)}</p>}
                 <CommandLog
                   raw={check?.raw}
                   fallbackText={Array.isArray(check?.errors) ? check.errors.join("\n") : ""}
@@ -2680,7 +2690,7 @@ function CheckResultsTable({ checks }) {
 
 /* ── Tab 2：導師核查 ────────────────────────────────────── */
 
-const TEACHER_REVIEW_STATUSES = new Set(["warning", "unknown"]);
+const TEACHER_REVIEW_STATUSES = new Set(["warning", "unknown", "collected"]);
 
 function targetChecks(target) {
   const checks = target?.parsed_result?.checks;
@@ -2723,7 +2733,7 @@ export function getTargetReviewSummary(target) {
   if (targetTeacherReview(target).feedback) {
     return { kind: "reviewed", label: "已留言", pending: 0, reviewable: 0 };
   }
-  return { kind: "automatic", label: "AI 已判定", pending: 0, reviewable: 0 };
+  return { kind: "automatic", label: "系統已判定", pending: 0, reviewable: 0 };
 }
 
 function reviewDraft(target) {
@@ -2746,7 +2756,7 @@ function ReviewCheckRow({ check, decision, onDecide }) {
       <span className={`${styles.reviewCheckIcon} ${meta.className}`}><MIcon name={meta.icon} size={17} /></span>
       <div className={styles.reviewCheckContent}>
         <div><strong>{check?.title ?? check?.id ?? "收集項目"}</strong><span>{meta.label}</span></div>
-        <p>{check?.evidence || "沒有摘要"}</p>
+        <p>{checkEvidenceText(check?.evidence) || "沒有摘要"}</p>
         {(check?.raw || (Array.isArray(check?.errors) && check.errors.length > 0)) && (
           <details><summary>查看原始證據</summary><CommandLog raw={check?.raw} fallbackText={(check?.errors ?? []).join("\n")} /></details>
         )}
@@ -3313,7 +3323,7 @@ export function TeacherReviewTab({ classId, sessionId, members, machineNodes = [
         <div className={styles.reviewMetrics} aria-label="核查進度">
           <span><strong>{summary.pending}</strong><small>待核查</small></span>
           <span><strong>{summary.reviewed}</strong><small>已核查／留言</small></span>
-          <span><strong>{summary.automatic}</strong><small>AI 已判定</small></span>
+          <span><strong>{summary.automatic}</strong><small>系統已判定</small></span>
           <span><strong>{summary.total}</strong><small>{reviewState.mode === "batch" ? "機器總數" : "學生總數"}</small></span>
         </div>
         {activeBatch && (

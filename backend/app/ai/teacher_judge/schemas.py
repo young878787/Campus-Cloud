@@ -19,6 +19,7 @@ from pydantic import (
 )
 
 from app.ai.teacher_judge.template_command_service import (
+    DEFAULT_SYSTEM_COMMAND_TIMEOUT_SECONDS,
     SUPPORTED_TEMPLATE_KEYS,
     sanitize_check_step_parameters,
 )
@@ -49,14 +50,117 @@ def sanitize_rubric_missing_information(value: Any) -> Any:
     ]
 
 
+class TeacherJudgeRubricCollector(BaseModel):
+    """Validated shape for one deterministic evidence collector.
+
+    The compiler performs the security and cross-field checks.  Keeping the
+    public model deliberately small lets old rubric rows continue to deserialize
+    while exposing the typed v1 contract to new callers.
+    """
+
+    type: Literal[
+        "command", "file_text", "file_stat", "localhost_http", "peer_ping"
+    ]
+    argv: list[str] | None = None
+    cwd: str | None = None
+    timeout_seconds: int | None = Field(default=None, ge=1, le=300)
+    path: str | None = None
+    read_mode: Literal["full", "head", "tail"] | None = None
+    lines: int | None = Field(default=None, ge=1, le=10_000)
+    max_chars: int | None = Field(default=None, ge=1, le=12_000)
+    encoding: str | None = None
+    method: Literal["GET", "HEAD"] | None = None
+    url: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def apply_safe_defaults(cls, value: Any) -> Any:
+        """Fill server-owned limits that teachers and models need not repeat."""
+
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        collector_type = str(data.get("type") or "").strip()
+        if collector_type in {"command", "peer_ping", "localhost_http"}:
+            data.setdefault(
+                "timeout_seconds", DEFAULT_SYSTEM_COMMAND_TIMEOUT_SECONDS
+            )
+        if collector_type == "file_text":
+            data.setdefault("read_mode", "full")
+            data.setdefault("max_chars", 12_000)
+            data.setdefault("encoding", "utf-8")
+        elif collector_type == "localhost_http":
+            data.setdefault("method", "GET")
+            data.setdefault("max_chars", 12_000)
+        return data
+
+    @model_validator(mode="after")
+    def validate_required_fields(self) -> TeacherJudgeRubricCollector:
+        if self.type == "command":
+            if not self.argv or any(not part.strip() for part in self.argv):
+                raise ValueError("command collector requires non-empty argv")
+            if self.timeout_seconds is None:
+                raise ValueError("command collector requires timeout_seconds")
+        elif self.type == "file_text":
+            if not self.path or self.read_mode is None or self.max_chars is None:
+                raise ValueError(
+                    "file_text collector requires path/read_mode/max_chars"
+                )
+            if self.read_mode in {"head", "tail"} and self.lines is None:
+                raise ValueError("head/tail file_text collector requires lines")
+        elif self.type == "file_stat" and not self.path:
+            raise ValueError("file_stat collector requires path")
+        elif self.type == "localhost_http":
+            if (
+                self.method is None
+                or not self.url
+                or self.timeout_seconds is None
+                or self.max_chars is None
+            ):
+                raise ValueError(
+                    "localhost_http collector requires method/url/timeout_seconds/max_chars"
+                )
+        elif self.type == "peer_ping" and self.timeout_seconds is None:
+            raise ValueError("peer_ping collector requires timeout_seconds")
+        return self
+
+
+class TeacherJudgeRubricAssertion(BaseModel):
+    """Deterministic assertion applied to a collector observation."""
+
+    type: Literal[
+        "returncode_equals",
+        "text_equals",
+        "text_contains",
+        "number_compare",
+        "json_path_equals",
+        "exists",
+    ]
+    expected: Any = None
+    operator: Literal["eq", "ne", "gt", "gte", "lt", "lte"] | None = None
+    path: str | None = None
+    normalize: Literal["strip"] | None = None
+    case_sensitive: bool = True
+
+
 class TeacherJudgeRubricCheckStep(BaseModel):
     """Canonical executable step with a read-compatible legacy shape.
 
-    New data uses ``argv``/``cwd``/``timeout_seconds`` directly. The old
+    New data uses typed ``collector``/``assertion`` fields. The old flat and
     template/command catalog fields remain optional so persisted rubrics can be
-    read and converted without making the retired keys part of new writes.
+    read and converted without making the retired keys part of typed writes.
     """
 
+    id: str | None = Field(default=None, description="typed check ID；同一份 plan 內唯一")
+    title: str | None = Field(default=None, description="typed check 顯示名稱")
+    collector: TeacherJudgeRubricCollector | None = Field(
+        default=None,
+        description="typed deterministic evidence collector",
+    )
+    assertion: TeacherJudgeRubricAssertion | None = Field(
+        default=None,
+        description="typed deterministic assertion；teacher mode 省略",
+    )
     template_key: str | None = Field(
         default=None,
         description="Legacy template key; read/convert only",
@@ -124,29 +228,45 @@ class TeacherJudgeRubricCheckStep(BaseModel):
 
     @model_validator(mode="after")
     def require_legacy_identity_or_flat_argv(self) -> TeacherJudgeRubricCheckStep:
+        if self.collector is not None:
+            if not self.id or not self.id.strip():
+                raise ValueError("typed check step requires id")
+            return self
         if not self.template_key and not self.command_key and self.argv is None:
             raise ValueError("flat check step requires argv")
         return self
 
     @model_serializer(mode="plain")
     def _serialize_contract(self) -> dict[str, Any]:
+        if self.collector is not None:
+            typed_serialized: dict[str, Any] = {
+                "id": self.id,
+                "collector": self.collector.model_dump(mode="json", exclude_none=True),
+            }
+            if self.title is not None:
+                typed_serialized["title"] = self.title
+            if self.assertion is not None:
+                typed_serialized["assertion"] = self.assertion.model_dump(
+                    mode="json", exclude_none=True
+                )
+            return typed_serialized
         if self.template_key or self.command_key:
-            result: dict[str, Any] = {
+            legacy_serialized = {
                 "template_key": self.template_key,
                 "command_key": self.command_key,
                 "parameters": self.parameters,
             }
             if self.command_label is not None:
-                result["command_label"] = self.command_label
-            return result
-        result = {}
+                legacy_serialized["command_label"] = self.command_label
+            return legacy_serialized
+        flat_serialized: dict[str, Any] = {}
         if self.argv is not None:
-            result["argv"] = self.argv
+            flat_serialized["argv"] = self.argv
         if self.cwd is not None:
-            result["cwd"] = self.cwd
+            flat_serialized["cwd"] = self.cwd
         if self.timeout_seconds is not None:
-            result["timeout_seconds"] = self.timeout_seconds
-        return result
+            flat_serialized["timeout_seconds"] = self.timeout_seconds
+        return flat_serialized
 
     @classmethod
     def __get_pydantic_json_schema__(
@@ -154,7 +274,7 @@ class TeacherJudgeRubricCheckStep(BaseModel):
         core_schema: Any,
         handler: Any,
     ) -> dict[str, Any]:
-        """Expose only the flat write contract in generated API schemas."""
+        """Expose typed and flat write contracts, hiding retired fields."""
         schema = handler(core_schema)
         properties = schema.get("properties")
         if isinstance(properties, dict):
@@ -165,7 +285,21 @@ class TeacherJudgeRubricCheckStep(BaseModel):
                 "parameters",
             ):
                 properties.pop(legacy_key, None)
-            schema["required"] = ["argv"]
+            typed_properties = {
+                key: properties.pop(key)
+                for key in ("id", "title", "collector", "assertion")
+                if key in properties
+            }
+            schema["properties"] = properties
+            schema["anyOf"] = [
+                {"required": ["argv"]},
+                {
+                    "type": "object",
+                    "properties": typed_properties,
+                    "required": ["id", "collector"],
+                },
+            ]
+            schema.pop("required", None)
         return cast("dict[str, Any]", schema)
 
 
@@ -179,9 +313,12 @@ class TeacherJudgeRubricItem(BaseModel):
         default="manual",
         description="腳本取證支援：auto=可執行取證、partial=缺少資訊、manual=不支援",
     )
-    judgement_mode: Literal["ai", "teacher"] = Field(
+    judgement_mode: Literal["system", "ai", "teacher"] = Field(
         default="ai",
-        description="結果核對方式：ai=系統自動核對、teacher=導師依腳本證據核查",
+        description=(
+            "結果核對方式：system=系統固定 assertion、"
+            "teacher=導師依腳本證據核查、ai=舊資料相容名稱"
+        ),
     )
     detection_method: str | None = Field(
         default=None,

@@ -282,8 +282,68 @@ async def test_python_version_lookup_proposal_preserves_model_contract(
     assert len(calls) == 2
     assert proposal is not None
     assert proposal[0]["detectable"] == "auto"
-    assert proposal[0]["judgement_mode"] == "ai"
-    assert proposal[0]["check_steps"][0]["command_key"] == "python.version"
+    assert proposal[0]["judgement_mode"] == "system"
+    assert proposal[0]["check_steps"][0]["collector"]["argv"] == [
+        "python3",
+        "--version",
+    ]
+    assert proposal[0]["check_steps"][0]["assertion"] == {
+        "type": "returncode_equals",
+        "expected": 0,
+        "case_sensitive": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_python_311_typed_proposal_does_not_depend_on_catalog(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls, fake_call_vllm = scripted_vllm(
+        [
+            tool_call_message(
+                "create_checklist_item",
+                {
+                    "title": "檢查 Python 版本是否為 3.11",
+                    "detectable": "auto",
+                    "judgement_mode": "system",
+                    "check_steps": [
+                        {
+                            "id": "runtime.python_version",
+                            "collector": {
+                                "type": "command",
+                                "argv": ["python3", "--version"],
+                            },
+                            "assertion": {
+                                "type": "text_contains",
+                                "expected": "Python 3.11",
+                                "case_sensitive": False,
+                            },
+                        }
+                    ],
+                },
+            ),
+            reply_message("已建立 Python 3.11 版本檢查提案。", "ready"),
+        ],
+    )
+    monkeypatch.setattr(teacher_judge_service, "_call_vllm_message", fake_call_vllm)
+    patch_teacher_judge_vllm_settings(monkeypatch)
+
+    reply, proposal, _metrics = await teacher_judge_service.chat_with_rubric(
+        messages=[SimpleNamespace(role="user", content="檢查 Python 版本是否為 3.11")],
+        rubric_context=json.dumps({"items": []}),
+        template_key="python",
+        template_commands=[],
+        rubric_available=True,
+    )
+
+    assert len(calls) == 2
+    assert "Python 3.11 版本檢查提案" in reply
+    assert proposal is not None
+    assert proposal[0]["detectable"] == "auto"
+    assert proposal[0]["judgement_mode"] == "system"
+    assert proposal[0]["detection_method"].startswith("收集證據並套用固定判定條件")
+    assert proposal[0]["check_steps"][0]["collector"]["timeout_seconds"] == 30
+    assert proposal[0]["check_steps"][0]["assertion"]["expected"] == "Python 3.11"
 
 
 @pytest.mark.asyncio
@@ -338,10 +398,12 @@ async def test_python_version_requirement_forms_proposal_when_model_marks_it_man
     assert proposal[0]["judgement_mode"] == "teacher"
     assert proposal[0]["check_steps"] == [
         {
-            "template_key": "python",
-            "command_key": "python.version",
-            "command_label": "Python 版本",
-            "parameters": {},
+            "id": "python.version.1",
+            "collector": {
+                "type": "command",
+                "argv": ["python3", "--version"],
+                "timeout_seconds": 30,
+            },
         }
     ]
 
@@ -450,8 +512,8 @@ async def test_python_package_status_forms_proposal_instead_of_system_error(
     assert "重新產生" not in reply
     assert "管理員" not in reply
     assert proposal is not None
-    assert proposal[0]["check_steps"][0]["command_key"] == "system.run_command"
-    assert proposal[0]["check_steps"][0]["parameters"]["argv"] == [
+    assert proposal[0]["judgement_mode"] == "system"
+    assert proposal[0]["check_steps"][0]["collector"]["argv"] == [
         "python3",
         "-m",
         "pip",

@@ -171,13 +171,17 @@ async def test_chat_prompt_accepts_objectively_verifiable_main_py_checkpoint(
                     ),
                     "check_steps": [
                         {
-                            "template_key": "python",
-                            "command_key": "python.run_entrypoint",
-                            "parameters": {
+                            "id": "python.main_output",
+                            "collector": {
+                                "type": "command",
                                 "cwd": "/home/student/project",
                                 "argv": ["python3", "main.py"],
                                 "timeout_seconds": 30,
-                                "success_criteria": "exit code 為 0 且 stdout 等於 20",
+                            },
+                            "assertion": {
+                                "type": "text_equals",
+                                "expected": "20",
+                                "normalize": "strip",
                             },
                         }
                     ],
@@ -220,18 +224,18 @@ async def test_chat_prompt_accepts_objectively_verifiable_main_py_checkpoint(
     assert "不得主觀替老師決定改交導師檢查" in system_prompt
     assert "catalog 有對應能力時" in system_prompt
     assert "用無關檢查替換原目標" in system_prompt
-    assert "`auto` 項目的 `check_steps` 應優先引用該 `command_key`" in system_prompt
-    assert "沒有專用項目時使用 `system.run_command`" in system_prompt
-    assert "`template_key` 只是環境提示，可以省略" in system_prompt
-    assert "不得因老師或模型沒有填 `template_key` 而拒絕提案" in system_prompt
+    assert "不得在新提案輸出 `template_key` 或 `command_key`" in system_prompt
+    assert "命令型檢查使用 `collector.type=command`" in system_prompt
     assert "`checked` 表示是否已達成" in system_prompt
     assert "`auto` 項目不得提供 `fallback` 與 `missing_information`" in system_prompt
     assert "python.run_entrypoint" in system_prompt
     assert updated_items is not None
     assert updated_items[-1]["detectable"] == "auto"
-    assert updated_items[-1]["check_steps"][0]["command_key"] == (
-        "python.run_entrypoint"
-    )
+    assert updated_items[-1]["judgement_mode"] == "system"
+    assert updated_items[-1]["check_steps"][0]["collector"]["argv"] == [
+        "python3",
+        "main.py",
+    ]
 
 
 @pytest.mark.asyncio
@@ -292,7 +296,7 @@ async def test_chat_prompt_accepts_generic_cat_env_checkpoint(
     assert "system.run_command" in system_prompt
     assert "這個環境已確認具備、可以優先使用的工具" in system_prompt
     assert "不是允許產出提案的完整清單" in system_prompt
-    assert "AI 仍應用 `system.run_command` 規劃其他唯讀診斷工具" in system_prompt
+    assert "AI 仍應使用 typed command collector 規劃其他唯讀診斷工具" in system_prompt
     assert "依檢查目的選擇 Linux 或 Windows" in system_prompt
     assert "終端提示字串已包含目前目錄時" in system_prompt
     assert "timeout_seconds 由平台補齊" in system_prompt
@@ -300,7 +304,10 @@ async def test_chat_prompt_accepts_generic_cat_env_checkpoint(
     assert '["cat", ".env"]' not in system_prompt
     assert updated_items is not None
     assert updated_items[0]["detectable"] == "auto"
-    assert updated_items[0]["check_steps"][0]["command_key"] == ("system.run_command")
+    assert updated_items[0]["check_steps"][0]["collector"]["argv"] == [
+        "cat",
+        ".env",
+    ]
 
 
 @pytest.mark.asyncio
@@ -318,16 +325,40 @@ async def test_follow_up_natural_answer_is_audited_before_repeating_question(
                     "detection_method": "讀取檔案並逐行檢查內容與行數。",
                     "check_steps": [
                         {
-                            "template_key": "linux",
-                            "command_key": "system.run_command",
-                            "parameters": {
-                                "argv": ["cat", "/home/student/answer.txt"],
+                            "id": "answer.lines_are_integers",
+                            "collector": {
+                                "type": "command",
+                                "argv": [
+                                    "grep",
+                                    "-Ev",
+                                    "^[0-9]+$",
+                                    "/home/student/answer.txt",
+                                ],
                                 "timeout_seconds": 30,
-                                "success_criteria": (
-                                    "每一行都是整數，且總行數至少為 20"
-                                ),
                             },
-                        }
+                            "assertion": {
+                                "type": "returncode_equals",
+                                "expected": 1,
+                            },
+                        },
+                        {
+                            "id": "answer.minimum_line_count",
+                            "collector": {
+                                "type": "command",
+                                "argv": [
+                                    "grep",
+                                    "-c",
+                                    "^",
+                                    "/home/student/answer.txt",
+                                ],
+                                "timeout_seconds": 30,
+                            },
+                            "assertion": {
+                                "type": "number_compare",
+                                "operator": "gte",
+                                "expected": 20,
+                            },
+                        },
                     ],
                 },
             ),
@@ -364,7 +395,9 @@ async def test_follow_up_natural_answer_is_audited_before_repeating_question(
     assert proposal is not None
     assert proposal[0]["detectable"] == "auto"
     assert proposal[0]["missing_information"] == []
-    assert "success_criteria" not in proposal[0]["check_steps"][0]["parameters"]
+    assert len(proposal[0]["check_steps"]) == 2
+    assert proposal[0]["check_steps"][0]["assertion"]["expected"] == 1
+    assert proposal[0]["check_steps"][1]["assertion"]["operator"] == "gte"
 
 
 @pytest.mark.asyncio
@@ -428,7 +461,22 @@ async def test_chat_prompt_treats_attachment_as_concrete_rubric_content(
                     "title": "服務 Port",
                     "checked": False,
                     "detectable": "auto",
+                    "judgement_mode": "system",
                     "detection_method": "檢查 listening ports。",
+                    "check_steps": [
+                        {
+                            "id": "network.listening_ports",
+                            "collector": {
+                                "type": "command",
+                                "argv": ["ss", "-lntp"],
+                                "timeout_seconds": 30,
+                            },
+                            "assertion": {
+                                "type": "returncode_equals",
+                                "expected": 0,
+                            },
+                        }
+                    ],
                 },
             ),
             reply_message("已依附件整理檢查項目。", "ready"),

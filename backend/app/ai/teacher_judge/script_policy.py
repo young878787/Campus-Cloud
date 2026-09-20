@@ -9,7 +9,7 @@ import re
 from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 if TYPE_CHECKING:
     from app.ai.teacher_judge._types import CheckResult, FixHint, ScriptValidationResult
@@ -50,6 +50,43 @@ class ManagedScriptResult(BaseModel):
     def validate_schema_version(cls, value: str) -> str:
         if value != "teacher_judge_result.v1":
             raise ValueError("schema_version must be teacher_judge_result.v1")
+        return value
+
+
+class ManagedScriptCheckV2(BaseModel):
+    """Typed result row emitted by the deterministic Check Plan runtime."""
+
+    id: str = Field(..., min_length=1, max_length=120)
+    title: str = Field(..., min_length=1, max_length=240)
+    status: Literal["pass", "fail", "unknown", "collected", "skipped"]
+    judgement_mode: Literal["system", "teacher", "ai"] = "system"
+    evidence: Any = ""
+    raw: Any = ""
+
+    @model_validator(mode="after")
+    def validate_bounded_payload(self) -> ManagedScriptCheckV2:
+        for field_name, value in (("evidence", self.evidence), ("raw", self.raw)):
+            try:
+                encoded = json.dumps(value, ensure_ascii=False, default=str)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"{field_name} must be JSON serializable") from exc
+            if len(encoded) > 64_000:
+                raise ValueError(f"{field_name} exceeds 64000 characters")
+        return self
+
+
+class ManagedScriptResultV2(BaseModel):
+    schema_version: Literal["teacher_judge_result.v2"]
+    metadata: ManagedScriptMetadata
+    summary: str = Field(default="", max_length=2000)
+    checks: list[ManagedScriptCheckV2] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list, max_length=1000)
+
+    @field_validator("schema_version")
+    @classmethod
+    def validate_schema_version(cls, value: str) -> str:
+        if value != "teacher_judge_result.v2":
+            raise ValueError("schema_version must be teacher_judge_result.v2")
         return value
 
 
@@ -337,14 +374,22 @@ def _dangerous_command_issue(command_text: str) -> str | None:
 
 def validate_managed_script_output(payload: str | dict[str, Any]) -> ScriptValidationResult:
     """Validate managed script JSON output contract."""
+    schema_version = "teacher_judge_result.v1"
     try:
         data = json.loads(payload) if isinstance(payload, str) else payload
-        result = ManagedScriptResult.model_validate(data)
+        if not isinstance(data, dict):
+            raise TypeError("managed script output must be a JSON object")
+        schema_version = str(data.get("schema_version") or schema_version)
+        result: ManagedScriptResult | ManagedScriptResultV2
+        if schema_version == "teacher_judge_result.v2":
+            result = ManagedScriptResultV2.model_validate(data)
+        else:
+            result = ManagedScriptResult.model_validate(data)
     except (json.JSONDecodeError, ValidationError, TypeError) as exc:
         return {
             "valid": False,
             "error": str(exc),
-            "schema_version": "teacher_judge_result.v1",
+            "schema_version": schema_version,
         }
 
     return {
@@ -366,9 +411,12 @@ def check_script_policy(script_content: str) -> CheckResult:
             issues.append(message)
             fix_hints.append({"type": "remove_dangerous_pattern", "description": message, "pattern": pattern})
 
-    if "teacher_judge_result.v1" not in script_content:
-        issues.append("腳本必須輸出 teacher_judge_result.v1 schema_version")
-        fix_hints.append({"type": "add_output_field", "field": "schema_version", "value": "teacher_judge_result.v1"})
+    if (
+        "teacher_judge_result.v1" not in script_content
+        and "teacher_judge_result.v2" not in script_content
+    ):
+        issues.append("腳本必須輸出 teacher_judge_result.v1 或 v2 schema_version")
+        fix_hints.append({"type": "add_output_field", "field": "schema_version", "value": "teacher_judge_result.v2"})
     if "print(" not in normalized:
         issues.append("腳本必須透過 stdout 輸出 JSON 結果")
         fix_hints.append({"type": "add_print_output_json", "description": "腳本必須使用 print() 輸出 JSON"})

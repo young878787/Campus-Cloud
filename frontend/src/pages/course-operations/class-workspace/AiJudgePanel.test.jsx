@@ -1053,7 +1053,7 @@ describe("script creation workflow", () => {
 });
 
 describe("teacher review summary", () => {
-  test("只把 warning 與 unknown 視為待導師核查", () => {
+  test("把 warning、unknown 與 collected 視為待導師核查", () => {
     const target = {
       status: "completed",
       validation: { valid: true },
@@ -1076,6 +1076,20 @@ describe("teacher review summary", () => {
       kind: "reviewed",
       pending: 0,
       reviewable: 2,
+    });
+  });
+
+  test("typed teacher check 的 collected 也進入導師核查", () => {
+    const target = {
+      status: "completed",
+      validation: { valid: true },
+      parsed_result: { checks: [{ id: "collected-1", status: "collected" }] },
+    };
+
+    expect(getTargetReviewSummary(target)).toMatchObject({
+      kind: "pending",
+      pending: 1,
+      reviewable: 1,
     });
   });
 

@@ -31,6 +31,15 @@ from app.ai.teacher_judge._types import (
 )
 from app.ai.teacher_judge.automation_support import ensure_script_generation_supported
 from app.ai.teacher_judge.config import settings
+from app.ai.teacher_judge.deterministic_compiler import (
+    RESULT_SCHEMA_VERSION as DETERMINISTIC_RESULT_SCHEMA_VERSION,
+)
+from app.ai.teacher_judge.deterministic_compiler import (
+    compile_check_plan,
+    contains_typed_steps,
+    is_typed_plan,
+    validate_check_plan,
+)
 from app.ai.teacher_judge.file_service import source_file_snapshot
 from app.ai.teacher_judge.machine_context import (
     load_class_machine_nodes,
@@ -1717,6 +1726,80 @@ async def _build_reviewed_script_for_artifact(
     return _build_result(await build_reviewed_script(**kwargs))
 
 
+def _build_deterministic_script_for_artifact(
+    *,
+    rubric_snapshot: dict[str, Any],
+) -> tuple[
+    str,
+    GateResult,
+    AIReviewResult,
+    TeacherJudgeScriptStatus,
+    list[ScriptUsageRecord],
+]:
+    """Compile a validated typed plan without a per-node model request."""
+    try:
+        script_content, compiler_policy = compile_check_plan(rubric_snapshot)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "teacher_judge_check_plan_invalid",
+                "message": "typed Check Plan 未通過後端驗證，不能製作腳本。",
+                "reason": str(exc),
+            },
+        ) from exc
+
+    safety = check_script_policy(script_content)
+    if safety.get("approved") is not True:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "teacher_judge_compiled_script_blocked",
+                "message": "deterministic compiler 產生的腳本未通過安全政策。",
+                "issues": safety.get("issues", []),
+            },
+        )
+    quality = check_script_quality(script_content)
+    if quality.get("approved") is not True:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "teacher_judge_compiled_script_invalid",
+                "message": "deterministic compiler 產生的腳本未通過靜態品質檢查。",
+                "issues": quality.get("issues", []),
+            },
+        )
+    compiler_policy["quality"] = quality
+    compiler_policy["safety"] = safety
+    compiler_policy["result_schema_version"] = DETERMINISTIC_RESULT_SCHEMA_VERSION
+    compiler_policy["source"] = "deterministic_compiler"
+    gate: GateResult = {
+        "approved": True,
+        "blocked": False,
+        "risk_level": "low",
+        "issues": [],
+        "safety_approved": True,
+        "safety_issues": list(safety.get("issues") or []),
+        "quality_approved": True,
+        "quality_issues": [],
+        "coverage": cast("dict[str, Any]", compiler_policy.get("coverage") or {}),
+    }
+    review: AIReviewResult = {
+        "approved": True,
+        "risk_level": "low",
+        "issues": [],
+        "suggested_fix": None,
+        "mode": "deterministic_compiler",
+    }
+    return (
+        script_content,
+        cast("GateResult", {**gate, **compiler_policy}),
+        review,
+        TeacherJudgeScriptStatus.approved,
+        [],
+    )
+
+
 async def create_artifact(
     *,
     session: Session,
@@ -1752,7 +1835,16 @@ async def create_artifact(
     # read-only: downstream only shallow-copies the top level and serializes
     # each dict to its own JSON column on commit (no in-place nested mutation).
     analysis_dump = rubric_analysis.model_dump(mode="json")
-    _ensure_peer_runtime_supported(analysis_dump)
+    if contains_typed_steps(analysis_dump) and not is_typed_plan(analysis_dump):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "teacher_judge_check_plan_mixed_contract",
+                "message": "typed Check Plan 不得與 legacy flat check step 混用，請重新分析該項目。",
+            },
+        )
+    if not is_typed_plan(analysis_dump):
+        _ensure_peer_runtime_supported(analysis_dump)
     target_node_keys = target_node_keys_from_snapshot(analysis_dump)
     if len(target_node_keys) > 1:
         raise HTTPException(
@@ -1782,6 +1874,12 @@ async def create_artifact(
     if _snapshot_uses_legacy_command_references(analysis_dump):
         rubric_base["template_key"] = template_key
     rubric_snapshot = _with_template_command_catalog(rubric_base, template_commands)
+    if is_typed_plan(rubric_snapshot):
+        typed_validation = validate_check_plan(rubric_snapshot)
+        if typed_validation.get("approved") is True:
+            rubric_snapshot = cast(
+                "dict[str, Any]", typed_validation.get("plan") or rubric_snapshot
+            )
     source_file, source_file_snapshot_json = source_file_snapshot(
         session=session,
         teaching_class_id=teaching_class_id,
@@ -1791,16 +1889,27 @@ async def create_artifact(
         source_file.analysis_json = analysis_dump
         source_file.updated_at = _now()
         session.add(source_file)
-    (
-        script_content,
-        policy_check,
-        ai_review,
-        status,
-        usage_records,
-    ) = await _build_reviewed_script_for_artifact(
-        rubric_snapshot=rubric_snapshot,
-        template_key=template_key,
-    )
+    if is_typed_plan(rubric_snapshot):
+        (
+            script_content,
+            policy_check,
+            ai_review,
+            status,
+            usage_records,
+        ) = _build_deterministic_script_for_artifact(
+            rubric_snapshot=rubric_snapshot,
+        )
+    else:
+        (
+            script_content,
+            policy_check,
+            ai_review,
+            status,
+            usage_records,
+        ) = await _build_reviewed_script_for_artifact(
+            rubric_snapshot=rubric_snapshot,
+            template_key=template_key,
+        )
     if (
         status == TeacherJudgeScriptStatus.reviewed
         and policy_check.get("approved") is True
@@ -2034,6 +2143,17 @@ async def create_artifact_set(
     commands = get_enabled_template_commands(
         session, template_key, include_cross_template=True
     )
+    analysis_dump_for_contract = rubric_analysis.model_dump(mode="json")
+    if contains_typed_steps(analysis_dump_for_contract) and not is_typed_plan(
+        analysis_dump_for_contract
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "teacher_judge_check_plan_mixed_contract",
+                "message": "typed Check Plan 不得與 legacy flat check step 混用，請重新分析該項目。",
+            },
+        )
     ensure_script_generation_supported(
         rubric_analysis,
         commands,
@@ -2104,13 +2224,28 @@ async def create_artifact_set(
         if _snapshot_uses_legacy_command_references(partition_dump):
             rubric_base["template_key"] = template_key
         rubric_snapshot = _with_template_command_catalog(rubric_base, commands)
-        try:
-            script_content, policy, review, status, usage = (
-                await _build_reviewed_script_for_artifact(
-                    rubric_snapshot=rubric_snapshot,
-                    template_key=template_key,
+        if is_typed_plan(rubric_snapshot):
+            typed_validation = validate_check_plan(rubric_snapshot)
+            if typed_validation.get("approved") is True:
+                rubric_snapshot = cast(
+                    "dict[str, Any]", typed_validation.get("plan") or rubric_snapshot
                 )
-            )
+        try:
+            if is_typed_plan(rubric_snapshot):
+                script_content, policy, review, status, usage = (
+                    _build_deterministic_script_for_artifact(
+                        rubric_snapshot=rubric_snapshot,
+                    )
+                )
+            else:
+                script_content, policy, review, status, usage = (
+                    await _build_reviewed_script_for_artifact(
+                        rubric_snapshot=rubric_snapshot,
+                        template_key=template_key,
+                    )
+                )
+        except HTTPException:
+            raise
         except Exception as exc:
             raise HTTPException(
                 status_code=502,

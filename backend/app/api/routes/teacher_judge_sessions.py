@@ -569,22 +569,11 @@ async def create_message(
     session.commit()
     session.refresh(user_message)
     try:
-        raw_analysis = file.analysis_json if file else {}
-        legacy_command_context = any(
-            isinstance(step, dict)
-            and (step.get("template_key") or step.get("command_key"))
-            for raw_item in (raw_analysis.get("items") or [])
-            if isinstance(raw_item, dict)
-            for step in (raw_item.get("check_steps") or [])
-        )
-        template_commands = (
-            get_enabled_template_commands(
-                session,
-                file.template_key if file else "linux",
-                include_cross_template=True,
-            )
-            if legacy_command_context
-            else []
+        template_key = file.template_key if file else "linux"
+        template_commands = get_enabled_template_commands(
+            session,
+            template_key,
+            include_cross_template=True,
         )
         rubric_context = (
             json.dumps(file.analysis_json, ensure_ascii=False) if file else "{}"
@@ -601,13 +590,9 @@ async def create_message(
             # one row's Ready reasoning cannot leak into the other rows.
             itemwise = await analyze_attachments_itemwise(
                 rubric_context=rubric_context,
-                template_key=(file.template_key if legacy_command_context else "linux")
-                if file
-                else "linux",
+                template_key=template_key,
                 template_commands=template_commands,
-                environment_keys=(file.environment_keys if legacy_command_context else None)
-                if file
-                else None,
+                environment_keys=file.environment_keys if file else None,
                 machine_context=machine_context,
                 machine_entries=machine_entries,
                 attachment_context=attachment_context(attachments),
@@ -631,13 +616,9 @@ async def create_message(
                 ),
                 rubric_context,
                 is_refine=payload.is_refine,
-                template_key=(file.template_key if legacy_command_context else "linux")
-                if file
-                else "linux",
+                template_key=template_key,
                 template_commands=template_commands,
-                environment_keys=(file.environment_keys if legacy_command_context else None)
-                if file
-                else None,
+                environment_keys=file.environment_keys if file else None,
                 machine_context=machine_context,
                 machine_entries=machine_entries,
                 attachment_context=attachment_context(attachments),
@@ -1383,11 +1364,13 @@ def update_target_review(
     target = targets[target_index]
     parsed_result = target.get("parsed_result")
     raw_checks = parsed_result.get("checks") if isinstance(parsed_result, dict) else []
+    if not isinstance(raw_checks, list):
+        raw_checks = []
     reviewable_ids = {
         str(check.get("id") or "")
         for check in raw_checks
         if isinstance(check, dict)
-        and str(check.get("status") or "") in {"warning", "unknown"}
+        and str(check.get("status") or "") in {"warning", "unknown", "collected"}
     }
     invalid_ids = sorted(set(payload.decisions) - reviewable_ids)
     if invalid_ids:
