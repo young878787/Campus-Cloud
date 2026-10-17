@@ -158,8 +158,10 @@ def test_create_script_run_snapshots_only_running_class_targets(
     assert run.progress_json["targets"][0]["user"]["email"] == "student@example.com"
 
 
-def test_create_script_run_falls_back_to_live_ip_when_cache_missing(
+@pytest.mark.parametrize("live_ip", ["10.0.0.131", "10.0.0.132", None])
+def test_create_script_run_resolves_ip_when_cache_missing(
     monkeypatch: pytest.MonkeyPatch,
+    live_ip: str | None,
 ) -> None:
     session = make_session()
     teaching_class_id = uuid.uuid4()
@@ -175,6 +177,7 @@ def test_create_script_run_falls_back_to_live_ip_when_cache_missing(
         ai_review_result_json={"approved": True},
     )
     _add_resource(session, vmid=131, user_id=user_id, ip=None)
+    session.add(models.IpAllocation(ip_address="10.0.0.132", purpose="vm", vmid=131))
     activate_script(session, artifact)
     session.commit()
     session.refresh(artifact)
@@ -198,7 +201,7 @@ def test_create_script_run_falls_back_to_live_ip_when_cache_missing(
     monkeypatch.setattr(
         target_ip_resolver.proxmox_ops,
         "get_ip_address",
-        lambda node, vmid, resource_type: "10.0.0.131",
+        lambda node, vmid, resource_type: live_ip,
     )
 
     run = script_run_service.create_script_run(
@@ -210,9 +213,10 @@ def test_create_script_run_falls_back_to_live_ip_when_cache_missing(
         started_by=user_id,
     )
 
-    assert run.target_snapshot_json["targets"][0]["ip_address"] == "10.0.0.131"
+    assert run.target_snapshot_json["targets"][0]["ip_address"] == "10.0.0.132"
     assert (
-        resource_repo.get_cached_ip_address(session=session, vmid=131) == "10.0.0.131"
+        resource_repo.get_cached_ip_address(session=session, vmid=131)
+        == (live_ip if live_ip == "10.0.0.132" else None)
     )
 
 
@@ -491,12 +495,15 @@ async def test_execute_script_run_preserves_targets_when_final_save_fails(
     assert targets[0]["parsed_result"]["schema_version"] == "teacher_judge_result.v1"
 
 
-def test_executor_runtime_target_falls_back_to_live_ip_when_cache_missing(
+@pytest.mark.parametrize("live_ip", ["10.0.0.131", "10.0.0.132", None])
+def test_executor_runtime_target_resolves_ip_when_cache_missing(
     monkeypatch: pytest.MonkeyPatch,
+    live_ip: str | None,
 ) -> None:
     session = make_session()
     user_id = uuid.uuid4()
     _add_resource(session, vmid=131, user_id=user_id, ip=None)
+    session.add(models.IpAllocation(ip_address="10.0.0.132", purpose="vm", vmid=131))
     session.commit()
 
     run = models.TeacherJudgeScriptRun(
@@ -508,7 +515,7 @@ def test_executor_runtime_target_falls_back_to_live_ip_when_cache_missing(
     monkeypatch.setattr(
         target_ip_resolver.proxmox_ops,
         "get_ip_address",
-        lambda node, vmid, resource_type: "10.0.0.131",
+        lambda node, vmid, resource_type: live_ip,
     )
 
     target = script_executor_service._resolve_runtime_target(
@@ -520,10 +527,11 @@ def test_executor_runtime_target_falls_back_to_live_ip_when_cache_missing(
         },
     )
 
-    assert target["host"] == "10.0.0.131"
+    assert target["host"] == "10.0.0.132"
     assert target["private_key_pem"] == "KEY"
     assert (
-        resource_repo.get_cached_ip_address(session=session, vmid=131) == "10.0.0.131"
+        resource_repo.get_cached_ip_address(session=session, vmid=131)
+        == (live_ip if live_ip == "10.0.0.132" else None)
     )
 
 

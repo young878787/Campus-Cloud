@@ -34,7 +34,11 @@ from app.ai.teacher_judge.script_policy import (
     normalize_managed_script_checks,
     validate_managed_script_output,
 )
-from app.ai.teacher_judge.target_ip_resolver import resolve_target_ip_address
+from app.ai.teacher_judge.target_ip_resolver import (
+    refresh_target_ip_address,
+    resolve_target_ip_address,
+    resource_identity,
+)
 from app.ai.teacher_judge.target_os import is_windows_target, resource_os_context
 from app.core.db import engine
 from app.core.i18n import t
@@ -42,6 +46,7 @@ from app.core.security import decrypt_value
 from app.infrastructure.proxmox import operations as proxmox_ops
 from app.infrastructure.ssh import (
     SSHAuthenticationError,
+    SSHConnectError,
     SSHOutputTooLargeError,
     create_key_client,
     exec_command,
@@ -443,6 +448,7 @@ def _resolve_runtime_target(
         "host": host,
         "ssh_user": "root",
         "private_key_pem": decrypt_value(resource.ssh_private_key_encrypted),
+        "_resource_identity": resource_identity(resource),
         "run_id": str(run.id),
     }
 
@@ -451,6 +457,65 @@ def _target_phase(target: dict[str, Any], stage: str) -> None:
     callback = target.get("_on_phase")
     if callback is not None:
         callback(stage)
+
+
+def _connect_target(target: dict[str, Any]) -> Any:
+    """At most two TCP attempts; remote operations only start after this returns."""
+    evidence: dict[str, Any] = {"attempts": []}
+    target["_connection"] = evidence
+    for attempt in range(2):
+        stop_event = target.get("_stop_event")
+        if stop_event is not None and stop_event.is_set():
+            raise TargetExecutionError("執行流程已中斷。", "executor_cancelled")
+        record: dict[str, Any] = {"ip_address": str(target["host"]), "port": 22, "status": "connecting"}
+        evidence["attempts"].append(record)
+        try:
+            client = create_key_client(
+                str(target["host"]), 22, str(target["ssh_user"]),
+                str(target["private_key_pem"]), timeout=SSH_TIMEOUT_SECONDS,
+            )
+        except Exception as exc:
+            cause = exc.__cause__ or exc
+            record.update(
+                status="failed", reason_code=_target_exception_reason(exc),
+                error_type=type(cause).__name__, errno=getattr(cause, "errno", None),
+            )
+            if not isinstance(exc, SSHConnectError) or attempt == 1:
+                raise
+            if stop_event is not None and stop_event.is_set():
+                raise TargetExecutionError("執行流程已中斷。", "executor_cancelled") from exc
+            try:
+                refresh = refresh_target_ip_address(
+                    bind=engine, vmid=_target_vmid(target),
+                    user_id=str(_target_user(target).get("id") or ""),
+                    identity=target["_resource_identity"], failed_ip=str(target["host"]),
+                )
+            except Exception as refresh_exc:
+                # Preserve the original connection error, not the PVE/DB error.
+                refresh = {"status": "refresh_failed", "error_type": type(refresh_exc).__name__}
+                logger.warning(
+                    "Teacher Judge IP refresh failed run=%s vmid=%s",
+                    target["run_id"], _target_vmid(target), exc_info=True,
+                )
+            evidence["refresh"] = refresh
+            if (
+                refresh.get("status") != "changed" or not refresh.get("ip_address")
+                or refresh["ip_address"] == target["host"]
+            ):
+                raise
+            target["host"] = refresh["ip_address"]
+            for key in ("proxmox_node", "resource_type"):
+                if refresh.get(key):
+                    target[key] = refresh[key]
+        else:
+            record["status"] = "connected"
+            return client
+        finally:
+            logger.info(
+                "Teacher Judge connection run=%s vmid=%s evidence=%s",
+                target["run_id"], _target_vmid(target), json.dumps(evidence),
+            )
+    raise AssertionError("connection attempt limit exhausted")
 
 
 def _execute_target_script(
@@ -479,13 +544,7 @@ def _execute_target_script(
     failure_stage = "connecting"
     exit_code: int | None
     try:
-        client = create_key_client(
-            str(target["host"]),
-            22,
-            str(target["ssh_user"]),
-            str(target["private_key_pem"]),
-            timeout=SSH_TIMEOUT_SECONDS,
-        )
+        client = _connect_target(target)
         failure_stage = "preparing"
         exit_code, stdout, stderr = exec_command(
             client,
@@ -665,6 +724,7 @@ def _execute_scheduled_target(
         result["timing"] = {**timing, "total_seconds": 0.0, "finished_at": _now().isoformat()}
         return result
     on_start()
+    target["_stop_event"] = stop_event
     try:
         remote = _execute_target_script(target=target, script_content=script_content)
         timing.update(remote.timing)
@@ -692,6 +752,8 @@ def _execute_scheduled_target(
             } else "executing"
         )
     result["timing"] = timing
+    if target.get("_connection"):
+        result["connection"] = target["_connection"]
     logger.info(
         "Teacher Judge target finished run=%s vmid=%s status=%s timing=%s",
         target.get("run_id"), _target_vmid(target), result["status"],
@@ -993,6 +1055,8 @@ def _target_exception_reason(exc: BaseException) -> str:
         return exc.reason_code
     if isinstance(exc, SSHAuthenticationError):
         return "ssh_authentication_failed"
+    if isinstance(exc, SSHConnectError):
+        return "ssh_connection_timeout" if exc.timed_out else "ssh_connection_failed"
     if isinstance(exc, TimeoutError):
         return "execution_timeout"
     if isinstance(exc, SSHOutputTooLargeError):

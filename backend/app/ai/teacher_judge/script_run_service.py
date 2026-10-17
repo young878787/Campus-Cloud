@@ -104,6 +104,7 @@ def _batch_timing_fields(batch: TeacherJudgeRunBatch) -> dict[str, Any]:
 
 _INTERNAL_TARGET_KEYS = frozenset(
     {
+        "connection",
         "vmid",
         "proxmox_node",
         "ip_address",

@@ -8,6 +8,7 @@ from sqlmodel import Session, col, select
 from app.models import IpAllocation, Resource, ResourceNetwork
 
 logger = logging.getLogger(__name__)
+_VERIFIED_IP_SOURCES = {"ip_allocation", "proxmox_config", "proxmox_guest"}
 
 
 def create_resource(
@@ -137,28 +138,47 @@ def assign_to_teaching_class(
     return resource
 
 
-def update_ip_address(*, session: Session, vmid: int, ip_address: str) -> None:
-    """Update the resource IP cache in resource_networks."""
-    resource = get_resource_by_vmid(session=session, vmid=vmid)
+def update_ip_address(
+    *, session: Session, vmid: int, ip_address: str, source: str = "proxmox"
+) -> None:
+    """Cache a verified address without replacing a managed IP with another NIC."""
+    resource = session.exec(
+        select(Resource).where(Resource.vmid == vmid).with_for_update()
+    ).first()
     if resource is None:
         return
+
+    allocated = get_allocated_ip_address(session=session, vmid=vmid)
+    if allocated and allocated != ip_address:
+        return  # A different guest NIC must not replace the managed address.
 
     now = datetime.now(timezone.utc)
     network = session.exec(
         select(ResourceNetwork).where(ResourceNetwork.resource_vmid == vmid)
     ).first()
+    if (
+        network and source == "proxmox" and not allocated
+        and network.source in _VERIFIED_IP_SOURCES
+        and network.ip_address != ip_address
+    ):
+        return
     if network is None:
         network = ResourceNetwork(
             resource_vmid=vmid,
             ip_address=ip_address,
-            source="proxmox",
+            source=source,
             cached_at=now,
             created_at=now,
             updated_at=now,
         )
     else:
+        preserve_source = (
+            source == "proxmox" and network.source in _VERIFIED_IP_SOURCES
+            and network.ip_address == ip_address
+        )
         network.ip_address = ip_address
-        network.source = "proxmox"
+        if not preserve_source:
+            network.source = source
         network.cached_at = now
         network.updated_at = now
     session.add(network)
@@ -200,7 +220,9 @@ def _rollback_quietly(session: Session) -> None:
 
 
 def sync_ip_cache(*, session: Session, vmid: int, live_ip: str | None) -> str | None:
-    """有即時 IP 就順手寫回快取並回傳它；沒有就回退 DB 快取，再沒有就回退 IP 分配紀錄。
+    """即時 IP 與系統分配一致才寫快取；其他網卡回退分配 IP。
+
+    沒有即時 IP 就回退 DB 快取，再沒有就回退 IP 分配紀錄。
 
     關機的機器 Proxmox 查不到 IP；若它從未在開機狀態下被觀測過，快取也是空的，
     但佈建時分配的固定 IP 就在 ip_allocation 裡，拿來顯示不會錯。
@@ -211,6 +233,9 @@ def sync_ip_cache(*, session: Session, vmid: int, live_ip: str | None) -> str | 
     """
     if live_ip:
         try:
+            allocated = get_allocated_ip_address(session=session, vmid=vmid)
+            if allocated and allocated != live_ip:
+                return allocated
             update_ip_address(session=session, vmid=vmid, ip_address=live_ip)
         except Exception:
             _rollback_quietly(session)
@@ -253,7 +278,7 @@ def sync_ip_cache_many(
     *, session: Session, live_ips: dict[int, str | None]
 ) -> dict[int, str | None]:
     """sync_ip_cache 的批次版（清單頁、拓撲用）：一次查快取與分配紀錄，
-    有即時 IP 且與快取不同的才寫回。
+    有即時 IP、符合系統分配且與快取不同的才寫回。
 
     寫回走獨立的短交易並立即 commit：API 請求的 session 不會 commit，
     寫在裡面不但會被丟掉，UPDATE 的列鎖還會一路持有到請求結束，
@@ -283,9 +308,11 @@ def sync_ip_cache_many(
         _rollback_quietly(session)
         logger.warning("IP 快取批次讀取失敗，已 rollback", exc_info=True)
 
-    changes = {
-        vmid: ip for vmid, ip in live_ips.items() if ip and cached.get(vmid) != ip
+    live_ips = {
+        vmid: ip if not allocated.get(vmid) or ip == allocated[vmid] else None
+        for vmid, ip in live_ips.items()
     }
+    changes = {vmid: ip for vmid, ip in live_ips.items() if ip and cached.get(vmid) != ip}
     if changes:
         _persist_ip_cache(session, changes)
     return {
@@ -301,30 +328,45 @@ def _persist_ip_cache(session: Session, changes: dict[int, str]) -> None:
         return  # 測試用的假 session
     try:
         with Session(bind) as write_session:
+            # Recheck allocation inside the write transaction; keep list writes
+            # batched and lock resources in a stable order, as the single writer does.
             existing = set(
                 write_session.exec(
                     select(Resource.vmid).where(col(Resource.vmid).in_(changes))
+                    .order_by(col(Resource.vmid)).with_for_update()
+                ).all()
+            )
+            allocated = dict(
+                write_session.exec(
+                    select(IpAllocation.vmid, IpAllocation.ip_address)
+                    .where(col(IpAllocation.vmid).in_(changes))
                 ).all()
             )
             rows = {
                 row.resource_vmid: row
                 for row in write_session.exec(
-                    select(ResourceNetwork).where(
-                        col(ResourceNetwork.resource_vmid).in_(changes)
-                    )
+                    select(ResourceNetwork)
+                    .where(col(ResourceNetwork.resource_vmid).in_(changes))
                 ).all()
             }
             now = datetime.now(timezone.utc)
-            for vmid, ip in changes.items():
-                if vmid not in existing:
+            for vmid, ip in sorted(changes.items()):
+                if vmid not in existing or (allocated.get(vmid) and allocated[vmid] != ip):
                     continue
                 network = rows.get(vmid)
+                if (
+                    network and not allocated.get(vmid)
+                    and network.source in _VERIFIED_IP_SOURCES and network.ip_address != ip
+                ):
+                    continue
+                preserve_source = bool(
+                    network and network.source in _VERIFIED_IP_SOURCES and network.ip_address == ip
+                )
                 if network is None:
-                    network = ResourceNetwork(
-                        resource_vmid=vmid, created_at=now, ip_address=ip
-                    )
+                    network = ResourceNetwork(resource_vmid=vmid, ip_address=ip, created_at=now)
                 network.ip_address = ip
-                network.source = "proxmox"
+                if not preserve_source:
+                    network.source = "proxmox"
                 network.cached_at = now
                 network.updated_at = now
                 write_session.add(network)

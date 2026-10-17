@@ -1109,7 +1109,13 @@ def _is_usable_ipv4(ip: str) -> bool:
 
 def get_ip_address(node: str, vmid: int, resource_type: ResourceType) -> str | None:
     """取得 VM 的 IP 位址，掃描全部網卡（跳過 loopback / link-local）。"""
+    return next(iter(get_ip_addresses(node, vmid, resource_type)), None)
+
+
+def get_ip_addresses(node: str, vmid: int, resource_type: ResourceType) -> list[str]:
+    """Return all usable guest IPv4 addresses; callers decide which NIC to trust."""
     proxmox = get_proxmox_api_for_node(node)
+    addresses: list[str] = []
     try:
         if resource_type == "lxc":
             interfaces = proxmox.nodes(node).lxc(vmid).interfaces.get()
@@ -1120,7 +1126,7 @@ def get_ip_address(node: str, vmid: int, resource_type: ResourceType) -> str | N
                 if inet:
                     ip = inet.split("/")[0]
                     if _is_usable_ipv4(ip):
-                        return ip
+                        addresses.append(ip)
         else:
             network_info = (
                 proxmox.nodes(node)
@@ -1135,10 +1141,10 @@ def get_ip_address(node: str, vmid: int, resource_type: ResourceType) -> str | N
                         if ip_entry.get("ip-address-type") == "ipv4":
                             ip = ip_entry.get("ip-address", "")
                             if _is_usable_ipv4(ip):
-                                return ip
+                                addresses.append(ip)
     except Exception as e:
         logger.debug(f"Failed to get IP for VMID {vmid}: {e}")
-    return None
+    return list(dict.fromkeys(addresses))
 
 
 # ---------------------------------------------------------------------------

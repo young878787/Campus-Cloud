@@ -11,18 +11,23 @@ from app.ai.teacher_judge import target_ip_resolver as svc
 
 @pytest.fixture
 def repo(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
-    state: dict[str, Any] = {"cached": None, "synced": []}
+    state: dict[str, Any] = {"cached": None, "allocated": None, "synced": []}
     monkeypatch.setattr(
         svc.resource_repo,
         "get_cached_ip_address",
         lambda *, session, vmid: state["cached"],
     )
 
-    def sync(*, session: Any, vmid: int, live_ip: str) -> str:
-        state["synced"].append((vmid, live_ip))
-        return live_ip
+    monkeypatch.setattr(
+        svc.resource_repo,
+        "get_allocated_ip_address",
+        lambda *, session, vmid: state["allocated"] if vmid == 101 else None,
+    )
 
-    monkeypatch.setattr(svc.resource_repo, "sync_ip_cache", sync)
+    def update(*, session: Any, vmid: int, ip_address: str) -> None:
+        state["synced"].append((vmid, ip_address))
+
+    monkeypatch.setattr(svc.resource_repo, "update_ip_address", update)
     return state
 
 
@@ -86,3 +91,30 @@ def test_live_ip_is_synced_to_cache(
     monkeypatch.setattr(svc.proxmox_ops, "get_ip_address", lambda n, v, t: "10.1.1.1")
     assert _resolve({"node": "pve1", "type": "lxc"}) == "10.1.1.1"
     assert repo["synced"] == [(101, "10.1.1.1")]
+
+
+@pytest.mark.parametrize(
+    "lookup", ["empty", "blank", "ip_error", "resource_error", "missing_node"]
+)
+def test_unavailable_live_ip_falls_back_to_allocation_without_caching_it(
+    repo: dict[str, Any], monkeypatch: pytest.MonkeyPatch, lookup: str
+) -> None:
+    repo["allocated"] = "10.0.0.101"
+
+    def find(vmid: int) -> dict[str, Any]:
+        assert vmid == 101
+        if lookup == "resource_error":
+            raise RuntimeError("pve down")
+        return {"node": "" if lookup == "missing_node" else "pve1", "type": "qemu"}
+
+    def live_ip(node: str, vmid: int, resource_type: str) -> str | None:
+        assert (node, vmid, resource_type) == ("pve1", 101, "qemu")
+        if lookup == "ip_error":
+            raise RuntimeError("agent missing")
+        return "  " if lookup == "blank" else None
+
+    monkeypatch.setattr(svc.proxmox_ops, "find_resource", find)
+    monkeypatch.setattr(svc.proxmox_ops, "get_ip_address", live_ip)
+
+    assert _resolve() == "10.0.0.101"
+    assert repo["synced"] == []

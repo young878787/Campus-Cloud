@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+import errno
 import io
 import os
 import threading
@@ -29,6 +30,34 @@ from app.exceptions import ProxmoxError
 
 _PARAMIKO_AVAILABLE = not isinstance(paramiko, SimpleNamespace)
 SSHAuthenticationError = paramiko.AuthenticationException
+
+
+class SSHConnectError(OSError):
+    """TCP failed before Paramiko created a transport (not SSH authentication)."""
+
+    def __init__(self, cause: BaseException) -> None:
+        super().__init__(str(cause))
+        errors = getattr(cause, "errors", None)
+        causes = list(errors.values()) if isinstance(errors, dict) and errors else [cause]
+        self.timed_out = all(isinstance(error, TimeoutError) for error in causes)
+
+
+class _SSHConnectTimeoutError(SSHConnectError, TimeoutError):
+    """Preserve TimeoutError handling in other users of the shared SSH client."""
+
+
+def _is_tcp_error(exc: BaseException) -> bool:
+    errors = getattr(exc, "errors", None)
+    if isinstance(errors, dict) and errors:
+        return all(_is_tcp_error(error) for error in errors.values())
+    return isinstance(exc, TimeoutError) or (
+        isinstance(exc, OSError)
+        and (
+            exc.errno in {errno.ECONNREFUSED, errno.EHOSTUNREACH, errno.ENETUNREACH, errno.ETIMEDOUT}
+            or getattr(exc, "winerror", None) in {10060, 10061, 10065, 10051}
+        )
+    )
+
 
 # 平台管理的 known_hosts：首次連線記錄 host key，之後 key 變更會拒絕連線
 _KNOWN_HOSTS_ENV = "SSH_KNOWN_HOSTS_FILE"
@@ -170,8 +199,18 @@ def _connect_or_close(client: Any, **kwargs: Any) -> None:
     """
     try:
         client.connect(**kwargs)
-    except BaseException:
+    except BaseException as exc:
+        tcp_failed = (
+            _is_tcp_error(exc)
+            and callable(getattr(client, "get_transport", None))
+            and client.get_transport() is None
+        )
         client.close()
+        if tcp_failed:
+            error = SSHConnectError(exc)
+            if error.timed_out:
+                raise _SSHConnectTimeoutError(exc) from exc
+            raise error from exc
         raise
 
 

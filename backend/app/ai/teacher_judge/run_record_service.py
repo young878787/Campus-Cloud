@@ -24,6 +24,7 @@ _METADATA_KEYS = {
     "user",
 }
 _RESULT_KEYS = {
+    "connection",
     "validation",
     "stdout_excerpt",
     "stderr_excerpt",
