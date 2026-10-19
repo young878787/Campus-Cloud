@@ -22,13 +22,21 @@ Runtime
   animate.css                       MIT      https://github.com/animate-css/animate.css
   Material Symbols (@iconify)       Apache-2.0  https://github.com/google/material-design-icons
 
-Bundled installer
-  WireGuard for Windows             MIT      https://git.zx2c4.com/wireguard-windows/
+Bundled networking components
+  WireGuard for Windows             MIT         https://git.zx2c4.com/wireguard-windows/
   The unmodified, Authenticode-signed MSI from the official WireGuard download
-  server is shipped in the "wireguard" folder next to this file, together with
-  its own THIRD_PARTY_NOTICES.txt. It is installed only when WireGuard for
-  Windows is not already present and is not removed when SkyLab Connect is
-  uninstalled, because other applications may share it.
+  server is shipped in the "wireguard" folder next to this file on Windows,
+  together with its own THIRD_PARTY_NOTICES.txt. It is installed only when
+  WireGuard for Windows is not already present and is not removed when SkyLab
+  Connect is uninstalled, because other applications may share it.
+
+  WireGuard for macOS               MIT / GPL-2.0
+    wireguard-go                    MIT         https://git.zx2c4.com/wireguard-go/
+    wireguard-tools (wg)            GPL-2.0     https://git.zx2c4.com/wireguard-tools/
+  On macOS, Universal (x86_64 + arm64) builds of wireguard-go and wg are shipped
+  in the "wireguard" folder next to this file, together with their own
+  THIRD_PARTY_NOTICES.txt. They are invoked as standalone executables to
+  configure the local utun tunnel interface.
 
 Application template
   Electron + Vue 3 + Vite template  MIT      Copyright (c) 2023 刘嘉伟

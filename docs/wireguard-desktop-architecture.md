@@ -63,11 +63,12 @@ In production, `WIREGUARD_ENDPOINT_HOST` should be a DNS name or public IP that 
 
 ## Desktop Client
 
-The current Windows build uses the tunnel service of the official WireGuard for Windows. The official Setup EXE bundles the official MSI, verified by SHA-256 and Authenticode, and installs it together with SkyLab Connect; if the portable EXE detects that WireGuard is not installed on the system, it prompts for UAC on the first connection and installs the same MSI. Students therefore do not need to download WireGuard separately beforehand.
+- **Windows (`x64`)**: Uses the tunnel service of the official WireGuard for Windows. The official Setup EXE bundles the official MSI, verified by SHA-256 and Authenticode, and installs it together with SkyLab Connect; if the portable EXE detects that WireGuard is not installed on the system, it prompts for UAC on the first connection and installs the same MSI. Students therefore do not need to download WireGuard separately beforehand.
+- **macOS (Universal: `Intel x64` + `Apple Silicon arm64`)**: Bundles Universal builds of `wireguard-go`, `wg`, and the root-owned `skylab-wg-helper`. On the first connection, macOS prompts once for administrator authorization (Touch ID or password) to install the helper under `/Library/Application Support/SkyLabConnect/wireguard/` (`root:wheel`) and configure passwordless execution for subsequent tunnel start, stop, and exit cleanup operations.
 
-WireGuard is a shared system networking component, so uninstalling SkyLab Connect does not remove WireGuard, to avoid breaking tunnels used by other applications. The third-party license notices ship alongside in the app resources at `wireguard/THIRD_PARTY_NOTICES.txt`.
+WireGuard is a shared system networking component, so uninstalling SkyLab Connect does not remove WireGuard on Windows, to avoid breaking tunnels used by other applications. The third-party license notices ship alongside in the app resources at `wireguard/THIRD_PARTY_NOTICES.txt`.
 
-The Client never sends its private key to the Backend, and it deletes the temporary plaintext configuration file immediately after generating the tunnel configuration.
+The Client never sends its private key to the Backend (encrypted at rest via Electron `safeStorage` using macOS Keychain or Windows DPAPI), and it deletes the temporary plaintext configuration file immediately after generating the tunnel configuration.
 
 ## Verification
 

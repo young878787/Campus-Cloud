@@ -63,11 +63,12 @@ desktop routes, connection targets, Gateway ACLs, and SNAT installation.
 
 ## Desktop Client
 
-目前 Windows 版本使用官方 WireGuard for Windows 的 tunnel service。正式 Setup EXE 內含經 SHA-256 與 Authenticode 驗證的官方 MSI，安裝 SkyLab Connect 時會一併安裝；portable EXE 若偵測到系統尚未安裝 WireGuard，會在第一次連線時要求 UAC 並安裝同一份 MSI。因此學生不需要事先另外下載 WireGuard。
+- **Windows（`x64`）**：使用官方 WireGuard for Windows 的 tunnel service。正式 Setup EXE 內含經 SHA-256 與 Authenticode 驗證的官方 MSI，安裝 SkyLab Connect 時會一併安裝；portable EXE 若偵測到系統尚未安裝 WireGuard，會在第一次連線時要求 UAC 並安裝同一份 MSI。因此學生不需要事先另外下載 WireGuard。
+- **macOS（Universal：`Intel x64` + `Apple Silicon arm64`）**：內嵌 Universal 架構的 `wireguard-go`、`wg` 與受保護的 `skylab-wg-helper`。首次連線時會透過 macOS 系統認證（Touch ID 或管理員密碼）將 helper 安裝至 `/Library/Application Support/SkyLabConnect/wireguard/`（`root:wheel` 權限保護）並設定免密規則，後續日常連線、中斷與關閉 App 自動清理皆不需重複輸入密碼。
 
-WireGuard 是共用的系統網路元件，移除 SkyLab Connect 時不會連帶移除 WireGuard，以免中斷其他應用程式的 tunnel。第三方授權聲明會一起放在 App resources 的 `wireguard/THIRD_PARTY_NOTICES.txt`。
+WireGuard 是共用的系統網路元件，移除 SkyLab Connect 時不會連帶移除 Windows WireGuard，以免中斷其他應用程式的 tunnel。第三方授權聲明會一起放在 App resources 的 `wireguard/THIRD_PARTY_NOTICES.txt`。
 
-Client 不會把私鑰傳給 Backend，產生 tunnel 設定後也會立即刪除暫存明文設定檔。
+Client 不會把私鑰傳給 Backend（macOS 以 Keychain、Windows 以 DPAPI 透過 Electron `safeStorage` 加密存放），產生 tunnel 設定後也會立即刪除暫存明文設定檔。
 
 ## 驗證
 

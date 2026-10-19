@@ -43,6 +43,8 @@ _STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static" / "downlo
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _DESKTOP_RELEASE_DIR = _REPO_ROOT / "desktop-client" / "release"
 _DOWNLOAD_PATTERNS = (
+    "SkyLab-Connect-Setup*.exe",
+    "SkyLab-Connect-mac-*.dmg",
     "campus-cloud-connect.zip",
     "Campus Cloud Connect Setup *.exe",
     "Campus Cloud Connect *.exe",

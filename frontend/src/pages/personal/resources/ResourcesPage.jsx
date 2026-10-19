@@ -58,8 +58,26 @@ const TYPE_MAP = {
   qemu:  { labelKey: "ResourcesPage.typeQemu", icon: "computer" },
 };
 
-const DESKTOP_CLIENT_DOWNLOAD_URL = import.meta.env.VITE_DESKTOP_CLIENT_DOWNLOAD_URL
-  || "https://github.com/1Ray0/SkyLab-Connect-Releases/releases/latest/download/SkyLab-Connect-Setup.exe";
+function resolveDesktopClientDownloadUrl() {
+  const isMac = typeof navigator !== "undefined"
+    && /Macintosh|Mac OS X/i.test(navigator.userAgent || "");
+  if (isMac) {
+    if (import.meta.env.VITE_DESKTOP_CLIENT_MAC_DOWNLOAD_URL) {
+      return import.meta.env.VITE_DESKTOP_CLIENT_MAC_DOWNLOAD_URL;
+    }
+    if (import.meta.env.VITE_DESKTOP_CLIENT_DOWNLOAD_URL) {
+      return import.meta.env.VITE_DESKTOP_CLIENT_DOWNLOAD_URL.replace(
+        /SkyLab-Connect-Setup\.exe$/i,
+        "SkyLab-Connect-mac-universal.dmg",
+      );
+    }
+    return "https://github.com/1Ray0/SkyLab-Connect-Releases/releases/latest/download/SkyLab-Connect-mac-universal.dmg";
+  }
+  return import.meta.env.VITE_DESKTOP_CLIENT_DOWNLOAD_URL
+    || "https://github.com/1Ray0/SkyLab-Connect-Releases/releases/latest/download/SkyLab-Connect-Setup.exe";
+}
+
+const DESKTOP_CLIENT_DOWNLOAD_URL = resolveDesktopClientDownloadUrl();
 
 /* ── Helpers ── */
 function formatDate(isoStr) {

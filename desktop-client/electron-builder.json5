@@ -43,5 +43,38 @@
     allowToChangeInstallationDirectory: true,
     deleteAppDataOnUninstall: false,
     include: "build/installer.nsh"
+  },
+  mac: {
+    icon: "./public/logo/pack/icon.icns",
+    category: "public.app-category.developer-tools",
+    darkModeSupport: true,
+    hardenedRuntime: true,
+    gatekeeperAssess: false,
+    artifactName: "SkyLab-Connect-mac-${arch}.${ext}",
+    extraResources: [
+      {
+        from: "vendor/wireguard-mac",
+        to: "wireguard",
+        filter: [
+          "wireguard-go",
+          "wg",
+          "skylab-wg-helper.sh",
+          "THIRD_PARTY_NOTICES.txt"
+        ]
+      },
+      {
+        from: "THIRD_PARTY_NOTICES.txt",
+        to: "THIRD_PARTY_NOTICES.txt"
+      }
+    ],
+    target: [
+      {
+        target: "dmg",
+        arch: ["universal"]
+      }
+    ]
+  },
+  dmg: {
+    sign: false
   }
 }

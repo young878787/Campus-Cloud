@@ -6,6 +6,12 @@ import { buildAboutInfo } from "./scripts/aboutInfo.mjs";
 export default defineConfig(({ mode }) => {
   const rootEnv = loadEnv(mode, path.resolve(import.meta.dirname, ".."), "");
   const enableSignup = process.env.ENABLE_SIGNUP ?? rootEnv.ENABLE_SIGNUP ?? "true";
+  const frontendPort = Number(
+    process.env.FRONTEND_PORT || process.env.PORT || rootEnv.FRONTEND_HOST_PORT,
+  ) || 5173;
+  const backendPort = Number(
+    process.env.BACKEND_PORT || rootEnv.BACKEND_HOST_PORT,
+  ) || 8000;
 
   return {
     define: {
@@ -16,7 +22,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: process.env.HOST || "127.0.0.1",
-      port: Number(process.env.PORT) || 5173,
+      port: frontendPort,
       // 前端開發埠與本機 CORS/代理設定固定對齊；占用時直接失敗，
       // 避免 Vite 靜默改用下一個埠造成前端與後端 origin 不一致。
       strictPort: true,
@@ -24,12 +30,12 @@ export default defineConfig(({ mode }) => {
       // 讓 dev server 不必落在後端 CORS 白名單的埠
       proxy: {
         "/api": {
-          target: "http://localhost:8000",
+          target: `http://localhost:${backendPort}`,
           changeOrigin: true,
           ws: true,
         },
         "/ws": {
-          target: "http://localhost:8000",
+          target: `http://localhost:${backendPort}`,
           changeOrigin: true,
           ws: true,
         },

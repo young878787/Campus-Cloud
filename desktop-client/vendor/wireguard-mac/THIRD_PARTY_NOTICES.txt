@@ -1,0 +1,35 @@
+WireGuard for macOS (wireguard-go & wireguard-tools)
+Copyright (C) 2015-2026 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+Copyright (C) 2018-2026 WireGuard LLC. All Rights Reserved.
+
+1. wireguard-go
+   License: MIT License
+   Source: https://git.zx2c4.com/wireguard-go/ (Mirrored at https://github.com/WireGuard/wireguard-go)
+   Version: 0.0.20250522
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+2. wireguard-tools (wg)
+   License: GNU General Public License v2.0 (GPL-2.0)
+   Source: https://git.zx2c4.com/wireguard-tools/ (Mirrored at https://github.com/WireGuard/wireguard-tools)
+   Version: v1.0.20260223
+
+   The "wg" command-line utility is invoked as a separate process to configure
+   the local WireGuard utun interface. SkyLab Connect itself is licensed under
+   the GNU Affero General Public License v3.0 (see LICENSE in the repository root).
