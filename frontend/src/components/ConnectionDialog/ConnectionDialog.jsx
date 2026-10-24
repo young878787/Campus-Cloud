@@ -14,9 +14,9 @@
  * 意圖推導在 intents.js，三者都是純邏輯且有測試；這個檔案只管表單狀態與呈現。
  *
  * props：
- * - nodes            可選，[{ key, vmid, name }]；沒給就自己抓 getTopology()
+ * - nodes            可選，[{ key, vmid, name }]；沒給就自己抓拓撲（useFirewallTopologyQuery，與防火牆頁共用快取）
  * - intents          可選，要出現哪些意圖（預設四種）；課程環境模板只留「開放服務」與「互通」
- * - templateMode     課程環境模板：機器沒有 vmid、網址是含 {student} 的樣板、對外 port 開課時才配、
+ * - templateMode     課程環境模板：機器沒有 vmid、網址只填前綴（開課時逐人接亂碼）、對外 port 開課時才配、
  *                    不做網域即時檢查；送出一律交給 onSubmit，不打 API
  * - onSubmit(req)    可選，取代預設的送出（submitRequest）；收到 { kind: "rule"|"inbound"|"edge", ... }，
  *                    回傳 { ok, result } 或 { ok:false, error }
@@ -40,7 +40,8 @@ import MIcon from "../MIcon";
 import Modal from "../Modal/Modal";
 import SegmentedControl from "../SegmentedControl/SegmentedControl";
 import { focusInvalidField } from "../../utils/focusField";
-import { getTopology } from "../../services/firewall";
+import { useFirewallTopologyQuery } from "../../queries/firewall";
+import { useReverseProxySetupContextQuery } from "../../queries/reverseProxy";
 import { toDialogNodes } from "./topologyNodes";
 import { ReverseProxyService } from "../../services/reverseProxy";
 import PortInput from "./PortInput";
@@ -67,6 +68,7 @@ const FORWARD_PROTOCOLS = ["tcp", "udp"];
 const RULE_PROTOCOLS = ["tcp", "udp", "icmp"];
 const AVAILABILITY_DEBOUNCE_MS = 500;
 const EMPTY = [];
+const NO_SETUP_CONTEXT = Object.freeze({ enabled: false, zones: EMPTY });
 
 let _uid = 0;
 const uid = () => ++_uid;
@@ -235,19 +237,15 @@ export default function ConnectionDialog({
   const isVmToVm   = intent === INTENT.PEER;
   const isRule     = intent === INTENT.RULE;
 
-  /* ── 節點清單：沒給就自己抓 ── */
-  const [fetchedNodes, setFetchedNodes] = useState(null);
-  useEffect(() => {
-    if (nodes) return undefined;
-    let cancelled = false;
-    getTopology()
-      .then((topo) => {
-        if (cancelled) return;
-        setFetchedNodes(toDialogNodes(topo?.nodes));
-      })
-      .catch(() => !cancelled && setFetchedNodes([]));
-    return () => { cancelled = true; };
-  }, [nodes]);
+  /* ── 節點清單：沒給就自己抓（與防火牆頁共用拓撲快取；對話框開著時不輪詢）──
+     抓不到就當沒有機器，不擋住對話框（與原本相同） */
+  const topologyQuery = useFirewallTopologyQuery({ enabled: !nodes, refetchInterval: false });
+  const topology = topologyQuery.data;
+  const topologyFailed = topology === undefined && topologyQuery.isError;
+  const fetchedNodes = useMemo(() => {
+    if (topology !== undefined) return toDialogNodes(topology?.nodes);
+    return topologyFailed ? EMPTY : null;
+  }, [topology, topologyFailed]);
 
   const nodesLoading = !nodes && fetchedNodes === null;
   const vmNodes = useMemo(() => {
@@ -285,16 +283,11 @@ export default function ConnectionDialog({
   const { sourceKey, targetKey } = endsOf(intent, { vmKey, peerSourceKey, peerTargetKey });
 
   /* ── 入站：發布方式 ── */
-  const [setupContext, setSetupContext] = useState(null);
-  useEffect(() => {
-    /* 呼叫端已經有 zones（課程編輯器）就不再抓一次 */
-    if (zonesProp) return undefined;
-    let cancelled = false;
-    ReverseProxyService.setupContext()
-      .then((ctx) => !cancelled && setSetupContext(ctx ?? { enabled: false, zones: [] }))
-      .catch(() => !cancelled && setSetupContext({ enabled: false, zones: [] }));
-    return () => { cancelled = true; };
-  }, [zonesProp]);
+  /* 呼叫端已經有 zones（課程編輯器）就不再抓一次；查不到或失敗一律當成沒有可用網址 */
+  const setupContextQuery = useReverseProxySetupContextQuery({ enabled: !zonesProp });
+  const setupContext = zonesProp
+    ? null
+    : (setupContextQuery.data ?? (setupContextQuery.isError ? NO_SETUP_CONTEXT : null));
   const zones = useMemo(() => zonesProp ?? setupContext?.zones ?? EMPTY, [zonesProp, setupContext]);
   const domainReady = zonesProp
     ? zones.length > 0
@@ -314,7 +307,7 @@ export default function ConnectionDialog({
 
   /* 網址模式：port 直接輸入，或從 PortInput 的常用 port 選單挑 */
   const [domainPort, setDomainPort] = useState(editing ? String(service.port) : "80");
-  /* 只有模板編輯會帶 service：zone 與「開頭」（主機名樣板，含 {student}）直接從那條發布還原 */
+  /* 只有模板編輯會帶 service：zone 與「開頭」（網址前綴）直接從那條發布還原 */
   const [zoneId, setZoneId] = useState(service?.zone_id ?? "");
   const [prefix, setPrefix] = useState(service?.hostname_prefix ?? "");
   const [enableHttps, setEnableHttps] = useState(service?.enable_https ?? true);
@@ -333,7 +326,7 @@ export default function ConnectionDialog({
     : selectedZone ? (cleanPrefix ? `${cleanPrefix}.${selectedZone.name}` : selectedZone.name) : "";
 
   /* 網域即時檢查：本系統建的或 Cloudflare 上原本就有的，撞名都提醒。
-     模板模式的網址是樣板，開課時才逐人組出來，這裡沒有東西可查 */
+     模板模式只有前綴，網址開課時才逐人接亂碼組出來，這裡沒有東西可查 */
   useEffect(() => {
     if (templateMode || !isInbound || mode !== "domain" || !fullDomain) {
       setAvailability(null);
@@ -677,7 +670,7 @@ export default function ConnectionDialog({
               </div>
               {templateMode ? (
                 <span className={styles.fieldHint}>
-                  {t("ConnectionDialog.templateHostnameHint", { example: fullDomain || previewTemplateHostname("{class}-{student}-app", selectedZone?.name) })}
+                  {t("ConnectionDialog.templateHostnameHint", { example: fullDomain || previewTemplateHostname("app", selectedZone?.name) })}
                 </span>
               ) : fullDomain && (
                 <span className={`${styles.hintLine} ${availabilityTone}`}>

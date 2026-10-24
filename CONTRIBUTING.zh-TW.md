@@ -2,18 +2,18 @@
 
 > [English](./CONTRIBUTING.md) | **繁體中文**
 
-感謝你願意投入時間貢獻。本頁說明專案的基本規範；開發環境的建置請見 [`docs/development.zh-TW.md`](docs/development.zh-TW.md)。
+感謝你願意投入時間貢獻。本頁說明專案的基本規範；開發環境的建置請見 [`website/zh-TW/guides/development.md`](website/zh-TW/guides/development.md)。
 
 ## 開始之前
 
 - **錯誤回報與小修正**（錯字、lint 警告、附測試的可重現 bug）可以直接開 pull request。
 - **較大的變更**（新功能、schema 變更、任何動到建置、網路或認證的改動）請先開 GitHub issue 說明問題與預計做法，先對設計取得共識再投入時間。
-- 這套平台實際部署在教室裡。會改變既有行為的變更（預設值、API 回應、閘道規則）需要提供升級路徑，並在 `docs/` 對應文件補上說明。
+- 這套平台實際部署在教室裡。會改變既有行為的變更（預設值、API 回應、閘道規則）需要提供升級路徑，並在 `website/` 對應文件補上說明。
 
 ## 開發流程
 
 1. Fork 本 repo，從 `main` 開分支。
-2. 依 [`docs/development.zh-TW.md`](docs/development.zh-TW.md) 建好環境。
+2. 依 [`website/zh-TW/guides/development.md`](website/zh-TW/guides/development.md) 建好環境。
 3. 進行修改，並遵守架構規則：
    - 後端採 **Routes → Services → Infrastructure** 分層。Route 是薄控制器，業務邏輯放 `services/`，外部系統（Proxmox、SSH、Redis、LLM）只在 `infrastructure/` 呼叫。
    - DB 資料表放 `backend/app/models/`，API schema 放 `backend/app/schemas/`，不要混用。
@@ -27,12 +27,17 @@
    cd backend
    uv run ruff check .
    uv run ruff format --check .
-   bash ./scripts/test.sh
+   uv run bash ./scripts/test.sh
 
    # frontend
-   cd frontend
+   cd ../frontend
    bun run test
    bun run build
+
+   # 桌面端（有改到 desktop-client/ 才需要）
+   cd ../desktop-client
+   npm run lint
+   npm run build
    ```
 
    Pre-commit hook 由 prek 管理：執行一次 `uv run prek install -f`，之後每次 commit 會自動跑。
@@ -42,7 +47,7 @@
 - 一個 PR 只做一件事。重構與行為變更分開送。
 - 說明改了什麼、為什麼改，並連結相關 issue。
 - 行為變更要補或更新測試。後端測試在 `backend/tests/`，前端 service 測試與 service 檔放在一起。
-- 變更設定、部署步驟或維運流程時，同步更新 `docs/` 的文件。英文版是主要版本；有 `*.zh-TW.md` 對應檔時請一起更新。
+- 變更設定、部署步驟或維運流程時，同步更新 `website/` 的文件。英文頁（`website/<區>/<name>.md`）是主要版本；同一次變更裡也要更新 `website/zh-TW/<區>/<name>.md` 的繁體中文頁（repo 根目錄的社群檔案則是用 `.zh-TW.md` 後綴）。
 - CI 必須通過（後端測試、前端測試、桌面端測試、AI service 測試、migration 檢查、CodeQL）。
 
 ## 貢獻的授權
@@ -52,7 +57,7 @@ SkyLab 以 AGPL-3.0 授權，維護者另外也提供商業授權。為了讓兩
 - 每個 commit 都要以 sign-off 表示你確認 [Developer Certificate of Origin](https://developercertificate.org/)（`git commit -s`，會加上 `Signed-off-by: 你的名字 <email>` 結尾）。含未簽署 commit 的 PR 會被要求補簽。
 - 送出貢獻即表示你以 AGPL-3.0 授權該貢獻給本專案，**並且**授予 SkyLab 維護者永久、全球、免權利金的權利，將它作為 SkyLab 的一部分以其他授權條款（包括商業授權）散布。你保留自己作品的著作權。
 - 只提交你有權貢獻的程式碼。從別處複製的程式碼必須有相容的授權，並在 `NOTICE` 註明出處。
-- 新增或升級直接依賴時，請同步更新 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)（桌面端另有 `desktop-client/THIRD_PARTY_NOTICES.txt`）。避免使用與 AGPL-3.0 不相容的授權。
+- 新增、移除或升級直接依賴時，請同步更新 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)（桌面端還有 `desktop-client/THIRD_PARTY_NOTICES.txt` 也要更新）。避免使用與 AGPL-3.0 不相容的授權。
 
 ## Commit 訊息
 
