@@ -404,10 +404,10 @@ strong.reviewStatValue { font-size: $font-size-14; }
 
 .replyInput {
   @include form-control;
-  flex: 1;
   min-width: 0;
-  max-height: 160px;
-  resize: none;
+  min-height: 128px;
+  max-height: 320px;
+  resize: vertical;
   field-sizing: content;
   line-height: 1.5;
 }

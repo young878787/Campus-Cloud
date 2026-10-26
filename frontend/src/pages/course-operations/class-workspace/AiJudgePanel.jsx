@@ -4493,7 +4493,7 @@ export function TeacherReviewTab({
                           className={styles.replyInput}
                           value={value}
                           maxLength={REPLY_MAX_LENGTH}
-                          rows={1}
+                          rows={4}
                           aria-label={t("AiJudgePanel.replyLabel")}
                           placeholder={t("AiJudgePanel.replyPlaceholder")}
                           onChange={(event) => {
