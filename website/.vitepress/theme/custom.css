@@ -1,0 +1,66 @@
+/* Brand colours match frontend/src/assets/styles/_themes.scss (--color-primary). */
+:root {
+  --vp-c-brand-1: #4361a2;
+  --vp-c-brand-2: #5471bf;
+  --vp-c-brand-3: #2b4d98;
+  --vp-c-brand-soft: rgba(84, 113, 191, 0.16);
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #2b4d98 20%, #6a7fb3);
+}
+
+.dark {
+  --vp-c-brand-1: #89a5e0;
+  --vp-c-brand-2: #6a7fb3;
+  --vp-c-brand-3: #5471bf;
+  --vp-c-brand-soft: rgba(137, 165, 224, 0.16);
+  --vp-home-hero-name-background: linear-gradient(120deg, #89a5e0 20%, #c7d4f2);
+}
+
+/* Product screenshot on the home page, below the feature cards. */
+.home-screenshot {
+  max-width: 1152px;
+  margin: 48px auto 0;
+  padding: 0 24px;
+}
+.home-screenshot img {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--vp-c-divider);
+  box-shadow: 0 24px 48px -24px rgba(43, 77, 152, 0.45);
+}
+
+/* Section screenshots in the user manual (scripts/manual-shots/); numbered
+   badges in the picture match the steps of the section. */
+.vp-doc img[src*='/manual-shots/'] {
+  display: block;
+  max-width: 100%;
+  width: auto;
+  margin: 10px 0 18px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px -14px rgba(43, 77, 152, 0.5);
+  cursor: zoom-in;
+}
+.shot-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.78);
+  cursor: zoom-out;
+}
+.shot-zoom img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+/* Tables in the guides are wide; let them scroll instead of overflowing. */
+.vp-doc table {
+  display: block;
+  overflow-x: auto;
+}

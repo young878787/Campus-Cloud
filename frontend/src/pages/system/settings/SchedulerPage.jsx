@@ -4,6 +4,7 @@ import styles from "./settings.module.scss";
 import LoadingState from "../../../components/LoadingState/LoadingState";
 import { useToast } from "../../../hooks/useToast";
 import { ProxmoxConfigService } from "../../../services/proxmoxConfig";
+import { usePveConfigQuery, useProxmoxConfigCacheUpdater } from "../../../queries/proxmoxConfig";
 import { useUnsavedChangesGuard } from "../../../contexts/UnsavedChangesContext";
 import PageHeader from "../../../components/PageHeader/PageHeader";
 
@@ -19,7 +20,7 @@ import PageHeader from "../../../components/PageHeader/PageHeader";
  * 不必再原樣回送。
  */
 const UPDATE_KEYS = [
-  "cpu_overcommit_ratio", "disk_overcommit_ratio",
+  "cpu_overcommit_ratio", "disk_overcommit_ratio", "memory_overcommit_ratio",
   "placement_reassignment_cost", "placement_peak_cpu_margin",
   "placement_peak_memory_margin", "placement_loadavg_warn_per_core",
   "placement_loadavg_max_per_core", "placement_loadavg_penalty_weight",
@@ -60,6 +61,8 @@ function useSchedulerGroups(t) {
       fields: [
         { key: "cpu_overcommit_ratio", label: t("SettingsPage.cpuOvercommitRatio"), step: 0.1 },
         { key: "disk_overcommit_ratio", label: t("SettingsPage.diskOvercommitRatio"), step: 0.1 },
+        /* RAM 只放寬「已分配」的總量；實際用量仍不能超過實體記憶體 */
+        { key: "memory_overcommit_ratio", label: t("SettingsPage.memoryOvercommitRatio"), step: 0.1, hint: t("SettingsPage.memoryOvercommitRatioHint") },
         { key: "placement_reassignment_cost", label: t("SettingsPage.placementReassignmentCost"), step: 0.01 },
       ],
     },
@@ -159,23 +162,35 @@ function SchedulerForm({ form, setField, onSave, saving, dirty, onRestore }) {
 export default function SchedulerPage() {
   const { t } = useTranslation("system");
   const toast = useToast();
+  /* 設定走 TanStack Query 讀（不輪詢、不因切回分頁重抓）；表單只在第一次拿到資料時初始化，
+     之後的背景重抓不會蓋掉正在編輯的欄位 */
+  const configQuery = usePveConfigQuery();
+  const configCache = useProxmoxConfigCacheUpdater();
   const [form, setForm] = useState(buildFormFromConfig(null));
   const [baseline, setBaseline] = useState(form);
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const dirty = Object.keys(form).some((key) => form[key] !== baseline[key]);
   useUnsavedChangesGuard(dirty);
 
+  /* 進頁時快取若已過期會重抓：那次重抓回來前不初始化表單（維持載入中）。不然表單會先填快取裡的舊設定，
+     之後的新資料又被「只初始化一次」略過，存檔時把別的管理員剛改的設定整份蓋回去。
+     重抓失敗時仍用手上的資料；5 秒內回到頁面不會重抓，快取就夠新 */
+  const configReady = configQuery.data !== undefined && !(configQuery.isFetching && !configQuery.isFetchedAfterMount);
   useEffect(() => {
-    ProxmoxConfigService.getConfig()
-      .then((cfg) => {
-        const next = buildFormFromConfig(cfg);
-        setForm(next);
-        setBaseline(next);
-      })
-      .catch((err) => toast.error(err?.message ?? t("SettingsPage.toastLoadSchedulerFailed")))
-      .finally(() => setLoading(false));
-  }, [toast, t]);
+    if (loaded || !configReady) return;
+    const next = buildFormFromConfig(configQuery.data);
+    setForm(next);
+    setBaseline(next);
+    setLoaded(true);
+  }, [loaded, configReady, configQuery.data]);
+
+  /* 載入失敗照舊只提示，不擋表單 */
+  const loadError = configQuery.error;
+  useEffect(() => {
+    if (loadError) toast.error(loadError?.message ?? t("SettingsPage.toastLoadSchedulerFailed"));
+  }, [loadError, toast, t]);
+  const loading = !loaded && !configQuery.isError;
 
   const setField = useCallback((name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -186,6 +201,7 @@ export default function SchedulerPage() {
     setSaving(true);
     try {
       const updated = await ProxmoxConfigService.updateConfig(buildPayload(form));
+      configCache.setConfig(updated);
       const next = buildFormFromConfig(updated);
       setForm(next);
       setBaseline(next);

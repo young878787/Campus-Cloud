@@ -12,6 +12,6 @@
 - [ ] Tests added or updated for changed behaviour (`backend/tests/`, Vitest next to the service file)
 - [ ] Model changes come with an Alembic migration
 - [ ] New UI strings are in all three locales (zh-TW, en, ja)
-- [ ] Docs under `docs/` updated, English and `.zh-TW.md` together
-- [ ] New direct dependencies listed in `THIRD_PARTY_NOTICES.md`
+- [ ] Docs under `website/` updated, English and `zh-TW/` together
+- [ ] Added or removed direct dependencies reflected in `THIRD_PARTY_NOTICES.md` (and `desktop-client/THIRD_PARTY_NOTICES.txt`)
 - [ ] No `.env`, credentials, real student data or internal addresses in the diff

@@ -1,0 +1,65 @@
+name: Docs Site
+
+# Builds the documentation site (website/) as a check, with the same script the
+# Cloudflare Pages project skylab-docs runs. Deployment is not done here: that
+# project is connected to this repository (Git integration) and builds and
+# deploys by itself; see website/README.md. The site renders the backend's
+# OpenAPI schema, so backend changes run the check too.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "backend/app/**"
+      - "backend/scripts/export_openapi.py"
+      - ".env.example"
+      - ".github/workflows/docs-site.yml"
+  pull_request:
+    paths:
+      - "website/**"
+      - "backend/app/**"
+      - "backend/scripts/export_openapi.py"
+      - ".env.example"
+      - ".github/workflows/docs-site.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: docs-site-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The changelog page is generated from the full git history.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Build site
+        run: bash website/scripts/cloudflare-pages-build.sh
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-site
+          path: website/.vitepress/dist
+          retention-days: 7

@@ -72,7 +72,12 @@ class SkyLabApp {
 
     this._win = new BrowserWindow({
       title: `${app.getName()} v${app.getVersion()}`,
-      icon: join(process.env.VITE_PUBLIC, "logo/pack/icon.ico"),
+      icon: join(
+        process.env.VITE_PUBLIC,
+        process.platform === "win32"
+          ? "logo/pack/icon.ico"
+          : "logo/pack/512x512.png"
+      ),
       width: 960,
       height: 640,
       minWidth: 900,
@@ -112,12 +117,21 @@ class SkyLabApp {
       event.preventDefault();
     });
 
-    Menu.setApplicationMenu(null);
-
-    (this._win as any).on("minimize", (event: any) => {
-      event.preventDefault();
-      this._win?.hide();
-    });
+    if (process.platform === "darwin") {
+      Menu.setApplicationMenu(
+        Menu.buildFromTemplate([
+          { role: "appMenu" },
+          { role: "editMenu" },
+          { role: "windowMenu" }
+        ])
+      );
+    } else {
+      Menu.setApplicationMenu(null);
+      (this._win as any).on("minimize", (event: any) => {
+        event.preventDefault();
+        this._win?.hide();
+      });
+    }
 
     this._win.on("close", event => {
       if (!this._quitting) {
@@ -204,9 +218,19 @@ class SkyLabApp {
     });
 
     app.on("activate", () => {
+      if (this._win) {
+        if (this._win.isMinimized()) this._win.restore();
+        this._win.show();
+        this._win.focus();
+        return;
+      }
       const wins = BrowserWindow.getAllWindows();
-      if (wins.length) wins[0].focus();
-      else this.initializeWindow();
+      if (wins.length) {
+        wins[0].show();
+        wins[0].focus();
+      } else {
+        void this.initializeWindow();
+      }
     });
 
     app.on("before-quit", event => {

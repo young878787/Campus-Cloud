@@ -87,7 +87,7 @@ class WireGuardTunnelService {
     if (process.platform !== "win32") {
       throw new BusinessError(
         ResponseCode.WIREGUARD_NOT_INSTALLED,
-        "This build currently supports the official WireGuard for Windows client."
+        "This build currently supports the official WireGuard for Windows and macOS clients."
       );
     }
     const candidates = [
@@ -106,6 +106,88 @@ class WireGuardTunnelService {
       );
     }
     return executable;
+  }
+
+  private _macBundledWireGuardGoPath(bundledDir: string): string {
+    const universal = path.join(bundledDir, "wireguard-go");
+    if (fs.existsSync(universal)) return universal;
+    const archBinary =
+      process.arch === "arm64" ? "wireguard-go-arm64" : "wireguard-go-amd64";
+    return path.join(bundledDir, archBinary);
+  }
+
+  private _macHelperVersionHash(bundledDir: string): string {
+    const helperScript = path.join(bundledDir, "skylab-wg-helper.sh");
+    const wgBin = path.join(bundledDir, "wg");
+    const wgGoBin = this._macBundledWireGuardGoPath(bundledDir);
+    for (const requiredFile of [helperScript, wgBin, wgGoBin]) {
+      if (!fs.existsSync(requiredFile)) {
+        throw new BusinessError(
+          ResponseCode.WIREGUARD_INSTALL_FAILED,
+          `Missing bundled macOS WireGuard component: ${path.basename(requiredFile)}`
+        );
+      }
+    }
+    const hash = createHash("sha256");
+    for (const file of [helperScript, wgBin, wgGoBin]) {
+      hash.update(fs.readFileSync(file));
+    }
+    return hash.digest("hex");
+  }
+
+  private _shellQuote(value: string): string {
+    return `'${String(value).replace(/'/g, "'\\''")}'`;
+  }
+
+  private _appleScriptQuote(value: string): string {
+    return String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  }
+
+  private async _ensureMacHelperInstalled(): Promise<void> {
+    const bundledDir = PathUtils.getBundledMacWireGuardDir();
+    const expectedHash = this._macHelperVersionHash(bundledDir);
+    const installedHelper = PathUtils.getInstalledMacWireGuardHelperPath();
+    const versionFile = PathUtils.getInstalledMacWireGuardVersionPath();
+
+    if (fs.existsSync(installedHelper) && fs.existsSync(versionFile)) {
+      const installedHash = fs.readFileSync(versionFile, "utf-8").trim();
+      if (installedHash === expectedHash) {
+        try {
+          const check = await this._execFile("sudo", [
+            "-n",
+            installedHelper,
+            "check"
+          ]);
+          if (check.trim() === "ok") return;
+        } catch {
+          // Helper exists but sudoers permission is missing or invalid; reinstall below.
+        }
+      }
+    }
+
+    const helperScript = path.join(bundledDir, "skylab-wg-helper.sh");
+    const shellCmd = `/bin/sh ${this._shellQuote(helperScript)} install ${this._shellQuote(bundledDir)} ${this._shellQuote(expectedHash)}`;
+    const appleScript = `do shell script "${this._appleScriptQuote(shellCmd)}" with administrator privileges`;
+    Logger.info(
+      "WireGuardTunnelService.ensureMacHelperInstalled",
+      "Requesting one-time macOS administrator authorization to install WireGuard helper"
+    );
+    try {
+      await this._execFile("osascript", ["-e", appleScript]);
+      const check = await this._execFile("sudo", [
+        "-n",
+        installedHelper,
+        "check"
+      ]);
+      if (check.trim() !== "ok") {
+        throw new Error("Helper verification failed after installation.");
+      }
+    } catch (error) {
+      throw new BusinessError(
+        ResponseCode.WIREGUARD_INSTALL_FAILED,
+        (error as Error).message
+      );
+    }
   }
 
   private _verifyBundledInstaller(installerPath: string): void {
@@ -127,6 +209,10 @@ class WireGuardTunnelService {
   }
 
   private async _ensureWireGuardInstalled(): Promise<void> {
+    if (process.platform === "darwin") {
+      await this._ensureMacHelperInstalled();
+      return;
+    }
     try {
       this._wireGuardExecutable();
       return;
@@ -351,7 +437,19 @@ class WireGuardTunnelService {
     });
   }
 
-  private _runElevatedWireGuard(args: string[]): Promise<void> {
+  private async _runElevatedWireGuard(args: string[]): Promise<void> {
+    if (process.platform === "darwin") {
+      const helperPath = PathUtils.getInstalledMacWireGuardHelperPath();
+      if (args[0] === "/installtunnelservice" && args[1]) {
+        await this._execFile("sudo", ["-n", helperPath, "up", args[1]]);
+        return;
+      }
+      if (args[0] === "/uninstalltunnelservice") {
+        await this._execFile("sudo", ["-n", helperPath, "down"]);
+        return;
+      }
+      throw new Error(`Unsupported macOS WireGuard action: ${args[0] || ""}`);
+    }
     return this._runElevatedProcess(this._wireGuardExecutable(), args);
   }
 
@@ -365,6 +463,24 @@ class WireGuardTunnelService {
   }
 
   private async _serviceState(): Promise<TunnelServiceState> {
+    if (process.platform === "darwin") {
+      if (
+        !fs.existsSync(PathUtils.getMacTunnelNameFilePath()) ||
+        !fs.existsSync(PathUtils.getInstalledMacWireGuardHelperPath())
+      ) {
+        return "missing";
+      }
+      try {
+        const output = await this._execFile("sudo", [
+          "-n",
+          PathUtils.getInstalledMacWireGuardHelperPath(),
+          "status"
+        ]);
+        return /^running\b/i.test(output.trim()) ? "running" : "missing";
+      } catch {
+        return "missing";
+      }
+    }
     if (process.platform !== "win32") return "missing";
     try {
       const output = await this._execFile("sc.exe", ["query", SERVICE_NAME]);
@@ -426,6 +542,24 @@ class WireGuardTunnelService {
   }
 
   private async _readLatestHandshake(): Promise<number | null> {
+    if (process.platform === "darwin") {
+      if (!(await this.isRunning())) return null;
+      try {
+        const output = await this._execFile("sudo", [
+          "-n",
+          PathUtils.getInstalledMacWireGuardHelperPath(),
+          "handshake"
+        ]);
+        const values = output
+          .trim()
+          .split(/\s+/)
+          .map(value => Number(value))
+          .filter(value => Number.isFinite(value) && value > 0);
+        return values.length ? Math.max(...values) * 1000 : null;
+      } catch {
+        return null;
+      }
+    }
     const executable = this._wgExecutable();
     if (!executable || !(await this.isRunning())) return null;
     try {

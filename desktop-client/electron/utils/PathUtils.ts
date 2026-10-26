@@ -49,6 +49,29 @@ class PathUtils {
     return path.join(app.getAppPath(), "vendor", "wireguard", filename);
   }
 
+  public static getBundledMacWireGuardDir() {
+    const packed = path.join(process.resourcesPath || "", "wireguard");
+    if (
+      app.isPackaged ||
+      fs.existsSync(path.join(packed, "skylab-wg-helper.sh"))
+    ) {
+      return packed;
+    }
+    return path.join(app.getAppPath(), "vendor", "wireguard-mac");
+  }
+
+  public static getInstalledMacWireGuardHelperPath() {
+    return "/Library/Application Support/SkyLabConnect/wireguard/skylab-wg-helper";
+  }
+
+  public static getInstalledMacWireGuardVersionPath() {
+    return "/Library/Application Support/SkyLabConnect/wireguard/version";
+  }
+
+  public static getMacTunnelNameFilePath() {
+    return "/var/run/wireguard/SkyLab.name";
+  }
+
   /** 第三方授權聲明：打包後在 resources 根目錄（electron-builder extraResources），開發時讀專案根目錄 */
   public static getThirdPartyNoticesPath() {
     const filename = "THIRD_PARTY_NOTICES.txt";

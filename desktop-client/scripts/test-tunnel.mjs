@@ -417,3 +417,70 @@ test("Web account switch followed by desktop logout and sign-in uses the new acc
   assert.notEqual(connected[0].publicKey, connected[1].publicKey);
   assert.equal((await tunnel.getStatus()).running, true);
 });
+
+test("macOS shell and AppleScript quoting preserve paths with spaces and quotes", () => {
+  const tunnel = new Tunnel();
+  const rawPath =
+    "/Applications/SkyLab Connect.app/Contents/Resources/wireguard/skylab's \"helper\".sh";
+  const shellQuoted = tunnel._shellQuote(rawPath);
+  assert.equal(
+    shellQuoted,
+    "'/Applications/SkyLab Connect.app/Contents/Resources/wireguard/skylab'\\''s \"helper\".sh'"
+  );
+  const appleQuoted = tunnel._appleScriptQuote(`/bin/sh ${shellQuoted}`);
+  assert.ok(!/(?<!\\)"/.test(appleQuoted));
+});
+
+test("macOS helper skips osascript prompt when already installed and authorized", async () => {
+  const bundleDir = mkdtempSync(path.join(testDataDir, "mac-wg-bundle-"));
+  const installDir = mkdtempSync(path.join(testDataDir, "mac-wg-installed-"));
+  writeFileSync(path.join(bundleDir, "skylab-wg-helper.sh"), "#!/bin/sh\n");
+  writeFileSync(path.join(bundleDir, "wg"), "wg-binary");
+  writeFileSync(path.join(bundleDir, "wireguard-go"), "wg-go-binary");
+
+  const helperPath = path.join(installDir, "skylab-wg-helper");
+  const versionPath = path.join(installDir, "version");
+  const origBundled = PathUtils.getBundledMacWireGuardDir;
+  const origHelper = PathUtils.getInstalledMacWireGuardHelperPath;
+  const origVersion = PathUtils.getInstalledMacWireGuardVersionPath;
+  PathUtils.getBundledMacWireGuardDir = () => bundleDir;
+  PathUtils.getInstalledMacWireGuardHelperPath = () => helperPath;
+  PathUtils.getInstalledMacWireGuardVersionPath = () => versionPath;
+
+  try {
+    const tunnel = new Tunnel();
+    const expectedHash = tunnel._macHelperVersionHash(bundleDir);
+    writeFileSync(helperPath, "#!/bin/sh\n");
+    writeFileSync(versionPath, `${expectedHash}\n`);
+
+    const execCalls = [];
+    tunnel._execFile = async (cmd, args) => {
+      execCalls.push([cmd, args]);
+      if (cmd === "sudo" && args[2] === "check") return "ok\n";
+      throw new Error(`unexpected command: ${cmd}`);
+    };
+
+    await tunnel._ensureMacHelperInstalled();
+    assert.deepEqual(execCalls, [["sudo", ["-n", helperPath, "check"]]]);
+
+    // When version hash changes, osascript is invoked once to update the helper.
+    writeFileSync(versionPath, "outdated-hash\n");
+    execCalls.length = 0;
+    tunnel._execFile = async (cmd, args) => {
+      execCalls.push([cmd, args]);
+      if (cmd === "osascript") return "";
+      if (cmd === "sudo" && args[2] === "check") return "ok\n";
+      throw new Error(`unexpected command: ${cmd}`);
+    };
+    await tunnel._ensureMacHelperInstalled();
+    assert.equal(execCalls.length, 2);
+    assert.equal(execCalls[0][0], "osascript");
+    assert.deepEqual(execCalls[1], ["sudo", ["-n", helperPath, "check"]]);
+  } finally {
+    PathUtils.getBundledMacWireGuardDir = origBundled;
+    PathUtils.getInstalledMacWireGuardHelperPath = origHelper;
+    PathUtils.getInstalledMacWireGuardVersionPath = origVersion;
+  }
+});
+
+

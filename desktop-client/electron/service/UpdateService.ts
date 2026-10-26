@@ -3,6 +3,36 @@ import { app, net } from "electron";
 const LATEST_RELEASE_API =
   "https://api.github.com/repos/1Ray0/SkyLab-Connect-Releases/releases/latest";
 const SETUP_ASSET_NAME = "SkyLab-Connect-Setup.exe";
+const MAC_ASSET_CANDIDATES: Record<string, string[]> = {
+  arm64: [
+    "SkyLab-Connect-mac-universal.dmg",
+    "SkyLab-Connect-mac-arm64.dmg",
+    "SkyLab-Connect-universal.dmg",
+    "SkyLab-Connect-arm64.dmg"
+  ],
+  x64: [
+    "SkyLab-Connect-mac-universal.dmg",
+    "SkyLab-Connect-mac-x64.dmg",
+    "SkyLab-Connect-universal.dmg",
+    "SkyLab-Connect-x64.dmg"
+  ]
+};
+
+function selectReleaseAsset(
+  assets: Array<{ name?: string; browser_download_url?: string }> | undefined
+) {
+  if (!assets?.length) return undefined;
+  if (process.platform === "darwin") {
+    const candidates =
+      MAC_ASSET_CANDIDATES[process.arch] || MAC_ASSET_CANDIDATES.arm64;
+    for (const candidate of candidates) {
+      const match = assets.find(asset => asset.name === candidate);
+      if (match) return match;
+    }
+    return assets.find(asset => asset.name?.toLowerCase().endsWith(".dmg"));
+  }
+  return assets.find(asset => asset.name === SETUP_ASSET_NAME);
+}
 
 type GitHubRelease = {
   tag_name?: string;
@@ -65,9 +95,7 @@ class UpdateService {
     const currentVersion = app.getVersion();
     const release = await this.fetchLatestRelease();
     const latestVersion = String(release.tag_name || "").replace(/^v/i, "");
-    const setup = release.assets?.find(
-      asset => asset.name === SETUP_ASSET_NAME
-    );
+    const setup = selectReleaseAsset(release.assets);
     const downloadUrl = setup?.browser_download_url || release.html_url || "";
     return {
       currentVersion,
