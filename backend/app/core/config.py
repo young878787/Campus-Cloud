@@ -46,11 +46,16 @@ class Settings(BaseSettings):
     SIGNUP_RATE_LIMIT_GLOBAL: int = 120
     AI_API_CONTROL_RATE_LIMIT_PER_USER: int = 10
     FRONTEND_HOST: str = "http://127.0.0.1:5173"
-    # External URL for the desktop client zip (e.g. GitHub Releases asset).
+    # External URL for the desktop client installer (e.g. GitHub Releases asset).
     # When set, /desktop-client/download redirects here instead of serving a local file.
     DESKTOP_CLIENT_DOWNLOAD_URL: str = (
-        "https://github.com/1Ray0/SkyLab-Connect-Releases/"
+        "https://github.com/SkyLab-tw/SkyLab-Connect/"
         "releases/latest/download/SkyLab-Connect-Setup.exe"
+    )
+    # Same as above for macOS (/desktop-client/download?platform=mac).
+    DESKTOP_CLIENT_MAC_DOWNLOAD_URL: str = (
+        "https://github.com/SkyLab-tw/SkyLab-Connect/"
+        "releases/latest/download/SkyLab-Connect-mac-universal.dmg"
     )
     # Desktop VPN control plane. The public endpoint host falls back to the
     # configured Gateway VM host when left empty.

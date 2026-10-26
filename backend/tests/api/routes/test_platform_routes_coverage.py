@@ -301,7 +301,6 @@ def test_desktop_download_missing_asset_is_404(
         desktop_route, "settings", SimpleNamespace(DESKTOP_CLIENT_DOWNLOAD_URL=None)
     )
     monkeypatch.setattr(desktop_route, "_STATIC_DIR", tmp_path / "no-static")
-    monkeypatch.setattr(desktop_route, "_DESKTOP_RELEASE_DIR", tmp_path / "no-release")
 
     with pytest.raises(HTTPException) as exc_info:
         desktop_route.download_desktop_client()
@@ -320,7 +319,6 @@ def test_desktop_download_serves_local_asset(
         desktop_route, "settings", SimpleNamespace(DESKTOP_CLIENT_DOWNLOAD_URL=None)
     )
     monkeypatch.setattr(desktop_route, "_STATIC_DIR", static_dir)
-    monkeypatch.setattr(desktop_route, "_DESKTOP_RELEASE_DIR", tmp_path / "none")
 
     response = desktop_route.download_desktop_client()
 
@@ -508,6 +506,7 @@ def test_user_registration_routes_delegate(monkeypatch: pytest.MonkeyPatch) -> N
                 signup_enabled=True,
                 approval_required=False,
                 google_signup_enabled=True,
+                student_email_domain="school.edu.tw",
             ),
         )
         is policy_service.update_policy.return_value
@@ -517,6 +516,7 @@ def test_user_registration_routes_delegate(monkeypatch: pytest.MonkeyPatch) -> N
         signup_enabled=True,
         approval_required=False,
         google_signup_enabled=True,
+        student_email_domain="school.edu.tw",
     )
     assert (
         users_route.read_pending_registrations(session=session)

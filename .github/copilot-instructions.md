@@ -8,7 +8,7 @@ SkyLab is a Proxmox VE management platform for campuses: VM/LXC lifecycle, VNC/t
 
 - **Backend:** FastAPI + SQLModel + PostgreSQL (via PgBouncer) + Redis + arq worker + Proxmox API + SSH (paramiko), managed with `uv`
 - **Frontend:** React 19 (JSX, React Compiler) + Vite + react-router-dom 7 + TanStack Query / Table + SCSS Modules + react-i18next, managed with `bun`
-- **Desktop client:** `desktop-client/`, SkyLab Connect (Electron + Vue 3 + Element Plus), managed with `npm`
+- **Desktop client:** [SkyLab-Connect](https://github.com/SkyLab-tw/SkyLab-Connect), maintained in a separate repository (Electron + Vue 3 + Element Plus), managed with `npm`
 - **Infra:** Docker Compose, nginx entry point on `:8082`, optional monitoring profile
 
 ## Essential commands
@@ -36,7 +36,9 @@ bun run test                            # Vitest
 
 ### Desktop client
 ```bash
-cd desktop-client
+git clone https://github.com/SkyLab-tw/SkyLab-Connect.git
+cd SkyLab-Connect
+npm ci
 npm run lint:fix                        # ESLint + Prettier, run after every change
 npm run build                           # vue-tsc --noEmit + vite build
 ```
@@ -109,5 +111,4 @@ main.py           ← FastAPI app, lifespan (Redis init + scheduler / push / Wir
 
 - **Backend:** Ruff + Mypy strict + prek pre-commit (root `.pre-commit-config.yaml`).
 - **Frontend:** SCSS Modules per [`website/guides/frontend-style-guide.md`](../website/guides/frontend-style-guide.md) (`--color-*` tokens, `_mixins.scss`); no linter is configured.
-- **Desktop client:** ESLint + Prettier (`npm run lint:fix`).
 - **Comments:** only to explain intent, never to restate what the code literally does.

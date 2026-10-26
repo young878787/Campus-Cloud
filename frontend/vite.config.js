@@ -53,6 +53,9 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(import.meta.dirname, "src"),
       },
     },
+    test: {
+      setupFiles: ["./vitest.setup.js"],
+    },
     css: {
       preprocessorOptions: {
         scss: {

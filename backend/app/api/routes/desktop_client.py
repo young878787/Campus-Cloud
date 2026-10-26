@@ -12,8 +12,9 @@ import mimetypes
 import secrets
 import time
 from pathlib import Path
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, RedirectResponse
 
 from app.api.deps import CurrentUser, SessionDep
@@ -40,11 +41,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/desktop-client", tags=["desktop-client"])
 
 _STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static" / "downloads"
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_DESKTOP_RELEASE_DIR = _REPO_ROOT / "desktop-client" / "release"
 _DOWNLOAD_PATTERNS = (
-    "SkyLab-Connect-Setup*.exe",
-    "SkyLab-Connect-mac-*.dmg",
+    "SkyLab-Connect-Setup.exe",
+    "SkyLab-Connect-Portable.exe",
     "campus-cloud-connect.zip",
     "Campus Cloud Connect Setup *.exe",
     "Campus Cloud Connect *.exe",
@@ -52,6 +51,12 @@ _DOWNLOAD_PATTERNS = (
     "*.dmg",
     "*.AppImage",
     "*.zip",
+)
+# macOS 只發 universal DMG（Intel 與 Apple Silicon 通用）
+_MAC_DOWNLOAD_PATTERNS = (
+    "SkyLab-Connect-mac-universal.dmg",
+    "SkyLab-Connect-mac-*.dmg",
+    "*.dmg",
 )
 
 # ─── Device auth in-memory store ─────────────────────────────────────────────
@@ -253,46 +258,47 @@ def _newest_matching_file(directory: Path, pattern: str) -> Path | None:
     return max(matches, key=lambda path: path.stat().st_mtime)
 
 
-def _find_local_download_asset() -> Path | None:
-    for pattern in _DOWNLOAD_PATTERNS:
+def _find_local_download_asset(
+    patterns: tuple[str, ...] = _DOWNLOAD_PATTERNS,
+) -> Path | None:
+    for pattern in patterns:
         asset = _newest_matching_file(_STATIC_DIR, pattern)
         if asset:
             return asset
-
-    if not _DESKTOP_RELEASE_DIR.exists():
-        return None
-
-    release_dirs = [path for path in _DESKTOP_RELEASE_DIR.iterdir() if path.is_dir()]
-    release_dirs.sort(key=lambda path: path.stat().st_mtime, reverse=True)
-    for release_dir in release_dirs:
-        for pattern in _DOWNLOAD_PATTERNS:
-            asset = _newest_matching_file(release_dir, pattern)
-            if asset:
-                return asset
 
     return None
 
 
 @router.get("/download")
-def download_desktop_client():
+def download_desktop_client(
+    platform: Annotated[Literal["windows", "mac"], Query()] = "windows",
+):
     """Return the desktop client installer or archive.
 
     The installer is intentionally public so a normal browser download can
     follow the redirect without exposing an API access token.
 
-    If DESKTOP_CLIENT_DOWNLOAD_URL is set, redirects to that URL (e.g. a
-    GitHub Releases asset). Otherwise serves a local file from static/downloads/
-    or the latest desktop-client/release build.
+    If DESKTOP_CLIENT_DOWNLOAD_URL (or DESKTOP_CLIENT_MAC_DOWNLOAD_URL for
+    platform=mac) is set, redirects to that URL (e.g. a GitHub Releases asset).
+    Otherwise serves a local file from static/downloads/.
+    Client source and build outputs live in the separate SkyLab-Connect repository.
     """
-    if settings.DESKTOP_CLIENT_DOWNLOAD_URL:
-        return RedirectResponse(settings.DESKTOP_CLIENT_DOWNLOAD_URL, status_code=302)
+    is_mac = platform == "mac"
+    release_url = (
+        settings.DESKTOP_CLIENT_MAC_DOWNLOAD_URL
+        if is_mac
+        else settings.DESKTOP_CLIENT_DOWNLOAD_URL
+    )
+    if release_url:
+        return RedirectResponse(release_url, status_code=302)
 
-    download_path = _find_local_download_asset()
+    download_path = _find_local_download_asset(
+        _MAC_DOWNLOAD_PATTERNS if is_mac else _DOWNLOAD_PATTERNS
+    )
     if not download_path:
         logger.warning(
-            "Desktop client download asset not found in %s or %s",
+            "Desktop client download asset not found in %s",
             _STATIC_DIR,
-            _DESKTOP_RELEASE_DIR,
         )
         raise HTTPException(
             status_code=404,
