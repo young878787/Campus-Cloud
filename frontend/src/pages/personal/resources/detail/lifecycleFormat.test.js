@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AUTO_STOP_REASON_KEYS, effectiveExpiryIso, formatDate, formatDateTime, parseDateOnly } from "./lifecycleFormat";
+import { AUTO_STOP_REASON_KEYS, effectiveExpiryIso, formatDate, formatDateTime, isExpiryFromWindow, parseDateOnly } from "./lifecycleFormat";
 
 describe("lifecycleFormat", () => {
   it("effectiveExpiryIso 取到期日與核准時段迄日較早者；只有時段的機器也算有到期", () => {
@@ -12,6 +12,16 @@ describe("lifecycleFormat", () => {
     expect(effectiveExpiryIso({ expiry_date: "2026-11-30", window_end_at: "2026-10-15T15:59:59.000Z" })).toBe("2026-10-15");
     expect(effectiveExpiryIso({ expiry_date: "2026-10-01", window_end_at: "2026-10-15T15:59:59.000Z" })).toBe("2026-10-01");
     expect(effectiveExpiryIso({ window_end_at: "not a date" })).toBeNull();
+  });
+
+  it("isExpiryFromWindow：生效的到期來自核准時段（沒有到期日，或時段比到期日早）", () => {
+    expect(isExpiryFromWindow({ expiry_date: null, window_end_at: null })).toBe(false);
+    expect(isExpiryFromWindow({ expiry_date: "2026-11-30" })).toBe(false);
+    expect(isExpiryFromWindow({ window_end_at: "2026-10-15T15:59:59.000Z" })).toBe(true);
+    expect(isExpiryFromWindow({ expiry_date: "2026-11-30", window_end_at: "2026-10-15T15:59:59.000Z" })).toBe(true);
+    expect(isExpiryFromWindow({ expiry_date: "2026-10-01", window_end_at: "2026-10-15T15:59:59.000Z" })).toBe(false);
+    // 同一天以到期日為準（它帶實際截止時刻）
+    expect(isExpiryFromWindow({ expiry_date: "2026-10-15", window_end_at: "2026-10-15T15:59:59.000Z" })).toBe(false);
   });
 
   it("parseDateOnly 以本地時區拆解純日期，不會因 UTC 解析差一天", () => {

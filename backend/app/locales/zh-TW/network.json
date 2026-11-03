@@ -156,6 +156,7 @@
   "firewall.servicePortAlreadyPublished": "Port {port}/{protocol} 已經發布過了，請先撤下再重新設定",
   "firewall.serviceNotFound": "找不到 Port {port}/{protocol} 的對外服務",
   "firewall.serviceUnpublished": "對外服務已撤下",
+  "firewall.serviceIndexingUpdated": "已更新搜尋引擎收錄設定",
   "firewall.listRulesFailed": "讀取防火牆規則失敗: {error}",
   "reverseProxy.domainConflictUnverified": "暫時無法向 Cloudflare 確認 {domain} 是否已被使用，只檢查了本系統的紀錄",
   "reverseProxy.domainInUseExternally": "網域 {domain} 在 Cloudflare 上已有 {record_type} 紀錄（非本系統建立），請換一個名稱",

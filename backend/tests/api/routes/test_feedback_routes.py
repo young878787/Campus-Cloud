@@ -149,7 +149,8 @@ def test_student_cannot_list_update_or_delete(
         ).status_code
         == 403
     )
-    assert api_client.delete(f"{BASE}/{created['id']}").status_code == 403
+    deleted = api_client.delete(f"{BASE}/{created['id']}")
+    assert deleted.status_code == 403
 
 
 def test_admin_lists_newest_first_with_filters(
@@ -213,10 +214,12 @@ def test_admin_deletes_feedback(
     created = _submit(api_client)
 
     _login_as(admin)
-    assert api_client.delete(f"{BASE}/{created['id']}").status_code == 204
+    deleted = api_client.delete(f"{BASE}/{created['id']}")
+    assert deleted.status_code == 204
     assert api_client.get(f"{BASE}/").json()["count"] == 0
     # 再刪一次：找不到
-    assert api_client.delete(f"{BASE}/{created['id']}").status_code == 404
+    deleted_again = api_client.delete(f"{BASE}/{created['id']}")
+    assert deleted_again.status_code == 404
     assert (
         api_client.patch(
             f"{BASE}/{uuid.uuid4()}", json={"status": "resolved"}

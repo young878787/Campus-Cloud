@@ -22,6 +22,12 @@ export function effectiveExpiryIso(resource) {
   return candidates.length ? candidates.sort()[0] : null;
 }
 
+/** 生效的到期是否來自核准使用時段（沒有到期日，或時段迄日比到期日早；同一天以到期日為準） */
+export function isExpiryFromWindow(resource) {
+  const effective = effectiveExpiryIso(resource);
+  return Boolean(effective) && effective !== String(resource?.expiry_date ?? "").slice(0, 10);
+}
+
 export const AUTO_STOP_REASON_KEYS = {
   window_grace: "LifecycleCard.reasonWindowGrace",
   practice_quota: "LifecycleCard.reasonPracticeQuota",

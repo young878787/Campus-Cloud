@@ -156,6 +156,7 @@
   "firewall.servicePortAlreadyPublished": "Port {port}/{protocol} is already published; unpublish it before setting it up again",
   "firewall.serviceNotFound": "No published service found for port {port}/{protocol}",
   "firewall.serviceUnpublished": "Service unpublished",
+  "firewall.serviceIndexingUpdated": "Search engine indexing setting updated",
   "firewall.listRulesFailed": "Failed to read firewall rules: {error}",
   "reverseProxy.domainConflictUnverified": "Could not confirm with Cloudflare whether {domain} is already in use; only this system's records were checked",
   "reverseProxy.domainInUseExternally": "Domain {domain} already has a {record_type} record on Cloudflare (not created by this system); please choose another name",

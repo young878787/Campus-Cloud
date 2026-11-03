@@ -5,10 +5,13 @@
  * 與 RulesPanel 互斥顯示（同一個右側位置）。
  * 課程環境編輯器也用它看模板上的線：那裡的網址是樣板（allowOpen=false），
  * 已發布的版本不能改（不給 onDelete 就沒有刪除鈕）。
+ * 對外網址可切換是否讓搜尋引擎收錄：只有給了 onToggleIndexing（能管理這台機器）才出現開關，
+ * 一切換就送出；課程模板的網址一律不收錄，不顯示。
  */
 
 import { useTranslation } from "react-i18next";
 import MIcon from "../../../components/MIcon";
+import Switch from "../../../components/Switch/Switch";
 import { describePort, portMode, PORT_MODE } from "./utils/buildFlow";
 import styles from "./ConnectionDetailPanel.module.scss";
 
@@ -18,7 +21,16 @@ const MODE_META = {
   [PORT_MODE.FIREWALL]: { icon: "shield",     labelKey: "ConnectionPanel.modeFirewallOnly" },
 };
 
-export default function ConnectionDetailPanel({ edge, resolveName, onClose, onDelete, closing = false, allowOpen = true }) {
+export default function ConnectionDetailPanel({
+  edge,
+  resolveName,
+  onClose,
+  onDelete,
+  onToggleIndexing,
+  indexingBusy = false,
+  closing = false,
+  allowOpen = true,
+}) {
   const { t } = useTranslation("network");
   if (!edge) return null;
 
@@ -89,6 +101,16 @@ export default function ConnectionDetailPanel({ edge, resolveName, onClose, onDe
                       {t(meta.labelKey)}
                       {port.protocol ? ` · ${port.protocol}` : ""}
                     </span>
+                    {mode === PORT_MODE.DOMAIN && allowOpen && onToggleIndexing && (
+                      <Switch
+                        className={styles.portIndexing}
+                        checked={Boolean(port.allow_indexing)}
+                        onChange={(next) => onToggleIndexing(port, next)}
+                        label={t("ConnectionPanel.allowIndexing")}
+                        title={t("ConnectionPanel.allowIndexingHint")}
+                        disabled={indexingBusy}
+                      />
+                    )}
                   </div>
                   {mode === PORT_MODE.DOMAIN && allowOpen && (
                     <a

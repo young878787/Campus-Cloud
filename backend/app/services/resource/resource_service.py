@@ -1955,7 +1955,9 @@ def _session_status(
     auto_stop_warn = False
     if running and auto_stop_at:
         delta = auto_stop_at - _utc_now()
-        minutes_until_stop = max(int(delta.total_seconds() // 60), 0)
+        # 無條件進位且至少 1：最後一分鐘、或時間到了但排程器（每 60 秒一輪）還沒關機時，
+        # 曾顯示「約 0 分鐘後自動關機」
+        minutes_until_stop = max(math.ceil(delta.total_seconds() / 60), 1)
         auto_stop_warn = minutes_until_stop <= policy.practice_warning_minutes
 
     expiry_at: datetime | None = None
