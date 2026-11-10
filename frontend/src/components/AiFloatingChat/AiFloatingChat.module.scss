@@ -62,17 +62,7 @@
   border-bottom: 1px solid var(--color-border);
 
   > button {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    @include flex-center;
-
-    &:hover {
-      background: var(--color-hover);
-      color: var(--color-text-primary);
-    }
+    @include chat-header-btn;
   }
 }
 
@@ -93,8 +83,17 @@
   }
 }
 
-.contextBar {
+/* 「正在查看」膠囊靠左、「頁面導覽」鈕靠右，同一列 */
+.contextRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-8;
   margin: 12px $spacing-16 0;
+}
+
+.contextBar {
+  min-width: 0;
   padding: 8px 11px;
   display: flex;
   align-items: center;
@@ -103,28 +102,14 @@
   background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
   color: var(--color-text-secondary);
   font-size: $font-size-12;
-  align-self: flex-start;
+
+  > span { @include text-truncate; }
 }
 
-/* 「頁面導覽」：跟頁名同一行的小按鈕，任何時候都能叫出這頁的完整說明 */
+/* 「頁面導覽」：任何時候都能叫出這頁的完整說明 */
 .pageGuideBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 2px;
-  padding: 2px 8px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
-  border-radius: $radius-pill;
-  background: var(--color-surface);
-  color: var(--color-primary);
-  font: inherit;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-
-  &:hover:not(:disabled) { background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); }
-  &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-  &:disabled { opacity: .6; cursor: wait; }
+  @include btn-ghost;
+  flex: none;
 }
 
 .messages {
@@ -133,6 +118,8 @@
   overflow-y: auto;
   padding: 20px 20px 12px;
   scroll-behavior: smooth;
+  /* 上緣淡出：往上捲時文字漸漸淡掉，不會被上面那一列硬切成半行 */
+  mask-image: linear-gradient(to bottom, transparent, black 16px);
 
   &::-webkit-scrollbar { width: 5px; }
   &::-webkit-scrollbar-thumb {
@@ -171,21 +158,13 @@
   align-items: flex-start;
   gap: $spacing-8;
 
+  /* 建議問題：淡底文字鈕；句子長的時候可以換行 */
   button {
+    @include btn-ghost;
     max-width: 100%;
-    padding: 9px 14px;
-    border-radius: $radius-pill;
-    background: var(--color-hover);
-    color: var(--color-text-primary);
-    font-size: $font-size-14;
+    justify-content: flex-start;
     text-align: left;
-    cursor: pointer;
-    transition: background 140ms ease, color 140ms ease;
-
-    &:hover {
-      background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
-      color: var(--color-primary);
-    }
+    white-space: normal;
   }
 }
 
@@ -282,7 +261,7 @@
     padding: 1px 5px;
     border-radius: 4px;
     background: var(--color-hover);
-    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-family: $font-family-mono;
     font-size: $font-size-12;
   }
 
@@ -318,14 +297,20 @@
     }
   }
 
+  /* 引用：白底細框的內容區塊，不用左側色條 */
   blockquote {
     margin: 0 0 $spacing-8;
-    padding-left: 10px;
-    border-left: 3px solid var(--color-border);
+    padding: $spacing-8 12px;
+    border: 1px solid var(--color-border);
+    border-radius: $radius-8;
+    background: var(--color-surface);
     color: var(--color-text-secondary);
+
+    > :last-child { margin-bottom: 0; }
   }
 }
 
+/* 相關頁面：可點的卡片（標題＋原因＋箭頭）。hover 只換淡底，不改框色 */
 .actionList {
   display: flex;
   flex-direction: column;
@@ -343,10 +328,13 @@
     border-radius: $radius-12;
     background: var(--color-surface);
     color: var(--color-text-primary);
+    font: inherit;
     text-align: left;
     cursor: pointer;
+    transition: background $transition-base;
 
-    &:hover { border-color: var(--color-primary); }
+    &:hover { background: var(--color-hover); }
+    &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
     span { display: flex; flex-direction: column; gap: 2px; }
     strong { font-size: $font-size-14; }
@@ -410,25 +398,16 @@
   align-items: center;
   gap: 8px;
 
+  /* 答案：次要鈕；「先用目前的資訊」這類跳過選項：淡底文字鈕
+     （兩層 class 的權重才壓得過 .choiceRow button，含 hover） */
   button {
-    padding: 8px 14px;
-    border: 1px solid var(--color-border);
-    border-radius: $radius-pill;
-    background: var(--color-surface);
-    color: var(--color-text-primary);
-    font-size: $font-size-12;
-    cursor: pointer;
-
-    &:hover {
-      border-color: var(--color-primary);
-      color: var(--color-primary);
-    }
+    @include btn-secondary;
+    padding-inline: 12px;
   }
-}
 
-.choiceSkip {
-  color: var(--color-text-muted) !important;
-  border-style: dashed !important;
+  .choiceSkip {
+    @include btn-ghost;
+  }
 }
 
 .choiceProgress {
@@ -444,21 +423,17 @@
   border-radius: $radius-12;
   background: var(--color-surface);
 
+  /* 主要鈕，內容是兩行（標題＋說明），所以靠左、可換行 */
   button {
+    @include btn-primary;
     width: 100%;
-    display: flex;
     align-items: flex-start;
+    justify-content: flex-start;
     gap: 10px;
     margin-top: 12px;
-    padding: 12px 14px;
-    border: none;
-    border-radius: $radius-8;
-    background: var(--color-primary);
-    color: var(--color-text-on-primary);
+    padding: 10px 14px;
     text-align: left;
-    cursor: pointer;
-
-    &:hover { filter: brightness(1.05); }
+    white-space: normal;
 
     span { display: flex; flex-direction: column; gap: 2px; }
     strong { font-size: $font-size-14; }
@@ -497,10 +472,14 @@
     border-radius: $radius-12;
     background: var(--color-surface);
     color: var(--color-text-primary);
+    font: inherit;
     text-align: left;
     cursor: pointer;
+    transition: background $transition-base;
 
-    &:hover { border-color: var(--color-primary); }
+    /* 可點的卡片：hover 只換淡底，不改框色 */
+    &:hover { background: var(--color-hover); }
+    &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
     span { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
     strong { font-size: $font-size-14; line-height: 1.45; }
@@ -512,9 +491,9 @@
   }
 }
 
+/* 目前這一步：只換主色框（跟選中的選項同一套），不加左側色條 */
 .step_current button {
   border-color: var(--color-primary);
-  box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
 .step_done button {
@@ -546,46 +525,12 @@
   }
 }
 
+/* 圓角輸入框與送出鈕共用 chat-composer 組（_mixins.scss），檢查表助理同一套 */
 .composer {
-  display: flex;
-  align-items: flex-end;
-  gap: $spacing-8;
-  padding: 10px 10px 10px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: $radius-16;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-
-  &:focus-within { border-color: var(--color-primary); }
-
-  textarea {
-    box-sizing: border-box;
-    flex: 1;
-    min-width: 0;
-    /* 從兩行開始隨內容長高，大約 7 行就停，超過在框內捲動 */
-    max-height: 168px;
-    overflow-y: auto;
-    padding: 0;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--color-text-primary);
-    font: inherit;
-    font-size: $font-size-14;
-    line-height: 1.45;
-  }
+  @include chat-composer;
 
   > button {
-    width: 36px;
-    height: 36px;
-    flex: 0 0 36px;
-    border-radius: 50%;
-    color: var(--color-text-on-primary);
-    background: var(--color-primary);
-    cursor: pointer;
-    @include flex-center;
-
-    &:disabled { opacity: 0.35; cursor: default; }
+    @include chat-composer-btn;
   }
 }
 
@@ -597,7 +542,8 @@
   position: fixed;
   right: $spacing-16;
   bottom: $spacing-16;
-  z-index: 70;
+  z-index: 150; // Portal 浮層層級（z-index 表）：高於側邊欄與 sticky 列，低於對話框
+
   @include flex-center;
   padding: 6px;
   border: 0;
@@ -615,7 +561,7 @@
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
   bottom: calc(90px + env(safe-area-inset-bottom));
-  z-index: 70;
+  z-index: 150; // 跟章魚 FAB 同一層（Portal 浮層）
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -671,7 +617,8 @@
     background: transparent;
     color: var(--color-text-muted);
     cursor: pointer;
-    &:hover { background: var(--color-hover); }
+    transition: background $transition-base;
+    &:hover:not(:disabled) { background: var(--color-hover); }
     &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
   }
 }
@@ -736,21 +683,23 @@
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* 進行中的流程：次要鈕；目前選中的那個換主色框與淡底（hover 也維持，權重要壓過基底的 hover） */
 .workflowBar {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: $spacing-8;
+  padding: $spacing-8 $spacing-16 0;
+
   button {
-    font: inherit;
-    font-size: 12px;
-    padding: 5px 9px;
-    border: 1px solid currentColor;
-    border-radius: 8px;
-    color: inherit;
-    background: transparent;
-    cursor: pointer;
-    &[aria-pressed="true"] { font-weight: 700; background: rgba(100, 130, 180, .15); }
-    &:disabled { opacity: .6; cursor: wait; }
+    @include btn-secondary;
+    padding-inline: 12px;
+
+    &[aria-pressed="true"],
+    &[aria-pressed="true"]:hover:not(:disabled) {
+      border-color: var(--color-primary);
+      background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+      color: var(--color-primary-on-surface);
+    }
   }
 }

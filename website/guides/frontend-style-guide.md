@@ -6,6 +6,8 @@ description: "Frontend styling rules: SCSS Modules, the colour system and theme 
 
 > This document describes the frontend styling architecture and the rules for writing styles. It applies to every page and component in the frontend: new pages and components must follow it so that the visual result and the code style stay consistent. If you want to change `_variables.scss` or `_themes.scss` yourself, discuss it with the frontend team first.
 
+> **Live component reference at `/dev/style`**: run `cd frontend && bun run dev` and open `http://localhost:5173/dev/style`. Every rule in this document is rendered with the real components, labelled with the component path and mixin names; the top bar switches light/dark, interface style and language. The route is registered only in development mode (`import.meta.env.DEV`), so production builds do not include it; it needs no login and never calls the backend. The claude.ai "style reference" and "flow reference" Artifacts still exist alongside it: the live page never goes stale, while the Artifacts can be shared with teammates without logging in.
+
 ---
 
 ## Directory structure
@@ -341,6 +343,8 @@ The standard form:
 - A clickable card's hover only gets a light tint (`background: var(--color-hover)`) or a shadow / lift, with a `transition` for fade-in and fade-out; **do not change the border colour** — a blue border is reserved for the "selected / current" state (such as an active tab or the current step of a flow)
 - Do not build the tint with a `linear-gradient` layer: gradients cannot transition, so the hover colour would jump instantly
 - Content blocks inside a glass card (info fields, note boxes, `pre` blocks for code / logs / keys, list rows, stat cells) always use `background: var(--color-surface)` (white) plus `1px solid var(--color-border)`; do not fill them with primary-tinted light blues such as `--color-hover` or `--color-bg-base`. Those follow the primary colour, so when the user changes the background colour they blur into the glass that lets the background through. Light blue is reserved for hover / selected states, buttons, badges and callout boxes
+- A warning notice (in a dialog or card, saying what will happen when you press the button — the machine reboots, unsaved work is lost) uses `@include warn-notice;`: white background + `1px solid var(--color-border)`, **red only on the `warning` icon**, with the text in the normal colour. Orange is reserved for pending/awaiting-review and is never used for warnings; don't add a red tint or a red border either, so the notice doesn't outshout the primary button next to it. Markup: `<p><MIcon name="warning" size={16} /><span>text</span></p>`
+- The callout example is the teacher reply `components/TeacherReplyNote` (primary 6% tint, 30% primary border, radius 12, 34px primary round avatar): the student week page shows it in full, the student home week card passes `clamp={2}` for a two-line summary, and both pages share the one set of values instead of copying them
 - The topology canvas (React Flow) is not covered by the white-background rule: its background, border and shadow always use the canvas-specific tokens `background: var(--color-flow-bg)`, `1px solid var(--color-flow-border)`, `box-shadow: 0 4px 24px var(--color-flow-shadow)`; the firewall page, the course environment editor, resource details and the read-only topology of the class session environment all share this one set
 
 ### Dialog / Modal
@@ -417,6 +421,18 @@ Buttons always use the button mixin family (six variants) from `_mixins.scss`; *
   but a danger modifier **must show red text before hover**, and its hover must also include `:not(:disabled)`
 - Danger items inside dropdown menus (PowerMenu, the ⋯ menu in page headers) are menu styles and are not among these six variants
 
+#### Chat panels (AI assistant, checklist assistant)
+
+Both chat panels share one mixin family for the header icon buttons, the rounded composer and its send / attach buttons; do not copy them per page:
+
+```scss
+.headerBtn { @include chat-header-btn; }                      // 34px round, no background at rest, tinted on hover
+.composer  { @include chat-composer; }                        // rounded composer: the textarea grows with content, stops at about 7 lines and scrolls inside; focus only changes the border colour
+.composer  { @include chat-composer($padding: 6px); }         // 6px padding when round buttons sit on both sides
+.send      { @include chat-composer-btn; }                    // 36px solid primary send button
+.attach    { @include chat-composer-btn($primary: false); }   // 36px attach button with no background
+```
+
 ### Forms
 
 Form fields always use the form mixin family from `_mixins.scss`; **do not invent another set of font sizes and paddings inside a page**:
@@ -440,6 +456,8 @@ Form fields always use the form mixin family from `_mixins.scss`; **do not inven
 > The height is computed the same way as for buttons: site-wide line-height 1.6 (14px text → 22.4) + vertical padding 6×2 + border 1×2 ≈ 36px.
 > Writing 8px padding makes it 40px; a search box whose border sits on the container uses `min-height: 36px`, not 38px.
 > The shared SegmentedControl is also fixed at 36px, so it sits on the same row as fields and buttons without extra height locking.
+> Inside a container narrower than 240px (sidebar tabs) use its `compact` (8px segment padding) and `fullWidth` (fills the container, segments share the width) props
+> instead of overriding the component's internal buttons from page SCSS.
 
 > **Rule 2**: how fields are arranged (how many columns, which one spans) lives in the page's own grid (`.formGrid`,
 > `.createFormGrid`, `.fieldFull`); the mixins are only responsible for what a single field looks like.
@@ -451,6 +469,8 @@ Form fields always use the form mixin family from `_mixins.scss`; **do not inven
 > and the height comes from `rows` in the JSX or `height` / `min-height` in the page CSS; **do not write
 > `resize` again** inside a component. Only in special cases (a long-text editor that genuinely needs to be user-resizable) should a page explicitly set
 > `resize: vertical` back, so that the exception is visible.
+> Fields that start at one line and grow with their content (chat composers, reply boxes) use `field-sizing: content` plus a `max-height`,
+> scrolling inside the box once they hit it; they still never write `resize`.
 
 ### Switch and checkbox
 
@@ -553,11 +573,12 @@ const selected = shown.filter((r) => selection.isSelected(r.id));
 - **Only visible rows can be ticked**: `useRowSelection` only knows the ids you pass in; rows that disappear after a filter change, a page change or a refresh are unticked automatically, so nobody switches back later and finds a hidden row still ticked and acted on
 - **Actions**: send them only to the rows they apply to (disable only goes to enabled accounts…); if none apply, disable the button and use `title` to say how many will be skipped. While sending, `progress` turns the bar into "…ing 3 / 10"; afterwards refresh silently, untick the rows that succeeded and **keep the failed ones ticked** (`selection.replace`) so they can be retried straight away
 - **Irreversible actions** (delete, remove, archive, reject) use `danger`, sit at the far right after a `BatchDivider`, and confirm first with the names listed (up to 5, then "and N more")
+- **Batch review (approve / reject)** uses the shared `components/BatchReviewDialog`: it lists the items about to be processed (up to 5) plus one shared review note (optional, saved on every item). `tone="reject"` shows the red warning icon and a danger button; `tone="approve"` shows the primary-colour icon and a primary button. Approve sits with the normal actions, reject goes after a `BatchDivider`. When approving takes up resources (request review: the backend picks a node and reserves capacity), pass `concurrency: 1` to `runBatch` so requests go one at a time; the failed ones stay ticked and the reason goes into the toast
 - When there is no batch API on the backend, use `utils/runBatch` to call the single-item API one by one (4 at a time by default; one failure doesn't stop the rest)
 - Ticked rows get `@include row-selected;` for their background (list rows that are cards themselves pass `var(--color-surface)`)
 - Guide attributes such as `data-guide` can be passed straight to `DataToolbar` (attached to the toolbar's outer frame), so a tour step can spotlight the whole filters + search bar
 - **Re-check widths after adding a checkbox column**: when list rows use grid, decide between one line and two lines by the **container width** (`container-type: inline-size` + `@container`), not the viewport — once the sidebar appears (≥1024) the content area is narrower than at 992, so a viewport switch overflows sideways between 1024 and 1180
-- Currently used on: resource management, user management (batch enable / disable, add to or remove from a group, delete), request review (batch reject), class management (batch archive and reclaim), and the class workspace student roster (batch remove)
+- Currently used on: resource management, user management (batch enable / disable, add to or remove from a group, delete), request review and AI API review (batch approve / reject), class management (batch archive and reclaim), and the class workspace student roster (batch remove)
 
 ### Dropdown menus
 
@@ -676,7 +697,7 @@ If a component has special dark-mode needs, scope the override under `body.dark`
 | Base card | 1 | Regular cards |
 | Card hover / menus | 50 | Dropdown menus inside a container |
 | Sidebar / sticky header | 100 | Sidebar and page-top bars |
-| Portalled floating menus | 150 | Dropdowns portalled to body (such as `components/PowerMenu`) |
+| Portalled floating layers | 150 | Dropdowns portalled to body (such as `components/PowerMenu`); the AI assistant's octopus FAB and its page hint sit here too |
 | Dialog / Modal | 300 | Full-page overlay dialogs |
 | AI assistant | 2000 (`$z-ai-assistant`) | Stays above regular dialogs so it remains usable while one is open |
 | Screen dialogs | 2100 (`$z-screen-dialog`) | `Modal layer="screen"` (VNC, terminal, classroom watch): content the AI cannot read covers the assistant |

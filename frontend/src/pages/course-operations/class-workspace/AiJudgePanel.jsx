@@ -2744,6 +2744,19 @@ function checkStatusMeta(status) {
   };
 }
 
+/* 行內收合：文字＋向下箭頭（展開時轉半圈），不用瀏覽器原生的 ▶ 三角形 */
+function Disclosure({ label, className = "", children }) {
+  return (
+    <details className={`${styles.disclosure} ${className}`}>
+      <summary>
+        <span>{label}</span>
+        <MIcon name="expand_more" size={16} />
+      </summary>
+      {children}
+    </details>
+  );
+}
+
 function parseCheckRaw(raw) {
   if (typeof raw !== "string" || !raw) return null;
   try {
@@ -2935,8 +2948,7 @@ export function ExecutionFailure({ target }) {
       <strong>{t(`AiJudgePanel.execution${kind}`)}</strong>
       <p>{t(`AiJudgePanel.execution${kind}Hint`)}</p>
       <p>{t("AiJudgePanel.executionNotGraded")}</p>
-      <details>
-        <summary>{t("AiJudgePanel.executionEvidence")}</summary>
+      <Disclosure label={t("AiJudgePanel.executionEvidence")}>
         <div className={styles.cmdLog}>
           <p>{t("AiJudgePanel.executionReason", { reason: target.reason_code || "unknown", stage: target.failure_stage || "unknown" })}</p>
           {target.exit_code != null && <p>{t("AiJudgePanel.exitCode", { code: target.exit_code })}</p>}
@@ -2948,7 +2960,7 @@ export function ExecutionFailure({ target }) {
           ))}
           {!target.stdout_excerpt && !target.stderr_excerpt && !target.validation?.error && <p>{t("AiJudgePanel.executionNoEvidence")}</p>}
         </div>
-      </details>
+      </Disclosure>
     </div>
   );
 }
@@ -3019,8 +3031,9 @@ function reviewBadgeClass(kind) {
    原始輸出收在「查看原始證據」裡；待判定且還沒判的整列淡橘底，一眼找得到 */
 function ReviewCheckRow({ check, decision, onDecide, canDecide = true }) {
   const { t } = useTranslation("teaching");
-  const meta = checkStatusMeta(check?.status);
   const reviewable = canDecide && TEACHER_REVIEW_STATUSES.has(check?.status);
+  // 老師判定過的檢查項，圖示跟著判定走（通過綠勾、未通過紅叉），不停在「待老師判定」
+  const meta = checkStatusMeta(reviewable && decision ? decision : check?.status);
   const title = check?.title ?? check?.id ?? t("AiJudgePanel.collectedItem");
   const summary = getCheckResultSummary(check);
   const hasLog = Boolean(check?.raw || (Array.isArray(check?.errors) && check.errors.length > 0));
@@ -3034,7 +3047,7 @@ function ReviewCheckRow({ check, decision, onDecide, canDecide = true }) {
         <p>{summary === "—" ? t("AiJudgePanel.noSummary") : summary}</p>
         {check?.status === "unknown" && parseCheckRaw(check?.raw)?.error_code && <p>{t("AiJudgePanel.collectionErrorHint")}</p>}
         {hasLog && (
-          <details><summary>{t("AiJudgePanel.viewEvidence")}</summary><CommandLog raw={check?.raw} fallbackText={(check?.errors ?? []).join("\n")} /></details>
+          <Disclosure label={t("AiJudgePanel.viewEvidence")}><CommandLog raw={check?.raw} fallbackText={(check?.errors ?? []).join("\n")} /></Disclosure>
         )}
       </div>
       {reviewable && (
@@ -3076,6 +3089,8 @@ function ReviewCheckpointGroup({ item, decisions, onDecide, executionFailed = fa
   const checks = Array.isArray(item?.checks) ? item.checks : [];
   const missingCount = Array.isArray(item?.missing_check_ids) ? item.missing_check_ids.length : 0;
   const badge = checkpointBadge(item, decisions);
+  // 圖示跟右邊的標籤走：老師判完、整組都通過或有未通過時換成綠勾／紅叉，不停在待判定的橘色眼睛
+  const iconMeta = badge.kind === "pass" || badge.kind === "fail" ? checkStatusMeta(badge.kind) : itemMeta;
   const peerText = item?.peer_node_key
     ? t("AiJudgePanel.peerObserve", { name: item?.peer_display_label ?? item.peer_node_key })
     : null;
@@ -3083,8 +3098,8 @@ function ReviewCheckpointGroup({ item, decisions, onDecide, executionFailed = fa
     <details className={styles.reviewCheckGroup} open={badge.kind !== "pass" || missingCount > 0}>
       <summary className={styles.reviewCheckGroupHead}>
         {/* 還有待判定的檢查項時，圖示跟右邊的「待核查」同色，不要一邊紅一邊橘 */}
-        <span className={`${styles.reviewCheckIcon} ${badge.kind === "pending" ? styles.checkIconWarn : itemMeta.className}`} role="img" aria-label={itemMeta.label}>
-          <MIcon name={itemMeta.icon} size={18} />
+        <span className={`${styles.reviewCheckIcon} ${badge.kind === "pending" ? styles.checkIconWarn : iconMeta.className}`} role="img" aria-label={iconMeta.label}>
+          <MIcon name={iconMeta.icon} size={18} />
         </span>
         <span className={styles.reviewCheckGroupTitle}>
           <strong>{item?.title ?? item?.rubric_item_id ?? t("AiJudgePanel.thCheckpoint")}</strong>
@@ -3541,8 +3556,7 @@ export function ExecutionTiming({ timing }) {
   ].filter(([, value]) => hasSeconds(value));
   if (metrics.length === 0) return null;
   return (
-    <details className={styles.executionTiming}>
-      <summary>{t("AiJudgePanel.timingTitle")}</summary>
+    <Disclosure className={styles.executionTiming} label={t("AiJudgePanel.timingTitle")}>
       <dl>
         {metrics.map(([key, value]) => (
           <div key={key}>
@@ -3552,7 +3566,7 @@ export function ExecutionTiming({ timing }) {
         ))}
       </dl>
       <p>{t("AiJudgePanel.timingHint")}</p>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -3601,10 +3615,9 @@ function MachineReviewDetail({
             />
           ))}
           {(row.unmappedChecks ?? []).length > 0 && (
-            <details className={styles.judgeDetails}>
-              <summary>{t("AiJudgePanel.unmappedChecks")}</summary>
+            <Disclosure className={styles.judgeDetails} label={t("AiJudgePanel.unmappedChecks")}>
               <CheckResultsTable checks={row.unmappedChecks} />
-            </details>
+            </Disclosure>
           )}
         </div>
       ) : (
@@ -4189,7 +4202,7 @@ export function TeacherReviewTab({
           </>
         }
       >
-        <p>{t("AiJudgePanel.activeScriptSet", { version: activeSet?.source_analysis_revision ?? "—", count: children.length })}</p>
+        <p className={styles.dialogNote}>{t("AiJudgePanel.activeScriptSet", { version: activeSet?.source_analysis_revision ?? "—", count: children.length })}</p>
 
         <div className={styles.vmidBox}>
           <span className={styles.fieldLabel}>{t("AiJudgePanel.runScope", { count: children.length })}</span>
@@ -4912,6 +4925,8 @@ function TeacherWorkspacePanel({ classId, members, weeks = [], machineNodes = []
         <SegmentedControl
           ariaLabel={t("AiJudgePanel.tabsAria")}
           className={styles.sidebarTabs}
+          compact
+          fullWidth
           options={TEACHER_JUDGE_TABS.map((tab) => ({ value: tab.key, label: tab.label, icon: tab.icon, buttonProps: tab.buttonProps }))}
           value={activeTab}
           onChange={selectTab}

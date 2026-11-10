@@ -606,7 +606,7 @@ _RESOURCE_MGMT_ELEMENTS: tuple[ElementSpec, ...] = (
         section="資源清單",
     ),
     ElementSpec(
-        id="resmgmt.status_provisioning", role="readonly", label="建立中",
+        id="resmgmt.status_provisioning", role="readonly", label="開通中",
         section="資源清單",
     ),
     ElementSpec(
@@ -618,7 +618,7 @@ _RESOURCE_MGMT_ELEMENTS: tuple[ElementSpec, ...] = (
         section="資源清單",
     ),
     ElementSpec(
-        id="resmgmt.status_failed", role="readonly", label="建立失敗",
+        id="resmgmt.status_failed", role="readonly", label="開通失敗",
         section="資源清單",
     ),
     ElementSpec(
@@ -735,7 +735,7 @@ _AUDIT_ELEMENTS: tuple[ElementSpec, ...] = (
 # ── 我的資源 ────────────────────────────────────────────────────────
 _MY_RESOURCES_ELEMENTS: tuple[ElementSpec, ...] = (
     ElementSpec(id="myres.status_scheduled", role="readonly", label="已排程", section="機器清單"),
-    ElementSpec(id="myres.status_provisioning", role="readonly", label="建立中", section="機器清單"),
+    ElementSpec(id="myres.status_provisioning", role="readonly", label="開通中", section="機器清單"),
     ElementSpec(id="myres.status_running", role="readonly", label="執行中", section="機器清單"),
     ElementSpec(id="myres.status_stopped", role="readonly", label="已關機", section="機器清單"),
     ElementSpec(id="myres.status_paused", role="readonly", label="已暫停", section="機器清單"),
@@ -749,7 +749,7 @@ _MY_RESOURCES_ELEMENTS: tuple[ElementSpec, ...] = (
     ),
     ElementSpec(id="myres.status_reclaiming", role="readonly", label="回收中", section="機器清單"),
     ElementSpec(id="myres.status_deleting", role="readonly", label="刪除中", section="刪除申請"),
-    ElementSpec(id="myres.status_failed", role="readonly", label="建立失敗", section="機器清單"),
+    ElementSpec(id="myres.status_failed", role="readonly", label="開通失敗", section="機器清單"),
     ElementSpec(id="myres.status_deleted", role="readonly", label="已刪除", section="刪除申請"),
     ElementSpec(
         id="myres.status_unknown", role="readonly", label="狀態未知",
@@ -1553,7 +1553,7 @@ _AI_JUDGE_ELEMENTS: tuple[ElementSpec, ...] = (
     ),
     ElementSpec(
         id="aijudge.tab_rubrics", role="list", label="任務設定", section="任務設定",
-        help="請 AI導師檢查整理這週要檢查的項目，再按「儲存並製作」產生檢查腳本。",
+        help="請 AI導師檢查整理這週要檢查的項目，再按「製作腳本」產生檢查腳本。",
     ),
     ElementSpec(
         id="aijudge.tab_review", role="list", label="導師核查", section="導師核查",

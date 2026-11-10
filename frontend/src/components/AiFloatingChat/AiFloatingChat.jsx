@@ -254,6 +254,9 @@ function TypingIndicator() {
 /* 低於這個寬度時面板是覆蓋層（蓋住頁面），導覽換頁後要順手收起來 */
 const OVERLAY_QUERY = "(max-width: 1439px)";
 
+/* 回覆對齊到訊息區上緣時留的距離：剛好避開上緣的淡出帶（.messages 的 mask） */
+const REPLY_TOP_GAP_PX = 16;
+
 const STEP_ICON = { done: "check_circle", current: "play_circle", todo: "radio_button_unchecked" };
 
 /* Only confirmed actions advance progress. Opening a page never completes work. */
@@ -616,8 +619,22 @@ export default function AiFloatingChat({ open = false, onOpenChange = () => {} }
     return () => observer.disconnect();
   }, [presence.open, resizeComposer]);
 
+  /* 自己送出的訊息與「回覆中」捲到底；助手回覆出來時，改把「剛問的那句＋回覆開頭」對齊到
+     訊息區上緣——長回答（頁面導覽、流程步驟）要從第一行讀起，不是停在結尾。
+     回覆比訊息區矮時，瀏覽器會把捲動位置夾在最底，效果等同捲到底 */
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const box = scrollRef.current;
+    if (!box) return;
+    const last = messages[messages.length - 1];
+    if (loading || !last || last.role === "user") {
+      box.scrollTop = box.scrollHeight;
+      return;
+    }
+    const reply = box.lastElementChild;
+    const asked = messages[messages.length - 2]?.role === "user" ? reply?.previousElementSibling : null;
+    const anchor = asked ?? reply;
+    // offsetTop 不受進場動畫的位移與捲動中的位置影響；兩者同一個 offsetParent（面板）
+    box.scrollTop = anchor ? Math.max(0, anchor.offsetTop - box.offsetTop - REPLY_TOP_GAP_PX) : box.scrollHeight;
   }, [messages, loading]);
 
   function close() {
@@ -1105,24 +1122,26 @@ export default function AiFloatingChat({ open = false, onOpenChange = () => {} }
             </button>
           </header>
 
-          <div className={styles.contextBar}>
-            {intake ? (
-              <>
-                <MIcon name="auto_fix_high" size={16} />
-                <span>{t("AiFloatingChat.contextIntakeStatus", { answered: intake.answered, total: intake.total })}</span>
-              </>
-            ) : (
-              <>
-                <MIcon name="web_asset" size={16} />
-                <span>{t("AiFloatingChat.contextViewingPage", { page: currentPageName })}</span>
-                {/* 隨時可以叫出這一頁的完整導覽：用途、時機、功能、會跳出的視窗與相關頁面 */}
-                {activeSurfaceId && (
-                  <button type="button" className={styles.pageGuideBtn} onClick={sendPageGuide} disabled={loading}>
-                    <MIcon name="tour" size={15} />
-                    {t("AiFloatingChat.pageGuideButton")}
-                  </button>
-                )}
-              </>
+          <div className={styles.contextRow}>
+            <div className={styles.contextBar}>
+              {intake ? (
+                <>
+                  <MIcon name="auto_fix_high" size={16} />
+                  <span>{t("AiFloatingChat.contextIntakeStatus", { answered: intake.answered, total: intake.total })}</span>
+                </>
+              ) : (
+                <>
+                  <MIcon name="web_asset" size={16} />
+                  <span>{t("AiFloatingChat.contextViewingPage", { page: currentPageName })}</span>
+                </>
+              )}
+            </div>
+            {/* 隨時可以叫出這一頁的完整導覽：用途、時機、功能、會跳出的視窗與相關頁面 */}
+            {!intake && activeSurfaceId && (
+              <button type="button" className={styles.pageGuideBtn} onClick={sendPageGuide} disabled={loading}>
+                <MIcon name="tour" size={16} />
+                {t("AiFloatingChat.pageGuideButton")}
+              </button>
             )}
           </div>
 

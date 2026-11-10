@@ -6,6 +6,8 @@ description: "SkyLab 前端的樣式規範：SCSS Modules、色彩系統與主�
 
 > 本文件說明前端樣式架構與撰寫規範，適用於前端所有頁面與元件：新頁面、元件都應遵循此指南，確保視覺與程式碼風格一致。若想自行變更 `_variables.scss`、`_themes.scss` 兩個檔案，請事先與前端討論。
 
+> **真元件對照頁 `/dev/style`**：`cd frontend && bun run dev` 後開 `http://localhost:5173/dev/style`。本文每一條規範都用真元件渲染，旁邊標元件路徑與 mixin 名稱，頂欄可切亮／暗、介面風格與語言；只在開發模式註冊（`import.meta.env.DEV`），正式 build 不含這頁，不需登入、不打後端。claude.ai 的「樣式對照」「流程對照」Artifact 仍並存：真元件頁永不過時，Artifact 不用登入可給組員看。
+
 ---
 
 ## 目錄結構
@@ -196,6 +198,7 @@ $breakpoint-sidebar: 1024px   // 側邊欄在抽屜與固定欄之間切換的�
 
 ```scss
 $font-family-base   $line-height-base: 1.6   $form-control-padding-x: 12px
+$font-family-mono   // 指令、程式碼、原始輸出；不要只寫 monospace（Windows 繁中會落到細明體）
 $header-height: 60px   $sidebar-width: 260px   $sidebar-width-collapsed: 72px
 $content-padding: 40px   $container-max-width: 1200px
 $z-ai-assistant: 2000   $z-screen-dialog: 2100   // 見 z-index 層級
@@ -341,6 +344,8 @@ import MIcon from "../components/MIcon";
 - 可點卡片的 hover 只給淡底（`background: var(--color-hover)`）或陰影／上浮，並保留 `transition` 淡入淡出；**不改邊框色**，藍框只留給「選中／目前」狀態（如分頁 active、流程目前步驟）
 - 淡底不要用 `linear-gradient` 疊層：漸層無法 transition，hover 會瞬間跳色
 - 玻璃卡裡的內容區塊（資訊欄位、備註框、程式碼／日誌／金鑰等 `pre`、清單列、統計格）一律 `background: var(--color-surface)`（白）＋ `1px solid var(--color-border)`；不要鋪 `--color-hover`、`--color-bg-base` 等主色系淺藍。它們跟著主色走，使用者換了背景色，疊在透出背景的玻璃上就會糊。淺藍只留給 hover／選中狀態、按鈕、徽章、提示框
+- 警示提示塊（對話框或卡片裡講「按下去會發生什麼」，例如會自動重新開機、未存檔的工作會遺失）用 `@include warn-notice;`：白底＋`1px solid var(--color-border)`，**紅色只在 `warning` 圖示**，文字維持一般顏色。橘色只給待審核語意，不用在警示；也不要鋪紅色淡底或加紅框，提醒的語氣不要壓過旁邊的主要動作鈕。結構是 `<p><MIcon name="warning" size={16} /><span>說明</span></p>`
+- 提示框的例子是老師回覆 `components/TeacherReplyNote`（主色 6% 淡底＋30% 主色框、圓角 12、34px 主色圓頭像）：學生週次頁完整顯示、學生首頁本週卡傳 `clamp={2}` 只留兩行摘要，兩頁共用同一組數值，不要在頁面另抄一套
 - 拓撲畫布（React Flow）不在白底規則內：底色、框線、陰影一律用畫布專用 token `background: var(--color-flow-bg)`、`1px solid var(--color-flow-border)`、`box-shadow: 0 4px 24px var(--color-flow-shadow)`，防火牆頁、課程環境編輯器、資源詳情、班級上課環境的唯讀拓撲都同一組
 
 ### Dialog / Modal
@@ -417,6 +422,18 @@ if (!(await confirm({ title, message, confirmText, danger: true }))) return;
   但危險修飾類**未 hover 前文字就要是紅色**，且 hover 同樣必加 `:not(:disabled)`
 - 下拉選單裡的危險項（PowerMenu、頁首 ⋯ 選單）屬選單樣式，不在此六款之列
 
+#### 聊天面板（AI 助手、檢查表助理）
+
+兩個聊天面板的標頭圖示鈕、圓角輸入框與送出／附件鈕共用同一組 mixin，不要各自手抄：
+
+```scss
+.headerBtn { @include chat-header-btn; }                      // 34px 圓形、平常無底色，hover 淡底
+.composer  { @include chat-composer; }                        // 圓角輸入框：textarea 隨內容長高、約 7 行停住在框內捲動，聚焦只換邊框色
+.composer  { @include chat-composer($padding: 6px); }         // 兩側都放圓鈕時內距收成 6px
+.send      { @include chat-composer-btn; }                    // 36px 主色實心送出鈕
+.attach    { @include chat-composer-btn($primary: false); }   // 36px 無底色附件鈕
+```
+
 ### 表單（Form）
 
 表單欄位一律使用 `_mixins.scss` 的表單 mixin 組，**不要在頁面內另立一套字級與內距**：
@@ -440,6 +457,8 @@ if (!(await confirm({ title, message, confirmText, danger: true }))) return;
 > 高度的算法跟按鈕相同：全站行高 1.6（14px 字 → 22.4）＋上下內距 6×2＋框 1×2 ≈ 36px。
 > 內距寫成 8px 就會變 40px；外框在容器上的搜尋框用 `min-height: 36px`，不要寫 38px。
 > 共用的 SegmentedControl 也固定 36px，跟欄位、按鈕放同一列不用另外鎖高度。
+> 放進 240px 以下的窄容器（側邊欄分頁）時用它的 `compact`（各段內距 8px）與 `fullWidth`（撐滿、各段平分）prop，
+> 不要在頁面 SCSS 覆寫元件內部的按鈕。
 
 > **規則二**：欄位怎麼排（幾欄、哪個跨欄）寫在頁面自己的 grid 上（`.formGrid`、
 > `.createFormGrid`、`.fieldFull`），mixin 只負責欄位本身長什麼樣。
@@ -451,6 +470,8 @@ if (!(await confirm({ title, message, confirmText, danger: true }))) return;
 > 高度由 JSX 的 `rows` 或頁面 CSS 的 `height` / `min-height` 決定，元件內**不要再寫
 > `resize`**。特殊情況（真的需要讓使用者拖高的長文編輯區）才在該頁明確寫回
 > `resize: vertical`，讓例外看得見。
+> 聊天輸入框、回覆欄這類「一行起跳、隨內容長高」的欄位用 `field-sizing: content` 加 `max-height`，
+> 超過就在框內捲動；一樣不寫 `resize`。
 
 ### 開關（Switch）與勾選框
 
@@ -553,11 +574,12 @@ const selected = shown.filter((r) => selection.isSelected(r.id));
 - **只勾得到看得見的**：`useRowSelection` 只認傳進去的那些 id；換篩選、翻頁、刷新後消失的自動取消勾選，免得切回來才發現它還勾著、被一起操作
 - **動作**：只送給適用的那幾筆（停用只送啟用中的…），全都不適用就停用按鈕，`title` 說明會略過幾筆；送出時 `progress` 讓整條換成「正在…  3 / 10」；做完靜默刷新，成功的取消勾選、**失敗的保留勾選**（`selection.replace`）可以直接再試
 - **回不去的動作**（刪除、移除、封存、拒絕）用 `danger`，放在 `BatchDivider` 後面的最右邊，先確認並列出名稱（最多 5 個，其餘「等 N」）
+- **批量審核（核准／拒絕）**用共用的 `components/BatchReviewDialog`：列出這次會處理的項目（最多 5 筆）＋一段共用的審核備註（選填，寫進每一筆）；`tone="reject"` 是紅色警告圖示＋危險鈕，`tone="approve"` 是主色圖示＋主要鈕。核准放一般動作、拒絕放 `BatchDivider` 後面。核准會佔用資源的（申請審核由後端挑節點並預留）`runBatch` 傳 `concurrency: 1` 一筆一筆送，失敗的保留勾選並把原因帶進提示
 - 沒有後端批量 API 時用 `utils/runBatch` 逐筆呼叫單筆 API（預設同時 4 筆，一筆失敗不影響其他筆）
 - 勾選中的列底色用 `@include row-selected;`（自己就是卡片的清單列傳 `var(--color-surface)`）
 - 導覽用的 `data-guide` 等屬性可以直接傳給 `DataToolbar`（掛在工具列外框），讓導覽步驟框住整條「篩選＋搜尋」
 - **加了勾選欄要重算寬度**：清單列用 grid 時，一行排完或分兩行要看**容器寬度**（`container-type: inline-size`＋`@container`），不要看視窗——側邊欄出現（≥1024）後內容比 992 時還窄，用視窗切會在 1024～1180 之間撐出橫向捲動
-- 目前用在：資源管理、使用者管理（批量啟用／停用、加入／移出群組、刪除）、申請審核（批量拒絕）、班級管理（批量封存並回收）、班級工作頁學生名單（批量移除）
+- 目前用在：資源管理、使用者管理（批量啟用／停用、加入／移出群組、刪除）、申請審核與 AI API 審核（批量核准／拒絕）、班級管理（批量封存並回收）、班級工作頁學生名單（批量移除）
 
 ### Dropdown 選單
 
@@ -676,7 +698,7 @@ function closeMenu() {
 | 基礎卡片 | 1 | 一般卡片 |
 | 卡片 hover / 選單 | 50 | 容器內的 Dropdown 選單 |
 | 側邊欄／Sticky Header | 100 | 側邊欄與頁面頂部的列 |
-| Portal 浮層選單 | 150 | portal 到 body 的 Dropdown（如 `components/PowerMenu`） |
+| Portal 浮層 | 150 | portal 到 body 的 Dropdown（如 `components/PowerMenu`）；AI 助手的章魚 FAB 與提示泡泡也在這層 |
 | Dialog / Modal | 300 | 全頁覆蓋 Dialog |
 | AI 助手 | 2000（`$z-ai-assistant`） | 高於一般對話框，對話框開著時仍可使用 |
 | 畫面型對話框 | 2100（`$z-screen-dialog`） | `Modal layer="screen"`（VNC、終端機、課堂觀看）：AI 讀不到的內容直接蓋過助手 |

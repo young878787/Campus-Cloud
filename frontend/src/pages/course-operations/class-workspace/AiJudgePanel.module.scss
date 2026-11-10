@@ -117,8 +117,42 @@
   > strong { color: var(--color-danger); }
   p { margin: 0; }
   details { min-width: 0; }
-  summary { cursor: pointer; }
-  summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+}
+
+/* 行內收合（Disclosure）：文字＋向下箭頭，展開時箭頭轉半圈；不顯示瀏覽器原生的三角形 */
+.disclosure {
+  min-width: 0;
+
+  > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    width: fit-content;
+    color: var(--color-text-muted);
+    list-style: none;
+    cursor: pointer;
+    transition: color $transition-base;
+
+    &::-webkit-details-marker { display: none; }
+    &:hover { color: var(--color-primary); }
+    &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 4px; }
+
+    > :last-child { transition: transform $transition-base; }
+  }
+
+  &[open] > summary {
+    color: var(--color-primary);
+
+    > :last-child { transform: rotate(180deg); }
+  }
+}
+
+/* 彈窗內文的補充說明：跟彈窗說明文字同一級（14px、次要色） */
+.dialogNote {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: $font-size-14;
+  line-height: 1.6;
 }
 
 .reviewSort {
@@ -230,22 +264,11 @@ strong.reviewStatValue { font-size: $font-size-14; }
   > span:nth-child(2) { flex: 1; min-width: 0; }
 }
 
+/* 阻擋原因右側的「去處理」：標準 ghost 款，保留主色文字識別 */
 .btnText {
-  display: inline-flex;
+  @include btn-ghost;
   flex: 0 0 auto;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 4px;
-  border: 0;
-  border-radius: $radius-8;
-  color: var(--color-primary);
-  background: transparent;
-  font-size: $font-size-12;
-  font-weight: $font-weight-700;
-  cursor: pointer;
-
-  &:hover { background: var(--color-hover); }
-  &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+  color: var(--color-primary-on-surface);
 }
 
 .reviewStudentList {
@@ -311,7 +334,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
   }
 }
 
-/* 學生的每台機器；有檢查結果時邊框換成那台的結果顏色 */
+/* 學生的每台機器：標準徽章（12% 淡底、不加框），有檢查結果時換成那台結果的狀態色 */
 .machineChips {
   display: flex;
   flex-wrap: wrap;
@@ -320,26 +343,21 @@ strong.reviewStatValue { font-size: $font-size-14; }
 
 .machineChip,
 .machineChipEmpty {
-  display: inline-flex;
+  @include badge-base;
   max-width: 220px;
-  align-items: center;
   gap: 4px;
-  padding: 1px 8px;
-  border: 1px solid var(--color-divider);
-  border-radius: $radius-pill;
+  padding: 2px 8px;
   color: var(--color-text-secondary);
-  background: var(--color-surface);
-  font-size: $font-size-12;
+  background: color-mix(in srgb, var(--color-status-neutral) 12%, transparent);
   font-style: normal;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.machineChipEmpty { color: var(--color-text-muted); border-style: dashed; }
-.machineChipPass { border-color: color-mix(in srgb, var(--color-success) 45%, transparent); color: var(--color-success); }
-.machineChipFail { border-color: color-mix(in srgb, var(--color-danger) 45%, transparent); color: var(--color-danger); }
-.machineChipPending { border-color: color-mix(in srgb, var(--color-pending) 45%, transparent); color: var(--color-pending); }
+.machineChipEmpty { color: var(--color-status-neutral); }
+.machineChipPass { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); }
+.machineChipFail { background: color-mix(in srgb, var(--color-danger) 12%, transparent); color: var(--color-danger); }
+.machineChipPending { background: color-mix(in srgb, var(--color-pending) 12%, transparent); color: var(--color-pending); }
 
 /* 機器標籤最前面的開機燈號：綠＝開著、灰＝關著、空心＝查不到狀態 */
 .powerDot {
@@ -374,7 +392,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
   small { font-size: $font-size-10; font-weight: $font-weight-700; }
 }
 
-.reportTick_ready { border-color: var(--color-success); color: #fff; background: var(--color-success); }
+.reportTick_ready { border-color: var(--color-success); color: var(--color-text-on-primary); background: var(--color-success); }
 .reportTick_partial { border-color: var(--color-pending); color: var(--color-pending); }
 
 .reviewStudentName {
@@ -453,9 +471,11 @@ strong.reviewStatValue { font-size: $font-size-14; }
   border-radius: $radius-8;
 }
 
-/* 待老師判定、還沒判的：淡橘底 */
+/* 待老師判定、還沒判的：白底＋橘色細框（內容區塊不鋪狀態色淡底）。
+   用 inset 陰影畫框，不佔版面，判定前後列高不會跳 */
 .reviewCheckPending {
-  background: color-mix(in srgb, var(--color-pending) 8%, transparent);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-pending) 45%, transparent);
 }
 
 .reviewCheckIcon {
@@ -482,39 +502,35 @@ strong.reviewStatValue { font-size: $font-size-14; }
     -webkit-line-clamp: 3;
   }
   details { font-size: $font-size-12; }
-  summary { width: fit-content; color: var(--color-text-muted); cursor: pointer; }
-  summary:hover, details[open] > summary { color: var(--color-primary); }
 }
 
+/* 通過／未通過兩顆：標準次要款，選中的那顆換成狀態色淡底（含 hover，權重要壓過基底的 hover） */
 .reviewDecision {
   display: flex;
   gap: 4px;
 
   button {
-    display: inline-flex;
-    min-height: 30px;
-    align-items: center;
+    @include btn-secondary;
     gap: 4px;
-    padding: 3px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: $radius-8;
+    padding-inline: 10px;
     color: var(--color-text-secondary);
-    background: var(--color-surface);
-    font-size: $font-size-12;
-    cursor: pointer;
   }
-}
 
-.reviewPassActive.reviewPassActive {
-  border-color: color-mix(in srgb, var(--color-success) 45%, transparent);
-  color: var(--color-success);
-  background: color-mix(in srgb, var(--color-success) 10%, transparent);
-}
+  .reviewPassActive {
+    &, &:hover:not(:disabled) {
+      border-color: color-mix(in srgb, var(--color-success) 45%, transparent);
+      color: var(--color-success);
+      background: color-mix(in srgb, var(--color-success) 10%, transparent);
+    }
+  }
 
-.reviewFailActive.reviewFailActive {
-  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
-  color: var(--color-danger);
-  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  .reviewFailActive {
+    &, &:hover:not(:disabled) {
+      border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+      color: var(--color-danger);
+      background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+    }
+  }
 }
 
 .reviewSaveRow {
@@ -724,7 +740,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
 
 .rubricTable th:nth-child(2) { width: 30%; }
 .rubricTable th:nth-child(4) { width: 136px; } /* 英文的 Supported／Not supported 徽章要約 100px，112 會被拆成 Supporte／d */
-.rubricTable th:last-child { width: 44px; }
+.rubricTable th:last-child { width: 64px; } /* 32px 刪除鈕＋左右各 16px 內距；再窄按鈕會凸出表格右緣被裁掉 */
 
 /* 序號與展開鈕同一列、垂直置中 */
 .rubricIndex {
@@ -742,32 +758,13 @@ strong.reviewStatValue { font-size: $font-size-14; }
   text-align: right;
 }
 
-/* 刪除很少用：平常是淡色圖示，滑過才轉紅，不在每一列放一塊紅底 */
+/* 每列的刪除：標準危險圖示鈕（32px、未 hover 就是紅字） */
 .rubricDeleteBtn {
-  @include flex-center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 0;
-  border-radius: $radius-8;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: color $transition-base, background $transition-base;
-
-  &:hover:not(:disabled) {
-    color: var(--color-danger);
-    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
-  }
+  @include btn-icon($danger: true);
 
   &:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 1px;
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
   }
 }
 
@@ -831,7 +828,6 @@ strong.reviewStatValue { font-size: $font-size-14; }
 .tableField .rubricTitleInput {
   min-height: 48px;
   field-sizing: content;
-  resize: none;
   font-weight: $font-weight-700;
 }
 .rubricDescriptionCell { min-width: 0; }
@@ -885,7 +881,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
     min-width: 0;
     max-width: 100%;
     color: var(--color-text-primary);
-    font-family: monospace;
+    font-family: $font-family-mono;
     font-size: $font-size-12;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
@@ -1069,7 +1065,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
   color: var(--color-text-secondary);
 
   code {
-    font-family: monospace;
+    font-family: $font-family-mono;
     font-size: $font-size-12;
     color: var(--color-text-muted);
   }
@@ -1128,7 +1124,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
   gap: 10px;
   min-height: var(--judge-bar-h, 52px);
   padding: 6px $spacing-8 6px $spacing-16;
-  border-bottom: 1px solid var(--judge-line, var(--color-border));
+  border-bottom: 1px solid var(--color-border);
   background: var(--judge-bar-bg, transparent);
 }
 
@@ -1167,31 +1163,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
 }
 
 .chatHeaderBtn {
-  @include flex-center;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: background $transition-base, color $transition-base;
-
-  &:hover:not(:disabled) {
-    background: var(--color-hover);
-    color: var(--color-text-primary);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 1px;
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
+  @include chat-header-btn;
 }
 
 .chatHeaderBtnActive {
@@ -1218,7 +1190,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
   h3 {
     margin: 0 0 6px;
     color: var(--color-primary);
-    font-size: 1.25rem;
+    font-size: $font-size-18;
     font-weight: $font-weight-700;
   }
 
@@ -1237,91 +1209,16 @@ strong.reviewStatValue { font-size: $font-size-14; }
   padding: $spacing-8 $spacing-16 $spacing-16;
 }
 
-/* 圓角輸入框：左邊附件、右邊圓形送出鈕，聚焦只換邊框色 */
+/* 圓角輸入框：跟 AI 助手同一組 mixin；左邊附件、右邊圓形送出鈕，兩側都是圓鈕所以四邊內距 6px */
 .chatComposer {
-  display: flex;
-  align-items: flex-end;
+  @include chat-composer($padding: 6px);
   gap: 6px;
-  padding: 6px;
-  border: 1px solid var(--color-border);
-  border-radius: $radius-16;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-  transition: border-color $transition-base;
 
-  &:focus-within {
-    border-color: var(--color-primary);
-  }
-
-  textarea {
-    box-sizing: border-box;
-    flex: 1;
-    min-width: 0;
-    /* 大約 7 行；超過就停在這個高度、框內捲動 */
-    max-height: 168px;
-    overflow-y: auto;
-    padding: 8px 6px;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--color-text-primary);
-    font: inherit;
-    font-size: $font-size-14;
-    line-height: 1.45;
-    resize: none;
-
-    &::placeholder {
-      color: var(--color-text-muted);
-    }
-
-    &:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-  }
+  textarea { padding: 8px 6px; }
 }
 
-.chatComposerAttach,
-.chatComposerSend {
-  @include flex-center;
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 1px;
-  }
-}
-
-.chatComposerAttach {
-  background: transparent;
-  color: var(--color-text-secondary);
-
-  &:hover:not(:disabled) {
-    background: var(--color-hover);
-    color: var(--color-text-primary);
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-}
-
-.chatComposerSend {
-  background: var(--color-primary);
-  color: var(--color-text-on-primary);
-
-  &:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
-}
+.chatComposerAttach { @include chat-composer-btn($primary: false); }
+.chatComposerSend { @include chat-composer-btn; }
 
 .chatMsgRow {
   display: flex;
@@ -1520,11 +1417,6 @@ strong.reviewStatValue { font-size: $font-size-14; }
   margin-top: $spacing-8;
   font-size: $font-size-12;
 
-  summary {
-    cursor: pointer;
-    color: var(--color-text-muted);
-  }
-
   p {
     margin: $spacing-8 0 0;
     font-size: $font-size-12;
@@ -1656,7 +1548,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
   margin: 0;
   padding: $spacing-8 $spacing-8;
   border-radius: $radius-8;
-  font-family: monospace;
+  font-family: $font-family-mono;
   font-size: $font-size-14;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1684,7 +1576,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
   padding: 2px 8px;
   border-radius: 999px;
   font-size: $font-size-12;
-  font-family: monospace;
+  font-family: $font-family-mono;
 }
 
 .cmdBadgeOk {
@@ -2005,7 +1897,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
 
 .checkSessionCol {
   @include flex-column;
-  border-bottom: 1px solid var(--judge-line);
+  border-bottom: 1px solid var(--color-border);
 
   // 清單高度跟著右側內容走（height: 0 不參與列高、min-height 撐滿格子），
   // 週次很多時在清單內捲動，不會把整塊面板撐高
@@ -2013,7 +1905,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
     height: 0;
     min-height: 100%;
     overflow: hidden;
-    border-right: 1px solid var(--judge-line);
+    border-right: 1px solid var(--color-border);
     border-bottom: 0;
   }
 
@@ -2024,7 +1916,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
     align-items: center;
     min-height: var(--judge-bar-h);
     padding: 0 12px;
-    border-bottom: 1px solid var(--judge-line);
+    border-bottom: 1px solid var(--color-border);
     background: var(--judge-bar-bg);
   }
 
@@ -2035,18 +1927,9 @@ strong.reviewStatValue { font-size: $font-size-14; }
     padding: 12px;
   }
 
-  // 分頁撐滿側邊欄寬度，兩段平分；側邊欄只有 220px，內距收小英日文才放得下
+  // 分頁撐滿側邊欄、內距收小都走 SegmentedControl 的 fullWidth／compact prop，這裡只管它在標頭列不被壓縮
   .sidebarTabs {
-    display: flex;
     flex: 0 0 auto;
-    width: 100%;
-
-    > button {
-      flex: 1 1 0;
-      justify-content: center;
-      min-width: 0;
-      padding: 0 $spacing-8;
-    }
   }
 
   .sessionList {
@@ -2079,7 +1962,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
   .rubricActionBar {
     margin-top: auto;
     padding: 12px $spacing-24;
-    border-top-color: var(--judge-line);
+    border-top-color: var(--color-border);
   }
 }
 
@@ -2097,14 +1980,14 @@ strong.reviewStatValue { font-size: $font-size-14; }
   min-width: 0;
   height: 560px;
   flex-direction: column;
-  border-top: 1px solid var(--judge-line);
+  border-top: 1px solid var(--color-border);
 
   @container judge-content (min-width: 780px) {
     height: auto;
     min-height: 0;
     overflow: hidden;
     border-top: 0;
-    border-left: 1px solid var(--judge-line);
+    border-left: 1px solid var(--color-border);
   }
 }
 
@@ -2169,7 +2052,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
     top: 0;
     z-index: 1;
     height: var(--judge-bar-h);
-    border-bottom-color: var(--judge-line);
+    border-bottom-color: var(--color-border);
     background: var(--judge-bar-bg);
   }
 
@@ -2246,8 +2129,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
   // 三欄頂端標頭（分頁／表格欄位／助理）共用的高度與底色，連成同一條
   --judge-bar-h: 52px;
   --judge-bar-bg: linear-gradient(var(--color-hover), var(--color-hover)), var(--color-surface);
-  // 欄與欄、標頭底下的分隔線：比一般 divider 深，三欄的界線一眼看得出來
-  --judge-line: color-mix(in srgb, var(--color-text-primary) 16%, transparent);
+  // 欄與欄、標頭底下的分隔線一律 --color-border（不另發明顏色）
   // Retain room for both content columns, including the workspace borders,
   // even when a wider week column was saved on a larger display.
   --judge-week-effective-w: clamp(180px, var(--judge-week-w, 220px), calc(100cqw - 782px));
@@ -2458,7 +2340,7 @@ strong.reviewStatValue { font-size: $font-size-14; }
   padding: 2px 8px;
   border-radius: $radius-8;
   background: color-mix(in srgb, var(--color-status-neutral) 12%, transparent);
-  font-family: monospace;
+  font-family: $font-family-mono;
   font-size: $font-size-12;
   color: var(--color-text-primary);
   overflow-wrap: anywhere;
@@ -2608,7 +2490,6 @@ strong.reviewStatValue { font-size: $font-size-14; }
   color: var(--color-text-muted);
   font-size: $font-size-12;
 
-  summary { cursor: pointer; }
   dl { display: flex; flex-wrap: wrap; gap: $spacing-8 $spacing-16; margin: $spacing-8 0; }
   dl > div { display: flex; flex-wrap: wrap; gap: $spacing-8; }
   dd { margin: 0; font-variant-numeric: tabular-nums; }

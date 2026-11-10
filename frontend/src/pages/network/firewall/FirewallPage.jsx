@@ -458,6 +458,17 @@ export default function FirewallPage() {
     }
   };
 
+  /* 刪線要同時改兩端的規則：任一端是不能管的機器（學生自己的課堂機）就不給刪除鈕，
+     在面板上講原因，不必等按下去才吃 403 */
+  const edgeLockedHint = (edge) => {
+    if (!edge || edge.topology_managed) return "";
+    const locked = [edge.source_vmid, edge.target_vmid]
+      .filter((vmid) => vmid !== null && vmid !== undefined)
+      .map((vmid) => (topology?.nodes ?? []).find((n) => n.vmid === vmid))
+      .find((node) => node && !canManageNode(node));
+    return locked ? t("FirewallPage.readOnlyEdge", { name: locked.name }) : "";
+  };
+
   /* ── 對外網址的搜尋引擎收錄：只有網際網路入站、而且能管理目標機器才給開關（課堂機對學生唯讀） ── */
   const canToggleIndexing = (edge) => {
     if (!edge || edge.source_vmid !== null) return false;
@@ -739,7 +750,9 @@ export default function FirewallPage() {
                 resolveName={resolveName}
                 closing={detailPanel.closing}
                 onClose={() => setSelectedEdge(null)}
-                onDelete={requestDeleteEdge}
+                onDelete={edgeLockedHint(detailPanel.item.edge) ? undefined : requestDeleteEdge}
+                lockedHint={edgeLockedHint(detailPanel.item.edge)
+                  || (detailPanel.item.edge.topology_managed ? t("ConnectionPanel.lockedManaged") : "")}
                 onToggleIndexing={canToggleIndexing(detailPanel.item.edge) ? toggleIndexing : undefined}
                 indexingBusy={indexingBusy}
               />

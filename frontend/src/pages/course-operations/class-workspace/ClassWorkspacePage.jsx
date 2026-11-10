@@ -773,11 +773,12 @@ function TopologyPreview({ item }) {
         </div>
       </Panel>
     </ReactFlow>
-    {/* 只看不改：同一個細節面板，但沒有刪除鈕 */}
+    {/* 只看不改：同一個細節面板，但沒有刪除鈕；原因寫在刪除鈕原本的位置 */}
     {detailPanel.item && <ConnectionDetailPanel
       edge={detailPanel.item}
       resolveName={nameOf}
       allowOpen={false}
+      lockedHint={t("ConnectionPanel.lockedPublished", { ns: "network" })}
       closing={detailPanel.closing}
       onClose={() => setSelectedKey("")}
     />}
@@ -1124,7 +1125,7 @@ export function StudentMachines({ item }) {
     <section className={`${styles.card} ${styles.heatmapCard}`}>
       <div className={styles.heatmapHeader}>
         <div><h2>{t("ClassWorkspacePage.heatmapTitle")}</h2><p>{t("ClassWorkspacePage.heatmapDesc")}</p></div>
-        <span className={usageStatus === "error" ? styles.prototypeBadge : styles.liveBadge}><MIcon name={usageStatus === "error" ? "sync_problem" : "sensors"} size={15} />{badgeText}</span>
+        <span className={usageStatus === "error" ? styles.failedBadge : styles.liveBadge}><MIcon name={usageStatus === "error" ? "sync_problem" : "sensors"} size={15} />{badgeText}</span>
       </div>
 
       <div className={styles.broadcastTools} data-guide="class-progress-broadcast"><MIcon name="sensors" size={18} /><strong>{t("ClassWorkspacePage.broadcastDemoLabel")}</strong><div className={styles.broadcastControls}>{broadcast ? <><span>{t("ClassWorkspacePage.broadcastInProgress")}</span><button type="button" className={styles.btnSecondary} disabled={broadcasting} onClick={stopBroadcast}>{t("ClassWorkspacePage.stopBroadcastBtn")}</button></> : <select disabled={broadcasting || !sources.length} defaultValue="" onChange={(event) => { startBroadcast(event.target.value); event.target.value = ""; }}><option value="">{sources.length ? t("ClassWorkspacePage.selectRunningVmOption") : t("ClassWorkspacePage.noBroadcastVmOption")}</option>{sources.map((source) => <option key={source.vmid} value={source.vmid}>{source.name || t("ClassWorkspacePage.vmFallbackName", { vmid: source.vmid })}</option>)}</select>}</div></div>
