@@ -1,4 +1,4 @@
-"""Split from tests/test_rubric_template_commands.py: prompts, follow-ups, backend-guardrails & unavailable replies."""
+"""app.ai.teacher_judge.service 的提示詞內容、追問流程、後端防護（不從文字推斷缺漏語意），以及無法形成提案時的回覆文字。"""
 
 from __future__ import annotations
 

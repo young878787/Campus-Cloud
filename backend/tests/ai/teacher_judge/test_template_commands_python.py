@@ -1,6 +1,6 @@
-"""Split from tests/test_rubric_template_commands.py: python runtime & package checks.
+"""app.ai.teacher_judge 的 Python 檢查項目：執行入口 timeout 轉換、版本與套件狀態的正規化與提案，以及缺少絕對路徑時的 missing_information。
 
-Shared fixtures live in tests.ai.teacher_judge.helpers.
+共用測試輔助函式位於 tests.ai.teacher_judge.helpers。
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Split from tests/test_backend_workflows.py: placement, provisioning plan & storage selection."""
+"""app.services.vm 的 VM 申請節點與儲存選擇（保留配置、GPU 映射、負載與儲存熱點），以及建機儲存與範本 pool 過濾。"""
 
 import uuid
 from datetime import datetime, timedelta, timezone

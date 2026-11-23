@@ -1,7 +1,4 @@
-"""Split from tests/test_backend_workflows.py: user roles & template filtering.
-
-Shared fixtures live in tests.ai.teacher_judge.helpers.
-"""
+"""app.services.user.user_service 的使用者角色（教師視同一般使用者），以及擁有資源時拒絕刪除。"""
 
 from datetime import datetime, timezone
 

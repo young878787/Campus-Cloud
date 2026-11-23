@@ -1,6 +1,6 @@
-"""Split from tests/test_teacher_judge_sessions.py: session lifecycle (create/fork/delete/ownership).
+"""檢查對話的生命週期（app.ai.teacher_judge.session_service）：建立欄位驗證、來源檔綁定與獨占、封存唯讀、清空、刪除與分岔（fork），以及切換來源時的併發防護。
 
-Shared fixtures live in tests.ai.teacher_judge.helpers.
+共用測試輔助函式位於 tests.ai.teacher_judge.helpers。
 """
 
 from __future__ import annotations

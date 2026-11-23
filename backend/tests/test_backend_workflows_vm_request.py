@@ -1,4 +1,4 @@
-"""Split from tests/test_backend_workflows.py: VM request lifecycle (create/review/admin/legacy templates)."""
+"""app.services.vm.vm_request_service 的 VM 申請單生命週期：建立（含管理員直送與排程）、已停用的快速範本模式，以及審核與核准（含失敗回滾、節點指派、審核情境）。"""
 
 import uuid
 from datetime import datetime, timedelta, timezone

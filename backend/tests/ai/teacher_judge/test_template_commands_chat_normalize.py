@@ -1,4 +1,4 @@
-"""Split from tests/test_rubric_template_commands.py: normalize / edit-patch / repair flows."""
+"""app.ai.teacher_judge.service 的檢查表正規化與修復流程：正規化規則、edit 補丁、legacy 步驟轉換，以及 ready 宣稱與能力選擇的修正。"""
 
 from __future__ import annotations
 

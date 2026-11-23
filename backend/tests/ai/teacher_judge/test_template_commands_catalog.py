@@ -1,7 +1,4 @@
-"""Split from tests/test_rubric_template_commands.py: template-command catalog & check-step validation.
-
-Shared fixtures live in tests.ai.teacher_judge.helpers.
-"""
+"""app.ai.teacher_judge.template_command_service 的指令目錄：啟用狀態與跨範本過濾、check_steps 驗證與 timeout 預設，以及提示詞格式化（不暴露原始 shell 指令）。"""
 
 from __future__ import annotations
 

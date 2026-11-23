@@ -1,4 +1,4 @@
-"""Split from tests/test_backend_workflows.py: spec-change requests & resource deletion."""
+"""app.services.vm.spec_change_service 的規格變更申請（審核、套用、取消），以及資源刪除時的連動，另含 create_vm 的範本節點與儲存回退。"""
 
 import random
 import uuid
