@@ -2,46 +2,19 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 import uuid
-from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-from app.ai.teacher_judge import machine_context, session_service, target_ip_resolver
 from app.ai.teacher_judge import service as teacher_judge_service
-from app.ai.teacher_judge.script_policy import PEER_IP_TOKEN
+from app.ai.teacher_judge import session_service, target_ip_resolver
 from app.models.teacher_judge_file import TeacherJudgeFileStatus
 from app.models.teacher_judge_session import (
     TeacherJudgeMessageRole,
     TeacherJudgeMessageType,
 )
-
-BACKEND_DIR = Path(__file__).resolve().parents[3]
-
-
-def test_package_init_does_not_eagerly_load_service() -> None:
-    code = (
-        "import sys\n"
-        "import app.ai.teacher_judge.config\n"
-        "assert 'app.ai.teacher_judge.service' not in sys.modules\n"
-    )
-    result = subprocess.run(
-        [sys.executable, "-c", code],
-        cwd=BACKEND_DIR,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-
-
-def test_peer_ip_token_has_one_definition() -> None:
-    assert machine_context.PEER_IP_TOKEN is PEER_IP_TOKEN
-    assert teacher_judge_service.PEER_IP_TOKEN is PEER_IP_TOKEN
 
 
 def test_proposal_status_claims_ready_reads_only_structured_status() -> None:

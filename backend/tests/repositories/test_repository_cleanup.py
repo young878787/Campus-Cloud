@@ -11,11 +11,6 @@ from app.models import FirewallLayout, Resource
 from app.repositories import firewall_layout as firewall_layout_repo
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 class _LayoutSession:
     def __init__(self, existing_vmids: set[int]) -> None:
         self.existing_vmids = existing_vmids

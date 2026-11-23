@@ -1,6 +1,6 @@
-"""Split from tests/test_teacher_judge_sessions.py: bounded history, focus & summary workers.
+"""app.ai.teacher_judge.session_service 的對話歷史組裝（上限、摘要邊界、焦點注入、附件收斂）、摘要持久化與背景任務。
 
-Shared fixtures live in tests.ai.teacher_judge.helpers.
+共用測試輔助函式位於 tests.ai.teacher_judge.helpers。
 """
 
 from __future__ import annotations

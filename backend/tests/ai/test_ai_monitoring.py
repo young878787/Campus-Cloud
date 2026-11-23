@@ -1,0 +1,410 @@
+import asyncio
+import uuid
+from datetime import UTC, datetime
+from types import SimpleNamespace
+
+import httpx
+import pytest
+from fastapi import HTTPException
+
+from app.api.routes import ai_monitoring
+from app.models import USAGE_SOURCE_API_KEY, USAGE_SOURCE_PLATFORM
+from app.services.llm_gateway import ai_gateway_service
+
+
+def test_e2e_output_rate_requires_explicit_usage_evidence() -> None:
+    assert (
+        ai_gateway_service._e2e_output_tokens_per_second(
+            output_tokens=20,
+            duration_ms=500,
+            usage_reported=True,
+        )
+        == 40.0
+    )
+    assert (
+        ai_gateway_service._e2e_output_tokens_per_second(
+            output_tokens=0,
+            duration_ms=500,
+            usage_reported=True,
+        )
+        == 0.0
+    )
+    assert (
+        ai_gateway_service._e2e_output_tokens_per_second(
+            output_tokens=0,
+            duration_ms=500,
+            usage_reported=False,
+        )
+        is None
+    )
+
+
+def test_monitoring_summary_does_not_treat_empty_range_as_success() -> None:
+    summary = ai_gateway_service._monitoring_summary(
+        {
+            "proxy_total_calls": 0,
+            "template_total_calls": 0,
+            "successful_calls": 0,
+            "proxy_total_input_tokens": 0,
+            "proxy_total_output_tokens": 0,
+            "template_total_input_tokens": 0,
+            "template_total_output_tokens": 0,
+            "active_users": 0,
+            "avg_latency_ms": 0,
+        }
+    )
+
+    assert summary["total_calls"] == 0
+    assert summary["failed_calls"] == 0
+    assert summary["error_rate"] is None
+
+
+def test_ai_usage_export_requires_timezone() -> None:
+    with pytest.raises(HTTPException) as error:
+        ai_monitoring.export_ai_usage(
+            session=None,  # type: ignore[arg-type]
+            _current_user=SimpleNamespace(id=uuid.uuid4()),
+            start_date=datetime(2026, 9, 1),
+        )
+
+    assert error.value.status_code == 422
+    assert "timezone" in str(error.value.detail)
+
+
+def test_ai_usage_export_rejects_over_limit_before_streaming(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        ai_monitoring.ai_usage_export,
+        "count_rows",
+        lambda **_kwargs: ai_monitoring.ai_usage_export.EXPORT_MAX_ROWS + 1,
+    )
+    monkeypatch.setattr(
+        ai_monitoring.ai_usage_export,
+        "export_csv_chunks",
+        lambda **_kwargs: pytest.fail("stream must not start when count exceeds limit"),
+    )
+
+    with pytest.raises(HTTPException) as error:
+        ai_monitoring.export_ai_usage(
+            session=None,  # type: ignore[arg-type]
+            _current_user=SimpleNamespace(id=uuid.uuid4()),
+            start_date=datetime(2026, 9, 1, tzinfo=UTC),
+        )
+
+    assert error.value.status_code == 413
+    assert "請縮小日期區間" in str(error.value.detail)
+
+
+def test_ai_usage_export_clamps_future_end_and_sets_download_headers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        ai_monitoring.ai_usage_export,
+        "count_rows",
+        lambda **kwargs: captured.update(kwargs) or 0,
+    )
+    monkeypatch.setattr(
+        ai_monitoring.ai_usage_export,
+        "export_csv_chunks",
+        lambda **_kwargs: iter(["\ufeffid\r\n"]),
+    )
+
+    response = ai_monitoring.export_ai_usage(
+        session=None,  # type: ignore[arg-type]
+        _current_user=SimpleNamespace(id=uuid.uuid4()),
+        end_date=datetime(2099, 1, 1, tzinfo=UTC),
+    )
+
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["content-type"] == "text/csv; charset=utf-8"
+    assert response.headers["content-disposition"].startswith(
+        'attachment; filename="skylab-ai-usage-'
+    )
+    assert captured["end_date"] <= datetime.now(UTC)
+
+
+def test_monitoring_overview_aggregates_total_tokens_per_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stats = {
+        "proxy_total_calls": 2,
+        "proxy_total_input_tokens": 10,
+        "proxy_total_output_tokens": 20,
+        "template_total_calls": 3,
+        "template_total_input_tokens": 30,
+        "template_total_output_tokens": 40,
+        "successful_calls": 5,
+        "active_users": 1,
+        "avg_latency_ms": 100,
+    }
+
+    monkeypatch.setattr(
+        ai_gateway_service,
+        "get_monitoring_stats",
+        lambda **_kwargs: stats,
+    )
+    monkeypatch.setattr(
+        ai_gateway_service,
+        "_monitoring_bucket_rows",
+        lambda **_kwargs: [],
+    )
+
+    def model_rows(**kwargs):
+        if kwargs["source"] == USAGE_SOURCE_API_KEY:
+            return [("shared-model", 2, 2, 10, 20, 2, 200)]
+        assert kwargs["source"] == USAGE_SOURCE_PLATFORM
+        return [("shared-model", 3, 3, 30, 40, 3, 300)]
+
+    monkeypatch.setattr(ai_gateway_service, "_monitoring_model_rows", model_rows)
+
+    overview = ai_gateway_service.get_monitoring_overview(
+        session=object(), compare=False
+    )
+
+    assert overview["model_breakdown"] == [
+        {
+            "model_name": "shared-model",
+            "total_calls": 5,
+            "total_tokens": 100,
+            "failed_calls": 0,
+            "error_rate": 0.0,
+            "avg_latency_ms": 100,
+        }
+    ]
+
+
+def test_monitoring_overview_aggregates_total_tokens_per_bucket(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stats = {
+        "proxy_total_calls": 2,
+        "template_total_calls": 1,
+        "successful_calls": 2,
+        "active_users": 1,
+        "avg_latency_ms": 100,
+    }
+    bucket_start = "2026-09-11 10:00:00"
+
+    monkeypatch.setattr(
+        ai_gateway_service,
+        "get_monitoring_stats",
+        lambda **_kwargs: stats,
+    )
+
+    def bucket_rows(**kwargs):
+        if kwargs["source"] == USAGE_SOURCE_API_KEY:
+            return [(bucket_start, 2, 1, 10, 20, 2, 200)]
+        assert kwargs["source"] == USAGE_SOURCE_PLATFORM
+        return [(bucket_start, 1, 1, 30, 40, 1, 100)]
+
+    monkeypatch.setattr(ai_gateway_service, "_monitoring_bucket_rows", bucket_rows)
+    monkeypatch.setattr(
+        ai_gateway_service, "_monitoring_model_rows", lambda **_kwargs: []
+    )
+
+    overview = ai_gateway_service.get_monitoring_overview(
+        session=object(), compare=False
+    )
+
+    assert len(overview["series"]) == 1
+    assert overview["series"][0]["total_tokens"] == 100
+    assert overview["series"][0]["failed_calls"] == 1
+
+
+def test_monitoring_overview_can_exclude_template_usage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stats = {
+        "proxy_total_calls": 2,
+        "proxy_total_input_tokens": 10,
+        "proxy_total_output_tokens": 20,
+        "template_total_calls": 0,
+        "template_total_input_tokens": 0,
+        "template_total_output_tokens": 0,
+        "successful_calls": 2,
+        "active_users": 1,
+        "avg_latency_ms": 100,
+    }
+    monkeypatch.setattr(
+        ai_gateway_service, "get_monitoring_stats", lambda **_kwargs: stats
+    )
+
+    def bucket_rows(**kwargs):
+        assert kwargs["source"] == USAGE_SOURCE_API_KEY
+        return [("2026-09-11 10:00:00", 2, 2, 10, 20, 2, 200)]
+
+    def model_rows(**kwargs):
+        assert kwargs["source"] == USAGE_SOURCE_API_KEY
+        return [("key-model", 2, 2, 10, 20, 2, 200)]
+
+    monkeypatch.setattr(ai_gateway_service, "_monitoring_bucket_rows", bucket_rows)
+    monkeypatch.setattr(ai_gateway_service, "_monitoring_model_rows", model_rows)
+
+    overview = ai_gateway_service.get_monitoring_overview(
+        session=object(), compare=False, include_template=False
+    )
+
+    assert overview["summary"]["total_calls"] == 2
+    assert overview["series"][0]["template_calls"] == 0
+    assert overview["model_breakdown"][0]["model_name"] == "key-model"
+
+
+@pytest.mark.asyncio
+async def test_runtime_snapshot_normalizes_model_health_without_leaking_upstream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    responses = {
+        "/health/liveliness": httpx.Response(200, json="I'm alive!"),
+        "/health/readiness": httpx.Response(200, json={"status": "healthy"}),
+        # LiteLLM /health entries carry the upstream model and the deployment
+        # hash in `model_id`, never the public alias.
+        "/health": httpx.Response(
+            200,
+            json={
+                "healthy_endpoints": [
+                    {"model": "hosted_vllm/served-a", "model_id": "a" * 64},
+                    {"model": "hosted_vllm/served-a", "model_id": "c" * 64},
+                ],
+                "unhealthy_endpoints": [
+                    {"model": "hosted_vllm/served-b", "model_id": "b" * 64},
+                    {"model": "hosted_vllm/secret-upstream", "model_id": "d" * 64},
+                ],
+            },
+        ),
+        "/model/info": httpx.Response(
+            200,
+            json={
+                "data": [
+                    {"model_name": "public-model", "model_info": {"id": "a" * 64}},
+                    {"model_name": "public-model", "model_info": {"id": "c" * 64}},
+                    {"model_name": "broken-model", "model_info": {"id": "b" * 64}},
+                    {"model_name": "unknown-model", "model_info": {"id": "e" * 64}},
+                ]
+            },
+        ),
+        "/v1/models": httpx.Response(
+            200,
+            json={
+                "data": [
+                    {"id": "public-model"},
+                    {"id": "broken-model"},
+                    {"id": "unknown-model"},
+                ]
+            },
+        ),
+    }
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url: str, **_kwargs):
+            return responses[next(path for path in responses if url.endswith(path))]
+
+    monkeypatch.setattr(
+        ai_monitoring,
+        "ai_api_settings",
+        SimpleNamespace(
+            litellm_runtime_api_key="test-observation-key",
+            litellm_runtime_base_url="http://litellm.internal",
+        ),
+    )
+    monkeypatch.setattr(
+        ai_monitoring.httpx, "AsyncClient", lambda **_kwargs: FakeClient()
+    )
+
+    snapshot = await ai_monitoring.get_litellm_runtime_snapshot(object())
+
+    assert snapshot["gateway"]["status"] == "available"
+    assert snapshot["liveliness"] is True and snapshot["readiness"] is True
+    assert snapshot["summary"] == {
+        "online": 1,
+        "degraded": 0,
+        "offline": 1,
+        "unknown": 1,
+    }
+    assert [
+        (model["name"], model["status"], model["healthy_deployments"])
+        for model in snapshot["models"]
+    ] == [
+        ("broken-model", "offline", 0),
+        ("public-model", "online", 2),
+        ("unknown-model", "unknown", 0),
+    ]
+    assert "test-observation-key" not in str(snapshot)
+    assert "secret-upstream" not in str(snapshot)
+    assert "d" * 64 not in str(snapshot)
+
+
+@pytest.mark.asyncio
+async def test_runtime_snapshot_fails_closed_without_observation_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        ai_monitoring,
+        "ai_api_settings",
+        SimpleNamespace(
+            litellm_runtime_api_key="",
+            litellm_runtime_base_url="http://litellm.internal",
+        ),
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await ai_monitoring.get_litellm_runtime_snapshot(object())
+
+    assert error.value.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_runtime_snapshot_runs_independent_probes_concurrently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    active = 0
+    max_active = 0
+
+    responses = {
+        "/health/liveliness": httpx.Response(200, json="I'm alive!"),
+        "/health/readiness": httpx.Response(200, json={"status": "healthy"}),
+        "/health": httpx.Response(200, json={"healthy_endpoints": []}),
+        "/model/info": httpx.Response(200, json={"data": []}),
+        "/v1/models": httpx.Response(200, json={"data": []}),
+    }
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, url: str, **_kwargs):
+            nonlocal active, max_active
+            active += 1
+            max_active = max(max_active, active)
+            try:
+                await asyncio.sleep(0.01)
+                return responses[next(path for path in responses if url.endswith(path))]
+            finally:
+                active -= 1
+
+    monkeypatch.setattr(
+        ai_monitoring,
+        "ai_api_settings",
+        SimpleNamespace(
+            litellm_runtime_api_key="test-observation-key",
+            litellm_runtime_base_url="http://litellm.internal",
+        ),
+    )
+    monkeypatch.setattr(
+        ai_monitoring.httpx, "AsyncClient", lambda **_kwargs: FakeClient()
+    )
+
+    snapshot = await ai_monitoring.get_litellm_runtime_snapshot(object())
+
+    assert snapshot["gateway"]["status"] == "available"
+    assert max_active == 5

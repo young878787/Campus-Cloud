@@ -13,11 +13,6 @@ from app.services.notification import web_push_service
 from app.services.scheduling import leader
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 def _fake_lock(acquired: bool, seen: list[int]):
     @contextmanager
     def _lock(key: int = leader.SCHEDULER_LEADER_LOCK_KEY):

@@ -6,7 +6,7 @@
 
 - Docker Engine 與 Compose ≥ 2.20（根目錄 compose 檔用到 `include`）
 - Python 用 [uv](https://docs.astral.sh/uv/)、前端用 [Bun](https://bun.sh/)
-- 後端需要 Python **3.11 以上**（`requires-python = ">=3.11"`；程式用到 3.10 沒有的 `datetime.UTC`）。CI 以 3.11 測試，正式映像跑 3.15；系統內建的版本太舊時 `uv sync` 會自動下載合適的直譯器
+- 後端需要 Python **3.11 以上**（`requires-python = ">=3.11"`；程式用到 3.10 沒有的 `datetime.UTC`）。CI 以 3.12 測試，正式映像跑 3.15；系統內建的版本太舊時 `uv sync` 會自動下載合適的直譯器
 - 要實際建機器才需要連得到的 Proxmox VE 節點或叢集；介面、認證、文件與大多數測試不需要
 
 ## Docker Compose
@@ -95,7 +95,7 @@ Vite dev server 會把 `/api` 與 `/ws` 代理到 `http://localhost:8000`；要�
 - 長表格用 `useVirtualRows`（`src/hooks/useVirtualRows.js`，TanStack Virtual、以視窗為捲動容器）。不到 60 列時每一列都渲染，超過才只在 DOM 裡保留視窗附近的列。
 - 樣式遵循[前端樣式規範](/zh-TW/guides/frontend-style-guide)：SCSS Modules、`_variables`／`_mixins` 由 Vite 注入、主題色用 `--color-*` 自訂屬性。
 - 文字一律走 react-i18next，key 在 `src/locales/{zh-TW,en,ja}/`，三個語系都要加。
-- 新頁面也要補 AI 助手的資料：在 `backend/app/ai/navigation/catalog.py` 登錄路由、在 `backend/app/ai/contextual_help/surfaces.py` 加畫面定義，並在 `surface_guides.py` 加同 id 的導覽（寫作規則在該檔開頭的說明）。導覽目錄裡的頁面沒有說明、元素標籤／視窗標題／開啟按鈕與 zh-TW 語系檔對不上，或文字描述版面位置時，`backend/tests/test_ai_contextual_help.py` 會失敗。
+- 新頁面也要補 AI 助手的資料：在 `backend/app/ai/navigation/catalog.py` 登錄路由、在 `backend/app/ai/contextual_help/surfaces.py` 加畫面定義，並在 `surface_guides.py` 加同 id 的導覽（寫作規則在該檔開頭的說明）。導覽目錄裡的頁面沒有說明、元素標籤／視窗標題／開啟按鈕與 zh-TW 語系檔對不上，或文字描述版面位置時，`backend/tests/ai/test_ai_contextual_help.py` 會失敗。
 
 ## 環境變數
 
@@ -128,7 +128,7 @@ Alembic 讀根目錄 `.env`；把 `POSTGRES_SERVER`／`POSTGRES_PORT` 指到資�
 ```bash
 cd backend
 uv run bash ./scripts/test.sh                # pytest + 覆蓋率（htmlcov/）
-uv run pytest tests/api/routes/test_login.py  # 單一檔案
+uv run pytest tests/integration/api/routes/test_login.py  # 單一檔案
 uv run ruff check . && uv run ruff format --check .   # 要直接修正就加 --fix／拿掉 --check
 uv run mypy .                                # CI 只回報不擋；只看自己改的檔
 ```

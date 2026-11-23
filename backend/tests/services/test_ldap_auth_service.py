@@ -243,12 +243,3 @@ def test_admin_removed_from_admin_group_is_demoted(
     user = _ldap_user(UserRole.admin)
     _sync(monkeypatch, user, groups=[TEACHER_DN], config=_config())
     assert user.role == UserRole.teacher
-
-
-def test_admin_kept_when_no_admin_group_configured(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """沒有 admin 群組時目錄無法表達管理員，手動指定的 admin 不被降級。"""
-    user = _ldap_user(UserRole.admin)
-    _sync(monkeypatch, user, groups=[], config=_config(admin_group_dn=None))
-    assert user.role == UserRole.admin

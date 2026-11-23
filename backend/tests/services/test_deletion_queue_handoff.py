@@ -13,11 +13,6 @@ from app.models import DeletionRequest, DeletionRequestStatus
 from app.services.resource import deletion_service
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 def _request(status: DeletionRequestStatus) -> DeletionRequest:
     return DeletionRequest(
         id=uuid.uuid4(),

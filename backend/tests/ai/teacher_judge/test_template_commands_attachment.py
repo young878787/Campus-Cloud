@@ -1,6 +1,6 @@
-"""Split from tests/test_rubric_template_commands.py: attachment item-wise rubric analysis.
+"""app.ai.teacher_judge.service 的附件逐項核查：每列獨立分析、單列或拆解失敗的處置、重複標題與 source_item_id。
 
-Shared fixtures live in tests.ai.teacher_judge.helpers.
+共用測試輔助函式位於 tests.ai.teacher_judge.helpers。
 """
 
 from __future__ import annotations

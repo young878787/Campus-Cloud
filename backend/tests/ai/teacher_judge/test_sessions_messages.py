@@ -1,6 +1,6 @@
-"""Split from tests/test_teacher_judge_sessions.py: session messages, attachments & script workflow.
+"""檢查對話的訊息流程（app.api.routes.teacher_judge_sessions）：附件與逐項分析、refine 就緒判定、腳本集建立的失敗回報、revision 衝突防護，以及訊息內容遮罩與正規化。
 
-Shared fixtures live in tests.ai.teacher_judge.helpers.
+共用測試輔助函式位於 tests.ai.teacher_judge.helpers。
 """
 
 from __future__ import annotations

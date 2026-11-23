@@ -14,13 +14,11 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterator
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session
 
 from app.core.security import decrypt_value
 from app.exceptions import BadRequestError
@@ -30,16 +28,8 @@ from tests.utils.login_password import hash_matches
 
 
 @pytest.fixture()
-def db() -> Iterator[Session]:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
-    engine.dispose()
+def db(sqlite_session: Session) -> Session:
+    return sqlite_session
 
 
 def _template(*, settable: bool, **overrides: object) -> SimpleNamespace:

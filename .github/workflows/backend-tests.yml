@@ -17,7 +17,7 @@ concurrency:
 permissions:
   contents: read
 
-# Shared by the pytest and performance jobs (harmless for lint)
+# Shared by the pytest-unit, pytest-integration and performance jobs (harmless for lint)
 env:
   # --- Database / cache ---
   POSTGRES_SERVER: localhost
@@ -51,15 +51,50 @@ env:
   LOG_JSON: "false"
 
 jobs:
-  pytest:
-    name: pytest (Python ${{ matrix.python-version }})
+  # No services: these tests never touch Postgres or Redis, so xdist can run them in parallel
+  pytest-unit:
+    name: pytest unit (parallel)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11"]
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies (incl. dev)
+        run: uv sync --frozen
+
+      - name: Run unit tests with coverage
+        # Stress tests run in the non-blocking performance job below
+        env:
+          COVERAGE_FILE: coverage-unit.data
+        run: uv run pytest tests/ -v --tb=short -m "not performance and not integration and not serial" -n auto --cov --cov-context=test --cov-report=
+
+      - name: Upload unit coverage data
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-unit
+          path: backend/coverage-unit.data
+          retention-days: 1
+          if-no-files-found: error
+
+  # Tests that use the shared Postgres/Redis services run serially in this job
+  pytest-integration:
+    name: pytest integration (serial)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     defaults:
       run:
@@ -101,8 +136,8 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
 
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
+      - name: Set up Python 3.12
+        run: uv python install 3.12
 
       - name: Sync dependencies (incl. dev)
         run: uv sync --frozen
@@ -122,12 +157,58 @@ jobs:
         # runner 上要靠 uv run 把 workspace 的 .venv 放進 PATH。
         run: uv run bash scripts/prestart.sh
 
-      - name: Run pytest with coverage
-        # Stress tests run in the non-blocking performance job below
+      - name: Run integration tests with coverage
+        env:
+          COVERAGE_FILE: coverage-integration.data
+        run: uv run pytest tests/ -v --tb=short -m "(integration or serial) and not performance" --cov --cov-context=test --cov-report=
+
+      - name: Upload integration coverage data
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-integration
+          path: backend/coverage-integration.data
+          retention-days: 1
+          if-no-files-found: error
+
+  # Merges the unit and integration coverage data into one report
+  coverage:
+    name: coverage report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [pytest-unit, pytest-integration]
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies (incl. dev)
+        run: uv sync --frozen
+
+      - name: Download coverage data
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+          path: backend
+
+      - name: Combine and report coverage
         run: |
-          uv run coverage run -m pytest tests/ -v --tb=short -m "not performance"
+          uv run coverage combine coverage-unit.data coverage-integration.data
           uv run coverage xml -o coverage.xml
           uv run coverage report
+          uv run coverage html --title "backend coverage"
 
       - name: Upload coverage artifact
         if: always()
@@ -135,6 +216,13 @@ jobs:
         with:
           name: backend-coverage
           path: backend/coverage.xml
+          retention-days: 14
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: backend-htmlcov
+          path: backend/htmlcov
           retention-days: 14
 
   # Concurrency stress tests (marker `performance`) time requests on a shared
@@ -150,7 +238,7 @@ jobs:
       run:
         working-directory: backend
 
-    # Same services as the pytest job; keep the two in sync
+    # Same services as the pytest-integration job; keep the two in sync
     services:
       postgres:
         image: postgres:18-alpine
@@ -187,8 +275,8 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
 
-      - name: Set up Python 3.11
-        run: uv python install 3.11
+      - name: Set up Python 3.12
+        run: uv python install 3.12
 
       - name: Sync dependencies (incl. dev)
         run: uv sync --frozen
@@ -223,7 +311,7 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
-      - run: uv python install 3.11
+      - run: uv python install 3.12
       - run: uv sync --frozen
       - name: ruff check
         run: uv run ruff check .
@@ -236,7 +324,7 @@ jobs:
   ci-pass:
     name: Backend Tests
     runs-on: ubuntu-latest
-    needs: [pytest, lint]
+    needs: [pytest-unit, pytest-integration, coverage, lint]
     if: always()
     steps:
       - name: Check all jobs passed

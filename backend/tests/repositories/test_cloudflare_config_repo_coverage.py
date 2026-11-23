@@ -2,21 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session
 
 from app.exceptions import AppError
 from app.repositories import cloudflare_config as repo
 
 
 @pytest.fixture()
-def session() -> Iterator[Session]:
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as s:
-        yield s
+def session(sqlite_session: Session) -> Session:
+    return sqlite_session
 
 
 def test_upsert_creates_then_updates_and_verifies(session: Session) -> None:

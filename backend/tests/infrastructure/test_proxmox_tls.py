@@ -13,11 +13,6 @@ from requests.adapters import HTTPAdapter
 from app.infrastructure.proxmox import tls
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 @pytest.fixture
 def bundle_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(tls, "_CA_BUNDLE_DIR", tmp_path)

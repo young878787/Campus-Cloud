@@ -11,11 +11,6 @@ from app.schemas.setup import SetupProxmoxTestRequest
 from app.services.system import setup_service
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 def test_test_proxmox_passes_form_port_everywhere(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

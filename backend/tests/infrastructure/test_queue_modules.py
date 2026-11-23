@@ -2,15 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
 from app.infrastructure.queue import modules, registry
-
-
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
 
 EXPECTED_TASK_TYPES = {
     "queue.ping",

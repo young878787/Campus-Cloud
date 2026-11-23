@@ -1,5 +1,6 @@
 import os
 from collections.abc import Generator
+from pathlib import Path
 
 # Disable background jobs that reach external systems (Proxmox API, etc.)
 # before any app module is imported — otherwise settings caches the default.
@@ -10,11 +11,6 @@ os.environ.setdefault("SCHEDULER_ENABLED", "false")
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
-
-# Manual smoke scripts that use a `test_` prefix for CLI ergonomics but are not
-# pytest tests. Excluding them prevents pytest from collecting their top-level
-# functions (which take positional CLI args, not fixtures).
-collect_ignore = ["test_ai_api.py"]
 
 from app.core.config import settings
 
@@ -39,6 +35,7 @@ from app.models import (
     User,
     VMRequest,
 )
+from tests.utils.sqlite import _sqlite_template, sqlite_engine, sqlite_session  # noqa: F401
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import get_superuser_token_headers
 
@@ -185,6 +182,16 @@ def _uses_application_db(item) -> bool:
         getattr(item, "_fixtureinfo", None), "name2fixturedefs", {}
     ).get("db", ())
     return bool(definitions and definitions[-1].func is db.__wrapped__)
+
+
+_INTEGRATION_DIR = Path(__file__).parent / "integration"
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """tests/integration/ 下與用到共用 Postgres 的測試標 integration：CI 交給序列 job，其餘由 xdist 平行跑。"""
+    for item in items:
+        if item.path.is_relative_to(_INTEGRATION_DIR) or _uses_application_db(item):
+            item.add_marker(pytest.mark.integration)
 
 
 @pytest.fixture(scope="session")

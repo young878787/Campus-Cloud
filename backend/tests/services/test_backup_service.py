@@ -21,11 +21,6 @@ LXC = {"node": "pve1", "type": "lxc"}
 STORAGE = "pbs-main"
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 class _Session:
     def __init__(self, records: list[TaskRecord] | None = None) -> None:
         self.records = records or []

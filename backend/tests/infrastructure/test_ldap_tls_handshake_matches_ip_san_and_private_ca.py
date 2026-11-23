@@ -33,11 +33,6 @@ from app.models import LdapConfig
 _Leaf = tuple[Path, Path]  # (certificate PEM, private key PEM)
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """Pure unit tests; no test database needed."""
-
-
 @dataclass(frozen=True)
 class _Pki:
     trust_bundle: Path  # both campus CAs below

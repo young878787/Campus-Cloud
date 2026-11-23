@@ -12,11 +12,6 @@ from app.api.routes import desktop_client as routes
 from app.core.config import settings as core_settings
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 @pytest.fixture(autouse=True)
 def _memory_store(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(core_settings, "REDIS_ENABLED", False)

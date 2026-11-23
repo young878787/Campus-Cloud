@@ -10,11 +10,6 @@ import pytest
 from app.infrastructure.proxmox import operations
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 @pytest.fixture()
 def pve(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     api = MagicMock()

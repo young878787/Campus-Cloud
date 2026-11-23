@@ -43,6 +43,8 @@ dev = [
     "prek>=0.5.7,<1.0.0",
     "coverage<8.0.0,>=7.17.0",
     "types-ldap3>=2.9.13.20260827",
+    "pytest-xdist>=3.8.0,<4.0.0",
+    "pytest-cov>=7.1.0,<8.0.0",
 ]
 
 [tool.pytest.ini_options]
@@ -51,6 +53,8 @@ dev = [
 asyncio_mode = "auto"
 markers = [
     "performance: 併發壓力測試（層1 需測試 DB；層2 無外部依賴）",
+    "integration: 連真 Postgres／Redis；用到 db fixture 者由 conftest 自動標記，CI 序列執行",
+    "serial: 不連 DB 但不能與其他測試平行（時間敏感、行程層級全域狀態）",
 ]
 
 [build-system]
@@ -113,10 +117,11 @@ keep-runtime-typing = true
 # that are intentionally unused. Some env-bootstrap tests must set env vars
 # before the import they exercise (E402).
 "tests/*" = ["T201", "ARG001", "F401", "E402", "F841", "C408"]
+# 手動對 AI API 打線上測試的腳本，以 print 輸出結果（原放在 tests/ 下）
+"scripts/ai_api*.py" = ["T201"]
 
 [tool.coverage.run]
 source = ["app"]
-dynamic_context = "test_function"
 
 [tool.coverage.report]
 show_missing = true

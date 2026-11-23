@@ -63,7 +63,7 @@ backend/
 │   ├── initial_data.py         # 建立第一位 superuser
 │   └── reset_totp.py           # 管理員遺失 TOTP 裝置時的 CLI 救援
 ├── config/                     # system-ai.json（AI 助手）、placement.json、llm-model-profiles.yaml、username_policy.yaml
-├── tests/                      # pytest（api/routes、services、performance）
+├── tests/                      # pytest，鏡像 app/；另有 integration/、contract/、performance/
 ├── scripts/                    # prestart、test、migration 檢查、rotate_secret_key、export_openapi
 ├── alembic.ini
 ├── pyproject.toml
@@ -125,9 +125,27 @@ Proxmox 連線**不在** `.env`：在初始化精靈或「PVE 管理」頁填入
 uv run bash ./scripts/test.sh        # pytest 含覆蓋率 → htmlcov/
 ```
 
+不需 Postgres／Redis 的快速跑法（在 `backend/` 執行，平行跑，略過 `serial` 與 `performance`）：
+
+```bash
+uv run pytest tests/ -m "not integration and not serial and not performance" -n auto
+```
+
+`integration` 測試需要 Postgres／Redis 服務，`db` fixture 的規定見下一段。
+
 測試在主機上跑（映像裡沒有 `tests/`）。`tests/conftest.py` 的 `db` fixture 會拒絕對名稱不像測試庫的資料庫執行；設 `PYTEST_ALLOW_NON_TEST_DB=1` 可覆蓋、`PYTEST_ENABLE_DB_CLEANUP=1` 可啟用清理。測試一律停用 Sentry。純函式層（`domain/`、`services/*/*policy.py` 這些模組、`tests/performance/` 層 2）不需任何外部依賴。
 
-CI 以 Python 3.11 跑測試（`.github/workflows/backend-tests.yml`）；正式映像是 `python:3.15-slim`。併發壓力測試（`tests/performance/`，標記 `performance`）另在一個不擋合併的 job 跑：它們的延遲門檻取決於 GitHub 共用 runner 的速度，失敗時 PR 上會出現紅叉，但不會擋合併。
+CI 以 Python 3.12 跑測試（`.github/workflows/backend-tests.yml`），分為可平行的單元測試 job 與序列執行的整合測試 job（Postgres／Redis）；正式映像是 `python:3.15-slim`。併發壓力測試（`tests/performance/`，標記 `performance`）另在一個不擋合併的 job 跑：它們的延遲門檻取決於 GitHub 共用 runner 的速度，失敗時 PR 上會出現紅叉，但不會擋合併。
+
+### 測試目錄規範
+
+- 新測試放在對應 `app/` 結構的目錄。連 Postgres／Redis 的測試放在 `integration/` 下同一子路徑；讀原始碼或設定檔的靜態檢查放在 `contract/`。
+- 一個被測模組一個測試檔，檔名以被測模組命名。新檔不用 `_coverage`、`_fixes`、日期或票號當檔名。
+- 修改某模組的測試時，若同一模組有多個測試檔，順手合併；單檔超過約 800 行時依子功能拆分。
+- 共用 fixture 與工廠放在 `tests/utils/`。需要資料庫但不必連 Postgres 的測試用 `sqlite_session`，不要在測試檔內自建 SQLite engine。
+- 懷疑兩個測試重複時，先看覆蓋率 HTML 報告的每測試 context（`scripts/test.sh` 產生的 `htmlcov/`，或 CI 的 `backend-htmlcov` artifact），確認被刪的測試覆蓋的行都已被保留的測試覆蓋，才刪除。
+
+`tests/contract/test_tests_layout.py` 會自動檢查其中一部分：`tests/` 根目錄多出的檔案、用到共用 `db` fixture 卻不在 `integration/` 或 `performance/` 下的測試，以及含 `_coverage`、`_fixes` 或日期的檔名。既有違規檔凍結在該檔的 `_FROZEN_NAME_EXCEPTIONS` 清單中，只能減少不能增加。
 
 ## 程式碼品質
 

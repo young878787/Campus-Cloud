@@ -63,7 +63,7 @@ backend/
 │   ├── initial_data.py         # create the first superuser
 │   └── reset_totp.py           # CLI rescue for a locked-out administrator
 ├── config/                     # system-ai.json (AI assistants), placement.json, llm-model-profiles.yaml, username_policy.yaml
-├── tests/                      # pytest (api/routes, services, performance)
+├── tests/                      # pytest, mirrors app/; also integration/, contract/, performance/
 ├── scripts/                    # prestart, test, migration check, rotate_secret_key, export_openapi
 ├── alembic.ini
 ├── pyproject.toml
@@ -125,9 +125,27 @@ Every change under `app/models/` needs a migration, generated on the host as des
 uv run bash ./scripts/test.sh        # pytest with coverage → htmlcov/
 ```
 
+Quick run without Postgres or Redis (from `backend/`, in parallel, skipping `serial` and `performance`):
+
+```bash
+uv run pytest tests/ -m "not integration and not serial and not performance" -n auto
+```
+
+`integration` tests need the Postgres and Redis services; the `db` fixture rules are in the next paragraph.
+
 The suite runs on the host (the image does not contain `tests/`). The `db` fixture in `tests/conftest.py` refuses to run against a database whose name does not look like a test database; set `PYTEST_ALLOW_NON_TEST_DB=1` to override and `PYTEST_ENABLE_DB_CLEANUP=1` to enable cleanup. Tests disable Sentry. Pure-function layers (`domain/`, the `services/*/*policy.py` modules, `tests/performance/` tier 2) run without any external dependency.
 
-CI runs the suite on Python 3.11 (`.github/workflows/backend-tests.yml`); the production image is `python:3.15-slim`. The concurrency stress tests (`tests/performance/`, marker `performance`) run in a separate job that does not block merging: their latency limits depend on how fast the shared GitHub runner is, so a failure there shows as a red check on the pull request without blocking the merge.
+CI runs the suite on Python 3.12 (`.github/workflows/backend-tests.yml`), split into a parallel unit job and a serial integration job (Postgres/Redis); the production image is `python:3.15-slim`. The concurrency stress tests (`tests/performance/`, marker `performance`) run in a separate job that does not block merging: their latency limits depend on how fast the shared GitHub runner is, so a failure there shows as a red check on the pull request without blocking the merge.
+
+### Test layout
+
+- New tests go in the directory that mirrors their `app/` module. Tests that use Postgres or Redis go under `integration/` in the same sub-path; static checks that read source or config files go under `contract/`.
+- Use one test file per module under test, named after that module. New files must not use `_coverage`, `_fixes`, dates or ticket numbers in their names.
+- When you change tests for a module that has several test files, merge them. Split a file by sub-feature once it grows past about 800 lines.
+- Shared fixtures and factories go in `tests/utils/`. A test that needs a database but not Postgres uses `sqlite_session`; do not build a SQLite engine inside a test file.
+- Before deleting a test you suspect duplicates another, check the per-test contexts in the coverage HTML report (from `scripts/test.sh`, or the `backend-htmlcov` artifact in CI). Delete it only if every line it covers is also covered by the test you keep.
+
+`tests/contract/test_tests_layout.py` checks part of this automatically: it rejects extra files at the `tests/` root, tests that use the `db` fixture outside `integration/` and `performance/`, and new names containing `_coverage`, `_fixes` or dates. Existing violations are frozen in its `_FROZEN_NAME_EXCEPTIONS` list, which may only shrink.
 
 ## Code quality
 

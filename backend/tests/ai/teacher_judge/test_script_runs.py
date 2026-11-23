@@ -1,4 +1,4 @@
-"""Split from tests/test_teacher_judge_script_artifacts.py: script runs (snapshot/execute/save)."""
+"""app.ai.teacher_judge 腳本執行批次：建立 run 時的目標快照、執行結果寫回與失敗處置、遠端執行與結果解析。"""
 
 from __future__ import annotations
 

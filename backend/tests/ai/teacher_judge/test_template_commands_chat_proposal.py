@@ -1,4 +1,4 @@
-"""Split from tests/test_rubric_template_commands.py: chat proposal core (tools, partial success, new/existing items)."""
+"""app.ai.teacher_judge.service 的提案工具流程：部分成功的回覆與拒絕原因、新增與既有項目的 operation、節點標籤正規化，以及 response_format 處理。"""
 
 from __future__ import annotations
 
