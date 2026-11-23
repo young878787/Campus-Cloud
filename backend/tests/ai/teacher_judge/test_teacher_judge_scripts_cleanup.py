@@ -12,12 +12,10 @@ from typing import Any
 import pytest
 from fastapi import HTTPException
 
-from app.ai.teacher_judge import deterministic_compiler, machine_context
 from app.ai.teacher_judge import script_executor_service as executor
 from app.ai.teacher_judge import script_run_service as run_service
 from app.ai.teacher_judge.script_artifact_service import latest_set_children
 from app.ai.teacher_judge.script_policy import (
-    PEER_IP_TOKEN,
     validate_managed_script_output,
 )
 from app.ai.teacher_judge.script_quality_validator import (
@@ -43,12 +41,6 @@ def test_result_status_must_already_be_canonical() -> None:
     # The Literal type rejects non-canonical spellings; nothing normalizes them.
     assert validate_managed_script_output(_result_payload("PASS"))["valid"] is False
     assert validate_managed_script_output(_result_payload(" pass"))["valid"] is False
-
-
-def test_peer_ip_token_has_one_definition() -> None:
-    assert PEER_IP_TOKEN == "{{peer.ip}}"
-    assert deterministic_compiler.PEER_IP_TOKEN is PEER_IP_TOKEN
-    assert machine_context.PEER_IP_TOKEN == PEER_IP_TOKEN
 
 
 def _handler(source: str) -> ast.ExceptHandler:

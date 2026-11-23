@@ -14,7 +14,7 @@ import pytest
 
 from app.core.i18n import SUPPORTED_LANGUAGES, _catalog
 
-BACKEND_ROOT = Path(__file__).resolve().parents[3]
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 B1_SOURCES = [
     "app/api/routes/teacher_judge_sessions.py",
