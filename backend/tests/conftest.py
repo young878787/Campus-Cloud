@@ -12,11 +12,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-# Manual smoke scripts that use a `test_` prefix for CLI ergonomics but are not
-# pytest tests. Excluding them prevents pytest from collecting their top-level
-# functions (which take positional CLI args, not fixtures).
-collect_ignore = ["test_ai_api.py"]
-
 from app.core.config import settings
 
 # 本機 .env 可能填了正式的 SENTRY_DSN：測試會刻意製造例外（排程任務失敗、

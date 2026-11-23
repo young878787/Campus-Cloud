@@ -117,6 +117,8 @@ keep-runtime-typing = true
 # that are intentionally unused. Some env-bootstrap tests must set env vars
 # before the import they exercise (E402).
 "tests/*" = ["T201", "ARG001", "F401", "E402", "F841", "C408"]
+# 手動對 AI API 打線上測試的腳本，以 print 輸出結果（原放在 tests/ 下）
+"scripts/ai_api*.py" = ["T201"]
 
 [tool.coverage.run]
 source = ["app"]

@@ -4,9 +4,9 @@ SkyLab AI API — 模型呼叫測試
 直接填入 API Key 測試模型輸出
 
 使用方式：
-    python test_ai_api.py                # 執行基本測試（列表、非串流、串流）
-    python test_ai_api.py --rate-limit   # 測試速率限制（19 個並發 + 6 個序列）
-    python test_ai_api.py --full         # 執行完整測試（包含速率限制）
+    python ai_api.py                # 執行基本測試（列表、非串流、串流）
+    python ai_api.py --rate-limit   # 測試速率限制（19 個並發 + 6 個序列）
+    python ai_api.py --full         # 執行完整測試（包含速率限制）
 """
 
 import asyncio
@@ -447,8 +447,8 @@ if __name__ == "__main__":
 
         print("\n" + "=" * 55)
         print("  💡 提示：")
-        print("     使用 'python test_ai_api.py --rate-limit' 測試速率限制")
-        print("     使用 'python test_ai_api.py --full' 執行完整測試")
+        print("     使用 'python ai_api.py --rate-limit' 測試速率限制")
+        print("     使用 'python ai_api.py --full' 執行完整測試")
         print("=" * 55)
 
     print("\n" + "=" * 55)
