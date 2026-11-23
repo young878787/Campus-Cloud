@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 DASHBOARDS = ROOT / "monitoring/grafana/dashboards"
 FIXTURE = ROOT / "monitoring/tests/latency.test.yml"
 

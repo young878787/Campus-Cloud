@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 _UTC_USAGE = re.compile(r"\bdatetime\.UTC\b|^from datetime import [^\n]*\bUTC\b", re.MULTILINE)
 _REQUIRES_PYTHON = re.compile(r'^requires-python\s*=\s*"([^"]+)"', re.MULTILINE)
 

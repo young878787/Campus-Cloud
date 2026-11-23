@@ -7,7 +7,7 @@ from app.ai.system_config import TeacherJudgeConfig
 
 
 def test_teacher_judge_deadlines_leave_time_for_response_delivery() -> None:
-    root = Path(__file__).parents[2]
+    root = Path(__file__).parents[3]
     policy = json.loads(
         (root / "backend/config/system-ai.json").read_text(encoding="utf-8")
     )["teacher_judge"]
@@ -27,7 +27,7 @@ def test_teacher_judge_deadlines_leave_time_for_response_delivery() -> None:
 
 
 def test_ai_routes_apply_limits_with_and_without_trailing_slash() -> None:
-    config = (Path(__file__).parents[2] / "nginx" / "default.conf.template").read_text(
+    config = (Path(__file__).parents[3] / "nginx" / "default.conf.template").read_text(
         encoding="utf-8"
     )
 

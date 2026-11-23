@@ -17,7 +17,7 @@ from app.ai.navigation.catalog import all_routes
 from app.ai.navigation.flows import all_flows
 
 _APP_JSX = (
-    Path(__file__).resolve().parents[2] / "frontend" / "src" / "App.jsx"
+    Path(__file__).resolve().parents[3] / "frontend" / "src" / "App.jsx"
 )
 _PATH_ATTR = re.compile(r'path="([^"]+)"')
 
