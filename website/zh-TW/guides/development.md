@@ -128,7 +128,7 @@ Alembic 讀根目錄 `.env`；把 `POSTGRES_SERVER`／`POSTGRES_PORT` 指到資�
 ```bash
 cd backend
 uv run bash ./scripts/test.sh                # pytest + 覆蓋率（htmlcov/）
-uv run pytest tests/api/routes/test_login.py  # 單一檔案
+uv run pytest tests/integration/api/routes/test_login.py  # 單一檔案
 uv run ruff check . && uv run ruff format --check .   # 要直接修正就加 --fix／拿掉 --check
 uv run mypy .                                # CI 只回報不擋；只看自己改的檔
 ```

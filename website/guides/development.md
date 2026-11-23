@@ -128,7 +128,7 @@ Backend:
 ```bash
 cd backend
 uv run bash ./scripts/test.sh                # pytest + coverage (htmlcov/)
-uv run pytest tests/api/routes/test_login.py  # a single file
+uv run pytest tests/integration/api/routes/test_login.py  # a single file
 uv run ruff check . && uv run ruff format --check .   # --fix / drop --check to apply
 uv run mypy .                                # report-only in CI; check the files you changed
 ```
