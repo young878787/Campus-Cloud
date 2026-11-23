@@ -95,7 +95,7 @@ Vite dev server 會把 `/api` 與 `/ws` 代理到 `http://localhost:8000`；要�
 - 長表格用 `useVirtualRows`（`src/hooks/useVirtualRows.js`，TanStack Virtual、以視窗為捲動容器）。不到 60 列時每一列都渲染，超過才只在 DOM 裡保留視窗附近的列。
 - 樣式遵循[前端樣式規範](/zh-TW/guides/frontend-style-guide)：SCSS Modules、`_variables`／`_mixins` 由 Vite 注入、主題色用 `--color-*` 自訂屬性。
 - 文字一律走 react-i18next，key 在 `src/locales/{zh-TW,en,ja}/`，三個語系都要加。
-- 新頁面也要補 AI 助手的資料：在 `backend/app/ai/navigation/catalog.py` 登錄路由、在 `backend/app/ai/contextual_help/surfaces.py` 加畫面定義，並在 `surface_guides.py` 加同 id 的導覽（寫作規則在該檔開頭的說明）。導覽目錄裡的頁面沒有說明、元素標籤／視窗標題／開啟按鈕與 zh-TW 語系檔對不上，或文字描述版面位置時，`backend/tests/test_ai_contextual_help.py` 會失敗。
+- 新頁面也要補 AI 助手的資料：在 `backend/app/ai/navigation/catalog.py` 登錄路由、在 `backend/app/ai/contextual_help/surfaces.py` 加畫面定義，並在 `surface_guides.py` 加同 id 的導覽（寫作規則在該檔開頭的說明）。導覽目錄裡的頁面沒有說明、元素標籤／視窗標題／開啟按鈕與 zh-TW 語系檔對不上，或文字描述版面位置時，`backend/tests/ai/test_ai_contextual_help.py` 會失敗。
 
 ## 環境變數
 

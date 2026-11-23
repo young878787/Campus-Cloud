@@ -95,7 +95,7 @@ Frontend conventions:
 - Long tables use `useVirtualRows` (`src/hooks/useVirtualRows.js`, TanStack Virtual with the window as the scroll container). Below 60 rows it renders every row; above that only the rows near the viewport exist in the DOM.
 - Styles follow the [Frontend Style Guide](/guides/frontend-style-guide): SCSS Modules, `_variables` / `_mixins` injected by Vite, theme colours via `--color-*` custom properties.
 - Text goes through react-i18next; keys live in `src/locales/{zh-TW,en,ja}/`. Add every key to all three locales.
-- A new page also needs its AI assistant entry: a route in `backend/app/ai/navigation/catalog.py`, a screen in `backend/app/ai/contextual_help/surfaces.py` and a guide with the same id in `surface_guides.py` (the writing rules are in that file's docstring). `backend/tests/test_ai_contextual_help.py` fails when a catalog page has no explanation, when an element label, dialog title or opener no longer matches the zh-TW locale, or when the text describes a screen position.
+- A new page also needs its AI assistant entry: a route in `backend/app/ai/navigation/catalog.py`, a screen in `backend/app/ai/contextual_help/surfaces.py` and a guide with the same id in `surface_guides.py` (the writing rules are in that file's docstring). `backend/tests/ai/test_ai_contextual_help.py` fails when a catalog page has no explanation, when an element label, dialog title or opener no longer matches the zh-TW locale, or when the text describes a screen position.
 
 ## Environment variables
 
