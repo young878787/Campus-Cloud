@@ -1,4 +1,4 @@
-﻿"""Tests for app.core.security crypto + password helpers (pure unit).
+"""Tests for app.core.security crypto + password helpers (pure unit).
 
 No DB / no Redis. Exercises:
 - Fernet encrypt/decrypt round-trip (singleton key)

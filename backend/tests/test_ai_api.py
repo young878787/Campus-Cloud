@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 SkyLab AI API — 模型呼叫測試
 直接填入 API Key 測試模型輸出

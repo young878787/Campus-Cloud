@@ -1,4 +1,4 @@
-﻿"""Tests for pure helpers in app.services.network.firewall_service.
+"""Tests for pure helpers in app.services.network.firewall_service.
 
 Focus on the parsers/builders that are deterministic and free of any
 Proxmox API or DB calls. Testing these guards against regressions in
