@@ -519,7 +519,7 @@ def _locale_blob() -> str | None:
     import os
 
     pattern = os.path.join(
-        os.path.dirname(__file__), "..", "..",
+        os.path.dirname(__file__), "..", "..", "..",
         "frontend", "src", "locales", "zh-TW", "*.json",
     )
     files = glob.glob(pattern)

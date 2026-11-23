@@ -12,8 +12,8 @@ import pytest
 
 from app.services.llm_gateway import relay_service as relay
 from app.services.monitoring import ai_metrics
-from tests import test_ai_proxy_queue as helpers
-from tests.test_ai_proxy_queue import (
+from tests.services import test_ai_proxy_queue as helpers
+from tests.services.test_ai_proxy_queue import (
     Clock,
     consume,
     generation,

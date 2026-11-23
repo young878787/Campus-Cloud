@@ -6,9 +6,9 @@ import httpx
 import pytest
 
 from app.services.llm_gateway import relay_service as relay
-from tests import test_ai_latency_observation as observations
-from tests import test_ai_proxy_queue as helpers
-from tests.test_ai_latency_observation import sample
+from tests.ai import test_ai_latency_observation as observations
+from tests.ai.test_ai_latency_observation import sample
+from tests.services import test_ai_proxy_queue as helpers
 
 runtime = helpers.runtime
 registry = observations.registry
