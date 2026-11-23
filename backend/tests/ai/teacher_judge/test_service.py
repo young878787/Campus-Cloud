@@ -1,93 +1,19 @@
-"""Isolated regressions for the backend AI P1 review findings."""
+"""app/ai/teacher_judge/service.py 的對話提案流程：檢查項目工具的驗證與重複偵測、ready 狀態判讀、fenced JSON 的解析與不外流、對話焦點長度上限，以及摘要與截斷輸出的防護。"""
 
 from __future__ import annotations
 
-import asyncio
 import json
-import threading
-import uuid
-from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
-from sqlmodel import Session, SQLModel, create_engine
 
-from app.ai.pve_log import collector
 from app.ai.system_config import system_ai_env
-from app.ai.teacher_judge import script_executor_service as executor
 from app.ai.teacher_judge import service
-from app.ai.teacher_judge.prompt import (
-    CHAT_SYSTEM_TEMPLATE,
-    SITUATION_NORMAL,
-)
 from app.ai.teacher_judge.schemas import (
     TeacherJudgeRubricChatMessage,
     TeacherJudgeRubricCheckStep,
 )
-from app.models.teacher_judge_script_artifact import (
-    TeacherJudgeScriptArtifact,
-    TeacherJudgeScriptStatus,
-)
-from app.models.teacher_judge_script_run import (
-    TeacherJudgeScriptRun,
-    TeacherJudgeScriptRunStatus,
-)
 from app.models.teacher_judge_template_command import TeacherJudgeTemplateCommand
-
-
-def test_teacher_judge_chat_prompt_is_scoped_and_clarifies_missing_information():
-    assert "使用者問 A，只回答 A" in CHAT_SYSTEM_TEMPLATE
-    assert "只詢問最少且具體的問題" in CHAT_SYSTEM_TEMPLATE
-    assert "不得猜測後繼續" in CHAT_SYSTEM_TEMPLATE
-    assert "不要補充未詢問的" in CHAT_SYSTEM_TEMPLATE
-    assert "只協助老師規劃、新增或調整檢查項目" in CHAT_SYSTEM_TEMPLATE
-    assert "不會當場連線學生環境、讀取檔案或執行指令" in CHAT_SYSTEM_TEMPLATE
-    assert "不是提案白名單" in CHAT_SYSTEM_TEMPLATE
-    assert "不得只因沒有專用 `command_key` 就拒絕提案" in CHAT_SYSTEM_TEMPLATE
-    assert "要求老師新增權限" in CHAT_SYSTEM_TEMPLATE
-    assert "不要求老師先說「新增」" in CHAT_SYSTEM_TEMPLATE
-    assert "一則訊息包含多條需求時逐條拆解" in CHAT_SYSTEM_TEMPLATE
-    assert "不得因其中一條不完整而忽略其他 Ready 需求" in CHAT_SYSTEM_TEMPLATE
-    assert "不得因缺少客觀答案而攔截提案" in CHAT_SYSTEM_TEMPLATE
-    assert "只有老師明確要求「重新核查整張檢查表」" in CHAT_SYSTEM_TEMPLATE
-    assert "不得只說「資訊不足」" in CHAT_SYSTEM_TEMPLATE
-    assert "像助教當面說明的日常繁體中文" in CHAT_SYSTEM_TEMPLATE
-    assert "先說已經知道什麼，再說還缺什麼" in CHAT_SYSTEM_TEMPLATE
-    assert "完整路徑" in CHAT_SYSTEM_TEMPLATE
-    assert "工作目錄與相對路徑" in CHAT_SYSTEM_TEMPLATE
-    assert "預期文字、數字、行數、欄位、版本、Port 或狀態" in (
-        CHAT_SYSTEM_TEMPLATE
-    )
-    assert "老師明確表示想自己檢查時，才說明會先收集結果再由老師查看" in (
-        CHAT_SYSTEM_TEMPLATE
-    )
-    assert "不得自行改用 `teacher`" in CHAT_SYSTEM_TEMPLATE
-    assert "應使用 `auto + teacher`" not in CHAT_SYSTEM_TEMPLATE
-    assert "一般回覆不要使用「腳本取證」" in CHAT_SYSTEM_TEMPLATE
-    assert "依項目的檢查對象與缺口自然組句" in CHAT_SYSTEM_TEMPLATE
-    assert "不要固定套用任何預設開頭、結尾或完整範本" in (
-        CHAT_SYSTEM_TEMPLATE
-    )
-    assert "不要照抄範例、硬塞檔名或重複固定收尾" in CHAT_SYSTEM_TEMPLATE
-    assert "不要複製它的句首、例子或收尾" in CHAT_SYSTEM_TEMPLATE
-    assert "我還不知道怎樣才算通過" not in CHAT_SYSTEM_TEMPLATE
-    assert "兩者只能選符合本項設定的一種" in CHAT_SYSTEM_TEMPLATE
-    assert "不得含糊寫成「由 AI 或導師判斷」" in CHAT_SYSTEM_TEMPLATE
-    assert "補充後，我會重新確認並建立提案給你查看" not in CHAT_SYSTEM_TEMPLATE
-    assert "`list_checklist` 回傳所有項目的 ID、標題與偵測狀態" in CHAT_SYSTEM_TEMPLATE
-    assert "用 ID 查詢單一項目完整內容" in CHAT_SYSTEM_TEMPLATE
-    assert "全新、與既有項目無關" in CHAT_SYSTEM_TEMPLATE
-    assert "檢查項目提案只能透過 `create_checklist_item`（新增）或" in (
-        CHAT_SYSTEM_TEMPLATE
-    )
-    assert "只填有變動的欄位" in CHAT_SYSTEM_TEMPLATE
-    assert "{rubric_context}" not in CHAT_SYSTEM_TEMPLATE
-    assert '"proposal_status": "ready | needs_information | unsupported | none"' in (
-        CHAT_SYSTEM_TEMPLATE
-    )
-    assert "success_criteria" not in CHAT_SYSTEM_TEMPLATE
-    assert "成功條件" not in CHAT_SYSTEM_TEMPLATE
-    assert "你覺得...如何" not in SITUATION_NORMAL
 
 
 def test_retired_success_criteria_is_not_in_new_step_contract() -> None:
@@ -251,24 +177,6 @@ def test_create_tool_blocks_second_same_title_in_same_turn() -> None:
     assert len(duplicates) == 1
     assert duplicates[0]["item_id"] == staged_id
     assert len(staged_ops) == 1
-
-
-def test_teacher_judge_prompt_uses_goal_directed_diagnostic_principles():
-    assert "熟悉 Linux、Windows 系統管理與常見 CLI 工具" in CHAT_SYSTEM_TEMPLATE
-    assert "根據老師要確認的目的，自行選擇適合的診斷指令" in (
-        CHAT_SYSTEM_TEMPLATE
-    )
-    assert "優先規劃唯讀、診斷型指令" in CHAT_SYSTEM_TEMPLATE
-    assert "能以低權限取得資訊時，不要求 `sudo` 或 Administrator" in (
-        CHAT_SYSTEM_TEMPLATE
-    )
-    assert "避免無目的大量執行指令" in CHAT_SYSTEM_TEMPLATE
-    assert "不只回傳原始輸出" in CHAT_SYSTEM_TEMPLATE
-    assert "不是提案白名單" in CHAT_SYSTEM_TEMPLATE
-    assert "沒有專用項目時使用 command collector" in CHAT_SYSTEM_TEMPLATE
-    assert "systemctl list-units" not in CHAT_SYSTEM_TEMPLATE
-    assert "journalctl --since" not in CHAT_SYSTEM_TEMPLATE
-    assert "`history` 是 shell builtin" not in CHAT_SYSTEM_TEMPLATE
 
 
 @pytest.mark.parametrize("content", ["null", "[]", '"text"'])
@@ -569,13 +477,6 @@ def test_teacher_judge_structured_readers_unwrap_fenced_payload() -> None:
     assert status is None
 
 
-def test_teacher_judge_chat_prompt_caps_structured_payload_size() -> None:
-    assert "requirements 最多 4 條" in CHAT_SYSTEM_TEMPLATE
-    assert "每條不超過 30 字" in CHAT_SYSTEM_TEMPLATE
-    assert "不要用 markdown code block 包住整份 JSON" in CHAT_SYSTEM_TEMPLATE
-    assert "不要把結構化欄位重複寫進 reply" in CHAT_SYSTEM_TEMPLATE
-
-
 def test_conversation_focus_caps_shrink_long_payload() -> None:
     """Server-side caps bound the focus metadata regardless of model output size."""
     focus = {
@@ -858,185 +759,3 @@ async def test_truncated_model_output_is_not_accepted_as_complete_json(monkeypat
     with pytest.raises(HTTPException) as error:
         await service._call_vllm({"response_format": {"type": "json_object"}})
     assert error.value.status_code == 502
-
-
-@pytest.mark.parametrize(
-    "fetch,args",
-    [
-        ("_collect_storages_for_node", ("node",)),
-        ("_collect_resource_status", ("node", 1, "qemu")),
-        ("_collect_resource_config", ("node", 1, "qemu")),
-        ("_collect_lxc_interfaces", ("node", 1)),
-    ],
-)
-def test_collector_fetch_errors_reach_retry_layer(fetch, args):
-    def unavailable(*args):
-        raise OSError("synthetic unavailable")
-
-    with pytest.raises(OSError):
-        getattr(collector, fetch)(SimpleNamespace(nodes=unavailable), *args)
-
-
-async def test_executor_sync_stage_does_not_block_loop(monkeypatch):
-    entered = threading.Event()
-    released = threading.Event()
-    loop_thread = threading.get_ident()
-    worker_threads = []
-
-    def unexpected_load(**kwargs):
-        raise AssertionError("Synchronous execution must run in the worker stage")
-
-    monkeypatch.setattr(executor, "_load_run_and_artifact", unexpected_load)
-
-    def execute_targets(run_id, *, stop_event=None):
-        worker_threads.append(threading.get_ident())
-        entered.set()
-        assert released.wait(2)
-        return None
-
-    monkeypatch.setattr(executor, "_execute_targets", execute_targets, raising=False)
-    task = asyncio.create_task(executor._execute_script_run(uuid.uuid4()))
-    try:
-        for _ in range(100):
-            if entered.is_set():
-                break
-            await asyncio.sleep(0.005)
-        assert entered.is_set()
-        assert len(worker_threads) == 1
-        assert worker_threads[0] != loop_thread
-    finally:
-        released.set()
-        _ = await task
-
-
-@pytest.mark.parametrize("stage", ["execute", "save"])
-async def test_executor_cancellation_drains_worker_before_recording_failure(
-    monkeypatch, stage
-):
-    entered = threading.Event()
-    released = threading.Event()
-    events = []
-
-    def block():
-        entered.set()
-        assert released.wait(2)
-        events.append("worker_finished")
-
-    def execute_targets(run_id, *, stop_event=None):
-        if stage == "execute":
-            block()
-        return executor._ExecutedTargets([])
-
-    def save(run_id, results):
-        assert stage == "save"
-        block()
-
-    monkeypatch.setattr(executor, "_execute_targets", execute_targets)
-    monkeypatch.setattr(executor, "_save_results", save)
-    monkeypatch.setattr(
-        executor,
-        "_mark_run_executor_failed",
-        lambda *args, **kwargs: events.append("failed"),
-    )
-    task = asyncio.create_task(executor.execute_script_run(uuid.uuid4()))
-    try:
-        for _ in range(100):
-            if entered.is_set():
-                break
-            await asyncio.sleep(0.005)
-        assert entered.is_set()
-        task.cancel()
-        await asyncio.sleep(0.02)
-        task.cancel()
-        await asyncio.sleep(0.02)
-        assert not task.done()
-        assert events == []
-    finally:
-        released.set()
-        with pytest.raises(asyncio.CancelledError):
-            _ = await task
-    assert events == ["worker_finished", "failed"]
-
-
-async def test_executor_sessions_and_ssh_wait_stay_off_loop(monkeypatch, tmp_path):
-    db_engine = create_engine(f"sqlite:///{tmp_path / 'executor.sqlite'}")
-    SQLModel.metadata.create_all(db_engine)
-    with Session(db_engine) as session:
-        artifact = TeacherJudgeScriptArtifact(
-            teaching_class_id=uuid.uuid4(),
-            name="test",
-            template_key="linux",
-            rubric_snapshot_json={},
-            script_content="pass",
-            status=TeacherJudgeScriptStatus.approved,
-        )
-        session.add(artifact)
-        session.flush()
-        run = TeacherJudgeScriptRun(
-            artifact_id=artifact.id,
-            target_snapshot_json={"targets": [{"vmid": 101}]},
-        )
-        session.add(run)
-        session.commit()
-        run_id = run.id
-
-    entered = threading.Event()
-    released = threading.Event()
-    loop_thread = threading.get_ident()
-    session_threads = []
-
-    def owned_session(*args, **kwargs):
-        session_threads.append(threading.get_ident())
-        return Session(*args, **kwargs)
-
-    def fake_ssh(**kwargs):
-        entered.set()
-        assert released.wait(2)
-        return executor.RemoteScriptResult(
-            0,
-            json.dumps(
-                {
-                    "schema_version": "teacher_judge_result.v1",
-                    "metadata": {
-                        "timestamp": "2026-09-07T00:00:00Z",
-                        "platform": "linux",
-                    },
-                    "summary": "done",
-                    "checks": [],
-                    "errors": [],
-                }
-            ),
-            "",
-        )
-
-    monkeypatch.setattr(executor, "engine", db_engine)
-    monkeypatch.setattr(executor, "Session", owned_session)
-    monkeypatch.setattr(executor, "_live_running_by_vmid", lambda: {})
-    monkeypatch.setattr(
-        executor, "_resolve_runtime_target", lambda **kwargs: dict(kwargs["target"])
-    )
-    monkeypatch.setattr(executor, "_execute_target_script", fake_ssh)
-    task = asyncio.create_task(executor.execute_script_run(run_id))
-    try:
-        for _ in range(100):
-            if entered.is_set():
-                break
-            await asyncio.sleep(0.005)
-        assert entered.is_set()
-        assert not task.done()
-    finally:
-        released.set()
-        _ = await task
-    assert session_threads and loop_thread not in session_threads
-    with Session(db_engine) as session:
-        stored = session.get(TeacherJudgeScriptRun, run_id)
-        assert stored.status == TeacherJudgeScriptRunStatus.completed
-        assert stored.results_document["targets"][0]["vmid"] == 101
-    # A late cancellation/failure cannot overwrite a committed completion.
-    await asyncio.to_thread(executor._mark_run_executor_failed, run_id, "late failure")
-    with Session(db_engine) as session:
-        assert (
-            session.get(TeacherJudgeScriptRun, run_id).status
-            == TeacherJudgeScriptRunStatus.completed
-        )
-    db_engine.dispose()
