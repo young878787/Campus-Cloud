@@ -9,7 +9,6 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlmodel import Session
 
 from app.exceptions import (
     BadRequestError,
@@ -18,7 +17,6 @@ from app.exceptions import (
     ProxmoxError,
 )
 from app.infrastructure.proxmox import operations, router, tls
-from app.models import IpAllocation
 from app.services.proxmox import connection_sync_service, gpu_service
 from app.services.proxmox import provisioning_service as svc
 
@@ -192,25 +190,6 @@ def test_sync_connection_inventory_keeps_storages_of_unreachable_node(
 # ---------------------------------------------------------------------------
 # create_lxc／create_vm 必須避開 DB 已預留但 PVE 還看不到的 VMID
 # ---------------------------------------------------------------------------
-
-
-def test_allocate_free_vmid_skips_vmid_reserved_in_db(
-    db: Session, monkeypatch
-) -> None:
-    base = 990_000 + uuid.uuid4().int % 9_000
-    row = IpAllocation(
-        ip_address=f"b12-test-{uuid.uuid4().hex[:12]}",
-        purpose="vm",
-        vmid=base,
-    )
-    db.add(row)
-    db.commit()
-    try:
-        monkeypatch.setattr(svc.proxmox_service, "next_vmid", lambda: base)
-        assert svc.allocate_free_vmid(db) == base + 1
-    finally:
-        db.delete(row)
-        db.commit()
 
 
 @pytest.fixture

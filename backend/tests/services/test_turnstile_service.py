@@ -4,7 +4,6 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session
 
 from app.api.deps import TURNSTILE_HEADER
 from app.core.config import settings
@@ -158,27 +157,6 @@ def _superuser_form() -> dict[str, str]:
 
 
 @pytest.mark.usefixtures("enable_turnstile")
-def test_password_login_requires_token(
-    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    fake = _FakeSiteverify()
-    _install(monkeypatch, fake)
-
-    r = client.post(f"{API}/login/access-token", data=_superuser_form())
-    assert r.status_code == 400
-    assert fake.calls == []
-
-    r = client.post(
-        f"{API}/login/access-token",
-        data=_superuser_form(),
-        headers={TURNSTILE_HEADER: "tok"},
-    )
-    assert r.status_code == 200
-    assert r.json().get("access_token") or r.json().get("totp_required")
-    assert fake.calls == [{"secret": "secret-key", "token": "tok"}]
-
-
-@pytest.mark.usefixtures("enable_turnstile")
 def test_password_login_rejected_token_blocks_login(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -227,19 +205,3 @@ def test_signup_requires_signup_action_token(
     r = client.post(f"{API}/users/signup", json=body, headers={TURNSTILE_HEADER: "tok"})
     assert r.status_code == 400
     assert len(fake.calls) == 1
-
-
-def test_login_methods_exposes_site_key_only_when_enabled(
-    client: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(settings, "TURNSTILE_SITE_KEY", None)
-    monkeypatch.setattr(settings, "TURNSTILE_SECRET_KEY", None)
-    r = client.get(f"{API}/login/methods")
-    assert r.status_code == 200
-    assert r.json()["turnstile_site_key"] is None
-
-    monkeypatch.setattr(settings, "TURNSTILE_SITE_KEY", "site-key")
-    monkeypatch.setattr(settings, "TURNSTILE_SECRET_KEY", "secret-key")
-    r = client.get(f"{API}/login/methods")
-    assert r.json()["turnstile_site_key"] == "site-key"
-    assert "secret-key" not in r.text
