@@ -30,11 +30,6 @@ from app.services.proxmox import connection_sync_service, tls_helpers
 from app.services.user import audit_service
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 @pytest.fixture(autouse=True)
 def _silence_audit(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(audit_service, "log_action", lambda **_kw: None)

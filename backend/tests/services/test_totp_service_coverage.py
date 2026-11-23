@@ -8,7 +8,7 @@ from typing import Any
 
 import jwt
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session
 
 from app.core import security
 from app.core.config import settings
@@ -18,11 +18,8 @@ from app.services.user import totp_service as svc
 
 
 @pytest.fixture()
-def db() -> Session:
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
+def db(sqlite_session: Session) -> Session:
+    return sqlite_session
 
 
 def _user(db: Session, **overrides: Any) -> User:

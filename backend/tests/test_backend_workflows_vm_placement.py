@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session
 
 from app.core.security import encrypt_value
 from app.domain.placement.schemas import NodeCapacity, PlacementRequest
@@ -15,50 +15,22 @@ from app.models import (
     ProxmoxNode,
     ProxmoxStorage,
     SubnetConfig,
-    User,
-    UserRole,
     VMRequest,
     VMRequestStatus,
 )
-from app.repositories import user as user_repo
 from app.schemas import (
-    UserCreate,
     VMCreateRequest,
 )
 from app.services.proxmox import gpu_service, provisioning_service
 from app.services.vm import (
     vm_request_placement_service,
 )
+from tests.utils.user import create_user_with_role
 
 
 @pytest.fixture()
-def db() -> Session:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-    )
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
-
-
-def _create_user(
-    session: Session,
-    *,
-    is_superuser: bool = False,
-    role: UserRole | None = None,
-) -> User:
-    user = user_repo.create_user(
-        session=session,
-        user_create=UserCreate(
-            email=f"{'admin' if is_superuser else 'user'}-{datetime.now(timezone.utc).timestamp()}@example.com",
-            password="strongpass123",
-            role=role or (UserRole.admin if is_superuser else UserRole.student),
-        ),
-    )
-    session.commit()
-    session.refresh(user)
-    return user
+def db(sqlite_session: Session) -> Session:
+    return sqlite_session
 
 
 def _seed_managed_storage(
@@ -294,7 +266,7 @@ def test_select_request_placement_falls_back_when_reserved_node_is_unavailable(
 def test_reserved_target_node_prefers_admin_storage_profile(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
+    user = create_user_with_role(db)
     now = datetime.now(timezone.utc)
     db.add(
         ProxmoxNode(
@@ -545,7 +517,7 @@ def test_placement_request_with_gpu_mapping_uses_mapping_nodes(
 def test_create_vm_prefers_admin_selected_storage(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
+    user = create_user_with_role(db)
     _seed_subnet_config(db)
     captured: dict[str, object] = {}
 

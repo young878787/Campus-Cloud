@@ -1,8 +1,10 @@
+from datetime import datetime, timezone
+
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.models import User
+from app.models import User, UserRole
 from app.repositories import user as user_repo
 from app.schemas import UserCreate, UserUpdate
 from tests.utils.utils import random_email, random_lower_string
@@ -27,6 +29,25 @@ def create_random_user(db: Session) -> User:
     user = user_repo.create_user(session=db, user_create=user_in)
     db.commit()
     db.refresh(user)
+    return user
+
+
+def create_user_with_role(
+    session: Session,
+    *,
+    is_superuser: bool = False,
+    role: UserRole | None = None,
+) -> User:
+    user = user_repo.create_user(
+        session=session,
+        user_create=UserCreate(
+            email=f"{'admin' if is_superuser else 'user'}-{datetime.now(timezone.utc).timestamp()}@example.com",
+            password="strongpass123",
+            role=role or (UserRole.admin if is_superuser else UserRole.student),
+        ),
+    )
+    session.commit()
+    session.refresh(user)
     return user
 
 

@@ -10,11 +10,6 @@ import pytest
 from app.infrastructure.redis import client
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 @pytest.fixture(autouse=True)
 def _isolated_client_state(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(client, "_redis_enabled", True)

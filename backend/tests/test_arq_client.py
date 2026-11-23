@@ -11,11 +11,6 @@ from app.infrastructure import worker
 from app.infrastructure.queue import arq_client, dispatch, registry
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """This unit-test module does not require the external test database."""
-
-
 @pytest.fixture(autouse=True)
 def reset_arq_pool(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(arq_client, "_pool", None)

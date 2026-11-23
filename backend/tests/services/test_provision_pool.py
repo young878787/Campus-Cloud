@@ -14,11 +14,6 @@ from app.models import VMProvisioningStatus
 from app.services.scheduling import provision_pool
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 @pytest.fixture(autouse=True)
 def _fresh_counter():
     provision_pool.reset_in_flight()

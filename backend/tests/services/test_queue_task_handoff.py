@@ -13,11 +13,6 @@ from app.services.resource import deletion_service, reset_service
 from app.services.vm import batch_provision_service
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 class _Session:
     def add(self, obj: Any) -> None:
         """測試替身。"""

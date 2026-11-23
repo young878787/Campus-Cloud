@@ -1,7 +1,4 @@
-"""Split from tests/test_backend_workflows.py: spec-change requests & resource deletion.
-
-Shared fixtures live in tests.ai.teacher_judge.helpers.
-"""
+"""Split from tests/test_backend_workflows.py: spec-change requests & resource deletion."""
 
 import random
 import uuid
@@ -10,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, select
 
 from app.exceptions import (
     BadRequestError,
@@ -25,50 +22,23 @@ from app.models import (
     SpecChangeType,
     SubnetConfig,
     User,
-    UserRole,
 )
 from app.repositories import spec_change_request as spec_change_request_repo
-from app.repositories import user as user_repo
 from app.schemas import (
     SpecChangeRequestCreate,
     SpecChangeRequestReview,
-    UserCreate,
     VMCreateRequest,
 )
 from app.services.proxmox import provisioning_service
 from app.services.vm import (
     spec_change_service,
 )
+from tests.utils.user import create_user_with_role
 
 
 @pytest.fixture()
-def db() -> Session:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-    )
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
-
-
-def _create_user(
-    session: Session,
-    *,
-    is_superuser: bool = False,
-    role: UserRole | None = None,
-) -> User:
-    user = user_repo.create_user(
-        session=session,
-        user_create=UserCreate(
-            email=f"{'admin' if is_superuser else 'user'}-{datetime.now(timezone.utc).timestamp()}@example.com",
-            password="strongpass123",
-            role=role or (UserRole.admin if is_superuser else UserRole.student),
-        ),
-    )
-    session.commit()
-    session.refresh(user)
-    return user
+def db(sqlite_session: Session) -> Session:
+    return sqlite_session
 
 
 def _seed_subnet_config(session: Session) -> None:
@@ -184,8 +154,8 @@ def test_spec_change_review_approves_without_applying(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """核准只改狀態並用 Proxmox 實際值刷新快照，不寫設定（等申請人套用）。"""
-    user = _create_user(db)
-    reviewer = _create_user(db, is_superuser=True)
+    user = create_user_with_role(db)
+    reviewer = create_user_with_role(db, is_superuser=True)
     vmid = _fresh_vmid()
     _owned_resource(db, user=user, vmid=vmid)
     request = _spec_request(db, user=user, vmid=vmid)
@@ -214,8 +184,8 @@ def test_spec_change_review_refuses_approval_when_resource_is_gone(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """resource_vmid 已 SET NULL（機器刪掉）就不能核准：VMID 會被新機器回收。"""
-    user = _create_user(db)
-    reviewer = _create_user(db, is_superuser=True)
+    user = create_user_with_role(db)
+    reviewer = create_user_with_role(db, is_superuser=True)
     request = _spec_request(db, user=user, vmid=_fresh_vmid())  # no Resource row
     assert request.resource_vmid is None
     _fake_spec_proxmox(monkeypatch)
@@ -245,7 +215,7 @@ def test_spec_change_review_schema_only_accepts_a_decision() -> None:
 def test_spec_change_create_blocks_second_open_request_for_same_vmid(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    admin = _create_user(db, is_superuser=True)
+    admin = create_user_with_role(db, is_superuser=True)
     vmid = _fresh_vmid()
     _fake_spec_proxmox(monkeypatch)
     payload = SpecChangeRequestCreate(
@@ -270,7 +240,7 @@ def test_spec_change_create_blocks_second_open_request_for_same_vmid(
 def test_spec_change_apply_submits_background_task(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
+    user = create_user_with_role(db)
     vmid = _fresh_vmid()
     _owned_resource(db, user=user, vmid=vmid)
     request = _spec_request(
@@ -307,8 +277,8 @@ def test_spec_change_apply_submits_background_task(
 def test_spec_change_apply_refuses_non_owner(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    owner = _create_user(db)
-    stranger = _create_user(db)
+    owner = create_user_with_role(db)
+    stranger = create_user_with_role(db)
     vmid = _fresh_vmid()
     _owned_resource(db, user=owner, vmid=vmid)
     request = _spec_request(
@@ -324,7 +294,7 @@ def test_spec_change_run_apply_records_failure_and_keeps_request_approved(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """套用失敗：applied_at 不能寫、狀態留在 approved、錯誤讓申請人看得到並可重試。"""
-    user = _create_user(db)
+    user = create_user_with_role(db)
     vmid = _fresh_vmid()
     _owned_resource(db, user=user, vmid=vmid)
     request = _spec_request(
@@ -358,7 +328,7 @@ def test_spec_change_run_apply_records_failure_and_keeps_request_approved(
 def test_spec_change_run_apply_marks_applied(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
+    user = create_user_with_role(db)
     vmid = _fresh_vmid()
     _owned_resource(db, user=user, vmid=vmid)
     request = _spec_request(
@@ -388,7 +358,7 @@ def test_spec_change_run_apply_marks_applied(
 
 
 def test_spec_change_cancel_by_requester(db: Session) -> None:
-    user = _create_user(db)
+    user = create_user_with_role(db)
     request = _spec_request(db, user=user, vmid=_fresh_vmid())
 
     result = spec_change_service.cancel(session=db, request_id=request.id, user=user)
@@ -408,7 +378,7 @@ def test_spec_change_cancel_by_requester(db: Session) -> None:
 
 
 def test_resource_deletion_cancels_open_spec_change_requests(db: Session) -> None:
-    user = _create_user(db)
+    user = create_user_with_role(db)
     vmid = _fresh_vmid()
     pending = _spec_request(db, user=user, vmid=vmid)
     awaiting_apply = _spec_request(
@@ -443,7 +413,7 @@ def test_resource_deletion_cancels_open_spec_change_requests(db: Session) -> Non
 def test_create_vm_uses_template_node_and_normalizes_disk_size(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
+    user = create_user_with_role(db)
     _seed_subnet_config(db)
     captured: dict[str, object] = {}
 
@@ -545,7 +515,7 @@ def test_create_vm_uses_template_node_and_normalizes_disk_size(
 def test_create_vm_falls_back_when_requested_storage_is_unavailable(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
+    user = create_user_with_role(db)
     _seed_subnet_config(db)
     captured: dict[str, object] = {}
 

@@ -15,11 +15,6 @@ from app.api.routes import ai_api, ai_proxy
 from app.services.llm_gateway import ai_gateway_service
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """Pure unit tests; no external database is required."""
-
-
 def test_rotate_secret_response_is_not_cacheable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

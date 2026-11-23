@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session
 
 from app.exceptions import NotFoundError
 from app.models.wireguard_peer import WireGuardPeer
@@ -19,11 +18,8 @@ from app.schemas import UserUpdate
 
 
 @pytest.fixture()
-def session() -> Iterator[Session]:
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as s:
-        yield s
+def session(sqlite_session: Session) -> Session:
+    return sqlite_session
 
 
 NOW = datetime(2099, 1, 1, tzinfo=UTC)

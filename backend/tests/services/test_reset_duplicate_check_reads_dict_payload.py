@@ -18,11 +18,6 @@ from app.models.task_record import TaskRecord, TaskRecordStatus
 from app.services.resource import reset_service
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 class _Session:
     def __init__(self, records: list[TaskRecord]) -> None:
         self.records = records

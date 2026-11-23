@@ -18,11 +18,6 @@ from app.infrastructure.proxmox import operations
 from app.services.resource import resource_service
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 class _FakeTasks:
     def __init__(self, node: str, tasks_by_node: dict[str, Any], calls: list[str]):
         self._node = node

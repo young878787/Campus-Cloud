@@ -6,7 +6,7 @@ Shared fixtures live in tests.ai.teacher_judge.helpers.
 from datetime import datetime, timezone
 
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session
 
 from app.exceptions import (
     BadRequestError,
@@ -16,53 +16,25 @@ from app.models import (
     User,
     UserRole,
 )
-from app.repositories import user as user_repo
-from app.schemas import (
-    UserCreate,
-)
 from app.services.user import user_service
+from tests.utils.user import create_user_with_role
 
 
 @pytest.fixture()
-def db() -> Session:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-    )
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
-
-
-def _create_user(
-    session: Session,
-    *,
-    is_superuser: bool = False,
-    role: UserRole | None = None,
-) -> User:
-    user = user_repo.create_user(
-        session=session,
-        user_create=UserCreate(
-            email=f"{'admin' if is_superuser else 'user'}-{datetime.now(timezone.utc).timestamp()}@example.com",
-            password="strongpass123",
-            role=role or (UserRole.admin if is_superuser else UserRole.student),
-        ),
-    )
-    session.commit()
-    session.refresh(user)
-    return user
+def db(sqlite_session: Session) -> Session:
+    return sqlite_session
 
 
 def test_user_role_teacher_is_treated_as_regular_user(db: Session) -> None:
-    teacher = _create_user(db, role=UserRole.teacher)
+    teacher = create_user_with_role(db, role=UserRole.teacher)
 
     assert teacher.role == UserRole.teacher
     assert teacher.is_superuser is False
 
 
 def test_delete_user_rejects_owned_resources(db: Session) -> None:
-    owner = _create_user(db)
-    admin = _create_user(db, is_superuser=True)
+    owner = create_user_with_role(db)
+    admin = create_user_with_role(db, is_superuser=True)
     db.add(
         Resource(
             vmid=999,

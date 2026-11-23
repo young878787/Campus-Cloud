@@ -2,21 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session
 
 from app.models.proxmox_storage import ProxmoxStorage
 from app.repositories import proxmox_storage as repo
 
 
 @pytest.fixture()
-def session() -> Iterator[Session]:
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as s:
-        yield s
+def session(sqlite_session: Session) -> Session:
+    return sqlite_session
 
 
 def _storage(session: Session, node: str, name: str, **kw) -> ProxmoxStorage:

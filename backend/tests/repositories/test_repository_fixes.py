@@ -15,11 +15,6 @@ from app.repositories import user as user_repo
 from app.schemas import UserUpdate
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 class _FlushSession:
     def add(self, _obj: Any) -> None:
         """測試替身。"""

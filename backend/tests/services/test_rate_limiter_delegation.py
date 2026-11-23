@@ -8,11 +8,6 @@ from app.exceptions import AppError
 from app.infrastructure.redis import rate_limiter
 
 
-@pytest.fixture(scope="session")
-def _seed_first_superuser() -> None:
-    """純單元測試，不需要測試資料庫。"""
-
-
 class _FakeRedis:
     """只模擬滑動視窗 Lua 腳本會用到的行為：每個 key 一個計數。"""
 

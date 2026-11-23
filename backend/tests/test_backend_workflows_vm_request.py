@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, select
 
 from app.core.security import decrypt_value, encrypt_value
 from app.exceptions import (
@@ -13,7 +13,6 @@ from app.exceptions import (
     ProvisioningError,
 )
 from app.models import (
-    User,
     UserRole,
     VMRequest,
     VMRequestStatus,
@@ -21,9 +20,7 @@ from app.models import (
     VMTemplateStatus,
     VMTemplateVisibility,
 )
-from app.repositories import user as user_repo
 from app.schemas import (
-    UserCreate,
     VMRequestCreate,
     VMRequestReview,
 )
@@ -31,17 +28,12 @@ from app.services.vm import (
     vm_request_service,
 )
 from tests.utils.login_password import hash_matches
+from tests.utils.user import create_user_with_role
 
 
 @pytest.fixture()
-def db() -> Session:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-    )
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
+def db(sqlite_session: Session) -> Session:
+    return sqlite_session
 
 
 @pytest.fixture(autouse=True)
@@ -51,25 +43,6 @@ def _linux_templates(monkeypatch: pytest.MonkeyPatch) -> None:
         "app.services.proxmox.provisioning_service.template_is_windows",
         lambda template_id: False,
     )
-
-
-def _create_user(
-    session: Session,
-    *,
-    is_superuser: bool = False,
-    role: UserRole | None = None,
-) -> User:
-    user = user_repo.create_user(
-        session=session,
-        user_create=UserCreate(
-            email=f"{'admin' if is_superuser else 'user'}-{datetime.now(timezone.utc).timestamp()}@example.com",
-            password="strongpass123",
-            role=role or (UserRole.admin if is_superuser else UserRole.student),
-        ),
-    )
-    session.commit()
-    session.refresh(user)
-    return user
 
 
 def _seed_lxc_template(
@@ -94,7 +67,7 @@ def _seed_lxc_template(
 def test_vm_request_create_preserves_environment_type(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
+    user = create_user_with_role(db)
     now = datetime.now(timezone.utc)
     monkeypatch.setattr(
         "app.services.vm.vm_request_service.vm_request_availability_service.validate_request_window",
@@ -133,7 +106,7 @@ def test_windows_vm_request_keeps_the_password_encrypted_until_provisioning(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """cloudbase-init 只收明文：Windows 是唯一在建機前暫存可還原密碼的申請單。"""
-    user = _create_user(db)
+    user = create_user_with_role(db)
     now = datetime.now(timezone.utc)
     monkeypatch.setattr(
         "app.services.vm.vm_request_service.vm_request_availability_service.validate_request_window",
@@ -172,7 +145,7 @@ def test_windows_vm_request_keeps_the_password_encrypted_until_provisioning(
 def test_admin_scheduled_request_stays_pending(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    admin = _create_user(db, role=UserRole.admin)
+    admin = create_user_with_role(db, role=UserRole.admin)
     now = datetime.now(timezone.utc)
     monkeypatch.setattr(
         "app.services.vm.vm_request_service.vm_request_availability_service.validate_request_window",
@@ -214,7 +187,7 @@ def test_admin_scheduled_request_stays_pending(
 def test_admin_immediate_request_is_auto_approved(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    admin = _create_user(db, role=UserRole.admin)
+    admin = create_user_with_role(db, role=UserRole.admin)
     calls: list[uuid.UUID] = []
 
     def fake_approve_and_place(
@@ -266,7 +239,7 @@ def test_admin_immediate_request_is_auto_approved(
 def test_vm_request_create_rejects_unavailable_window(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
+    user = create_user_with_role(db)
     now = datetime.now(timezone.utc)
     request_in = VMRequestCreate(
         reason="Need a custom environment for backend testing",
@@ -297,7 +270,7 @@ def test_vm_request_create_rejects_unavailable_window(
 
 def test_legacy_quick_template_mode_is_rejected(db: Session) -> None:
     """舊的自助模式會自動核准，已停用；學生只能走快速練習或一般申請。"""
-    user = _create_user(db, role=UserRole.student)
+    user = create_user_with_role(db, role=UserRole.student)
     _seed_lxc_template(db, pve_vmid=9100)
     request_in = VMRequestCreate(
         reason="Need a short PostgreSQL lab environment",
@@ -319,7 +292,7 @@ def test_legacy_quick_template_mode_is_rejected_without_a_template(
     db: Session,
 ) -> None:
     """停用後不論帶不帶範本都不接受，錯誤訊息一致。"""
-    user = _create_user(db, role=UserRole.student)
+    user = create_user_with_role(db, role=UserRole.student)
     request_in = VMRequestCreate(
         reason="Need a short lab without a template",
         resource_type="lxc",
@@ -339,7 +312,7 @@ def test_legacy_quick_template_mode_is_rejected_without_a_template(
 def test_legacy_quick_template_mode_is_rejected_for_unready_templates(
     db: Session,
 ) -> None:
-    user = _create_user(db, role=UserRole.student)
+    user = create_user_with_role(db, role=UserRole.student)
     _seed_lxc_template(db, pve_vmid=9200, status=VMTemplateStatus.creating)
     request_in = VMRequestCreate(
         reason="Need a short lab from an unfinished template",
@@ -442,8 +415,8 @@ def test_quick_template_approval_does_not_rebuild_existing_reservations(
 def test_vm_request_review_rolls_back_and_cleans_up_on_failure(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
-    reviewer = _create_user(db, is_superuser=True)
+    user = create_user_with_role(db)
+    reviewer = create_user_with_role(db, is_superuser=True)
     now = datetime.now(timezone.utc)
     request = VMRequest(
         user_id=user.id,
@@ -507,8 +480,8 @@ def test_vm_request_review_rolls_back_and_cleans_up_on_failure(
 def test_vm_request_review_locks_overlapping_requests(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
-    reviewer = _create_user(db, is_superuser=True)
+    user = create_user_with_role(db)
+    reviewer = create_user_with_role(db, is_superuser=True)
     now = datetime.now(timezone.utc)
     request = VMRequest(
         user_id=user.id,
@@ -572,8 +545,8 @@ def test_vm_request_review_locks_overlapping_requests(
 def test_vm_request_review_assigns_reserved_node(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
-    reviewer = _create_user(db, is_superuser=True)
+    user = create_user_with_role(db)
+    reviewer = create_user_with_role(db, is_superuser=True)
     now = datetime.now(timezone.utc)
     request = VMRequest(
         user_id=user.id,
@@ -636,8 +609,8 @@ def test_approve_keeps_running_status_of_request_being_cloned(
     """核准新申請會重排同時段的其他申請；正在 clone 的那張不能被改回 idle。"""
     from app.models import VMProvisioningStatus
 
-    user = _create_user(db)
-    reviewer = _create_user(db, is_superuser=True)
+    user = create_user_with_role(db)
+    reviewer = create_user_with_role(db, is_superuser=True)
     now = datetime.now(timezone.utc)
 
     def _request(hostname: str, **fields) -> VMRequest:
@@ -696,8 +669,8 @@ def test_approve_keeps_running_status_of_request_being_cloned(
 def test_vm_request_review_context_includes_runtime_and_projection(
     db: Session, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    user = _create_user(db)
-    reviewer = _create_user(db, is_superuser=True)
+    user = create_user_with_role(db)
+    reviewer = create_user_with_role(db, is_superuser=True)
     now = datetime.now(timezone.utc)
     approved = VMRequest(
         user_id=user.id,

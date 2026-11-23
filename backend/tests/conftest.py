@@ -39,6 +39,7 @@ from app.models import (
     User,
     VMRequest,
 )
+from tests.utils.sqlite import _sqlite_template, sqlite_engine, sqlite_session  # noqa: F401
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import get_superuser_token_headers
 

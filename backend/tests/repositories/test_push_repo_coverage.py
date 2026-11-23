@@ -2,22 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-
 import pytest
 from cryptography.fernet import InvalidToken
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session
 
 from app.core.security import decrypt_value
 from app.repositories import push as repo
 
 
 @pytest.fixture()
-def session() -> Iterator[Session]:
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as s:
-        yield s
+def session(sqlite_session: Session) -> Session:
+    return sqlite_session
 
 
 @pytest.mark.parametrize(
