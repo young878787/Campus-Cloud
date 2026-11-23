@@ -7,6 +7,9 @@ import pytest
 redis_asyncio = pytest.importorskip("redis.asyncio")
 Redis = redis_asyncio.Redis
 
+# 連真 Redis 並 flushdb：CI 只在序列的 integration job 執行
+pytestmark = pytest.mark.integration
+
 from app.exceptions import AppError
 from app.infrastructure.redis import rate_limiter
 from app.infrastructure.redis.rate_limiter import (

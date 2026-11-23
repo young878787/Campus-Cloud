@@ -187,6 +187,13 @@ def _uses_application_db(item) -> bool:
     return bool(definitions and definitions[-1].func is db.__wrapped__)
 
 
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """用到共用 Postgres 的測試標 integration：CI 交給序列 job，其餘由 xdist 平行跑。"""
+    for item in items:
+        if _uses_application_db(item):
+            item.add_marker(pytest.mark.integration)
+
+
 @pytest.fixture(scope="session")
 def db() -> Generator[Session, None, None]:
     """

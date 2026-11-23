@@ -51,6 +51,8 @@ dev = [
 asyncio_mode = "auto"
 markers = [
     "performance: 併發壓力測試（層1 需測試 DB；層2 無外部依賴）",
+    "integration: 連真 Postgres／Redis；用到 db fixture 者由 conftest 自動標記，CI 序列執行",
+    "serial: 不連 DB 但不能與其他測試平行（時間敏感、行程層級全域狀態）",
 ]
 
 [build-system]

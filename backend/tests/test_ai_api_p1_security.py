@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import uuid
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -21,7 +20,8 @@ from app.exceptions import AppError
 from app.models import User, UserRole
 from app.services.llm_gateway import relay_service as relay
 
-_ID = str(uuid.uuid4())
+# 固定值：參數化的測試 ID 含這個路徑，隨機值會讓 xdist 各 worker 收集到不同測試
+_ID = "5f0c2a1e-7b3d-4c8e-9a6f-2d1b0e4c7a93"
 _CONTROL_CASES = [
     (
         "POST",

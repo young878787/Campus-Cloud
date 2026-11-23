@@ -2,7 +2,6 @@
 Redis Rate Limiter 測試
 """
 
-import time
 from datetime import datetime
 
 import pytest
@@ -10,6 +9,10 @@ import pytest
 redis_asyncio = pytest.importorskip("redis.asyncio")
 Redis = redis_asyncio.Redis
 
+# 連真 Redis 並 flushdb：CI 只在序列的 integration job 執行
+pytestmark = pytest.mark.integration
+
+from app.infrastructure.redis import rate_limiter as rate_limiter_module
 from app.infrastructure.redis.rate_limiter import check_rate_limit_sliding_window
 
 
@@ -28,6 +31,27 @@ async def redis_client():
     # 清理測試數據
     await redis.flushdb()
     await redis.aclose()
+
+
+class FakeClock:
+    """可手動推進的假時鐘，用來取代真實 sleep"""
+
+    def __init__(self, start: float = 1_700_000_000.0):
+        self._now = start
+
+    def time(self) -> float:
+        return self._now
+
+    def advance(self, seconds: float) -> None:
+        self._now += seconds
+
+
+@pytest.fixture
+def fake_clock(monkeypatch: pytest.MonkeyPatch) -> FakeClock:
+    """只替換 rate_limiter 模組內的 time，不動全域 time.time"""
+    clock = FakeClock()
+    monkeypatch.setattr(rate_limiter_module, "time", clock)
+    return clock
 
 
 @pytest.mark.asyncio
@@ -69,7 +93,7 @@ async def test_rate_limit_blocks_over_limit(redis_client: Redis):
 
 
 @pytest.mark.asyncio
-async def test_sliding_window_accuracy(redis_client: Redis):
+async def test_sliding_window_accuracy(redis_client: Redis, fake_clock: FakeClock):
     """測試：滑動窗口的精準性"""
     user_id = "test-user-3"
 
@@ -87,10 +111,10 @@ async def test_sliding_window_accuracy(redis_client: Redis):
     assert allowed is False
     assert info["current"] == 20
 
-    # 等待 5 秒（窗口過期）
-    time.sleep(5)
+    # 前進 5.5 秒（窗口 5 秒，多留 0.5 秒餘裕，避免落在邊界）
+    fake_clock.advance(5.5)
 
-    # T+5s: 應該允許（舊請求已移出窗口）
+    # T+5.5s: 應該允許（舊請求已移出窗口）
     allowed, info = await check_rate_limit_sliding_window(
         redis_client, user_id, limit=20, window_seconds=5
     )
@@ -149,7 +173,7 @@ async def test_rate_limit_info_structure(redis_client: Redis):
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_partial_window(redis_client: Redis):
+async def test_rate_limit_partial_window(redis_client: Redis, fake_clock: FakeClock):
     """測試：部分窗口過期後恢復配額"""
     user_id = "test-user-8"
 
@@ -159,8 +183,8 @@ async def test_rate_limit_partial_window(redis_client: Redis):
             redis_client, user_id, limit=20, window_seconds=3
         )
 
-    # 等待 1 秒
-    time.sleep(1)
+    # 前進 1 秒
+    fake_clock.advance(1)
 
     # T+1s: 再發送 10 個請求
     for i in range(10):
@@ -176,13 +200,14 @@ async def test_rate_limit_partial_window(redis_client: Redis):
     )
     assert allowed is False
 
-    # 等待 3 秒（第一批請求移出窗口）
-    time.sleep(3)
+    # 再前進 2.5 秒，共 T+3.5s：第一批（T0）已超出 3 秒窗口 0.5 秒，
+    # 第二批（T+1s）仍在窗口內，避免兩批都落在邊界上
+    fake_clock.advance(2.5)
 
-    # T+4s: 第一批 10 個請求已經移出，應該可以發送
+    # T+3.5s: 第一批 10 個請求已經移出，應該可以發送
     allowed, info = await check_rate_limit_sliding_window(
         redis_client, user_id, limit=20, window_seconds=3
     )
     assert allowed is True
-    # 窗口內只剩下第二批 10 個請求
-    assert info["current"] <= 11  # 可能還剩一些第二批的請求
+    # 窗口內只剩下第二批 10 個請求，加上本次應為 11
+    assert info["current"] <= 11

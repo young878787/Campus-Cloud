@@ -317,29 +317,35 @@ def test_update_password_me(
         headers=superuser_token_headers,
         json=data,
     )
-    assert r.status_code == 200
-    updated_user = r.json()
-    assert updated_user["message"] == "Password updated successfully"
+    # 斷言失敗時仍要還原 superuser 密碼，避免後續測試拿到隨機密碼
+    try:
+        assert r.status_code == 200
+        updated_user = r.json()
+        assert updated_user["message"] == "Password updated successfully"
 
-    user_query = select(User).where(User.email == settings.FIRST_SUPERUSER)
-    user_db = db.exec(user_query).first()
-    assert user_db
-    assert user_db.email == settings.FIRST_SUPERUSER
-    verified, _ = verify_password(new_password, user_db.hashed_password)
-    assert verified
+        user_query = select(User).where(User.email == settings.FIRST_SUPERUSER)
+        user_db = db.exec(user_query).first()
+        assert user_db
+        assert user_db.email == settings.FIRST_SUPERUSER
+        verified, _ = verify_password(new_password, user_db.hashed_password)
+        assert verified
 
-    # Password change bumps token_version to invalidate old tokens — the
-    # module-scoped fixture's token is now stale. Re-login and mutate the
-    # fixture dict in place so downstream tests sharing the fixture keep a
-    # valid token.
-    _refresh_superuser_token(client, superuser_token_headers, new_password)
-
-    # Revert to the old password to keep consistency in test. The .env
-    # password need not satisfy the complexity rule, so it cannot be set back
-    # through the API — restore the hash directly instead.
-    user_db.hashed_password = get_password_hash(settings.FIRST_SUPERUSER_PASSWORD)
-    db.add(user_db)
-    db.commit()
+        # Password change bumps token_version to invalidate old tokens — the
+        # module-scoped fixture's token is now stale. Re-login and mutate the
+        # fixture dict in place so downstream tests sharing the fixture keep a
+        # valid token.
+        _refresh_superuser_token(client, superuser_token_headers, new_password)
+    finally:
+        # Revert to the old password to keep consistency in test. The .env
+        # password need not satisfy the complexity rule, so it cannot be set back
+        # through the API — restore the hash directly instead.
+        # 不沿用 try 內的 user_db，斷言失敗時它可能尚未賦值
+        user_query = select(User).where(User.email == settings.FIRST_SUPERUSER)
+        user_db = db.exec(user_query).first()
+        assert user_db
+        user_db.hashed_password = get_password_hash(settings.FIRST_SUPERUSER_PASSWORD)
+        db.add(user_db)
+        db.commit()
 
 
 def test_update_password_me_incorrect_password(

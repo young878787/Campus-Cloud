@@ -51,6 +51,8 @@ def _challenge(**claims: Any) -> str:
         _challenge(sub=str(uuid.uuid4()), type="access"),
         _challenge(sub="not-a-uuid"),
     ],
+    # token 含隨機 sub 與當下時間的 exp；明確命名才能讓 xdist 各 worker 收集到相同測試 ID
+    ids=["garbage", "access-type", "non-uuid-subject"],
 )
 def test_complete_login_rejects_bad_challenges(db: Session, token: str) -> None:
     with pytest.raises(AuthenticationError):

@@ -13,6 +13,9 @@ import pytest
 redis_asyncio = pytest.importorskip("redis.asyncio")
 Redis = redis_asyncio.Redis
 
+# 連真 Redis 並 flushdb：CI 只在序列的 integration job 執行
+pytestmark = pytest.mark.integration
+
 from app.infrastructure.redis.token_blacklist import is_jti_revoked, revoke_jti
 
 
