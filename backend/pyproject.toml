@@ -43,6 +43,8 @@ dev = [
     "prek>=0.5.7,<1.0.0",
     "coverage<8.0.0,>=7.17.0",
     "types-ldap3>=2.9.13.20260827",
+    "pytest-xdist>=3.8.0,<4.0.0",
+    "pytest-cov>=7.1.0,<8.0.0",
 ]
 
 [tool.pytest.ini_options]
@@ -118,7 +120,6 @@ keep-runtime-typing = true
 
 [tool.coverage.run]
 source = ["app"]
-dynamic_context = "test_function"
 
 [tool.coverage.report]
 show_missing = true
