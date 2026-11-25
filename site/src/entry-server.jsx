@@ -1,6 +1,6 @@
 /**
  * 預渲染入口（vite build --ssr）：scripts/prerender.mjs 對每個語言呼叫 render()，
- * 把頁面 HTML 與 SEO 標籤寫進該語言的 index.html。
+ * 把頁面 HTML 與 SEO 標籤寫進該語言的 index.html。首頁是原版介紹頁（像素版只留在 pixel.html 預覽）。
  */
 import { renderToString } from "react-dom/server";
 import { I18nextProvider } from "react-i18next";

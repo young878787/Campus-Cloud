@@ -1,8 +1,8 @@
 {
   "brand": "SkyLab",
   "seo": {
-    "title": "SkyLab — 校園私有雲管理平台",
-    "description": "SkyLab 是開源的校園私有雲平台,以 Proxmox VE 為基礎,涵蓋 VM 與容器的申請、審核與自動建置、整班上課環境一鍵準備、防火牆與閘道管理,以及 AI 輔助維運。歡迎學校來信洽詢到校試用。",
+    "title": "SkyLab — 校園的高效雲端教學與實作基地",
+    "description": "SkyLab 是校園的高效雲端教學與實作基地:開源、以 Proxmox VE 為基礎,涵蓋 VM 與容器的申請、審核與自動建置、整班上課環境一次準備、防火牆與閘道管理,以及 AI 輔助維運。歡迎學校來信洽詢到校試用。",
     "imageAlt": "SkyLab 官網:夜空下的校園與私有雲"
   },
   "contact": {
@@ -15,7 +15,12 @@
   "modeToNight": "切換夜間模式",
   "scrollHint": "滾動探索",
   "hero": {
-    "tagline": "校園裡的私有雲",
+    "tagline": "校園的高效雲端教學與實作基地",
+    "taglineRotate": {
+      "before": "校園的",
+      "words": ["高效", "智慧", "安全", "彈性", "開源"],
+      "after": "雲端教學與實作基地"
+    },
     "sub": "從申請到開機,一個平台管理整個校園的運算資源"
   },
   "overview": {
@@ -87,5 +92,5 @@
     "githubCta": "GitHub 原始碼",
     "docsCta": "部署指南"
   },
-  "footer": "© 2026 SkyLab — 校園資源管理平台"
+  "footer": "© 2026 SkyLab — 校園的高效雲端教學與實作基地"
 }

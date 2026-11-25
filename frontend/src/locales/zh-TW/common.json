@@ -446,7 +446,7 @@
   "UserGuide.gpuMgmt.table.title": "映射的類型與規格",
   "UserGuide.gpuMgmt.table.text": "「Mapping」欄的名稱就是使用者申請 GPU 時選的項目，下方小字標出 SR-IOV 或 Passthrough；使用 vGPU 時還會顯示 mdev 型號與每顆分配的 VRAM。",
   "UserGuide.gpuMgmt.pci.title": "節點與 PCI 位址",
-  "UserGuide.gpuMgmt.pci.text": "列出這組映射包含的節點與 PCI 位址。超過 3 個位址時會把連續的位址壓成區段，按「N 個 VF」或「N 個裝置」可以展開完整清單。",
+  "UserGuide.gpuMgmt.pci.text": "列出這組映射包含的節點與 PCI 位址。超過 3 個位址時會把連續的位址壓成區段，位址不連續就只列節點，按「N 個 VF」或「N 個裝置」可以展開完整清單。",
   "UserGuide.gpuMgmt.capacity.title": "可用量與 VRAM",
   "UserGuide.gpuMgmt.capacity.text": "「可用 / 總數」是還能分配的實例數與總容量。SR-IOV 的總數是實際開得出來的實例數，可能少於 VF 數，這時下方會另外標出 VF 數；有 VRAM 資訊時也會顯示用量，讀不到時標示「已用量未知」。",
   "UserGuide.gpuMgmt.usage.title": "使用中的 VM 與狀態",

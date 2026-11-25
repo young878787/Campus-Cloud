@@ -446,7 +446,7 @@
   "UserGuide.gpuMgmt.table.title": "Mapping type and specs",
   "UserGuide.gpuMgmt.table.text": "The name in the \"Mapping\" column is what users pick when they request a GPU, and the small text below it shows SR-IOV or Passthrough. With vGPU it also shows the mdev profile and the VRAM assigned to each instance.",
   "UserGuide.gpuMgmt.pci.title": "Nodes and PCI addresses",
-  "UserGuide.gpuMgmt.pci.text": "Lists the nodes and PCI addresses in this mapping. When there are more than 3 addresses, consecutive ones are compressed into ranges; click the \"N VF(s)\" or \"N device(s)\" chip to expand the full list.",
+  "UserGuide.gpuMgmt.pci.text": "Lists the nodes and PCI addresses in this mapping. When there are more than 3 addresses, consecutive ones are compressed into ranges, and scattered ones show only the node; click the \"N VF(s)\" or \"N device(s)\" chip to expand the full list.",
   "UserGuide.gpuMgmt.capacity.title": "Availability and VRAM",
   "UserGuide.gpuMgmt.capacity.text": "\"Available / Total\" is how many instances can still be assigned out of the total capacity. For SR-IOV, the total is the number of instances that can actually be created, which may be lower than the VF count; in that case the VF count is shown below. When VRAM data is available, its usage is shown too, or \"usage unknown\" if it cannot be read.",
   "UserGuide.gpuMgmt.usage.title": "VMs in use and status",

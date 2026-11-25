@@ -1,0 +1,108 @@
+/* 官網像素版的共用按鈕、晶片、徽章、卡片框（頁面與小遊戲共用）。
+   按鈕底子照慣例用 btn-* mixin，再疊像素缺角與底部厚度（pixel-button，見 frontend _pixel.scss） */
+@use "mixins" as *;
+@use "pixel" as *;
+
+@mixin ui-btn {
+  @include btn-primary;
+  @include pixel-button(var(--px-btn-lip));
+  min-height: 44px;
+  padding: 8px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+@mixin ui-btn-ghost {
+  @include btn-secondary;
+  @include pixel-button(var(--px-card-line));
+  min-height: 44px;
+  padding: 8px 20px;
+  box-shadow:
+    inset 0 0 0 2px var(--px-card-line),
+    inset 0 -4px 0 var(--px-card-line);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@mixin ui-btn-small {
+  @include btn-primary;
+  @include pixel-button(var(--px-btn-lip));
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@mixin ui-btn-small-ghost {
+  @include btn-secondary;
+  @include pixel-button(var(--px-card-line));
+  min-height: 32px;
+  padding: 4px 12px;
+  box-shadow:
+    inset 0 0 0 2px var(--px-card-line),
+    inset 0 -3px 0 var(--px-card-line);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* 選項晶片：方角 2px 框；選中＝實心主色 */
+@mixin ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 12px;
+  border: 2px solid var(--px-card-line);
+  color: var(--px-ink);
+  background: var(--px-card);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  clip-path: px-notch(2px);
+  transition: border-color 0.15s, background 0.15s;
+
+  em {
+    color: var(--px-ink-muted);
+    font-size: 11px;
+    font-style: normal;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: var(--px-primary);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 0;
+    border-color: var(--px-gold);
+  }
+}
+
+/* 編號徽章：海報風的藍色八角圓（像素圓），白字 */
+@mixin ui-badge {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  color: #ffffff;
+  background: var(--px-primary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  clip-path: px-steps(3px);
+  box-shadow: inset 0 -3px 0 var(--px-btn-lip);
+}
+
+@mixin ui-card($step: 4px, $border: 4px) {
+  @include pixel-frame($step, $border, var(--px-card-line), var(--px-card));
+  filter: drop-shadow(0 6px 0 var(--px-card-drop));
+}

@@ -1,0 +1,513 @@
+/* 走進建築裡的室內場景：配色 --room-*（日夜各一組），按鈕沿用官網的 ui-* */
+@use "pixel" as *;
+@use "../ui" as *;
+
+.roomWrap {
+  --room-line: #202748;
+  --room-wall: #fff1dc;
+  --room-wainscot: #f3d3a8;
+  --room-rail: #e3b77d;
+  --room-floor: #d9a066;
+  --room-floor-line: #b07a45;
+  --room-sky: #bcd0f5;
+  --room-cloud: #ffffff;
+  --room-cork: #e3b77d;
+  --room-paper: #ffffff;
+  --room-ink: #c9d3ec;
+  --room-red: #e5625e;
+  --room-gold: #f7c442;
+  --room-desk: #a8683a;
+  --room-desk-front: #8a5a2b;
+  --room-metal: #b0bace;
+  --room-metal-dark: #8590a8;
+  --room-pot: #c7634a;
+  --room-leaf: #4cb782;
+  --room-leaf-dark: #2f9e6e;
+  --room-screen: #1b2348;
+  --room-green: #4cb782;
+  --room-blue: #6683d3;
+  --room-wood: #8a5a2b;
+  --room-stamp: #b8403d;
+  --room-shade: #e8c89c;
+  --room-board: #2e5e4e;
+  --room-chalk: #eef3e8;
+  --room-light: #7fe0a8;
+  --room-light-hi: #d4f7e2;
+
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* 夜裡：牆暗下來，窗外是夜空 */
+:global([data-mode="night"]) .roomWrap {
+  --room-line: #070b18;
+  --room-wall: #2b2a3f;
+  --room-wainscot: #3a3346;
+  --room-rail: #4a3e4a;
+  --room-floor: #5a4030;
+  --room-floor-line: #463224;
+  --room-sky: #1d2850;
+  --room-cloud: #2d3b69;
+  --room-cork: #6b5236;
+  --room-paper: #e6ecf8;
+  --room-ink: #8590a8;
+  --room-desk: #6b4428;
+  --room-desk-front: #55361f;
+  --room-metal: #56689f;
+  --room-metal-dark: #3a4a85;
+  --room-pot: #8a4535;
+  --room-leaf: #2f7d5e;
+  --room-leaf-dark: #1f5a44;
+  --room-shade: #3a3346;
+  --room-board: #1e3e34;
+  --room-chalk: #c9d7cc;
+}
+
+/* 機房：冷色灰藍牆、灰色架高地板 */
+.roomWrap[data-room="serverRoom"] {
+  --room-wall: #e3e9f5;
+  --room-wainscot: #ccd5ea;
+  --room-rail: #8590a8;
+  --room-floor: #b9c3dc;
+  --room-floor-line: #8f9bbb;
+}
+
+:global([data-mode="night"]) .roomWrap[data-room="serverRoom"] {
+  --room-wall: #1e2540;
+  --room-wainscot: #252d4d;
+  --room-rail: #3a4a85;
+  --room-floor: #2d3658;
+  --room-floor-line: #222a48;
+}
+
+/* 宿舍的牆是學生色系的淡藍 */
+.roomWrap[data-room="home"] {
+  --room-wall: #eaf0fc;
+  --room-wainscot: #d3def5;
+  --room-rail: #a9bde8;
+}
+
+:global([data-mode="night"]) .roomWrap[data-room="home"] {
+  --room-wall: #252c4a;
+  --room-wainscot: #2d3658;
+  --room-rail: #3a4a85;
+}
+
+/* 教室的牆是老師色系的淡黃 */
+.roomWrap[data-room="classroom"] {
+  --room-wall: #fdf5dc;
+  --room-wainscot: #ecd9a4;
+  --room-rail: #d9b96a;
+}
+
+:global([data-mode="night"]) .roomWrap[data-room="classroom"] {
+  --room-wall: #2e2c36;
+  --room-wainscot: #3d3828;
+  --room-rail: #554a2e;
+}
+
+.stage {
+  position: relative;
+  flex: none;
+}
+
+.room {
+  position: relative;
+  flex: none;
+  clip-path: px-steps(4px);
+}
+
+.layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+}
+
+/* 坐在桌子後面的章魚（桌子那層畫在牠前面） */
+.octo {
+  position: absolute;
+  pointer-events: none;
+}
+
+.octo .octoPose {
+  --pose-w: var(--octo-w);
+}
+
+/* 桌上可以滑過的東西：滑過浮起一格；印章會移到申請單上蓋下去 */
+.item {
+  position: absolute;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.15s steps(2, end);
+
+  svg {
+    display: block;
+  }
+
+  &:focus-visible {
+    outline: 2px dashed var(--px-primary);
+    outline-offset: 4px;
+  }
+
+  /* 輪到時的動作：lift 浮起、blink 閃幾下、stamp 移過去蓋章；glow 本身不動（讓螢幕亮起來那類效果表現） */
+  &[data-anim="lift"][data-on] {
+    transform: translateY(calc(var(--c) * -2));
+    filter: drop-shadow(0 calc(var(--c) * 2) 0 rgb(0 0 0 / 0.15));
+  }
+
+  &[data-anim="stamp"][data-on] {
+    animation: room-stamp 0.9s steps(1, end) forwards;
+  }
+
+  &[data-anim="blink"][data-on] svg {
+    animation: room-blink 0.5s steps(1, end) 3;
+  }
+}
+
+/* 亮起來的螢幕：一台台依序亮（data-animate 時有延遲），亮了就一直亮著 */
+.light {
+  position: absolute;
+  z-index: 3;
+  background: var(--room-light);
+  box-shadow: inset calc(var(--c) * 1) calc(var(--c) * 1) 0 var(--room-light-hi);
+  pointer-events: none;
+
+  &[data-animate] {
+    animation: room-light-on 0.2s steps(1, end) backwards;
+  }
+}
+
+@keyframes room-light-on {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes room-stamp {
+  0% {
+    transform: none;
+  }
+
+  20% {
+    transform: translate(calc(var(--c) * var(--stamp-to) * -0.5), calc(var(--c) * -6));
+  }
+
+  40% {
+    transform: translate(calc(var(--c) * var(--stamp-to) * -1), calc(var(--c) * -6));
+  }
+
+  60% {
+    transform: translate(calc(var(--c) * var(--stamp-to) * -1), calc(var(--c) * 1));
+  }
+
+  80% {
+    transform: translate(calc(var(--c) * var(--stamp-to) * -1), calc(var(--c) * -4));
+  }
+
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes room-blink {
+  50% {
+    filter: brightness(1.35);
+  }
+}
+
+/* 蓋在申請單上的「核准」 */
+.mark {
+  position: absolute;
+  z-index: 3;
+  padding: 1px 6px 2px;
+  color: var(--room-stamp);
+  font-size: max(10px, calc(var(--c) * 2.6));
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  box-shadow: inset 0 0 0 2px var(--room-stamp);
+  pointer-events: none;
+  animation: room-mark 0.9s steps(1, end) backwards;
+
+  &[data-tone="green"] {
+    color: #2f9e6e;
+    background: rgb(255 255 255 / 0.85);
+    box-shadow: inset 0 0 0 2px #2f9e6e;
+  }
+}
+
+@keyframes room-mark {
+  0%,
+  60% {
+    opacity: 0;
+  }
+}
+
+/* 章魚的對話泡泡：貼在牆上左邊，尾巴朝右下指向章魚 */
+.bubble {
+  @include pixel-frame(3px, 3px, #202748, #ffffff);
+  position: absolute;
+  z-index: 4;
+  left: calc(var(--c) * 3);
+  top: calc(var(--c) * 4);
+  width: min(calc(var(--c) * var(--bubble-w, 62)), 340px);
+  padding: 14px 18px 16px;
+  color: #202748;
+  --kicker-color: #5471bf;
+
+  h4 {
+    margin-top: 6px;
+    font-size: 19px;
+    font-weight: 900;
+    line-height: 1.4;
+  }
+
+  p {
+    min-height: 3.2em;
+    margin-top: 6px;
+    color: #3a4470;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* 尾巴：右邊緣往右指（階梯狀的像素三角形） */
+  > i {
+    position: absolute;
+    top: 55%;
+    right: -14px;
+    width: 15px;
+    height: 15px;
+    background: #202748;
+    clip-path: polygon(
+      0 0,
+      34% 0,
+      34% 20%,
+      67% 20%,
+      67% 40%,
+      100% 40%,
+      100% 60%,
+      67% 60%,
+      67% 80%,
+      34% 80%,
+      34% 100%,
+      0 100%
+    );
+  }
+}
+
+/* 步驟序號列 */
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* 只放序號的小方塊，輪到的那一步實心 */
+.stepBtn {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  color: #5a6890;
+  background: #e9eefb;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  clip-path: px-notch(2px);
+
+  &[aria-pressed="true"] {
+    color: #ffffff;
+    background: #5471bf;
+  }
+
+  &:focus-visible {
+    outline: 2px dashed #5471bf;
+    outline-offset: 2px;
+  }
+}
+
+/* 換下一步的倒數：泡泡底部一條細線從左跑到右 */
+.timer {
+  position: absolute;
+  left: 3px;
+  bottom: 3px;
+  height: 3px;
+  width: calc(100% - 6px);
+  background: #f7c442;
+  transform-origin: left;
+  animation: room-timer var(--step-ms) linear;
+}
+
+@keyframes room-timer {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 12px;
+}
+
+.try {
+  @include ui-btn-small;
+}
+
+.watch {
+  padding: 0;
+  border: 0;
+  color: #5471bf;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+/* 房間縮小一級（筆電矮螢幕）時，泡泡的字和間距也縮，才不會撐出房間 */
+.stage[data-compact] .bubble {
+  padding: 10px 12px 12px;
+  --kicker-size: 12px;
+
+  h4 {
+    margin-top: 4px;
+    font-size: 16px;
+  }
+
+  p {
+    min-height: 0;
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .steps {
+    margin-top: 6px;
+  }
+
+  .stepBtn {
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+  }
+
+  .actions {
+    gap: 6px 12px;
+    margin-top: 8px;
+  }
+
+  .watch {
+    font-size: 13px;
+  }
+}
+
+/* 房間再小一級（窄筆電、平板）：泡泡放不進房間，改排在房間下面 */
+/*
+ * 排在下面時卡片跟房間一樣寬，內容改成三列左右分佈，右邊才不會空一大塊：
+ *   標題 ……… 身分 ／ 說明（整列）／ 序號 ……… 按鈕
+ */
+.stage[data-stack] .bubble {
+  position: relative;
+  left: auto;
+  top: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title role"
+    "text text"
+    "steps actions";
+  align-items: center;
+  gap: 6px 16px;
+  width: auto;
+  margin-top: 12px;
+
+  > p:first-child {
+    grid-area: role;
+    justify-self: end;
+  }
+
+  > h4 {
+    grid-area: title;
+    margin-top: 0;
+  }
+
+  > p:not(:first-child) {
+    grid-area: text;
+    min-height: 0;
+    margin-top: 0;
+  }
+
+  .steps {
+    grid-area: steps;
+    margin-top: 4px;
+  }
+
+  .actions {
+    grid-area: actions;
+    justify-self: end;
+    margin-top: 4px;
+  }
+
+  > i {
+    display: none;
+  }
+}
+
+/* 很窄（手機直拿）時一列放不下，回到由上往下排 */
+@media (max-width: 520px) {
+  .stage[data-stack] .bubble {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "role"
+      "title"
+      "text"
+      "steps"
+      "actions";
+
+    > p:first-child,
+    .actions {
+      justify-self: start;
+    }
+  }
+}
+
+/* 手機：房間太寬就左右滑，泡泡排在房間下面 */
+@media (max-width: 720px) {
+  .bubble {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: auto;
+    margin-top: 14px;
+
+    > i {
+      display: none;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .item svg,
+  .mark,
+  .light {
+    animation: none !important;
+  }
+}

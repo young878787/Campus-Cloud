@@ -388,22 +388,26 @@ function MachineEditor({ value, edges, publications, onChange, onEdgesChange, on
         return {
           id: String(node.id),
           type: "courseMachine",
-          // 已發布的版本不能拖，一律從存的座標重算（下面再推開）；可編輯時沿用畫布上的當下位置
-          position: frozen ? saved : (placed.get(String(node.id)) ?? saved),
+          // 沿用畫布上的當下位置；已發布的版本第一次畫時從存的座標算（下面再推開）
+          position: saved,
           data: { node, exposedCount: exposure.get(node.id) ?? 0, frozen },
           selected: selectedNode?.id === node.id,
         };
       });
-      /* 已發布的版本拖不動：機器靠太近、連線標籤被隔壁那台蓋住時，顯示時推開
-         （跟班級上課環境的唯讀圖同一套，只影響畫面，不改存的座標） */
+      /* 已發布的版本不能改，但節點仍可拖開來看（只影響畫面，不改存的座標）。
+         起始位置：機器靠太近、連線標籤被隔壁那台蓋住時先推開（跟班級上課環境的唯讀圖同一套）；
+         拖過的沿用畫布上的當下位置 */
       const layout = frozen ? frozenTopologyLayout(machines) : null;
-      const shown = layout ? machines.map((node) => ({ ...node, position: layout.positions.get(node.id) })) : machines;
+      const shown = machines.map((node) => ({
+        ...node,
+        position: placed.get(node.id) ?? layout?.positions.get(node.id) ?? node.position,
+      }));
       /* 網際網路節點跟防火牆頁一樣常駐：拖線到它就是「開放服務給外部」，
          也讓拓撲圖一眼看得出哪幾台對外 */
       return [...shown, {
         id: INTERNET_KEY,
         type: "gateway",
-        position: layout ? layout.internet : (placed.get(INTERNET_KEY) ?? internetPosition),
+        position: placed.get(INTERNET_KEY) ?? layout?.internet ?? internetPosition,
         data: {},
         selected: false,
       }];
@@ -415,6 +419,8 @@ function MachineEditor({ value, edges, publications, onChange, onEdgesChange, on
     /* 放得離別台太近（徽章互壓、連線短到放不下標籤）就推開到最近的空處，存推開後的位置（跟防火牆頁同一套） */
     const { moves, dragged: draggedNodes } = settleDraggedNodes(flowNodes, droppedNodes);
     setFlowNodes((previous) => applyMoves(previous, moves));
+    /* 已發布的版本：拖曳只是挪開來看，不回寫座標 */
+    if (frozen) return;
     const moved = new Map(draggedNodes.map((item) => [item.id, item.position]));
     const internet = moved.get(INTERNET_KEY);
     if (internet) setInternetPosition({ x: Math.round(internet.x), y: Math.round(internet.y) });
@@ -425,7 +431,7 @@ function MachineEditor({ value, edges, publications, onChange, onEdgesChange, on
         ? { ...node, positionX: Math.round(position.x), positionY: Math.round(position.y) }
         : node;
     }));
-  }, [onChange, value, flowNodes, setFlowNodes]);
+  }, [onChange, value, flowNodes, setFlowNodes, frozen]);
 
   const graphEdges = useMemo(() => {
     const peerEdges = edges.map((edge) => ({
@@ -507,7 +513,7 @@ function MachineEditor({ value, edges, publications, onChange, onEdgesChange, on
             onPaneClick={() => selectNode("")}
             isValidConnection={(connection) => Boolean(connection?.source && connection?.target && connection.source !== connection.target)}
             connectionRadius={36}
-            nodesDraggable={!locked}
+            nodesDraggable={!locked || frozen}
             nodesConnectable={!locked}
             elementsSelectable
             deleteKeyCode={null}

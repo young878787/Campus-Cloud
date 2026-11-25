@@ -446,7 +446,7 @@
   "UserGuide.gpuMgmt.table.title": "マッピングの種類とスペック",
   "UserGuide.gpuMgmt.table.text": "「Mapping」列の名前は、ユーザーが GPU を申請するときに選ぶ項目です。その下の小さな文字は SR-IOV かパススルーかを示し、vGPU の場合は mdev プロファイルと 1 基あたりの VRAM も表示されます。",
   "UserGuide.gpuMgmt.pci.title": "ノードと PCI アドレス",
-  "UserGuide.gpuMgmt.pci.text": "このマッピングに含まれるノードと PCI アドレスの一覧です。アドレスが 3 つを超えると連続したアドレスを範囲にまとめて表示し、「N 個の VF」または「N 個のデバイス」をクリックすると全一覧を展開できます。",
+  "UserGuide.gpuMgmt.pci.text": "このマッピングに含まれるノードと PCI アドレスの一覧です。アドレスが 3 つを超えると連続したアドレスを範囲にまとめて表示し（連続していない場合はノードのみ表示）、「N 個の VF」または「N 個のデバイス」をクリックすると全一覧を展開できます。",
   "UserGuide.gpuMgmt.capacity.title": "利用可能数と VRAM",
   "UserGuide.gpuMgmt.capacity.text": "「利用可能 / 合計」は、まだ割り当てられるインスタンス数と総容量です。SR-IOV の合計は実際に作成できるインスタンス数で、VF 数より少ない場合はその下に VF 数が別途表示されます。VRAM の情報があれば使用量も表示され、取得できない場合は「使用量不明」と表示されます。",
   "UserGuide.gpuMgmt.usage.title": "使用中の VM と状態",

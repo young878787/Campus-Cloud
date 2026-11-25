@@ -99,7 +99,7 @@ export function spreadForEdgeLabels(boxes, { gapX = LABEL_CLEARANCE_X, gapY = LA
 export const COURSE_MACHINE_NODE_SIZE = { width: 220, height: 68 };
 
 /**
- * 不能拖曳的拓撲（班級上課環境的唯讀圖、已發布的教學環境）顯示用的位置：
+ * 不能改的拓撲（班級上課環境的唯讀圖、已發布的教學環境）一開始顯示用的位置（之後可以拖開來看，不回存）：
  * 機器照 spreadForEdgeLabels 推開，網際網路節點放在最右邊那台右側、跟第一列同高，
  * 同樣留出放標籤的距離。只算畫面位置，不改存的座標。
  *

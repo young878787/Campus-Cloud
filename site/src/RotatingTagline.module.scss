@@ -1,0 +1,49 @@
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* 詞位：用隱形的最長詞撐寬度，實際的字疊在上面 */
+.slot {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.sizer {
+  visibility: hidden;
+}
+
+.word {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* 游標是不佔位的細線，才不會把後面的字推開 */
+.caret {
+  position: absolute;
+  top: 0.1em;
+  bottom: 0.1em;
+  left: 100%;
+  width: max(2px, 0.06em);
+  margin-left: -0.02em;
+  background: currentColor;
+  animation: tagline-caret 1s steps(2, end) infinite;
+}
+
+@keyframes tagline-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret {
+    display: none;
+  }
+}

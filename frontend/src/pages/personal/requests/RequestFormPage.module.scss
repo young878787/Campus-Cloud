@@ -289,7 +289,7 @@
 .input[type="datetime-local"],
 .input[type="date"],
 .input[type="time"] {
-  height: 36px;
+  @include native-date-reset;
 }
 
 /* ── 自動判斷建議說明 ── */
@@ -346,11 +346,7 @@
   background: var(--color-surface);
   outline: none;
   cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 36px;
+  /* 箭頭與右側留白由 _reset.scss 的 select 規則統一畫 */
   transition: border-color $transition-base;
   box-sizing: border-box;
 

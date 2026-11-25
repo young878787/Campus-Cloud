@@ -1,0 +1,571 @@
+{
+  "footer": "© 2026 SkyLab — An efficient campus cloud for teaching and labs",
+  "nav": {
+    "tour": "Full feature tour",
+    "route": "Campus map"
+  },
+  "hero": {
+    "octoLabel": "Octo the scholar (click and it hops)",
+    "lead": "Your school's servers become machines teachers and students can open any time.\nManaged by the school, used right in the browser."
+  },
+  "lifecycle": {
+    "create": "Create now",
+    "snapshot": "Take snapshot",
+    "resize": "Request resize",
+    "recycle": "Skip to expiry",
+    "building": "Creating…",
+    "running": "Running",
+    "empty": "No machine yet. Pick a template first",
+    "snapshots": "Snapshots",
+    "log": {
+      "created": "Created {{vm}} now from {{tpl}} ({{cpu}} vCPU / {{ram}} GB)",
+      "snap": "Snapshot {{name}} taken",
+      "resized": "New spec applied: {{cpu}} vCPU / {{ram}} GB after a reboot, no reinstall",
+      "recycled": "{{vm}} reclaimed after a 7-day grace period, resources back in the pool",
+      "asked": "Resize requested: {{cpu}} vCPU / {{ram}} GB",
+      "approved": "An admin approved the resize",
+      "mail": "{{vm}} expires soon, reminder email sent (you can request an extension)",
+      "off": "{{vm}} expired and shut down automatically"
+    },
+    "logIdle": "Waiting: pick a template and press Create now",
+    "kicker": "Machine lifecycle",
+    "summary": "Create VMs or containers from templates, take snapshots and request resizes; expired machines are reclaimed automatically.",
+    "pending": "Waiting for admin…",
+    "apply": "Apply new spec",
+    "rebooting": "Rebooting",
+    "off": "Shut down",
+    "expiring": "Expiring…",
+    "createNote": "Teachers and admins can create right away; students submit a request, and once an admin approves it the machine is built on time."
+  },
+  "review": {
+    "queue": "Pending",
+    "provisioned": "Auto provisioning",
+    "capacity": "Wed 13:00–15:00 slot capacity",
+    "approve": "Approve",
+    "reject": "Reject",
+    "more": "A student sends another request",
+    "empty": "All requests handled",
+    "noneYet": "Approved requests are scheduled here",
+    "scheduled": "Boots at 13:00",
+    "booting": "Booting…",
+    "booted": "Running",
+    "rejected": "Rejected, the student is notified",
+    "stats": "{{done}} handled · {{booted}} booted automatically",
+    "spec": "{{cpu}} vCPU / {{ram}} GB · uses {{load}}%",
+    "students": [
+      "Lin",
+      "Chen",
+      "Chang",
+      "Huang",
+      "Wu"
+    ],
+    "courses": [
+      "Database lab",
+      "Web programming",
+      "Intro to ML",
+      "Operating systems",
+      "Cloud computing"
+    ],
+    "altSlot": "Thu 10:00",
+    "kicker": "Requests & review",
+    "summary": "Students request online and pick a slot, capacity is checked on submission, and admin-approved machines are built on time.",
+    "later": "Scheduled for {{slot}}, boots automatically",
+    "inSlot": "Switched to {{slot}}",
+    "blocked": "{{who}} wanted this slot, but it's full: the request is blocked before sending, and the calendar suggests open slots",
+    "takeAlt": "Switch to {{slot}}"
+  },
+  "classroom": {
+    "build": "Submit to build ({{n}} machines)",
+    "building": "Building {{n}} / {{total}}",
+    "stuck": "{{n}} machines failed to build",
+    "allUp": "All {{n}} machines are online",
+    "check": "AI tutor check",
+    "checking": "AI tutor check: running the check scripts on every machine…",
+    "result": "{{pass}} passed · {{fail}} didn't pass (click a red seat to see which item failed)",
+    "seat": "{{id}} · CPU {{cpu}}%",
+    "reasons": [
+      "nginx is not running",
+      "Home page lacks the assignment title",
+      "Tables not created yet",
+      "Wrong config file path"
+    ],
+    "kicker": "Whole-class teaching",
+    "summary": "The class wizard sets schedule, roster and environment; once an admin approves, every machine is built, and the AI tutor check runs on the whole class.",
+    "resultShort": "{{pass}} passed · {{fail}} didn't pass",
+    "review": "Submitted, waiting for an admin to approve the class…",
+    "retry": "Retry failed items",
+    "retrying": "Resubmitting those machines; they're rebuilt once an admin approves…"
+  },
+  "firewall": {
+    "goals": [
+      "The website is reachable: Internet → web-01 (published)",
+      "The website reaches the database: web-01 → db-01 port 3306",
+      "The database is never exposed to the Internet"
+    ],
+    "hintSource": "Drag from the dot on a node's right edge to another node",
+    "hintTarget": "Now pick a destination: {{from}} → ?",
+    "cancel": "Cancel",
+    "rules": "Firewall rules (generated)",
+    "noRules": "No rules yet: all inbound traffic is blocked",
+    "remove": "Remove",
+    "danger": "Danger! db-01 is open to the Internet",
+    "win": "All three goals met. The rules wrote themselves!",
+    "wall": "Firewall",
+    "kicker": "Networking",
+    "summary": "Draw lines on a topology map to allow traffic, publish services by URL or external port, and the rules are written for you.",
+    "internet": "Internet",
+    "hintDrop": "Drop it on the machine to connect",
+    "nodeHint": "Clicking {{node}} opens its rules; to connect, drag from the dot on its right",
+    "noPair": "This chapter doesn't need a {{from}} → {{to}} line",
+    "handleLabel": "Draw a line from {{node}}",
+    "publishTitle": "Expose a service: Internet → {{to}}",
+    "connTitle": "Connect two machines: {{from}} → {{to}}",
+    "howLabel": "How to expose it",
+    "how": {
+      "url": "By URL",
+      "port": "By external port",
+      "fw": "Firewall only"
+    },
+    "howNote": {
+      "url": "https://{{to}}.campus.edu.tw → port 80 on {{to}}; the gateway handles HTTPS",
+      "port": "Gateway port {{ext}} from outside → port 80 on {{to}}",
+      "fw": "Only opens port 80 in the firewall; you handle the rest"
+    },
+    "portLabel": "Port",
+    "portPlaceholder": "e.g. 3306",
+    "publish": "Publish",
+    "create": "Create connection",
+    "rule": {
+      "url": "URL https://{{to}}.campus.edu.tw → {{to}}:{{port}}",
+      "port": "External port {{ext}} → {{to}}:{{port}}",
+      "fw": "Firewall allows Internet → {{to}}:{{port}}",
+      "conn": "Connect {{from}} → {{to}}:{{port}}"
+    }
+  },
+  "placement": {
+    "courses": {
+      "python": {
+        "name": "Intro to Python",
+        "rec": "Use the Ubuntu 24.04 template, 1 vCPU / 2 GB RAM."
+      },
+      "web": {
+        "name": "Web server lab",
+        "rec": "Use a Debian 13 container (LXC), 1 vCPU / 1 GB RAM. Fastest to boot."
+      },
+      "ml": {
+        "name": "Deep learning lab",
+        "rec": "Use the Ubuntu 24.04 + CUDA template, 4 vCPU / 16 GB RAM, GPU required."
+      }
+    },
+    "pick": "Tell the AI assistant what you need",
+    "ai": "AI assistant",
+    "load": "Load {{n}}%",
+    "addLoad": "Make busy",
+    "clear": "Reset load",
+    "placed": "Will go to {{node}} at approval (score {{score}})",
+    "noGpu": "No GPU",
+    "full": "Overloaded",
+    "kicker": "AI assistance",
+    "summary": "The AI assistant recommends a template and spec and fills in the request; the scheduler picks the host by load.",
+    "filled": "Request form filled in for you, ready to submit",
+    "scheduler": "Which host at approval: the scheduler scores each host by load (not AI)"
+  },
+  "terminal": {
+    "try": "Try",
+    "placeholder": "Type a command…",
+    "help": "Available commands: whoami, ls, uname -a, hostname, clear, help",
+    "notFound": "{{cmd}}: command not found (type help to see what works)",
+    "kicker": "Browser access",
+    "summary": "Containers open a terminal and VMs open a console desktop, right in the browser, nothing to install.",
+    "title": "{{host}} · Terminal",
+    "welcome": "SkyLab container terminal: run commands right in the browser"
+  },
+  "try": {
+    "restart": "Restart"
+  },
+  "tour": {
+    "label": "Full feature tour",
+    "chaptersLabel": "Tour chapters",
+    "beatsLabel": "Lines in this chapter",
+    "beat": "Line {{n}}",
+    "next": "Next",
+    "start": "Start",
+    "finish": "See the recap",
+    "nextChapter": "Next: {{name}}",
+    "waiting": "Do the step on the right to continue",
+    "waitingBelow": "Do the step below to continue",
+    "skip": "Skip this step",
+    "restart": "Restart chapter",
+    "close": "End tour",
+    "recapTitle": "{{n}} things this tour covers",
+    "contact": "Contact us for a campus trial",
+    "github": "Source on GitHub",
+    "replay": "Start over",
+    "intro": {
+      "cloud": "Your school's servers",
+      "count": "{{n}} / {{total}} machines ready"
+    },
+    "chapters": {
+      "intro": {
+        "nav": "Intro",
+        "beats": [
+          "Hi, I'm Professor Octo! Let's follow one machine from the school's server room all the way to your browser.",
+          "It used to mean installing and configuring forty classroom machines one by one…",
+          "SkyLab turns your school's servers into a private cloud: machines start when needed and are reclaimed after, all with a few clicks on the web.",
+          "Six short chapters, each needs just a click or two. We start in the server room."
+        ]
+      },
+      "lifecycle": {
+        "nav": "One machine",
+        "beats": [
+          "Let's start with one machine. Teachers and admins can create one right away; students submit a request, and once an admin approves it the machine is built on time. Pick a template and press Create now.",
+          "Done! Before changing anything, press Take snapshot so you can roll back.",
+          "Program too slow? Press Request resize; once an admin approves, press Apply new spec. It reboots and that's it, no reinstall.",
+          "No need to remember to clean up: a reminder email goes out before expiry, the machine shuts down when it expires, and it's reclaimed after a 7-day grace period. Press Skip to expiry.",
+          "Create, snapshot and resize on the web; reclaiming expired machines is handled by the system."
+        ]
+      },
+      "review": {
+        "nav": "Requests",
+        "beats": [
+          "Students request machines on the web and pick a slot, no emails or paper forms. Reviewing is the admin's job: approve one.",
+          "After approval there's nothing to do: when the time comes, the machine is built and booted. Give it a second…",
+          "What if everyone wants the same slot? Capacity is checked when the student submits. Press A student sends another request.",
+          "A full slot can't be submitted; the calendar suggests open slots for the student to pick instead: no overloaded servers, no manual scheduling."
+        ]
+      },
+      "classroom": {
+        "nav": "Whole class",
+        "beats": [
+          "Requesting one by one is slow. The teacher sets up the schedule, roster and environment in the class wizard and presses Submit to build; once an admin approves, the whole class is built.",
+          "A few failed to build (the red ones). Press Retry failed items and they're resubmitted and rebuilt.",
+          "Everyone is ready. Press AI tutor check: it runs this week's check items on every student's machine.",
+          "Red means a student didn't pass: click to see which item failed. The teacher reviews and gives feedback, no logging into each machine."
+        ]
+      },
+      "firewall": {
+        "nav": "Network",
+        "beats": [
+          "A student built a website that must be reachable. Drag from the dot on Internet's right edge to web-01, choose By URL and press Publish.",
+          "The site also reads a database: drag from web-01's dot to db-01, enter port 3306 and press Create connection.",
+          "Every line on the map is a rule, written for you; inbound traffic without a line is blocked, so the database stays private."
+        ]
+      },
+      "placement": {
+        "nav": "AI",
+        "beats": [
+          "Not sure which template or spec to use? Tell the AI assistant (bottom right) what you need; it recommends one and fills in the request for you. Pick a need.",
+          "Which host it lands on is decided at approval by the scheduler, which scores each host by load. Press Make busy on the chosen host a few times and see if it moves.",
+          "When a host gets busy, the next approval goes elsewhere; machines already running aren't moved. Schools can also offer an AI API: anyone can request a key, and an admin approves it."
+        ]
+      },
+      "terminal": {
+        "nav": "Browser access",
+        "beats": [
+          "The machine is ready. How do you use it? A container's terminal opens right in the browser. Click whoami, or type it.",
+          "Now try ls to see what's in the home folder.",
+          "Containers open a Terminal, VMs open a Console desktop, both in the browser; for SSH or remote desktop there's the SkyLab Connect desktop app."
+        ]
+      },
+      "outro": {
+        "nav": "Recap",
+        "beats": [
+          "That's the tour! From one machine to a whole class, it's all one platform. Want to try it at your school? Email us."
+        ]
+      }
+    },
+    "done": "Nice, done!"
+  },
+  "specs": {
+    "title": "Features at a glance",
+    "groups": {
+      "platform": {
+        "title": "Platform",
+        "items": [
+          "Built on Proxmox VE",
+          "VMs and LXC containers",
+          "Create from templates, snapshot and resize; expired machines are reclaimed automatically"
+        ]
+      },
+      "request": {
+        "title": "Requests and review",
+        "items": [
+          "Students submit requests online and pick a slot; admins review",
+          "Slot capacity is checked on submission and review; full slots get alternatives",
+          "Approved machines are placed by host load and built and booted on time"
+        ]
+      },
+      "class": {
+        "title": "Teaching",
+        "items": [
+          "The class wizard sets roster, timetable and multi-machine environments; once an admin approves, the whole class is built",
+          "Classroom monitor: which machines are online",
+          "AI tutor check"
+        ]
+      },
+      "network": {
+        "title": "Network",
+        "items": [
+          "Firewall rules, NAT rules and reverse proxy routes",
+          "Every connection in and out of campus has a topology to see and rules to manage",
+          "The topology shows which connections are allowed and which are blocked"
+        ]
+      },
+      "ai": {
+        "title": "AI",
+        "items": [
+          "The AI assistant recommends a template and spec and fills in the request",
+          "OpenAI-compatible AI API, keys approved by admins, rate limits built in"
+        ]
+      },
+      "connect": {
+        "title": "Access",
+        "items": [
+          "VNC desktop and terminal right in the browser",
+          "Nothing else to install"
+        ]
+      }
+    }
+  },
+  "campus": {
+    "title": "From the server room to home",
+    "label": "Pixel campus map",
+    "open": "Look inside: {{place}}",
+    "and": " & ",
+    "prev": "Previous",
+    "next": "Next",
+    "watch": "Watch it in action",
+    "close": "Close",
+    "rooms": {
+      "office": {
+        "papers": "Students apply on the web and pick a time slot.",
+        "monitor": "On submission and review, the system checks how much capacity that slot has left.",
+        "stamp": "Once approved, the machine boots on its own when the time comes.",
+        "papersLabel": "Applications",
+        "monitorLabel": "Capacity screen",
+        "stampLabel": "Stamp",
+        "mark": "OK"
+      },
+      "classroom": {
+        "board": "The class wizard sets up the timetable, roster and teaching environment in one go.",
+        "seats": "Submit to build; once an admin approves, every student's machine is built automatically.",
+        "display": "During class, everyone's usage is right there on screen.",
+        "check": "The AI tutor check runs across the whole class, so you can see who failed which item.",
+        "boardLabel": "Timetable and roster on the board",
+        "seatsLabel": "Student seats",
+        "displayLabel": "Class usage screen",
+        "checkLabel": "Homework",
+        "mark": "AI ✓"
+      },
+      "home": {
+        "desktop": "The VNC desktop opens right in the browser, nothing to install.",
+        "terminal": "A container's terminal opens in the browser too, ready for commands.",
+        "app": "For SSH or remote desktop, install the SkyLab Connect desktop app.",
+        "desktopLabel": "VNC desktop on the laptop",
+        "terminalLabel": "Terminal",
+        "appLabel": "SkyLab Connect",
+        "mark": "Connected"
+      },
+      "serverRoom": {
+        "pool": "SkyLab runs on Proxmox VE and pools the school's servers into one cloud.",
+        "vms": "Create VMs or containers from templates; snapshots and resizing happen on the web, and expired machines are reclaimed automatically.",
+        "placement": "Tell the AI assistant what you need to get a template, a spec and a filled-in request; the scheduler picks the host by load.",
+        "firewall": "Drag a line on the topology and the firewall rule is written; publish services by URL or port.",
+        "poolLabel": "Server rack",
+        "vmsLabel": "Admin console",
+        "placementLabel": "Node load screen",
+        "firewallLabel": "Network topology screen",
+        "mark": "Open"
+      }
+    }
+  },
+  "route": {
+    "title": "From the server room to your browser",
+    "desc": "Follow one machine: it's born in the server room, approved in the office, handed to a whole class, and finally opened in a student's browser.",
+    "try": "Try it with Octo",
+    "play": "Play the walkthrough",
+    "playShort": "Play",
+    "stops": {
+      "serverRoom": {
+        "place": "Server room",
+        "who": "Admins turn the school's servers into a cloud here."
+      },
+      "office": {
+        "place": "Office",
+        "who": "Admins review requests here."
+      },
+      "classroom": {
+        "place": "Classroom",
+        "who": "Teachers run courses and keep an eye on the whole class here."
+      },
+      "home": {
+        "place": "Dorm or home",
+        "who": "Students open a browser here, and it's their machine."
+      }
+    },
+    "stations": {
+      "cloud": {
+        "title": "Servers become one resource pool",
+        "text": "SkyLab runs on Proxmox VE and pools the school's servers. Create VMs or containers from templates; snapshots and resizing happen on the web, and expired machines are reclaimed automatically."
+      },
+      "placement": {
+        "title": "AI recommends, the scheduler places",
+        "text": "Describe your needs to the AI assistant to get a template, a spec and a filled-in request; at approval the scheduler picks the host by load."
+      },
+      "firewall": {
+        "title": "Draw a line, get a rule",
+        "text": "Draw lines on the topology map to allow traffic and the firewall rules are written for you; publish services by URL or port through the gateway."
+      },
+      "review": {
+        "title": "Capacity first, then approval",
+        "text": "Students request machines and pick a slot on the web; capacity is checked on submission and review, and admin-approved machines boot on time."
+      },
+      "class": {
+        "title": "A whole class, built at once",
+        "text": "The class wizard sets schedule, roster and environment in one go; once an admin approves, every machine is built, and the classroom monitor shows the class during lessons."
+      },
+      "check": {
+        "title": "The AI tutor check runs on the class",
+        "text": "The AI tutor check runs this week's items on every machine, so you see who needs help and which item failed."
+      },
+      "browser": {
+        "title": "Open a browser, it's the machine",
+        "text": "Containers open a terminal and VMs a console desktop right in the browser, nothing to install; for SSH or remote desktop there's the SkyLab Connect desktop app."
+      }
+    }
+  },
+  "fork": {
+    "ask": "Are you a student, a teacher or an admin?",
+    "student": {
+      "name": "Student",
+      "line": "I need a machine for my assignment",
+      "go": "Take the tour with Octo, about 2 min"
+    },
+    "teacher": {
+      "name": "Teacher",
+      "line": "I run courses and watch the whole class",
+      "go": "Run a class with Octo"
+    },
+    "admin": {
+      "name": "Admin",
+      "line": "I manage the whole campus's resources",
+      "go": "Build a machine with Octo"
+    },
+    "all": "Want it all? Take the full feature tour"
+  },
+  "studentTour": {
+    "label": "For students",
+    "chapters": {
+      "intro": {
+        "nav": "Intro",
+        "beats": [
+          "Hi, I'm Professor Octo! Picture this: next week's assignment needs Linux, but your laptop runs Windows.",
+          "Install a VM yourself? Your laptop can't keep up, and it might break halfway…",
+          "With SkyLab, the school has machines ready for you: request one online and open it in your browser.",
+          "Four short chapters, a click or two each. Let's request a machine first."
+        ]
+      },
+      "request": {
+        "nav": "Request",
+        "stage": "Request a machine",
+        "recap": "Request online and pick a slot; once approved, it boots on time.",
+        "beats": [
+          "Pick a template and a time slot, then press Submit request.",
+          "Sent! SkyLab already checked the slot has room before sending; now an admin reviews it.",
+          "Approved. No need to keep watching: when the time comes, the machine boots by itself.",
+          "It's up, and it shows up in My resources. More CPU or a longer lease go through the same request."
+        ]
+      },
+      "browser": {
+        "nav": "Open it",
+        "stage": "Terminal in the browser",
+        "recap": "Containers open a terminal and VMs a console in the browser, even from your dorm.",
+        "beats": [
+          "The machine is ready. How do you use it? A container's terminal opens in the browser. Click whoami to see who you are.",
+          "It's root: inside the container you're in charge. Now try ls to see your homework folder.",
+          "Containers open a Terminal, VMs a Console desktop, both in the browser; for SSH or remote desktop from your dorm, there's the SkyLab Connect desktop app."
+        ]
+      },
+      "snapshot": {
+        "nav": "Save first",
+        "stage": "Snapshot and restore",
+        "recap": "Snapshot before changing things; restore in one click if it breaks.",
+        "beats": [
+          "Before changing anything important, take a snapshot.",
+          "Now let's slip: press Delete homework folder. Don't worry, it's pretend.",
+          "Your homework is gone! Don't panic, press Restore snapshot.",
+          "It's back. Break it, restore it: no reinstall, no late-night rescue from your teacher."
+        ]
+      },
+      "check": {
+        "nav": "Submit check",
+        "stage": "AI tutor check",
+        "recap": "The AI tutor check lists which item failed and why.",
+        "beats": [
+          "Assignment done. Once your teacher publishes this week's check items, you can send an AI tutor check yourself: press Submit check.",
+          "One item failed: the home page is still the default and lacks the assignment title. Press Fix home page.",
+          "Fixed. Now press Check again.",
+          "All passed! Your teacher sees the result too and gives feedback after reviewing it."
+        ]
+      },
+      "outro": {
+        "nav": "Recap",
+        "beats": [
+          "That's a student's semester: request, open, save, submit a check. Machines are reclaimed when they expire, so download what you need first."
+        ]
+      }
+    }
+  },
+  "student": {
+    "request": {
+      "template": "Template",
+      "slot": "Time slot",
+      "courseLabel": "For which course",
+      "course": "Operating Systems, week 5 assignment",
+      "submit": "Submit request",
+      "steps": [
+        "Submitted",
+        "Admin approved",
+        "Slot starts",
+        "Booted"
+      ],
+      "slots": {
+        "wed": "Wed 13:00–15:00",
+        "thu": "Thu 10:00–12:00",
+        "fri": "Fri 15:00–17:00"
+      },
+      "status": {
+        "form": "Not submitted yet",
+        "sent": "Submitted, waiting for an admin…",
+        "approved": "Approved for {{slot}}",
+        "waiting": "Booting in {{n}}…",
+        "booting": "Booting…",
+        "booted": "{{vm}} is ready"
+      }
+    },
+    "snapshot": {
+      "snaps": "Snapshots",
+      "none": "No snapshots yet",
+      "take": "Take snapshot",
+      "break": "Delete homework folder",
+      "restore": "Restore snapshot",
+      "missing": "ls: cannot access 'homework/': No such file or directory",
+      "restoredLog": "Restored to {{name}}"
+    },
+    "check": {
+      "assignment": "This week: host a website",
+      "items": {
+        "service": "nginx is running",
+        "port": "Port 80 is reachable",
+        "page": "Home page shows the assignment title"
+      },
+      "fix": "Fix home page",
+      "run": "Submit check",
+      "rerun": "Check again",
+      "checking": "Checking…",
+      "result": "{{ok}} / {{total}} passed",
+      "allPass": "All passed",
+      "failPage": "The home page is still nginx's default page, without the assignment title."
+    }
+  }
+}

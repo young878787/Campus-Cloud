@@ -181,6 +181,13 @@
   color: var(--color-text-secondary);
 }
 
+/* 收合摘要只列節點時用：沒有後面的位址要對齊，不需要 .mapNode 的最小寬度 */
+.mapNodeOnly {
+  font-size: $font-size-12;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
 .code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: $font-size-12;

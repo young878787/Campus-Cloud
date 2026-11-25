@@ -125,6 +125,13 @@ function groupByNode(mapEntries) {
   return groups;
 }
 
+/* 每個節點有幾個位址（保留首次出現的順序），供收合摘要只列節點時用 */
+function summarizeNodes(mapEntries) {
+  const counts = new Map();
+  for (const entry of mapEntries) counts.set(entry.node, (counts.get(entry.node) ?? 0) + 1);
+  return [...counts].map(([node, count]) => ({ node, count }));
+}
+
 /* MB → 人類可讀（512 MB / 4 GB / 1.5 GB）。
    數字與單位之間用不換行空格：欄位變窄時 VRAM 那行會換行，不會拆成「12」「GB」兩行 */
 function formatVram(mb) {
@@ -243,14 +250,24 @@ function GpuPciCell({ item, rowState }) {
   const { collapsible, expanded, unitLabel, onToggleExpanded } = rowState;
   if (item.mapEntries.length === 0) return <span className={styles.muted}>—</span>;
   if (collapsible) {
+    /* 位址不連續時壓不成區段（整張卡直通的 8 張卡就是 8 段），摘要只留節點，
+       位址交給展開列；多個節點時各自帶數量 */
+    const segments = compressEntries(item.mapEntries);
+    const nodeCounts = summarizeNodes(item.mapEntries);
     return (
       <div className={styles.mapSummary}>
-        {compressEntries(item.mapEntries).map((seg) => (
-          <span key={`${seg.node}-${seg.start}`} className={styles.mapEntry}>
-            <span className={styles.mapNode}>{seg.node}</span>
-            <code className={styles.code}>{formatSegment(seg)}</code>
-          </span>
-        ))}
+        {segments.length <= PCI_COLLAPSE_THRESHOLD
+          ? segments.map((seg) => (
+              <span key={`${seg.node}-${seg.start}`} className={styles.mapEntry}>
+                <span className={styles.mapNode}>{seg.node}</span>
+                <code className={styles.code}>{formatSegment(seg)}</code>
+              </span>
+            ))
+          : nodeCounts.map(({ node, count }) => (
+              <span key={node} className={styles.mapNodeOnly}>
+                {nodeCounts.length > 1 ? `${node} × ${count}` : node}
+              </span>
+            ))}
         <button
           type="button"
           className={`${styles.vfChip} ${expanded ? styles.vfChipOpen : ""}`}

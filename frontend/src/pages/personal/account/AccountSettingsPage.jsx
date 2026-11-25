@@ -256,8 +256,11 @@ function PasswordSection() {
       <form className={styles.form} onSubmit={handleSubmit}>
         <label className={styles.field}>
           <span>{t("PasswordTab.currentLabel")}</span>
-          <PasswordInput
+          {/* 目前密碼只驗身分，不提供顯示／隱藏切換（眼睛鈕只留給要核對輸入的新密碼） */}
+          <input
             ref={fieldRefs.current}
+            type="password"
+            autoComplete="current-password"
             className={invalid.current ? styles.fieldInvalid : undefined}
             value={form.current}
             onChange={(e) => set("current", e.target.value)}

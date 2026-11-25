@@ -146,7 +146,22 @@
   &[type="datetime-local"],
   &[type="month"],
   &[type="week"] {
-    height: 36px;
+    @include native-date-reset;
+  }
+}
+
+/* 日期／時間欄在 iOS／iPadOS Safari 的原生外觀：高度自己長（比 36px 高）、有自己的最小寬度
+   不理 width: 100%（並排時撐出容器）、值置中。拿掉原生外觀、鎖高、允許縮小、值靠左。
+   form-control 已內含；沒走 form-control 的手寫日期欄（篩選列等）直接 @include 這個 */
+@mixin native-date-reset {
+  height: 36px;
+  min-width: 0;
+  max-width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+
+  &::-webkit-date-and-time-value {
+    text-align: left;
   }
 }
 

@@ -1,0 +1,726 @@
+/* 章魚導覽：蓋住頁面（頁面頂列除外，64px 是 .topbar 的高度），配色沿用 .page 的 --px-* 變數 */
+@use "pixel" as *;
+@use "../ui" as *;
+
+.overlay {
+  position: fixed;
+  inset: 64px 0 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  color: var(--px-ink);
+  background: var(--px-bg);
+  outline: 0;
+  animation: tr-in 0.25s steps(3, end);
+}
+
+@keyframes tr-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── 上方（頁面頂列底下的第二列）：章節列、結束；學生篇前面多一個名稱 ── */
+.head {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 50px;
+  padding: 10px max(24px, calc((100% - 1240px) / 2));
+  border-bottom: 3px solid var(--px-card-line);
+  background: var(--px-bg-alt);
+}
+
+.title {
+  flex: none;
+  font-size: 15px;
+}
+
+/* 放不下時橫捲（捲軸藏起來）：還有章節的那一端淡出，看得出可以捲（data-more-* 由 Tour.jsx 量） */
+.chapters {
+  --fade-start: 0px;
+  --fade-end: 0px;
+
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--fade-start),
+    #000 calc(100% - var(--fade-end)),
+    transparent
+  );
+
+  &[data-more-start] {
+    --fade-start: 40px;
+  }
+
+  &[data-more-end] {
+    --fade-end: 40px;
+  }
+}
+
+.chapterBtn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 12px;
+  border: 2px solid transparent;
+  color: var(--px-ink-soft);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  clip-path: px-notch(2px);
+
+  &:hover {
+    border-color: var(--px-card-line);
+    color: var(--px-ink);
+  }
+
+  &[data-done]::after {
+    content: "✓";
+    color: var(--px-ok);
+  }
+
+  &[aria-current="step"],
+  &[aria-current="step"]:hover {
+    border-color: var(--px-primary);
+    color: #ffffff;
+    background: var(--px-primary);
+  }
+
+  &[aria-current="step"][data-done]::after {
+    color: #ffffff;
+  }
+}
+
+.chapterNo {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: var(--px-primary);
+  background: var(--px-card);
+  font-size: 11px;
+}
+
+.close {
+  @include ui-btn-small-ghost;
+  flex: none;
+  margin-left: auto;
+}
+
+/* ── 主體：左邊章魚講話、右邊小遊戲 ── */
+.body {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  align-items: start;
+  align-content: start;
+  gap: 40px;
+  min-height: 0;
+  /* 上方已經有頁面頂列＋章節列，頂端內距收小一點，1366×768 的筆電每章都不用捲 */
+  padding: 24px max(24px, calc((100% - 1240px) / 2)) 24px;
+  overflow-y: auto;
+}
+
+.narrator {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+/* 對話泡泡：比第一屏的大一號，尾巴朝左下指向章魚 */
+.bubble {
+  @include pixel-frame(3px, 3px, #202748, #ffffff);
+  position: relative;
+  width: 100%;
+  min-height: 112px;
+  padding: 16px 20px 18px;
+  color: #202748;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.6;
+  animation: tr-bubble 0.16s steps(2, end);
+
+  > i {
+    position: absolute;
+    left: 36px;
+    bottom: -12px;
+    width: 15px;
+    height: 15px;
+    background: #202748;
+    clip-path: polygon(0 0, 100% 0, 100% 3px, 75% 3px, 75% 6px, 50% 6px, 50% 9px, 25% 9px, 25% 100%, 0 100%);
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: -3px;
+      width: 9px;
+      height: 9px;
+      background: #ffffff;
+      clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 50%, 50% 100%, 0 100%);
+    }
+  }
+}
+
+@keyframes tr-pop {
+  from {
+    transform: scale(0.94);
+    opacity: 0.4;
+  }
+}
+
+/* 換句：只輕輕彈一下、字一出來就是清楚的（不先淡淡的，按下一步才不會覺得慢半拍） */
+@keyframes tr-bubble {
+  from {
+    transform: scale(0.97);
+  }
+}
+
+.octo {
+  margin: 4px 0 0 12px;
+}
+
+/* 進度點：講過的句子可以點回去（按鈕留一點空白當點擊範圍，小方塊本身不變） */
+.dots {
+  display: flex;
+  margin-left: -3px;
+}
+
+.dot {
+  padding: 6px 3px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+
+  i {
+    display: block;
+    width: 10px;
+    height: 10px;
+    background: var(--px-card-line);
+  }
+
+  &[data-done] i {
+    background: var(--px-primary);
+  }
+
+  &[aria-current="step"] i {
+    width: 22px;
+    background: var(--px-gold);
+  }
+
+  &:not(:disabled, [aria-current="step"]):hover i {
+    box-shadow: 0 0 0 2px var(--px-primary);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px dashed var(--px-primary);
+    outline-offset: -1px;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.btn {
+  @include ui-btn;
+}
+
+.btnGhost {
+  @include ui-btn-ghost;
+}
+
+/* 等你動手：一個朝遊戲區（桌機右邊、手機下面）一推一推的像素箭頭＋一句說明 */
+.hint {
+  --nudge: 3px 0;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--px-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.hintArrow {
+  flex: none;
+  width: 8px;
+  height: 14px;
+  background: currentColor;
+  clip-path: polygon(
+    0 0,
+    2px 0,
+    2px 2px,
+    4px 2px,
+    4px 4px,
+    6px 4px,
+    6px 6px,
+    8px 6px,
+    8px 8px,
+    6px 8px,
+    6px 10px,
+    4px 10px,
+    4px 12px,
+    2px 12px,
+    2px 14px,
+    0 14px
+  );
+  animation: tr-nudge 0.9s steps(2, end) infinite;
+}
+
+@keyframes tr-nudge {
+  50% {
+    translate: var(--nudge);
+  }
+}
+
+.hintBelow {
+  display: none;
+}
+
+/* 這步先跳過：小的次要按鈕 */
+.skipBtn {
+  @include ui-btn-small-ghost;
+}
+
+/* 做完動作、正要自動換下一句：不放按鈕，只說做到了（高度跟按鈕一樣，換句時版面不跳） */
+.doneNote {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--px-ok);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.skip {
+  padding: 0;
+  border: 0;
+  color: var(--px-primary);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
+
+.stage {
+  @include ui-card;
+  min-width: 0;
+  padding: 18px 24px 24px;
+}
+
+/* 開場畫面（只有一張圖、沒有可以操作的東西）：不套白底卡片，圖直接放在頁面底色上 */
+.stage[data-bare] {
+  filter: none;
+
+  &::before,
+  &::after {
+    display: none;
+  }
+}
+
+/* 正在等你按的那顆：一上一下跳格（按鈕都有像素缺角的 clip-path，外框會被裁掉，所以用跳動） */
+$hint-events: created snapshot resized recycled approved moved built fixed checked picked web db course "cmd:whoami"
+  "cmd:skylab" "cmd:ls" submitted broke restored passed;
+
+@each $event in $hint-events {
+  .stage[data-want="#{$event}"] :global([data-act~="#{$event}"]:not(:disabled)) {
+    animation: tr-hint 0.9s steps(2, end) infinite;
+  }
+}
+
+@keyframes tr-hint {
+  50% {
+    transform: translateY(-4px);
+    filter: brightness(1.12);
+  }
+}
+
+.stageBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px dashed var(--px-card-line);
+  color: var(--px-ink-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ── 開場：一間 40 個座位的教室 ── */
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 28px 8px 20px;
+}
+
+.cloudRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border: 3px dashed var(--px-card-line);
+  color: var(--px-ink-muted);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0.45;
+  transition: opacity 0.3s steps(3, end);
+
+  &[data-on] {
+    border-color: var(--px-primary);
+    color: var(--px-primary);
+    opacity: 1;
+  }
+}
+
+.introSeats {
+  display: grid;
+  grid-template-columns: repeat(10, 40px);
+  gap: 10px;
+
+  i {
+    height: 30px;
+    background: var(--px-screen);
+    box-shadow: inset 0 0 0 4px var(--px-ink-muted);
+    transition: background-color 0.1s steps(1, end) var(--d, 0ms);
+
+    &[data-on] {
+      background: #7fd3ff;
+      box-shadow: inset 0 0 0 4px var(--px-ink-muted), inset 0 -6px 0 4px #4aa8e0;
+    }
+  }
+}
+
+.introCount {
+  color: var(--px-ink-soft);
+  font-size: 15px;
+  font-weight: 700;
+
+  &[data-all] {
+    color: var(--px-ok);
+  }
+}
+
+/* ── 學生篇開場：一個大大的章魚動作，一句換一個 ── */
+.studentIntro {
+  display: grid;
+  place-items: center;
+  min-height: 360px;
+  padding: 24px;
+}
+
+.studentPose {
+  --pose-w: min(320px, 70vw);
+
+  animation: tr-pop 0.28s steps(3, end);
+}
+
+/* ── 總結 ── */
+.recap {
+  h3 {
+    font-size: 20px;
+  }
+
+  ol {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+    list-style: none;
+  }
+
+  li button {
+    display: grid;
+    grid-template-columns: 28px 120px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--px-card-line);
+    color: inherit;
+    background: var(--px-card);
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--px-primary);
+    }
+
+    > span:last-child {
+      color: var(--px-ink-soft);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+  }
+
+  li[data-done] .recapMark {
+    color: #ffffff;
+    background: var(--px-ok);
+  }
+}
+
+.recapMark {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--px-primary);
+  background: var(--px-bg-alt);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.recapCta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/*
+ * 開場畫面（沒有小遊戲、只有一張圖）的章節，左右並排時：
+ * 右邊那一區撐滿剩下的高度、圖放正中間，下半頁才不會空一大片（設上限，大螢幕不會離泡泡太遠）。
+ */
+@media (min-width: 901px) {
+  .body[data-fill] {
+    align-items: stretch;
+    align-content: stretch;
+
+    .narrator {
+      align-self: start;
+    }
+
+    .stage {
+      display: grid;
+      max-height: 720px;
+    }
+
+    .intro {
+      justify-content: center;
+    }
+  }
+
+  /* 章魚搬到右邊舞台上的章節：泡泡的尾巴改從右側伸出去指向牠，不要朝下指著空白 */
+  .narrator[data-no-octo] .bubble > i {
+    left: auto;
+    right: -12px;
+    top: 26px;
+    bottom: auto;
+    rotate: -90deg;
+  }
+}
+
+/* 筆電窄一點：講話那欄縮窄，遊戲仍在右邊 */
+@media (max-width: 1100px) {
+  .title {
+    display: none;
+  }
+
+  .body {
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .bubble {
+    font-size: 16px;
+  }
+
+  .introSeats {
+    grid-template-columns: repeat(10, minmax(0, 26px));
+    gap: 6px;
+
+    i {
+      height: 20px;
+    }
+  }
+}
+
+/*
+ * 平板與手機：上下疊。講話的部分壓成精簡的一塊（章魚在左、泡泡在右、進度和按鈕一列），
+ * 遊戲緊接在下面，不用捲上捲下。
+ */
+@media (max-width: 900px) {
+  .head {
+    gap: 12px;
+    padding: 8px 16px;
+  }
+
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 18px 16px 32px;
+  }
+
+  /*
+   * 講話這一塊固定在頂部（遊戲往下捲時也看得到現在要做什麼、做完換的下一句），
+   * 滿版底色蓋住底下捲過去的遊戲；margin 抵掉 .body 的內距。
+   * sticky 是以捲動區的內容框為準，top 要減掉 .body 上方內距才會貼齊頂端
+   */
+  .narrator {
+    position: sticky;
+    top: -18px;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "octo bubble"
+      "dots actions";
+    align-items: end;
+    gap: 10px 14px;
+    margin: -18px -16px 0;
+    padding: 12px 16px;
+    border-bottom: 3px solid var(--px-card-line);
+    background: var(--px-bg);
+
+    /* 章魚搬到舞台上的章節（學生篇開場）：左欄沒有章魚，泡泡改滿版，不然會懸在右邊、左邊空一塊 */
+    &[data-no-octo] {
+      grid-template-areas:
+        "bubble bubble"
+        "dots actions";
+    }
+  }
+
+  .hint {
+    --nudge: 0 3px;
+  }
+
+  .hintArrow {
+    rotate: 90deg;
+  }
+
+  .bubble {
+    grid-area: bubble;
+    min-height: 0;
+    padding: 12px 16px 14px;
+    font-size: 15px;
+
+    /* 章魚就在旁邊，尾巴不用了 */
+    > i {
+      display: none;
+    }
+  }
+
+  .octo {
+    grid-area: octo;
+    margin: 0;
+  }
+
+  .dots {
+    grid-area: dots;
+    align-self: center;
+  }
+
+  .actions {
+    grid-area: actions;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+  }
+
+  .hintSide {
+    display: none;
+  }
+
+  .hintBelow {
+    display: inline;
+  }
+
+  .stage {
+    padding: 14px 16px 18px;
+  }
+}
+
+/* 手機：講話那一列再精簡（章魚縮一號在 Tour.jsx），總結每一項改成章名在上、說明在下 */
+@media (max-width: 720px) {
+  .narrator {
+    gap: 6px 12px;
+    padding: 10px 16px;
+  }
+
+  .bubble {
+    padding: 10px 12px 12px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .recap li button {
+    grid-template-columns: 24px minmax(0, 1fr);
+    row-gap: 4px;
+
+    > span:last-child {
+      grid-column: 2;
+    }
+  }
+}
+
+/*
+ * 大螢幕（1600×960 以上）：內容放寬，遊戲區整體放大一級。
+ * 遊戲裡的字多是 12–14px，全螢幕導覽在大螢幕上太小；遊戲沒有用座標算位置的地方，用 zoom 一起放大最省事也不會走樣
+ */
+@media (min-width: 1600px) and (min-height: 960px) {
+  .head {
+    padding-inline: max(24px, calc((100% - 1440px) / 2));
+  }
+
+  .body {
+    grid-template-columns: 380px minmax(0, 1fr);
+    padding-inline: max(24px, calc((100% - 1440px) / 2));
+  }
+
+  .bubble {
+    font-size: 19px;
+  }
+
+  .stage {
+    zoom: 1.15;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .bubble,
+  .hintArrow {
+    animation: none;
+  }
+
+  .introSeats i {
+    transition: none;
+  }
+
+  .stage :global([data-act]) {
+    animation: none !important;
+  }
+}

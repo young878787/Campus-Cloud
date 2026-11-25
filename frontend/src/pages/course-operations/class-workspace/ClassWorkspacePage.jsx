@@ -1,5 +1,5 @@
 import { memo, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Background, BackgroundVariant, Controls, Panel, ReactFlow } from "@xyflow/react";
+import { Background, BackgroundVariant, Controls, Panel, ReactFlow, useNodesState } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -49,6 +49,7 @@ import NodeHandles from "../../network/firewall/nodes/NodeHandles";
 import ConnectionEdge from "../../network/firewall/edges/ConnectionEdge";
 import ConnectionDetailPanel from "../../network/firewall/ConnectionDetailPanel";
 import { routeEdges } from "../../network/firewall/utils/buildFlow";
+import { applyMoves, settleDraggedNodes } from "../../network/firewall/utils/nodeSpacing";
 import { joinClauses, joinList, joinSentence } from "../../../utils/joinList";
 import { runBatch } from "../../../utils/runBatch";
 import DataToolbar from "../../../components/DataToolbar/DataToolbar";
@@ -654,7 +655,10 @@ function TopologyPreview({ item }) {
     ? t("GatewayNode.internet", { ns: "network" })
     : (item.nodes.find((node) => String(node.node_key) === String(key))?.name ?? String(key)));
 
-  const nodes = useMemo(() => {
+  /* 這張圖不能改，但節點可以拖開來看（只影響畫面，不改課程環境存的座標）；
+     節點交給 ReactFlow 維護，資料更新時拖過的沿用畫布上的當下位置 */
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const initialNodes = useMemo(() => {
     const machines = item.nodes.map((node, index) => {
       // 老師在課程環境排好的座標優先；環境版本查不到才退回依序排開
       const saved = item.nodePositions?.[node.node_key];
@@ -667,12 +671,22 @@ function TopologyPreview({ item }) {
         data: { node, publicationCount: publicationCounts[node.node_key] ?? 0 },
       };
     });
-    /* 唯讀畫布不能拖：機器靠太近、連線標籤會被隔壁那台蓋住時，顯示時把它們推開
+    /* 起始位置：機器靠太近、連線標籤會被隔壁那台蓋住時，顯示時把它們推開
        （只影響這裡畫出來的位置，不改課程環境存的座標；已發布的教學環境編輯器同一套） */
     const { positions, internet } = frozenTopologyLayout(machines);
     const placed = machines.map((node) => ({ ...node, position: positions.get(node.id) }));
     return [...placed, { id: INTERNET_KEY, type: "gateway", position: internet, data: {} }];
   }, [item.nodes, item.nodePositions, publicationCounts]);
+  useEffect(() => {
+    setNodes((previous) => {
+      const dragged = new Map(previous.map((node) => [node.id, node.position]));
+      return initialNodes.map((node) => ({ ...node, position: dragged.get(node.id) ?? node.position }));
+    });
+  }, [initialNodes, setNodes]);
+  /* 放得離別台太近就推開到最近的空處（跟防火牆頁同一套） */
+  const settleNodes = useCallback((_event, _node, droppedNodes) => {
+    setNodes((previous) => applyMoves(previous, settleDraggedNodes(previous, droppedNodes).moves));
+  }, [setNodes]);
 
   const edges = useMemo(() => {
     const peers = item.topologyEdges.map((edge, index) => {
@@ -746,7 +760,9 @@ function TopologyPreview({ item }) {
       edges={edges}
       nodeTypes={READONLY_NODE_TYPES}
       edgeTypes={READONLY_EDGE_TYPES}
-      nodesDraggable={false}
+      onNodesChange={onNodesChange}
+      onNodeDragStop={settleNodes}
+      nodesDraggable
       nodesConnectable={false}
       elementsSelectable={false}
       onEdgeClick={(_, edge) => edge.data?.onSelect?.()}

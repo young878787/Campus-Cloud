@@ -387,22 +387,24 @@ export default function AuditPage() {
           ))}
         </select>
 
-        <input
-          type="date"
-          className={styles.filterSelect}
-          value={filters.startDate}
-          aria-label={t("AuditPage.startDate")}
-          title={t("AuditPage.startDate")}
-          onChange={(e) => setDateField("startDate", e.target.value)}
-        />
-        <input
-          type="date"
-          className={styles.filterSelect}
-          value={filters.endDate}
-          aria-label={t("AuditPage.endDate")}
-          title={t("AuditPage.endDate")}
-          onChange={(e) => setDateField("endDate", e.target.value)}
-        />
+        {/* 日期欄沒填時在 iOS／iPadOS 是一格空白（原生日期欄沒有 placeholder），
+            所以欄位名稱常駐在框裡，各瀏覽器都看得出這格是什麼 */}
+        <label className={styles.dateField}>
+          <span>{t("AuditPage.startDate")}</span>
+          <input
+            type="date"
+            value={filters.startDate}
+            onChange={(e) => setDateField("startDate", e.target.value)}
+          />
+        </label>
+        <label className={styles.dateField}>
+          <span>{t("AuditPage.endDate")}</span>
+          <input
+            type="date"
+            value={filters.endDate}
+            onChange={(e) => setDateField("endDate", e.target.value)}
+          />
+        </label>
 
         {hasFilter && (
           <button type="button" className={styles.btnSecondary} onClick={resetFilters}>

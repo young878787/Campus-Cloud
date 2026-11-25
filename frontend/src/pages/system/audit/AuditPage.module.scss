@@ -100,6 +100,43 @@
   }
 }
 
+/* 起訖日期：欄位名稱常駐在框裡（iPad 上沒填的原生日期欄是一格空白，看不出是什麼），
+   外框畫在 label 上，裡面的日期欄不帶框；高度跟旁邊的下拉一樣 36px */
+.dateField {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-8;
+  min-height: 36px;
+  padding: 0 $spacing-8;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-8;
+  background: var(--color-surface);
+  font-size: $font-size-14;
+
+  > span {
+    flex: none;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  input {
+    @include native-date-reset;
+    height: 34px;
+    /* iPad 上沒填時欄位沒有內容可以撐寬，留一個放得下日期的寬度，點得到 */
+    min-width: 96px;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--color-text-primary);
+    font: inherit;
+  }
+
+  &:focus-within {
+    border-color: var(--color-primary);
+  }
+}
+
 .content {
   flex: 1;
   @include flex-column;

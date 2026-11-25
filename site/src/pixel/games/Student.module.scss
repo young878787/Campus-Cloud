@@ -1,0 +1,176 @@
+/* 學生篇小互動（RequestGame／SnapshotGame／CheckGame）自己的版面；按鈕、晶片、清單沿用 Games.module.scss */
+@use "pixel" as *;
+
+/* ── 申請一台機器 ── */
+.requestCols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 20px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.statusCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px 16px;
+  color: var(--px-ink-soft);
+  background: var(--px-bg-alt);
+  text-align: center;
+  clip-path: px-steps(4px);
+
+  strong {
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  small {
+    font-size: 12px;
+  }
+
+  .statusIcon {
+    opacity: 0.45;
+    filter: grayscale(1);
+  }
+
+  &[data-phase="booting"] .statusIcon {
+    opacity: 1;
+    filter: none;
+    animation: st-blink 0.3s steps(2, end) infinite;
+  }
+
+  &[data-phase="booted"] {
+    color: var(--px-ok);
+    background: var(--px-ok-bg);
+
+    .statusIcon {
+      opacity: 1;
+      filter: none;
+    }
+  }
+}
+
+@keyframes st-blink {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ── 先存檔再亂改 ── */
+.snapCols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.snapTerm {
+  > div {
+    height: 220px;
+  }
+
+  &[data-broken] {
+    box-shadow: inset 0 0 0 3px var(--px-bad);
+  }
+}
+
+.termNote {
+  color: #f7c442;
+}
+
+.snapSide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.snapList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+
+  li {
+    padding: 3px 10px;
+    color: var(--px-primary);
+    background: color-mix(in srgb, var(--px-primary) 12%, var(--px-card));
+    font-family: $font-family-mono;
+    font-size: 13px;
+    font-weight: 700;
+    clip-path: px-notch(2px);
+  }
+}
+
+.snapActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.danger:not(:disabled) {
+  color: var(--px-bad);
+}
+
+/* ── AI 導師檢查 ── */
+.checkList {
+  gap: 12px;
+
+  li {
+    align-items: flex-start;
+  }
+
+  li[data-state="fail"] {
+    color: var(--px-ink);
+    font-weight: 700;
+
+    > span {
+      color: #ffffff;
+      background: var(--px-bad);
+    }
+  }
+
+  li[data-state="checking"] > span {
+    color: var(--px-primary);
+    animation: st-blink 0.5s steps(2, end) infinite;
+  }
+}
+
+.failWhy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  color: var(--px-bad);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.allPass {
+  color: var(--px-ok);
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .requestCols,
+  .snapCols {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .statusCard[data-phase="booting"] .statusIcon,
+  .checkList li[data-state="checking"] > span {
+    animation: none;
+  }
+}

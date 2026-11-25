@@ -7,6 +7,7 @@ import { CAMERA_DURATION, CAMERA_LEAD, SECTIONS, TOTAL_LENGTH, cameraState } fro
 import { LANGUAGES, languageInfo } from "../languages";
 import { rememberLanguageChoice } from "../languagePreference";
 import { CONTACT_EMAIL, DOCS_URL, GITHUB_URL } from "../config";
+import RotatingTagline from "../RotatingTagline";
 import STATS from "../stats.json";
 import styles from "./LandingPage.module.scss";
 
@@ -46,7 +47,7 @@ function HudCard({ title, wide = false, children }) {
 function HeroContent({ t }) {
   return (
     <div className={styles.hero}>
-      <p className={styles.heroKicker}>{t("hero.tagline")}</p>
+      <p className={styles.heroKicker}><RotatingTagline /></p>
       <h1 className={styles.heroTitle}>{t("brand")}</h1>
       <p className={styles.heroSub}>{t("hero.sub")}</p>
       <div className={styles.scrollHint}>

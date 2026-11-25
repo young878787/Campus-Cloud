@@ -105,3 +105,22 @@ test("on a phone (448px) the fully folded table still fits without scrolling", a
   expect(headers()).toHaveLength(3);
   expect(host.querySelector("table").hasAttribute("data-overflow")).toBe(false);
 });
+
+/* 整張卡直通的八張卡：位址不連續、壓不成區段，摘要只留節點，位址展開才看得到 */
+test("scattered addresses collapse to the node name until expanded", async () => {
+  const paths = ["06", "08", "09", "0a", "0e", "0f", "10", "11"].map((bus) => `0000:${bus}:00`);
+  tableWidth = 1400;
+  mocks.listMappings.mockResolvedValue({
+    data: [{ ...MAPPING, is_sriov: false, device_count: 8, capacity_count: 8, maps: paths.map((path, index) => ({ node: "pve19", path, id: String(index) })) }],
+  });
+  await act(async () => { root.render(withQueryClient(<GpuMgmtPage />)); });
+  await flush();
+
+  const pciCell = host.querySelector('[data-guide="gpu-mgmt-pci"]');
+  expect(pciCell.textContent).toContain("pve19");
+  expect(pciCell.textContent.match(/pve19/g)).toHaveLength(1);
+  expect(pciCell.textContent).not.toContain("0000:");
+
+  await act(async () => { pciCell.querySelector("button[aria-expanded]").click(); });
+  expect(host.querySelectorAll("tbody tr")[1].textContent).toContain("0000:11:00");
+});

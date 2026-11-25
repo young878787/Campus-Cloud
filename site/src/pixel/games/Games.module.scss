@@ -1,0 +1,1250 @@
+@use "pixel" as *;
+@use "../ui" as *;
+
+/* 六個小遊戲共用的樣式；配色變數由 PixelLanding.module.scss 的 .page 提供 */
+
+.game {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.smallLabel {
+  color: var(--px-ink-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.muted {
+  color: var(--px-ink-muted);
+  font-size: 14px;
+}
+
+.note {
+  padding: 8px 12px;
+  border-left: 4px solid var(--px-gold);
+  color: var(--px-ink-soft);
+  background: color-mix(in srgb, var(--px-gold) 12%, var(--px-card));
+  font-size: 13px;
+}
+
+.warn {
+  padding: 10px 14px;
+  color: var(--px-bad);
+  background: var(--px-bad-bg);
+  font-size: 14px;
+  font-weight: 700;
+  clip-path: px-steps(3px);
+  animation: px-shake 0.3s steps(6, end);
+}
+
+@keyframes px-shake {
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+.stat {
+  color: var(--px-ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.chip {
+  @include ui-chip;
+}
+
+.chipOn {
+  border-color: var(--px-primary);
+  color: #ffffff;
+  background: var(--px-primary);
+
+  em {
+    color: rgb(255 255 255 / 0.75);
+  }
+}
+
+.chipDone {
+  border-color: var(--px-ok);
+}
+
+.chipQuiet {
+  @include ui-chip;
+  border-style: dashed;
+  color: var(--px-ink-soft);
+}
+
+.chipStatic {
+  @include ui-chip;
+  cursor: default;
+}
+
+.btnRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+
+  /* 結果說明在左、按鈕推到右邊（AI 輔助：放到哪一台＋負載歸零） */
+  .aiPlaced {
+    margin: 0 auto 0 0;
+  }
+}
+
+.btn {
+  @include ui-btn;
+}
+
+.btnGhost {
+  @include ui-btn-ghost;
+  align-self: flex-start;
+}
+
+.btnSmall {
+  @include ui-btn-small;
+}
+
+.btnSmallGhost {
+  @include ui-btn-small-ghost;
+}
+
+/* 像素長條：一格一格的方塊 */
+.bar,
+.capBar {
+  display: inline-flex;
+  gap: 3px;
+
+  i {
+    width: 10px;
+    height: 14px;
+    background: color-mix(in srgb, var(--px-card-line) 70%, transparent);
+  }
+
+  .barOn {
+    background: var(--px-primary);
+  }
+}
+
+.capBar {
+  &[data-level="mid"] .barOn {
+    background: var(--px-gold);
+  }
+
+  &[data-level="high"] .barOn {
+    background: var(--px-bad);
+  }
+}
+
+/* ── 第 1 關：生命週期 ── */
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 6px;
+    color: var(--px-ink-muted);
+    background: var(--px-bg-alt);
+    font-size: 13px;
+    font-weight: 700;
+    clip-path: px-notch(2px);
+
+    span {
+      display: inline-grid;
+      place-items: center;
+      width: 20px;
+      height: 20px;
+      color: var(--px-ink-muted);
+      background: var(--px-card);
+      font-size: 11px;
+    }
+  }
+
+  .stepDone {
+    color: #ffffff;
+    background: var(--px-ok);
+
+    span {
+      color: var(--px-ok);
+    }
+  }
+}
+
+.lifecycle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.lcControls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .chips {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chip {
+    justify-content: space-between;
+  }
+}
+
+.lcMachine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 250px;
+  padding: 18px;
+  background:
+    radial-gradient(var(--px-card-line) 1.5px, transparent 1.6px) 0 0 / 16px 16px,
+    var(--px-bg-alt);
+  clip-path: px-steps(3px);
+
+  &[data-phase="building"] .lcSprite {
+    animation: px-build 1.6s steps(8, end);
+  }
+
+  &[data-phase="recycling"] {
+    > * {
+      animation: px-dissolve 0.9s steps(6, end) forwards;
+    }
+  }
+}
+
+@keyframes px-build {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes px-dissolve {
+  to {
+    opacity: 0;
+    transform: scale(0.6) translateY(12px);
+    filter: blur(2px);
+  }
+}
+
+.lcSprite {
+  width: 96px;
+  height: 96px;
+}
+
+.lcName {
+  font-size: 16px;
+  font-family: $font-family-mono;
+}
+
+.lcTpl {
+  color: var(--px-ink-soft);
+  font-size: 13px;
+}
+
+.progress {
+  display: inline-flex;
+  gap: 3px;
+
+  i {
+    width: 12px;
+    height: 12px;
+    background: var(--px-card-line);
+    animation: px-fill 0.01s steps(1, end) forwards;
+  }
+}
+
+@keyframes px-fill {
+  to {
+    background: var(--px-primary);
+  }
+}
+
+.pillOk,
+.pillWait,
+.pillOff {
+  padding: 2px 10px;
+  color: var(--px-ok);
+  background: var(--px-ok-bg);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* 重新開機中（套用新規格）：一閃一閃 */
+.pillWait {
+  color: var(--px-warn);
+  background: color-mix(in srgb, var(--px-gold) 16%, var(--px-card));
+  animation: px-blink 0.8s steps(2, end) infinite;
+}
+
+/* 到期自動關機 */
+.pillOff {
+  color: var(--px-ink-muted);
+  background: var(--px-bg-alt);
+}
+
+.specBars {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+
+  > span:nth-child(3n + 1) {
+    color: var(--px-ink-muted);
+    font-weight: 700;
+  }
+
+  b {
+    min-width: 44px;
+    font-family: $font-family-mono;
+  }
+}
+
+.snapRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.snapTag {
+  padding: 1px 6px;
+  color: var(--px-ink-soft);
+  background: var(--px-card);
+  border: 1px solid var(--px-card-line);
+  font-family: $font-family-mono;
+  font-size: 11px;
+}
+
+.log {
+  min-height: 112px;
+  padding: 12px 14px;
+  color: #c9f0dc;
+  background: var(--px-screen);
+  font-family: $font-family-mono;
+  font-size: 12.5px;
+  line-height: 1.8;
+  list-style: none;
+  clip-path: px-steps(3px);
+
+  li::before {
+    content: "✓ ";
+    color: #5fd69e;
+  }
+
+  li:not(:first-child) {
+    opacity: 0.6;
+  }
+
+  .logIdle {
+    color: #6f7ba6;
+
+    &::before {
+      content: "$ ";
+      color: #6f7ba6;
+    }
+  }
+}
+
+/* ── 第 2 關：審核 ── */
+.capacity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+
+  strong {
+    font-family: $font-family-mono;
+    font-size: 15px;
+  }
+}
+
+.reviewCols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.reviewCol {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 300px;
+  padding: 14px;
+  background: var(--px-bg-alt);
+  clip-path: px-steps(3px);
+
+  h4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+
+    em {
+      padding: 0 6px;
+      color: #ffffff;
+      background: var(--px-primary);
+      font-size: 12px;
+      font-style: normal;
+    }
+  }
+}
+
+.reqCard,
+.provCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 2px solid var(--px-card-line);
+  background: var(--px-card);
+  animation: px-slide-in 0.25s steps(3, end);
+
+  div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  strong {
+    font-size: 14px;
+  }
+
+  span,
+  small {
+    color: var(--px-ink-soft);
+    font-size: 12px;
+  }
+}
+
+@keyframes px-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+
+.reqActions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.provCard {
+  &[data-status="scheduled"] span {
+    color: var(--px-warn);
+  }
+
+  &[data-status="booting"] span {
+    color: var(--px-primary);
+    animation: px-blink 0.6s steps(2, end) infinite;
+  }
+
+  &[data-status="booted"] {
+    border-color: var(--px-ok);
+
+    span {
+      color: var(--px-ok);
+      font-weight: 700;
+    }
+  }
+
+  /* 改選到別的時段：排在那個時段開機 */
+  &[data-status="later"] span {
+    color: var(--px-ink-soft);
+    font-weight: 700;
+  }
+}
+
+/* 學生送不出去的申請（時段放不下）：月曆推薦別的時段 */
+.blockedCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 2px dashed var(--px-gold);
+  background: var(--px-warn-bg);
+  font-size: 13px;
+  animation: px-slide-in 0.25s steps(3, end);
+
+  p {
+    color: var(--px-warn);
+    font-weight: 700;
+  }
+}
+
+@keyframes px-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* 中間三格往右跑的箭頭 */
+.flowArrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  i {
+    width: 12px;
+    height: 12px;
+    background: var(--px-card-line);
+    clip-path: polygon(0 0, 50% 0, 100% 50%, 50% 100%, 0 100%, 50% 50%);
+    animation: px-flow 1.2s steps(1, end) infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.4s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.8s;
+    }
+  }
+}
+
+@keyframes px-flow {
+  0%,
+  33% {
+    background: var(--px-primary);
+  }
+  34% {
+    background: var(--px-card-line);
+  }
+}
+
+/* ── 第 3 關：整班 ── */
+.classHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.classStatus {
+  font-size: 15px;
+  font-weight: 700;
+
+  &[data-phase="failed"] {
+    color: var(--px-warn);
+  }
+
+  &[data-phase="checked"] {
+    color: var(--px-ok);
+  }
+}
+
+.seatGrid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: 8px;
+  padding: 16px;
+  background: var(--px-bg-alt);
+  clip-path: px-steps(3px);
+}
+
+/* 座位＝一台小螢幕：外框＋螢幕（i）；狀態換螢幕顏色 */
+.seat {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  padding: 4px;
+  border: 0;
+  background: var(--px-ink-muted);
+  cursor: default;
+  clip-path: px-notch(2px);
+
+  i {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--px-screen);
+  }
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  &[data-state="on"] i {
+    background: #7fd3ff;
+    box-shadow: inset 0 -4px 0 #4aa8e0;
+  }
+
+  &[data-state="stuck"] {
+    background: var(--px-bad);
+    cursor: pointer;
+    animation: px-blink 0.8s steps(2, end) infinite;
+
+    &::after {
+      content: "!";
+    }
+  }
+
+  &[data-state="restarting"] i {
+    background: var(--px-gold);
+    animation: px-blink 0.3s steps(2, end) infinite;
+  }
+
+  &[data-state="pass"] {
+    background: var(--px-ok);
+
+    i {
+      background: #7fd3ff;
+    }
+
+    &::after {
+      content: "✓";
+    }
+  }
+
+  &[data-state="fail"] {
+    background: var(--px-bad);
+    cursor: pointer;
+
+    i {
+      background: #ffb3c1;
+    }
+
+    &::after {
+      content: "✕";
+    }
+  }
+
+  &:not(:disabled):hover {
+    transform: translateY(-2px);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+/* ── 第 4 關：防火牆 ── */
+.goals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--px-ink-soft);
+    font-size: 14px;
+
+    span {
+      display: inline-grid;
+      place-items: center;
+      flex: none;
+      width: 22px;
+      height: 22px;
+      color: var(--px-ink-muted);
+      background: var(--px-bg-alt);
+      font-size: 12px;
+      font-weight: 700;
+      clip-path: px-notch(2px);
+    }
+  }
+
+  .goalOk {
+    color: var(--px-ink);
+    font-weight: 700;
+
+    span {
+      color: #ffffff;
+      background: var(--px-ok);
+    }
+  }
+}
+
+.topo {
+  position: relative;
+  aspect-ratio: 560 / 260;
+  background:
+    radial-gradient(var(--px-card-line) 1.5px, transparent 1.6px) 0 0 / 20px 20px,
+    var(--px-bg-alt);
+  clip-path: px-steps(3px);
+
+  &[data-danger] {
+    background:
+      radial-gradient(var(--px-card-line) 1.5px, transparent 1.6px) 0 0 / 20px 20px,
+      var(--px-bad-bg);
+  }
+}
+
+.topoSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.brick {
+  fill: var(--px-gold-dark);
+  stroke: var(--px-card);
+  stroke-width: 2;
+}
+
+.wallLabel {
+  fill: var(--px-ink-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.ruleOk,
+.ruleBad,
+.blocked {
+  line {
+    stroke-width: 4;
+    stroke-dasharray: 8 6;
+    animation: px-dash 0.8s linear infinite;
+  }
+
+  text {
+    font-size: 13px;
+    font-weight: 700;
+    text-anchor: middle;
+    font-family: $font-family-mono;
+  }
+}
+
+.ruleOk {
+  line {
+    stroke: var(--px-ok);
+  }
+
+  text,
+  .packet {
+    fill: var(--px-ok);
+  }
+}
+
+.ruleBad {
+  line {
+    stroke: var(--px-bad);
+  }
+
+  text,
+  .packet {
+    fill: var(--px-bad);
+  }
+}
+
+.blocked {
+  line {
+    stroke: color-mix(in srgb, var(--px-bad) 40%, transparent);
+    stroke-width: 2;
+    animation: none;
+  }
+
+  .packet {
+    fill: var(--px-bad);
+  }
+}
+
+@keyframes px-dash {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+/* 節點的位置（中心對準拓撲座標）；裡面是節點按鈕＋右邊拉線用的圓點 */
+.topoSpot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.topoNode {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px 6px;
+  border: 2px solid var(--px-card-line);
+  color: var(--px-ink);
+  background: var(--px-card);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  /* 窄螢幕節點靠邊時名稱別折成「web- / 01」 */
+  white-space: nowrap;
+  cursor: pointer;
+  clip-path: px-notch(3px);
+
+  &:hover {
+    border-color: var(--px-primary);
+  }
+
+  &:focus-visible {
+    outline: 0;
+    border-color: var(--px-gold);
+  }
+}
+
+.topoNodeOn {
+  border-color: var(--px-gold);
+  background: color-mix(in srgb, var(--px-gold) 22%, var(--px-card));
+  animation: px-blink 0.8s steps(2, end) infinite;
+}
+
+/* 節點右邊的圓點：按住拖到另一台就拉出一條連線（觸控也能拖，所以關掉捲動手勢） */
+.topoHandle {
+  position: absolute;
+  top: 50%;
+  right: -9px;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  padding: 0;
+  border: 3px solid var(--px-card);
+  background: var(--px-primary);
+  cursor: crosshair;
+  touch-action: none;
+
+  &:hover,
+  &[aria-pressed="true"] {
+    background: var(--px-gold);
+  }
+
+  &:focus-visible {
+    outline: 2px dashed var(--px-primary);
+    outline-offset: 2px;
+  }
+}
+
+.dragLine {
+  stroke: var(--px-primary);
+  stroke-width: 3;
+  stroke-dasharray: 6 5;
+}
+
+/* 拉完線跳出的連線設定（同實際的連線對話框，這裡直接排在拓撲圖下面） */
+.fwDialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border: 2px solid var(--px-primary);
+  background: var(--px-card);
+}
+
+.fwDialogTitle {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.fwPort {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+
+  input {
+    width: 140px;
+    height: 34px;
+    padding: 0 10px;
+    border: 2px solid var(--px-card-line);
+    color: var(--px-ink);
+    background: var(--px-bg-alt);
+    font: inherit;
+    font-family: $font-family-mono;
+
+    &:focus {
+      border-color: var(--px-primary);
+      outline: 0;
+    }
+  }
+}
+
+/* 拓撲圖（含操作提示）＋規則清單：夠寬時規則清單在右邊，窄時排在下面 */
+.fwLayout {
+  container-type: inline-size;
+}
+
+.fwCols {
+  display: grid;
+  gap: 18px;
+}
+
+.fwMain {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+@container (min-width: 680px) {
+  .fwCols {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    align-items: start;
+  }
+}
+
+.fwBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  min-height: 34px;
+}
+
+.hint {
+  color: var(--px-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ruleList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    list-style: none;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 10px;
+    border-left: 4px solid var(--px-ok);
+    background: var(--px-ok-bg);
+
+    &[data-bad] {
+      border-color: var(--px-bad);
+      background: var(--px-bad-bg);
+    }
+
+    code {
+      font-family: $font-family-mono;
+      font-size: 13px;
+    }
+
+    button {
+      padding: 0;
+      border: 0;
+      color: var(--px-ink-muted);
+      background: none;
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: underline;
+
+      &:hover {
+        color: var(--px-bad);
+      }
+    }
+  }
+}
+
+/* ── 第 5 關：AI 放置 ── */
+.aiCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  background: color-mix(in srgb, var(--px-gold) 12%, var(--px-card));
+  clip-path: px-steps(3px);
+
+  &[data-empty] {
+    background: var(--px-bg-alt);
+  }
+}
+
+.aiText {
+  min-height: 1.7em;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.caret {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--px-ink);
+  animation: px-blink 0.6s steps(2, end) infinite;
+}
+
+.aiPlaced {
+  margin-top: 4px;
+  color: var(--px-ok);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.nodes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.nodeCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 12px 14px;
+  border: 2px solid var(--px-card-line);
+  background: var(--px-bg-alt);
+  clip-path: px-steps(3px);
+
+  strong {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: $font-family-mono;
+    font-size: 14px;
+  }
+
+  small {
+    color: var(--px-ink-soft);
+    font-size: 12px;
+  }
+
+  .capBar i {
+    width: 8px;
+  }
+}
+
+.nodeBest {
+  border-color: var(--px-ok);
+  background: var(--px-ok-bg);
+
+  .score {
+    color: var(--px-ok);
+  }
+}
+
+.gpuTag {
+  padding: 0 5px;
+  color: #3b2a05;
+  background: var(--px-gold);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.score {
+  font-family: $font-family-mono;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+/* 選中的節點：VM 從上面掉下來 */
+.dropVm {
+  position: absolute;
+  top: 6px;
+  animation: px-drop 0.5s steps(5, end);
+}
+
+@keyframes px-drop {
+  from {
+    transform: translateY(-40px);
+    opacity: 0;
+  }
+}
+
+/* ── 第 6 關：終端機 ── */
+.term {
+  overflow: hidden;
+  background: var(--px-screen);
+  clip-path: px-steps(4px);
+  cursor: text;
+}
+
+.termBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  background: #2a3157;
+
+  span {
+    width: 10px;
+    height: 10px;
+
+    &:nth-child(1) {
+      background: #e5536b;
+    }
+
+    &:nth-child(2) {
+      background: #f7c442;
+    }
+
+    &:nth-child(3) {
+      background: #3fbf87;
+    }
+  }
+
+  b {
+    margin-left: 10px;
+    color: #9fb0dc;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: $font-family-mono;
+  }
+}
+
+.termBody {
+  height: 280px;
+  overflow-y: auto;
+  padding: 14px 16px;
+  color: #d8e2ff;
+  font-family: $font-family-mono;
+  font-size: 13.5px;
+  line-height: 1.7;
+
+  p {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+.termPrompt {
+  color: #5fd69e;
+  font-weight: 700;
+}
+
+.termErr {
+  color: #ff9db0;
+}
+
+.termInput {
+  label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    color: #ffffff;
+    background: none;
+    caret-color: #5fd69e;
+    font: inherit;
+
+    &::placeholder {
+      color: #5d6a96;
+    }
+  }
+}
+
+@media (max-width: 720px) {
+  .lifecycle,
+  .reviewCols {
+    grid-template-columns: 1fr;
+  }
+
+  /* AI 輔助的三台主機：手機上仍一列三台（直排太長，要捲很遠才按得到「加負載」、也看不出 AI 改推哪台），卡片改精簡 */
+  .nodes {
+    gap: 8px;
+  }
+
+  .nodeCard {
+    gap: 6px;
+    padding: 36px 4px 10px;
+
+    strong {
+      gap: 4px;
+      font-size: 12px;
+    }
+
+    .capBar {
+      gap: 2px;
+
+      i {
+        width: 5px;
+      }
+    }
+
+    .btnSmallGhost {
+      padding-inline: 6px;
+      font-size: 12px;
+    }
+  }
+
+  .flowArrow {
+    flex-direction: row;
+    transform: rotate(90deg);
+  }
+
+  .seatGrid {
+    --cols: 8 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .warn,
+  .reqCard,
+  .provCard,
+  .flowArrow i,
+  .seat,
+  .topoNodeOn,
+  .dropVm,
+  .caret,
+  .ruleOk line,
+  .ruleBad line,
+  .lcMachine *,
+  .provCard span {
+    animation: none !important;
+  }
+}
