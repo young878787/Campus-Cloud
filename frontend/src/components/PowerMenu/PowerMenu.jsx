@@ -88,7 +88,7 @@ export default function PowerMenu({
             type="button"
             role="menuitem"
             tabIndex={-1}
-            data-bombadil={action === "start" ? undefined : "danger"}
+            data-bombadil="danger"
             className={`${styles.powerMenuItem} ${tone === "warn" ? styles.powerMenuItemWarn : ""} ${tone === "danger" ? styles.powerMenuItemDanger : ""}`}
             disabled={disabled || !!actionLoading}
             onClick={() => { anchorRef?.current?.focus(); onClose(); onControl(action); }}
