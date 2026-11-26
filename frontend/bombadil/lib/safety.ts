@@ -1,0 +1,56 @@
+/**
+ * L4 動作過濾：Bombadil 產生的點擊、輸入、按鍵，碰到危險元素就不做。
+ *
+ * 危險元素 = 產品程式上標了 data-bombadil="danger" 的元素（與其子孫），
+ * 加上結構規則：另開分頁的連結、下載連結、檔案選擇器。
+ * 規則見 docs/ui-test-bombadil/bombadil-ui-test-plan.md §4。
+ */
+import { extract } from "@antithesishq/bombadil/browser";
+import { isAction } from "@antithesishq/bombadil/actions";
+import { clicks as defaultClicks, inputs as defaultInputs } from "@antithesishq/bombadil/browser/defaults/actions";
+
+const DANGER_SELECTOR = [
+  '[data-bombadil="danger"]',
+  'a[target="_blank"]',
+  "a[download]",
+  'input[type="file"]',
+  'label:has(input[type="file"])',
+].join(", ");
+
+type Rect = { x: number; y: number; w: number; h: number };
+
+export const danger = extract((s) => {
+  const rects: Rect[] = [];
+  for (const el of Array.from(s.document.querySelectorAll(DANGER_SELECTOR))) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) rects.push({ x: r.x, y: r.y, w: r.width, h: r.height });
+  }
+  const active = s.document.activeElement;
+  return {
+    rects,
+    /** 目前焦點在危險元素裡（例如 Enter 送出的 AI 輸入框、Monaco 編輯器） */
+    focusInDanger: !!active?.closest(DANGER_SELECTOR),
+    /** 目前焦點在表單裡：Enter 會送出表單，一律不按 */
+    focusInForm: !!active?.closest("form"),
+  };
+});
+
+const inRect = (p: { x: number; y: number }) =>
+  danger.current.rects.some((r) => p.x >= r.x - 1 && p.x <= r.x + r.w + 1 && p.y >= r.y - 1 && p.y <= r.y + r.h + 1);
+
+/** 外部網址：只允許相對路徑與本機（受測站一定在 127.0.0.1 / localhost，見 run.sh 的 L2 檢查） */
+const external = (href: string | null) =>
+  !!href && /^[a-z][a-z0-9+.-]*:/i.test(href) && !/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/.test(href);
+
+export const safeClicks = defaultClicks.filter((a) => {
+  if (!isAction(a, "Click")) return true;
+  if (external(a.Click.fingerprint.href)) return false;
+  return !inRect(a.Click.point);
+});
+
+const ENTER = 13;
+export const safeInputs = defaultInputs.filter((a) => {
+  if (danger.current.focusInDanger) return false;
+  if (isAction(a, "PressKey") && a.PressKey.code === ENTER && danger.current.focusInForm) return false;
+  return true;
+});
