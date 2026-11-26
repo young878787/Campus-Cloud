@@ -97,7 +97,7 @@ export default function SubnetConfigForm({
           >
             {t("SubnetConfigForm.cancel")}
           </button>
-          <button type="submit" className={styles.btnPrimary} disabled={busy}>
+          <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={busy}>
             {saving ? t("SubnetConfigForm.saving") : isEdit ? t("SubnetConfigForm.updateConfig") : t("SubnetConfigForm.createConfig")}
           </button>
         </>

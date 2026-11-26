@@ -135,7 +135,7 @@ export default function TotpEnrollment({ onConfirmed, onCancel, confirmLabel, ch
   const actions = (
     <>
       {cancelButton}
-      <button
+      <button data-bombadil="danger"
         type="submit"
         form={formId}
         className={styles.btnPrimary}

@@ -253,7 +253,7 @@ export default function AppearanceSettings() {
 
           <OptionGroup label={t("AppearanceTab.backgroundPattern")} options={patternOptions} value={backgroundId} onSelect={setBackgroundId}>
             {/* 上傳自訂背景圖（存在瀏覽器本地，重設或移除即刪掉） */}
-            <label className={`${styles.optionBtn} ${styles.uploadOption}`} aria-busy={processing}>
+            <label data-bombadil="danger" className={`${styles.optionBtn} ${styles.uploadOption}`} aria-busy={processing}>
               <MIcon name={processing ? "autorenew" : "upload"} size={16} spin={processing} />
               {t("AppearanceTab.uploadImage")}
               <input

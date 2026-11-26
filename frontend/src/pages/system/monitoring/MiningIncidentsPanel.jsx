@@ -410,6 +410,7 @@ export default function MiningIncidentsPanel({ onCountChange }) {
                 {t("MiningIncidentsPanel.cancel")}
               </button>
               <button
+                data-bombadil="danger"
                 type="button"
                 className={styles.btnPrimary}
                 disabled={busy}

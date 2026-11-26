@@ -83,7 +83,7 @@ function PasswordModal({ closing, loading, willReboot, isWindows, onClose, onSub
           <button type="button" className={styles.btnSecondary} onClick={onClose} disabled={loading}>
             {t("CredentialsCard.cancel")}
           </button>
-          <button type="submit" className={styles.btnPrimary} disabled={loading}>
+          <button type="submit" data-bombadil="danger" className={styles.btnPrimary} disabled={loading}>
             {loading
               ? t("CredentialsCard.processing")
               : t(custom ? "CredentialsCard.submitCustom" : "CredentialsCard.submitGenerate")}
@@ -430,7 +430,7 @@ export default function CredentialsCard({ vmid, onShowOverview }) {
                   placeholder={t("CredentialsCard.addKeyPlaceholder")}
                   disabled={busy}
                 />
-                <button type="submit" className={styles.btnSecondary} disabled={busy || !newKey.trim()}>
+                <button type="submit" data-bombadil="danger" className={styles.btnSecondary} disabled={busy || !newKey.trim()}>
                   <MIcon name="add" size={16} />
                   {t("CredentialsCard.addKey")}
                 </button>

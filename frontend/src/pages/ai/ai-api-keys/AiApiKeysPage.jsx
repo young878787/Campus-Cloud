@@ -311,7 +311,7 @@ function RevokeDialog({ item, closing = false, onClose, onDone }) {
       actions={
         <>
           <button type="button" className={styles.btnSecondary} onClick={onClose} disabled={busy}>{t("AiApiKeysPage.cancel")}</button>
-          <button type="button" className={styles.btnDanger} onClick={handleRevoke} disabled={busy}>{busy ? t("AiApiKeysPage.revoking") : t("AiApiKeysPage.confirmRevoke")}</button>
+          <button data-bombadil="danger" type="button" className={styles.btnDanger} onClick={handleRevoke} disabled={busy}>{busy ? t("AiApiKeysPage.revoking") : t("AiApiKeysPage.confirmRevoke")}</button>
         </>
       }
     />

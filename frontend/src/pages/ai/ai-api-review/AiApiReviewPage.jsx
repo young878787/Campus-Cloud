@@ -76,6 +76,7 @@ function ReviewDialog({ open, onClose, request, action, onDone }) {
             {t("AiApiReviewPage.cancel")}
           </button>
           <button
+            data-bombadil="danger"
             type="button"
             className={isApprove ? styles.btnPrimary : styles.btnDanger}
             onClick={handleSubmit}

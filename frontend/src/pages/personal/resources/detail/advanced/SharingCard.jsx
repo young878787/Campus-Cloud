@@ -50,7 +50,7 @@ function TransferModal({ resource, closing, loading, onClose, onSubmit }) {
           <button type="button" className={styles.btnSecondary} onClick={onClose} disabled={loading}>
             {t("SharingCard.cancel")}
           </button>
-          <button type="submit" className={styles.btnDanger} disabled={loading || !ready}>
+          <button type="submit" data-bombadil="danger" className={styles.btnDanger} disabled={loading || !ready}>
             {loading ? t("SharingCard.processing") : t("SharingCard.transfer")}
           </button>
         </>
@@ -176,7 +176,7 @@ export default function SharingCard({ vmid, resource, backTo }) {
                   aria-label={t("SharingCard.emailPlaceholder")}
                   disabled={busy}
                 />
-                <button type="submit" className={styles.btnSecondary} disabled={busy || !email.trim()}>
+                <button type="submit" data-bombadil="danger" className={styles.btnSecondary} disabled={busy || !email.trim()}>
                   <MIcon name="person_add" size={16} />
                   {t("SharingCard.share")}
                 </button>

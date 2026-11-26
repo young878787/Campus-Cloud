@@ -141,6 +141,7 @@ export default function TemplateCloneDialog({ template, closing = false, onClose
             {t("TemplateCloneDialog.cancel")}
           </button>
           <button
+            data-bombadil="danger"
             type="button"
             className={styles.btnPrimary}
             disabled={busy || (needsGpu && !gpuMappingId)}

@@ -70,7 +70,7 @@ function VerifySignupBody() {
               disabled={loading}
             />
             {error && <p className={styles.error} role="alert">{error}</p>}
-            <button className={styles.btn} type="submit" disabled={loading}>
+            <button data-bombadil="danger" className={styles.btn} type="submit" disabled={loading}>
               {loading ? t("LoginPage.verifySignupChecking") : t("LoginPage.verifySignupActivate")}
             </button>
           </form>

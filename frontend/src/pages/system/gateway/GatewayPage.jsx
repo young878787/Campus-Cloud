@@ -205,7 +205,7 @@ function ConnectionTab({ config, onConfigChange }) {
               <MIcon name="key_off" size={16} />
               {resetting ? t("GatewayPage.resetting") : t("GatewayPage.resetHostKey")}
             </button>
-            <button type="submit" className={styles.btnPrimary} disabled={saving}>
+            <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={saving}>
               {saving ? t("GatewayPage.saving") : t("GatewayPage.saveConnectionSettings")}
             </button>
           </div>
@@ -249,7 +249,7 @@ function ConnectionTab({ config, onConfigChange }) {
               <MIcon name="content_copy" size={16} />
               {t("GatewayPage.copy")}
             </button>
-            <button type="button" className={styles.btnSecondary} onClick={handleGenerateKeypair} disabled={generating}>
+            <button data-bombadil={config?.public_key ? undefined : "danger"} type="button" className={styles.btnSecondary} onClick={handleGenerateKeypair} disabled={generating}>
               <MIcon name="key" size={16} />
               {generating ? t("GatewayPage.generating") : t("GatewayPage.regenerateKeypair")}
             </button>
@@ -298,6 +298,7 @@ function ServiceActionButtons({ actions, acting, onAction }) {
       {actions.map(({ action, label, icon }) => (
         <button
           key={action}
+          data-bombadil="danger"
           type="button"
           className={styles.btnSecondary}
           disabled={acting !== null}

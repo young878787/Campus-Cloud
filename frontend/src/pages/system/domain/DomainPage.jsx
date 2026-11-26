@@ -74,7 +74,7 @@ function ModalActions({ loading, onClose }) {
       <button type="button" className={styles.btnSecondary} onClick={onClose} disabled={loading}>
         {t("DomainPage.cancel")}
       </button>
-      <button type="submit" className={styles.btnPrimary} disabled={loading}>
+      <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={loading}>
         {loading ? t("DomainPage.saving") : t("DomainPage.save")}
       </button>
     </>

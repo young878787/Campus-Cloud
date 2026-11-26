@@ -486,7 +486,7 @@ function EnvironmentMachineRow({ machine, groupStatus, onUpdated }) {
     {!fit.isFolded("expiry") && <td className={styles.td}><span className={styles.muted}>{t("EnvironmentMachineRow.managedByEnvironment")}</span></td>}
     {!fit.isFolded("node") && <td className={styles.td}>{machine.node}</td>}
     <td className={styles.td}><div className={styles.rowActions}>
-      <button type="button" className={styles.terminalBtn} disabled={!canOpen} title={canOpen ? (isLxc ? t("EnvironmentMachineRow.terminal") : t("EnvironmentMachineRow.console")) : resource?.status === "starting" ? t("ResourceRow.consoleBootingTitle") : t("EnvironmentMachineRow.notReadyTitle")} onClick={() => setConsoleOpen(true)} data-guide="resource-console"><MIcon name={isLxc ? "terminal" : "desktop_windows"} size={14} />{isLxc ? t("EnvironmentMachineRow.terminal") : t("EnvironmentMachineRow.console")}</button>
+      <button type="button" data-bombadil="danger" className={styles.terminalBtn} disabled={!canOpen} title={canOpen ? (isLxc ? t("EnvironmentMachineRow.terminal") : t("EnvironmentMachineRow.console")) : resource?.status === "starting" ? t("ResourceRow.consoleBootingTitle") : t("EnvironmentMachineRow.notReadyTitle")} onClick={() => setConsoleOpen(true)} data-guide="resource-console"><MIcon name={isLxc ? "terminal" : "desktop_windows"} size={14} />{isLxc ? t("EnvironmentMachineRow.terminal") : t("EnvironmentMachineRow.console")}</button>
       {actionLoading && <MIcon name="hourglass_empty" size={16} spin />}
       {canControl && <div className={styles.menuWrap}>
         {menu.open && <PowerMenu resource={resource} actionLoading={actionLoading} onControl={handleControl} onClose={() => setMenuOpen(false)} anchorRef={menuBtnRef} closing={menu.closing} />}
@@ -709,7 +709,7 @@ function ResourceActionsCell({ rowState }) {
     onConvertTemplate, onRebuild, onDiscardClick,
   } = rowState;
   return isLive ? <div className={styles.rowActions}>
-    <button type="button" className={styles.terminalBtn} disabled={resource.status !== "running" || Boolean(resource.start_blocked_reason)} title={resource.start_blocked_reason === "window_ended" ? t("ResourceRow.windowEnded") : resource.status === "starting" ? t("ResourceRow.consoleBootingTitle") : undefined} onClick={onOpenConsole} data-guide="resource-console">
+    <button type="button" data-bombadil="danger" className={styles.terminalBtn} disabled={resource.status !== "running" || Boolean(resource.start_blocked_reason)} title={resource.start_blocked_reason === "window_ended" ? t("ResourceRow.windowEnded") : resource.status === "starting" ? t("ResourceRow.consoleBootingTitle") : undefined} onClick={onOpenConsole} data-guide="resource-console">
       <MIcon name={isLxc ? "terminal" : "desktop_windows"} size={14} />{isLxc ? t("ResourceRow.terminal") : t("ResourceRow.console")}
     </button>
     {actionLoading && <MIcon name="hourglass_empty" size={16} spin />}
@@ -998,6 +998,7 @@ export default function ResourcesPage() {
             <a
               key={download.platform}
               className={styles.btnSecondary}
+              data-bombadil="danger"
               href={download.url}
             >
               <MIcon name="download" size={16} />

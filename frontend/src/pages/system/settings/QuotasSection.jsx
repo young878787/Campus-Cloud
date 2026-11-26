@@ -242,6 +242,7 @@ function QuotaDialog({ mode, quota, candidates, loadingUsers, defaults, closing 
             {t("QuotasTab.cancel")}
           </button>
           <button
+            data-bombadil="danger"
             type="button"
             className={styles.btnPrimary}
             disabled={saving || (!isEdit && !userId)}
@@ -361,6 +362,7 @@ function GlobalQuotaCard({ config, onSaved }) {
             </button>
           )}
           <button
+            data-bombadil="danger"
             type="button"
             className={styles.btnPrimary}
             disabled={!dirty || saving}

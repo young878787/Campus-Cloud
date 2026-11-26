@@ -120,6 +120,7 @@ export default function ConnectionDetailPanel({
                     </span>
                     {mode === PORT_MODE.DOMAIN && allowOpen && onToggleIndexing && (
                       <Switch
+                        data-bombadil="danger"
                         className={styles.portIndexing}
                         checked={Boolean(port.allow_indexing)}
                         onChange={(next) => onToggleIndexing(port, next)}

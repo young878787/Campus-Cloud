@@ -282,6 +282,7 @@ export default function Sidebar({ collapsed, mobileOpen, onToggle, onClose }) {
       label: t("Sidebar.logOut"),
       icon: "logout",
       danger: true,
+      bombadil: true,
       onSelect: async () => {
         /* 登出會被路由守衛直接導到登入頁，不觸發 beforeunload，要先確認未儲存的表單 */
         if (await confirmLeave()) logout();
@@ -434,6 +435,7 @@ export default function Sidebar({ collapsed, mobileOpen, onToggle, onClose }) {
         <button
           ref={langBtnRef}
           type="button"
+          data-bombadil="danger"
           className={`${styles.navItem} ${langOpen ? styles.active : ""}`}
           onClick={() => setLangOpen((v) => !v)}
           onKeyDown={(event) => {

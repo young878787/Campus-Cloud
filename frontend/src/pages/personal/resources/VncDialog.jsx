@@ -181,7 +181,7 @@ export default function VncDialog({ resource, onClose }) {
         </span>
         {connected && (
           <>
-            <button type="button" className={styles.headerBtn} title="Ctrl+Alt+Del" onMouseDown={keepScreenFocus} onClick={() => vncRef.current?.sendCtrlAltDel?.()}>
+            <button type="button" data-bombadil="danger" className={styles.headerBtn} title="Ctrl+Alt+Del" onMouseDown={keepScreenFocus} onClick={() => vncRef.current?.sendCtrlAltDel?.()}>
               <MIcon name="keyboard" size={16} />
               <span style={{ fontSize: 11 }}>Ctrl+Alt+Del</span>
             </button>
@@ -240,12 +240,12 @@ export default function VncDialog({ resource, onClose }) {
               />
               <div className={styles.clipboardActions}>
                 {canReadBrowserClipboard() && (
-                  <button type="button" data-testid="vnc-clipboard-read" className={styles.clipboardBtnSecondary} onClick={readBrowserClipboard}>
+                  <button type="button" data-bombadil="danger" data-testid="vnc-clipboard-read" className={styles.clipboardBtnSecondary} onClick={readBrowserClipboard}>
                     <MIcon name="content_paste_go" size={16} />
                     {t("VncDialog.clipboardReadBrowser")}
                   </button>
                 )}
-                <button type="button" data-testid="vnc-clipboard-send" className={styles.clipboardBtnPrimary} disabled={!clipboardText} onClick={sendClipboard}>
+                <button type="button" data-bombadil="danger" data-testid="vnc-clipboard-send" className={styles.clipboardBtnPrimary} disabled={!clipboardText} onClick={sendClipboard}>
                   <MIcon name="send" size={16} />
                   {t("VncDialog.clipboardSend")}
                 </button>

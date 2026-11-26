@@ -140,12 +140,12 @@ function rowMenuItems({ template, canManage, cycleBusy, onClone, onEdit, onManua
     cycleItems.push({ key: "retry", icon: "restart_alt", label: t("TemplatesPage.menuRetry"), disabled: cycleBusy, onSelect: () => onRetry(template.id) });
   }
   if (template.status === "ready") {
-    cycleItems.push({ key: "startCycle", icon: "sync", label: t("TemplatesPage.menuStartCycle"), disabled: cycleBusy, onSelect: () => onCycle(template.id, "start") });
+    cycleItems.push({ key: "startCycle", icon: "sync", label: t("TemplatesPage.menuStartCycle"), disabled: cycleBusy, bombadil: true, onSelect: () => onCycle(template.id, "start") });
   }
   if (template.status === "updating") {
     cycleItems.push(
       { key: "finishCycle", icon: "sync", label: t("TemplatesPage.menuFinishCycle"), disabled: cycleBusy, onSelect: () => onCycle(template.id, "finish") },
-      { key: "cancelCycle", icon: "cancel", label: t("TemplatesPage.menuCancelCycle"), disabled: cycleBusy, onSelect: () => onCycle(template.id, "cancel") },
+      { key: "cancelCycle", icon: "cancel", label: t("TemplatesPage.menuCancelCycle"), disabled: cycleBusy, bombadil: true, onSelect: () => onCycle(template.id, "cancel") },
     );
   }
   /* 更新循環這組跟上面隔一條線；建立中、已刪除的範本沒有這組，就只剩刪除前那一條 */

@@ -213,8 +213,8 @@ export default function AdminDashboardPage() {
             <span id="admin-assistant-title" className={styles.assistantName}>{t("AdminDashboardPage.assistantLabel")}</span>
           </div>
           <div className={styles.assistantInput}>
-            <input ref={assistantInputRef} aria-label={t("AdminDashboardPage.assistantLabel")} value={assistantPrompt} onChange={(event) => setAssistantPrompt(event.target.value)} placeholder={t("AdminDashboardPage.promptPlaceholder")} autoComplete="off" />
-            <button type="submit" disabled={!assistantPrompt.trim()}>{t("AdminDashboardPage.startAsking")}<MIcon name="arrow_forward" size={16} /></button>
+            <input ref={assistantInputRef} data-bombadil="danger" aria-label={t("AdminDashboardPage.assistantLabel")} value={assistantPrompt} onChange={(event) => setAssistantPrompt(event.target.value)} placeholder={t("AdminDashboardPage.promptPlaceholder")} autoComplete="off" />
+            <button type="submit" data-bombadil="danger" disabled={!assistantPrompt.trim()}>{t("AdminDashboardPage.startAsking")}<MIcon name="arrow_forward" size={16} /></button>
           </div>
           <div className={styles.suggestionButtons}>
             {suggestions.map((suggestion) => <button type="button" key={suggestion} onClick={() => {

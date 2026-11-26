@@ -114,7 +114,7 @@ export default function QuickTemplateFormPage() {
 
       <div className={styles.actions} data-guide="quick-launch-actions">
         <button type="button" className={styles.btnSecondary} onClick={onBack}>{t("QuickTemplateFormPage.cancel")}</button>
-        <button type="button" className={styles.btnPrimary} disabled={submitting} onClick={launch}><MIcon name={submitting ? "hourglass_top" : "bolt"} size={16} spin={submitting} />{submitting ? t("QuickTemplateFormPage.launching") : t("QuickTemplateFormPage.launchButton", { count: template.nodes.length })}</button>
+        <button type="button" data-bombadil="danger" className={styles.btnPrimary} disabled={submitting} onClick={launch}><MIcon name={submitting ? "hourglass_top" : "bolt"} size={16} spin={submitting} />{submitting ? t("QuickTemplateFormPage.launching") : t("QuickTemplateFormPage.launchButton", { count: template.nodes.length })}</button>
       </div>
     </div>
   </div>;

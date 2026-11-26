@@ -217,7 +217,7 @@ export default function GatewayInstallTab({ gatewayReady, onGoToConnection }) {
               {t("GatewayPage.installRefresh")}
             </button>
             {status.state === "succeeded" && (
-              <button type="button" className={styles.btnSecondary} onClick={syncRules} disabled={syncing}>
+              <button data-bombadil="danger" type="button" className={styles.btnSecondary} onClick={syncRules} disabled={syncing}>
                 <MIcon name="sync" size={16} spin={syncing} />
                 {syncing ? t("GatewayPage.installSyncingRules") : t("GatewayPage.installSyncRules")}
               </button>

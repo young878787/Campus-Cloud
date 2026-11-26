@@ -1296,6 +1296,7 @@ function ChatAttachmentRail({ attachments, onRemove, disabled }) {
             type="button"
             className={styles.chatAttachmentRemove}
             aria-label={t("AiJudgePanel.removeAttachmentAria", { name: attachment.original_filename })}
+            data-bombadil="danger"
             disabled={disabled}
             onClick={() => onRemove(attachment)}
           >
@@ -1520,6 +1521,7 @@ export function ChatPanel({
               />
               <button
                 type="button"
+                data-bombadil="danger"
                 className={styles.chatComposerAttach}
                 disabled={!canInteract}
                 aria-label={t("AiJudgePanel.addAttachmentAria")}
@@ -1532,6 +1534,7 @@ export function ChatPanel({
           )}
           <textarea
             ref={textareaRef}
+            data-bombadil="danger"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -1548,6 +1551,7 @@ export function ChatPanel({
           />
           <button
             type="submit"
+            data-bombadil="danger"
             className={styles.chatComposerSend}
             disabled={!canSend}
             aria-label={t("AiJudgePanel.sendAria")}
@@ -1588,6 +1592,7 @@ export function SaveAndCreateAction({
           使用者不知道為什麼不能按。改成外觀停用（aria-disabled），點了由 onBlocked 說明原因 */}
       <button
         type="button"
+        data-bombadil="danger"
         className={`${styles.btnPrimary} ${isProcessing ? styles.btnPrimaryProcessing : ""}`}
         disabled={disabled || isProcessing}
         aria-disabled={blocker ? "true" : undefined}
@@ -1826,7 +1831,7 @@ function RubricSourceRail({ classId, file, onClose, embedded = false }) {
             <small>{joinList((file.environment_keys?.length ? file.environment_keys : [file.template_key]).map(getTemplateLabel))} · {t("AiJudgePanel.itemCount", { count: file.analysis_json?.items?.length ?? 0 })} · {formatDateTime(file.updated_at)}</small>
           </span>
         </div>
-        <button type="button" className={styles.iconBtn} aria-label={t("AiJudgePanel.downloadAria", { name: getRubricDisplayName(file) })} title={t("AiJudgePanel.downloadOriginal")} onClick={download}><MIcon name="download" size={18} /></button>
+        <button type="button" data-bombadil="danger" className={styles.iconBtn} aria-label={t("AiJudgePanel.downloadAria", { name: getRubricDisplayName(file) })} title={t("AiJudgePanel.downloadOriginal")} onClick={download}><MIcon name="download" size={18} /></button>
       </div>
     </aside>
   );
@@ -4257,6 +4262,7 @@ export function TeacherReviewTab({
             <button
               type="button"
               className={styles.btnPrimary}
+              data-bombadil="danger"
               onClick={handleRunOnce}
               disabled={creatingBatch || batchRunning || !activeSet}
             >
@@ -4370,6 +4376,7 @@ export function TeacherReviewTab({
             <button
               type="button"
               className={styles.btnSecondary}
+              data-bombadil={readyUserIds.some((userId) => reviewedUserIds.has(String(userId))) ? undefined : "danger"}
               onClick={() => runForStudents(readyUserIds)}
               disabled={creatingBatch || batchRunning || !canRun || readyUserIds.length === 0}
               title={t("AiJudgePanel.runReadyHint")}
@@ -4584,6 +4591,7 @@ export function TeacherReviewTab({
                       <button
                         type="button"
                         className={styles.btnSecondary}
+                        data-bombadil={reviewedUserIds.has(String(student.userId)) ? undefined : "danger"}
                         onClick={() => runForStudents([student.userId])}
                         disabled={creatingBatch || batchRunning || !canRun}
                       >
@@ -5217,7 +5225,7 @@ function TeacherWorkspacePanel({ classId, members, weeks = [], machineNodes = []
             <>
               <button type="button" className={styles.btnSecondary} onClick={() => setWeekPicker(null)}>{freeWeeks.length ? t("AiJudgePanel.cancelBtn") : t("AiJudgePanel.closeBtn")}</button>
               {freeWeeks.length > 0 && (
-                <button type="submit" className={styles.btnPrimary} disabled={!weekPickerId || busySessionIds.has(pickerItem.id)}>
+                <button type="submit" data-bombadil="danger" className={styles.btnPrimary} disabled={!weekPickerId || busySessionIds.has(pickerItem.id)}>
                   {pickerIsCopy ? t("AiJudgePanel.copyBtn") : t("AiJudgePanel.saveWeekBtn")}
                 </button>
               )}

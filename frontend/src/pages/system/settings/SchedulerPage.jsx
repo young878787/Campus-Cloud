@@ -228,7 +228,7 @@ function SchedulerForm({ form, setField, onSave, saving, dirty, onRestore }) {
             {t("SettingsPage.restore")}
           </button>
         )}
-        <button type="submit" className={styles.btnPrimary} disabled={!dirty || saving}>
+        <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={!dirty || saving}>
           {saving ? t("SettingsPage.saving") : t("SettingsPage.saveSchedulerSettings")}
         </button>
       </div>

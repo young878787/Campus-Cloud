@@ -197,7 +197,7 @@ export default function JobsButton({ collapsed = false }) {
                       {desktopBlocked ? t(desktopBlockedKey) : t("JobsButton.desktopNotificationsHint")}
                     </small>
                   </span>
-                  <Switch
+                  <Switch data-bombadil="danger"
                     checked={desktopNotifications.enabled}
                     disabled={desktopBlocked}
                     onChange={(next) => (next ? desktopNotifications.enable() : desktopNotifications.disable())}
