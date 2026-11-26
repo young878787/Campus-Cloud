@@ -4,7 +4,7 @@
 - 標記初始化精靈已完成（否則前端一律導去 /setup）
 - 建立 student / teacher 測試帳號（admin 由 initial_data.py 依 FIRST_SUPERUSER 建立），
   三個帳號都標記已完成新手引導（否則整個版面被引導頁取代）
-- 先建立第一次讀取才會建立的 singleton（LDAP 設定、全域配額），探索時的寫入稽核才能維持嚴格白名單
+- 先建立第一次讀取才會建立的 singleton（LDAP 設定、全域配額、Web Push VAPID 金鑰），探索時的寫入稽核才能維持嚴格白名單
 """
 
 import os
@@ -25,6 +25,7 @@ from app.core.db import engine  # noqa: E402
 from app.models import SystemSetup, User  # noqa: E402
 from app.repositories import user as user_repo  # noqa: E402
 from app.repositories.ldap_config import get_ldap_config  # noqa: E402
+from app.repositories.push import get_web_push_config  # noqa: E402
 from app.services.resource.quota_service import get_global_quota  # noqa: E402
 from app.repositories.system_setup import SYSTEM_SETUP_ID  # noqa: E402
 from app.schemas.user import UserCreate  # noqa: E402
@@ -55,5 +56,6 @@ with Session(engine) as session:
     session.commit()
     get_ldap_config(session=session)
     get_global_quota(session)
+    get_web_push_config(session=session)
     users = session.exec(select(User)).all()
     print("seeded:", sorted((u.email, str(u.role.value)) for u in users))

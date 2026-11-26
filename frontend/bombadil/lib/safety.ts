@@ -7,7 +7,7 @@
  */
 import { extract } from "@antithesishq/bombadil/browser";
 import { isAction } from "@antithesishq/bombadil/actions";
-import { clicks as defaultClicks, inputs as defaultInputs } from "@antithesishq/bombadil/browser/defaults/actions";
+import { clicks as defaultClicks, inputs as defaultInputs, lastAction } from "@antithesishq/bombadil/browser/defaults/actions";
 
 const DANGER_SELECTOR = [
   '[data-bombadil="danger"]',
@@ -15,6 +15,8 @@ const DANGER_SELECTOR = [
   "a[download]",
   'input[type="file"]',
   'label:has(input[type="file"])',
+  // sonner toast 的動作鈕（例如「開啟桌面通知」）：toast 由程式產生，無法逐一加屬性；取消鈕（data-cancel）照常可點
+  "[data-sonner-toast] [data-button]:not([data-cancel])",
 ].join(", ");
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -42,8 +44,18 @@ const inRect = (p: { x: number; y: number }) =>
 const external = (href: string | null) =>
   !!href && /^[a-z][a-z0-9+.-]*:/i.test(href) && !/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/.test(href);
 
+/**
+ * 剛捲動完的 state 可能是捲到一半拍的（平滑捲動），座標會過期：
+ * 實測在首頁點「查看完整資訊」卻點到旁邊的「啟動並進入」。捲動後的下一步不點擊，等下一個 state 重新取座標。
+ */
+const justScrolled = () => {
+  const a = lastAction.current;
+  return !!a && typeof a === "object" && ("ScrollUp" in a || "ScrollDown" in a);
+};
+
 export const safeClicks = defaultClicks.filter((a) => {
   if (!isAction(a, "Click")) return true;
+  if (justScrolled()) return false;
   if (external(a.Click.fingerprint.href)) return false;
   return !inRect(a.Click.point);
 });

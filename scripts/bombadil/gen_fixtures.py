@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """從後端 OpenAPI 產生 Bombadil 用的 PVE 唯讀假資料（frontend/bombadil/lib/fixtures.ts）。
 
 沒有接 PVE 時，機器與範本相關的 GET 會 502 或回空清單，機器詳情等頁面就測不到。

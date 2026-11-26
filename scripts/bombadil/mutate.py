@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """規則有效性驗證（計畫 P5）：刻意改壞一處，確認對應的規則或稽核會抓到。
 
 每個 mutation：改檔 → 跑 run.sh（--exit-on-violation）→ 讀 summary.json 判定 → 一定還原檔案。
@@ -28,6 +29,8 @@ class Mutation:
     old: str
     new: str
     why: str
+    # 其他規則可能先違反（例如管理頁本身就有管理員連結）；要確認指定規則也會觸發時設 False
+    exit_early: bool = True
 
 
 MUTATIONS = [
@@ -36,6 +39,14 @@ MUTATIONS = [
         "          {/* 系統管理 */}\n          {isAdmin && (",
         "          {/* 系統管理 */}\n          {true && (",
         "系統管理路由對所有角色開放（前端守衛拿掉）",
+        exit_early=False,
+    ),
+    Mutation(
+        "teach-route-open", "teachRoutesRedirectStudent", "student", "frontend/src/App.jsx",
+        'element={canTeach ? <ClassManagementPage /> : <Navigate to="/dashboard" replace />}',
+        'element={<ClassManagementPage />}',
+        "班級管理頁對學生開放（拿掉 canTeach 導向）",
+        exit_early=False,
     ),
     Mutation(
         "admin-link-leak", "noAdminLinks", "student", "frontend/src/components/Sidebar/Sidebar.jsx",
@@ -50,10 +61,10 @@ MUTATIONS = [
         "畫面出現 undefined",
     ),
     Mutation(
-        "unmarked-write", "noWriteAttempted", "student", "frontend/src/pages/personal/account/AccountSettingsPage.jsx",
-        '              <button type="submit" data-bombadil="danger" className={styles.btnPrimary} disabled={saving}>\n                {saving ? t("ProfileTab.saving")',
-        '              <button type="submit" className={styles.btnPrimary} disabled={saving}>\n                {saving ? t("ProfileTab.saving")',
-        "個人資料「儲存」漏標 data-bombadil（L4 漏網，由 L3 擋下並回報）",
+        "unmarked-write", "noWriteAttempted", "student", "frontend/src/components/AiFloatingChat/AiFloatingChat.jsx",
+        '<button data-bombadil="danger" key={key} type="button" onClick={() => send(t(key))}>',
+        '<button key={key} type="button" onClick={() => send(t(key))}>',
+        "AI 浮動助手的建議問題鈕漏標 data-bombadil（點了就送出 AI 請求；L4 漏網，由 L3 擋下並回報）",
     ),
     Mutation(
         "missing-fixture", "noServerErrors", "student", "frontend/bombadil/lib/fixtures.ts",
@@ -84,7 +95,7 @@ def run(m: Mutation, time: str) -> dict:
     try:
         path.write_text(original.replace(m.old, m.new), encoding="utf-8")
         args = [str(REPO / "scripts/bombadil/run.sh"), m.spec, time]
-        if m.rule != "audit":
+        if m.rule != "audit" and m.exit_early:
             args.append("--exit-on-violation")
         proc = subprocess.run(args, cwd=REPO, capture_output=True, text=True)
     finally:

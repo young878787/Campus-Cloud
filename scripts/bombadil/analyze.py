@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """分析一輪 Bombadil 結果：涵蓋率曲線、性質違反、被擋下的寫入、5xx。
 
 用法：
@@ -183,7 +184,13 @@ def print_summary(s: dict) -> None:
 
 
 def calibrate(runs: list[Path]) -> None:
-    """多輪彙總：T = 中位 t_plateau × 2 取整到 5 分鐘；I = 互動涵蓋中位數 − 5pp（以最大值為分母）。"""
+    """多輪彙總（計畫 §10.1）。
+
+    - T：各輪 t_plateau 取最晚者 × 2，無條件進位到 5 分鐘；有任一輪沒達平台期就標示「未達平台」。
+    - I：互動涵蓋以「不同點擊元素數」計，無法可靠對應盤點表分母，
+      所以「中位數 − 5 個百分點」改為相對容忍：門檻 = 中位數 × 0.95（無條件捨去）。
+    - R：該角色路由清單全部走到（100%）。
+    """
     sums = [json.loads((r / "summary.json").read_text(encoding="utf-8")) for r in runs]
     by_spec: dict[str, list[dict]] = {}
     for s in sums:
@@ -193,15 +200,20 @@ def calibrate(runs: list[Path]) -> None:
         counts = [s["interaction_coverage"]["distinct_clicks"] for s in ss]
         reached = [s["interaction_coverage"]["plateau_reached"] for s in ss]
         route_ratio = [s["route_coverage"]["ratio"] for s in ss]
-        t_med = statistics.median(plateaus)
-        T = max(5, int(-(-(t_med * 2) // 300) * 5))
-        best = max(counts) or 1
-        ratios = [c / best for c in counts]
-        I = statistics.median(ratios) - 0.05
+        missing = sorted({m for s in ss for m in s["route_coverage"]["missing"]})
+        audits = [s["audit_failed"] for s in ss]
+        violations = Counter()
+        for s in ss:
+            violations.update(s["violations"].keys())
+        t_max = max(plateaus)
+        T = max(5, int(-(-(t_max * 2) // 300) * 5))
+        med = statistics.median(counts)
         print(f"== {spec}  輪數={len(ss)}")
-        print(f"  t_plateau(s)={plateaus}  中位={t_med:.0f}s  → T={T} 分鐘")
-        print(f"  互動涵蓋={counts}  相對最大={[round(r, 3) for r in ratios]}  → I={I:.3f}（×{best}={I * best:.0f} 個元素）")
-        print(f"  平台達成={reached}  路由涵蓋={route_ratio}")
+        print(f"  t_plateau(s)={plateaus}  最晚={t_max:.0f}s  → T={T} 分鐘{'' if all(reached) else '（有輪次未達平台，T 偏低，需加長試跑）'}")
+        print(f"  平台達成={reached}")
+        print(f"  互動涵蓋={counts}  中位={med}  → I={int(med * 0.95)} 個元素")
+        print(f"  路由涵蓋={route_ratio}  未走到={missing or '無'}")
+        print(f"  稽核失敗={audits}  違反（出現輪數）={dict(violations) or '無'}")
 
 
 def main() -> None:
