@@ -18,9 +18,19 @@ const AUTH_ALLOW = /^\/api\/v1\/login\/(access-token|refresh-token)$/;
  * - 看過頁面導覽就自動標記已看過（UserGuide.jsx）
  * - 防火牆拓撲拖動節點後存版面（FirewallPage.jsx）
  * - 監控頁載入時取得 Grafana 免密碼登入 cookie（MonitoringPage.jsx、AiMonitoringPage.jsx；不寫資料庫）
+ * - 課程環境編輯器打字後自動存草稿（CourseTemplateEditorPage.jsx 的 autosave）
  */
-const EXPECTED_WRITE =
-  /^(POST \/api\/v1\/users\/me\/user-guides\/[^/]+\/seen|PUT \/api\/v1\/firewall\/layout|POST \/api\/v1\/monitoring\/grafana\/session)$/;
+const EXPECTED_WRITE = new RegExp(
+  "^(" +
+    [
+      "POST /api/v1/users/me/user-guides/[^/]+/seen",
+      "PUT /api/v1/firewall/layout",
+      "POST /api/v1/monitoring/grafana/session",
+      "POST /api/v1/course-environments/drafts",
+      "PUT /api/v1/course-environments/[^/]+/draft",
+    ].join("|") +
+    ")$",
+);
 /** 用 POST 送查詢條件、不寫資料的端點（已讀過後端確認） */
 const QUERY_POST_ALLOW = /^\/api\/v1\/(vm-requests\/(availability|window-availability)|policies\/username\/check)$/;
 
