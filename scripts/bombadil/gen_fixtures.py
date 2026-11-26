@@ -105,6 +105,12 @@ ENDPOINTS: list[tuple[str, str, object]] = [
     ("/api/v1/firewall/{vmid}/rules", rf"^/api/v1/firewall/({VMIDS})/rules$", None),
     ("/api/v1/firewall/{vmid}/options", rf"^/api/v1/firewall/({VMIDS})/options$", None),
     ("/api/v1/firewall/{vmid}/topology", rf"^/api/v1/firewall/({VMIDS})/topology$", TOPOLOGY),
+    # 管理員頁面
+    ("/api/v1/resources/", r"^/api/v1/resources/$", [resource(m) for m in MACHINES]),
+    ("/api/v1/audit-logs/resources/{vmid}", rf"^/api/v1/audit-logs/resources/({VMIDS})$", None),
+    ("/api/v1/gpu/mappings", r"^/api/v1/gpu/mappings$", None),
+    ("/api/v1/monitoring/overview", r"^/api/v1/monitoring/overview$", None),
+    ("/api/v1/ai-api/monitoring/litellm-runtime", r"^/api/v1/ai-api/monitoring/litellm-runtime$", None),
 ]
 # 用 POST 送條件的純查詢（guard.ts 的 QUERY_POST_ALLOW）；沒有 PVE 時同樣會 502
 POST_QUERIES: list[tuple[str, str, object]] = [

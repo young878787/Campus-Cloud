@@ -37,10 +37,18 @@ const flow = extract((s) => {
     handles,
     edges: s.document.querySelectorAll(".react-flow__edge").length,
     dialog: !!s.document.querySelector("[role=dialog], [role=alertdialog]"),
+    view: { w: s.window.innerWidth, h: s.window.innerHeight },
   };
 });
 
 const onFirewall = () => route.current === "/firewall" && flow.current.pane !== null;
+/** 拖拉座標要在視窗內且非負（節點被拖到畫面外時跳過） */
+const visible = (p: { x: number; y: number }) => p.x >= 1 && p.y >= 1 && p.x < flow.current.view.w - 1 && p.y < flow.current.view.h - 1;
+const clampRange = (lo: number, hi: number, max: number): [number, number] => {
+  const a = Math.max(1, Math.min(lo, max - 2));
+  const b = Math.max(a, Math.min(hi, max - 2));
+  return [Math.round(a), Math.round(b)];
+};
 const vms = () => flow.current.nodes.filter((n) => n.type === "vm");
 
 const { email, password } = ACCOUNTS.student;
@@ -50,21 +58,27 @@ const go = actions(() => (route.current !== "/firewall" ? [goto("/firewall")] : 
 const drag = actions(() => {
   const p = flow.current.pane;
   if (!p) return [];
-  return vms().map((n) => ({
-    MouseDrag: {
-      from: { x: n.x + n.w / 2, y: n.y + n.h / 2 },
-      to: { x: [p.x + 40, p.x + p.w - 40] as [number, number], y: [p.y + 40, p.y + p.h - 40] as [number, number] },
-      steps: 12,
-      delayMillis: 15,
-    },
-  }));
+  const { w, h } = flow.current.view;
+  return vms()
+    .map((n) => ({ x: n.x + n.w / 2, y: n.y + n.h / 2 }))
+    .filter(visible)
+    .map((from) => ({
+      MouseDrag: {
+        from,
+        to: { x: clampRange(p.x + 40, p.x + p.w - 40, w), y: clampRange(p.y + 40, p.y + p.h - 40, h) },
+        steps: 12,
+        delayMillis: 15,
+      },
+    }));
 });
 const connect = actions(() => {
   const out: any[] = [];
   for (const h of flow.current.handles)
     for (const n of flow.current.nodes)
-      if (n.id !== h.node && n.type !== "vmGroup")
-        out.push({ MouseDrag: { from: { x: h.x, y: h.y }, to: { x: n.x + n.w / 2, y: n.y + n.h / 2 }, steps: 15, delayMillis: 15 } });
+      if (n.id !== h.node && n.type !== "vmGroup") {
+        const to = { x: n.x + n.w / 2, y: n.y + n.h / 2 };
+        if (visible(h) && visible(to)) out.push({ MouseDrag: { from: { x: h.x, y: h.y }, to, steps: 15, delayMillis: 15 } });
+      }
   return out;
 });
 const ESCAPE = 27;
@@ -90,10 +104,11 @@ export const nodePositionsFinite = always(() =>
   flow.current.nodes.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y) && !/NaN|Infinity/.test(n.transform)),
 );
 
-/** F3：寫入被拒（409）後，連線數 5 秒內回到伺服器的狀態（不留下沒存成功的連線） */
-export const edgesRollBack = always(
-  now(() => onFirewall() && !flow.current.dialog && flow.current.edges !== FIXTURE_EDGES).implies(
-    eventually(() => !onFirewall() || flow.current.dialog || flow.current.edges === FIXTURE_EDGES).within(5, "seconds"),
+/** F3：寫入一律被拒（409），畫面上的連線不能多於伺服器的資料超過 5 秒（不留下沒存成功的連線）；
+ *  篩選只會讓連線變少，所以只檢查「變多」 */
+export const noUnsavedEdges = always(
+  now(() => !flow.current.dialog && flow.current.edges > FIXTURE_EDGES).implies(
+    eventually(() => flow.current.dialog || flow.current.edges <= FIXTURE_EDGES).within(5, "seconds"),
   ),
 );
 
