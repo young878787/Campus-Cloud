@@ -778,6 +778,18 @@ export default function UserGuide() {
     return () => window.removeEventListener(USER_GUIDE_START_EVENT, handleStart);
   }, []);
 
+  /* 導覽是 aria-modal 對話框：Esc 等同「跳過導覽」（同 Modal 的慣例） */
+  const completeRef = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKey = (event) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      completeRef.current?.({ dismissed: true });
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [open]);
+
   if (!guide) return null;
 
   /* dismissed：使用者按「跳過」或右上角關閉，不是走完最後一步 */
@@ -804,6 +816,8 @@ export default function UserGuide() {
       originalAiTab.current = null;
     }
   };
+
+  completeRef.current = complete;
 
   const start = () => {
     if (guide.id === "ai-api") {
