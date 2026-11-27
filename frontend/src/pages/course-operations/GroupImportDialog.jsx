@@ -41,7 +41,7 @@ export default function GroupImportDialog({ closing, busy, onClose, onImport }) 
       actions={(
         <>
           <button type="button" className={shared.btnSecondary} onClick={onClose}>{t("GroupImportDialog.cancel")}</button>
-          <button type="submit" className={shared.btnPrimary} disabled={!canSubmit}>
+          <button type="submit" data-bombadil="danger" className={shared.btnPrimary} disabled={!canSubmit}>
             {busy ? t("GroupImportDialog.importing") : t("GroupImportDialog.submit")}
           </button>
         </>

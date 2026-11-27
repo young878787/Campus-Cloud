@@ -527,7 +527,7 @@ export default function ClassSetupPage() {
     <button type="button" className={`${styles.btnSecondary} ${styles.footerPrev} ${step === 1 ? styles.keepSpace : ""}`} disabled={busy} onClick={() => switchStep(step - 1)}>{t("ClassSetupPage.prevStepBtn")}</button>
     <div className={styles.footerEnd}>
       {step === 3 && !templateId && <em className={styles.footerHint}><MIcon name="info" size={16} />{templates.length === 0 ? t("ClassSetupPage.needCreateTemplateHint") : t("ClassSetupPage.selectTemplateHint")}</em>}
-      {step < 5 && <button type="button" className={`${styles.btnPrimary} ${styles.footerNext}`} data-guide="class-setup-next" disabled={busy || (step === 3 && !templateId)} onClick={next}>{busy ? t("ClassSetupPage.savingBtn") : t("ClassSetupPage.saveAndNextBtn")}<MIcon name="arrow_forward" size={16} /></button>}
+      {step < 5 && <button type="button" data-bombadil="danger" className={`${styles.btnPrimary} ${styles.footerNext}`} data-guide="class-setup-next" disabled={busy || (step === 3 && !templateId)} onClick={next}>{busy ? t("ClassSetupPage.savingBtn") : t("ClassSetupPage.saveAndNextBtn")}<MIcon name="arrow_forward" size={16} /></button>}
       {step === 5 && <>
         {missingSteps.length > 0
           ? <button type="button" className={`${styles.btnSecondary} ${styles.footerNext}`} onClick={() => switchStep(missingSteps[0])}>{t("ClassSetupPage.goToStepBtn", { step: stepLabel(missingSteps[0]) })}</button>
