@@ -6,6 +6,7 @@
 # 輸出：$BOMBADIL_HOME/runs/<時間戳>-<spec>/{trace, bombadil.log, audit.log, summary.json}
 # 結束碼：0 通過；1 錯誤或稽核失敗；2 有性質違反；3 涵蓋率未達門檻
 # 涵蓋率門檻（CI 用）：BOMBADIL_MIN_CLICKS（不同點擊元素數）、BOMBADIL_MIN_ROUTES（路由涵蓋率 0–1）；沒設就不檢查
+# 重現：BOMBADIL_REPRODUCE=<先前的 trace> 照那一輪的動作重跑（bombadil --reproduce，盡力而為），這時 <時間> 不使用
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -52,10 +53,14 @@ mkdir -p "$OUT"
 MARK="$("$STACK_SH" audit-mark)"
 log "spec=$SPEC_NAME time=$TIME out=$OUT"
 
+LIMIT=(--time-limit "$TIME")
+# bombadil 的 --reproduce 不能跟 --time-limit、--exit-on-violation 同時用
+[ -n "${BOMBADIL_REPRODUCE:-}" ] && LIMIT=(--reproduce "$BOMBADIL_REPRODUCE")
+
 set +e
 "$BOMBADIL" browser test "$ORIGIN" "$SPEC" \
   --headless \
-  --time-limit "$TIME" \
+  "${LIMIT[@]}" \
   --chrome-grant-permissions "" \
   --instrument-javascript "" \
   --width "${BOMBADIL_WIDTH:-1280}" --height "${BOMBADIL_HEIGHT:-800}" \

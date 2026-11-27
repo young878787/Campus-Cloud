@@ -63,11 +63,13 @@ MUTATIONS = [
         "畫面出現 undefined",
     ),
     Mutation(
-        "unmarked-write", "noWriteAttempted", "student", "frontend/src/components/AiFloatingChat/AiFloatingChat.jsx",
-        '<button data-bombadil="danger" key={key} type="button" onClick={() => send(t(key))}>',
-        '<button key={key} type="button" onClick={() => send(t(key))}>',
-        "AI 浮動助手的建議問題鈕漏標 data-bombadil（點了就送出 AI 請求；L4 漏網，由 L3 擋下並回報）",
-        time="6m",  # 要先打開浮動助手再點到建議鈕：3 分鐘實測 5 次只中 3 次（72–150 秒）
+        "unmarked-write", "noWriteAttempted", "student", "frontend/src/pages/personal/dashboard/MachineCard.jsx",
+        '<button type="button" data-bombadil="danger" className={styles.launchButton}',
+        '<button type="button" className={styles.launchButton}',
+        "首頁機器卡的「啟動並進入」漏標 data-bombadil（點了就送出 POST /resources/102/start；L4 漏網，由 L3 擋下並回報）",
+        # 原本用 AI 浮動助手的建議問題鈕，要先打開助手才點得到，6 分鐘內仍會漏（2026-11-27 完整執行 1 次漏抓）；
+        # 改用首頁一步就點得到的鈕。執行中的 101 會開主控台（502，noServerErrors 先違反），所以不提早結束
+        exit_early=False,
     ),
     Mutation(
         "missing-fixture", "noServerErrors", "student", "frontend/bombadil/lib/fixtures.ts",
@@ -86,6 +88,43 @@ MUTATIONS = [
         "      completeRef.current?.({ dismissed: true });",
         "      void completeRef;",
         "頁面導覽按 Esc 不會關（還原 70f91bcd 之前的行為）",
+        # 防火牆導覽不會自動打開，要隨機點到「頁面導覽」鈕：3 分鐘實測 5 次中 1 次漏抓、1 次 155 秒才抓到
+        time="6m",
+    ),
+    Mutation(
+        "component-throw", "noUncaughtExceptions", "student", "frontend/src/components/Sidebar/Sidebar.jsx",
+        '            <span className={styles.brandText}>SkyLab</span>',
+        '            <span ref={() => setTimeout(() => { throw new Error("mutation: component-throw"); })}'
+        ' className={styles.brandText}>SkyLab</span>',
+        "側欄掛載後丟出未捕捉的例外（G1）",
+    ),
+    Mutation(
+        "teach-link-leak", "noTeachLinks", "student", "frontend/src/components/Sidebar/Sidebar.jsx",
+        '            <span className={styles.brandText}>SkyLab</span>',
+        '            <span className={styles.brandText}>SkyLab</span><a href="/class-management">teach</a>',
+        "側欄對學生露出教學入口",
+    ),
+    Mutation(
+        "drag-drops-node", "vmNodesConsistent", "firewall", "frontend/src/pages/network/firewall/FirewallPage.jsx",
+        "    setNodes((prev) => applyMoves(prev, moves));\n    mergePendingLayout",
+        "    setNodes((prev) => applyMoves(prev, moves).filter((n, _, all) => n.id !== all.find((m) => m.type === \"vm\")?.id));\n"
+        "    mergePendingLayout",
+        "拖完節點後少了一台 VM（F1）",
+    ),
+    Mutation(
+        "drag-nan", "nodePositionsFinite", "firewall", "frontend/src/pages/network/firewall/FirewallPage.jsx",
+        "    setNodes((prev) => applyMoves(prev, moves));\n    mergePendingLayout",
+        "    setNodes((prev) => applyMoves(prev, moves).map((n) => (n.type === \"vm\" ? { ...n, position: { ...n.position, x: NaN } } : n)));\n"
+        "    mergePendingLayout",
+        "拖完節點後座標變成 NaN（F2′）",
+    ),
+    Mutation(
+        "edge-kept", "noUnsavedEdges", "firewall", "frontend/src/pages/network/firewall/FirewallPage.jsx",
+        "    setDialogPreset({ source: toDialogKey(conn.source), target: toDialogKey(conn.target) });",
+        # 複製一條既有連線（帶完整 data）：只給 id／source／target 的連線會讓「連線標籤」切換時整張圖崩潰
+        "    setEdges((prev) => (prev.length ? [...prev, { ...prev[0], id: \"mutation-edge\" }] : prev));\n"
+        "    setDialogPreset({ source: toDialogKey(conn.source), target: toDialogKey(conn.target) });",
+        "拉線後先畫上連線，寫入沒成功（取消或被拒）也不移除（F3′／F6）",
     ),
 ]
 

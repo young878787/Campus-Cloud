@@ -42,16 +42,15 @@ def role_routes() -> dict[str, list[str]]:
 
 
 def fingerprint(f: dict) -> str:
-    if f.get("testId"):
-        return f"testid={f['testId']}"
+    """trace 的欄位是 snake_case（accessible_name、text_content…）；分頁鈕這類元素只有 text_content 沒有 accessible_name"""
+    if f.get("test_id"):
+        return f"testid={f['test_id']}"
     if f.get("id"):
         return f"id={f['id']}"
-    name = (f.get("accessibleName") or "").strip()[:60]
-    if f.get("role") and name:
-        return f"{f['role']}:{name}"
+    name = (f.get("accessible_name") or f.get("text_content") or "").strip()[:60]
     if name:
-        return f"{f.get('tag')}:{name}"
-    return f"{f.get('tag')}@{f.get('structuralPath') or f.get('nameAttr') or f.get('placeholder') or '?'}"
+        return f"{f.get('role') or f.get('tag')}:{name}"
+    return f"{f.get('tag')}@{f.get('href') or f.get('structural_path') or f.get('name_attr') or f.get('placeholder') or '?'}"
 
 
 def read_trace(run: Path):

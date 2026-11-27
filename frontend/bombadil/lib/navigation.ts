@@ -19,6 +19,28 @@ export const visitedPaths = extract((s) => {
   return w.__bbVisited.slice() as string[];
 });
 
+/**
+ * 這個路由上還沒選過的分頁（role=tab）的位置。分頁多半是元件狀態、不在網址上，
+ * 隨機點擊常漏掉：admin 10 分鐘實測詳情頁的「進階設定」一次都沒點到（計畫 §14.2 A3）。
+ * 選過的分頁（aria-selected）記在 window 上，重新載入會清掉。
+ */
+export const freshTabs = extract((s) => {
+  const w: any = s.window;
+  w.__bbTabsSeen ??= [];
+  const path = s.window.location.pathname;
+  const tabs = Array.from(s.document.querySelectorAll("[role=tab]"));
+  const key = (el: Element) => `${path}|${el.textContent?.trim()}`;
+  for (const el of tabs)
+    if (el.getAttribute("aria-selected") === "true" && !w.__bbTabsSeen.includes(key(el))) w.__bbTabsSeen.push(key(el));
+  return tabs
+    .filter((el) => !w.__bbTabsSeen.includes(key(el)))
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x, y: r.y, w: r.width, h: r.height };
+    })
+    .filter((r) => r.w > 0 && r.h > 0);
+});
+
 export const onLogin = extract(
   (s) => s.window.location.pathname === "/login" && !!s.document.querySelector("form input[type=password]"),
 );

@@ -40,11 +40,12 @@ jobs:
       matrix:
         include:
           # pr_clicks：5 次 × 5 分鐘校準；nightly_clicks：5 次 × 30 分鐘校準（firewall 沒做 30 分鐘校準，沿用 5 分鐘）
+          # 數字是「不同點擊元素數」最低值 × 0.9（計畫 §10.3）；2026-11-27 修正 analyze.py 讀錯 fingerprint 欄位後重算（H15）
           # routes：路由涵蓋率門檻；firewall 只測防火牆頁，不算路由
-          - { spec: student, pr_clicks: 18, nightly_clicks: 42, routes: "1" }
-          - { spec: teacher, pr_clicks: 31, nightly_clicks: 49, routes: "1" }
-          - { spec: admin, pr_clicks: 50, nightly_clicks: 90, routes: "1" }
-          - { spec: firewall, pr_clicks: 4, nightly_clicks: 4, routes: "" }
+          - { spec: student, pr_clicks: 170, nightly_clicks: 370, routes: "1" }
+          - { spec: teacher, pr_clicks: 210, nightly_clicks: 562, routes: "1" }
+          - { spec: admin, pr_clicks: 248, nightly_clicks: 1033, routes: "1" }
+          - { spec: firewall, pr_clicks: 25, nightly_clicks: 25, routes: "" }
 
     env:
       CHROME: /home/runner/.cache/ms-playwright/chromium-1148/chrome-linux/chrome

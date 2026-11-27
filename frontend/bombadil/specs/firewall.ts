@@ -31,11 +31,35 @@ const flow = extract((s) => {
     const r = h.getBoundingClientRect();
     return { node: h.closest(".react-flow__node")?.getAttribute("data-id") ?? "", x: r.x + r.width / 2, y: r.y + r.height / 2 };
   });
+  /* F1：畫面條件（分組、只看對外、搜尋、群組篩選、各群組收合）沒變時，VM 節點不能少。
+     條件一變（篩選、收合）就重新起算，而且 2 秒內不判定：按鈕狀態先變、節點下一個 state 才套用篩選
+     （實測「只看對外開放」誤報）。上一個狀態的節點存在 window 上，換頁或重新載入會清掉 */
+  const doc = s.document;
+  const view = JSON.stringify([
+    Array.from(doc.querySelectorAll("[aria-pressed]")).map((b) => b.getAttribute("aria-pressed")),
+    Array.from(doc.querySelectorAll("[role=search] input, [role=search] select")).map((e) => (e as HTMLInputElement).value),
+    Array.from(doc.querySelectorAll(".react-flow__node-vmGroup [aria-expanded]")).map((b) => b.getAttribute("aria-expanded")),
+  ]);
+  const vmIds = nodes.filter((n) => n.type === "vm").map((n) => n.id);
+  const w: any = s.window;
+  const prev = w.__bbFlowView;
+  const now = Date.now();
+  const since = prev && prev.view === view ? prev.since : now;
+  const lost = prev && prev.view === view && now - since > 2000 && vmIds.length
+    ? prev.ids.filter((id: string) => !vmIds.includes(id))
+    : [];
+  w.__bbFlowView = vmIds.length ? { view, ids: vmIds, since } : undefined;
   return {
     pane: pane ? { x: pane.x, y: pane.y, w: pane.width, h: pane.height } : null,
     nodes,
+    lost,
     handles,
     edges: s.document.querySelectorAll(".react-flow__edge").length,
+    /* 節點座標變成 NaN 時，節點的 CSS transform 會被瀏覽器當成無效值丟掉（DOM 看不到 NaN），
+       但 SVG 連線的 d／transform 屬性不做檢查，會原樣留下 NaN */
+    nanEdges: Array.from(s.document.querySelectorAll(".react-flow__edges [d], .react-flow__edges [transform]")).some((e) =>
+      /NaN|Infinity/.test(`${e.getAttribute("d") ?? ""} ${e.getAttribute("transform") ?? ""}`),
+    ),
     dialog: !!s.document.querySelector("[role=dialog], [role=alertdialog]"),
     view: { w: s.window.innerWidth, h: s.window.innerHeight },
   };
@@ -93,14 +117,15 @@ export const explore = weighted([
 ] as any).when(() => !onLogin.current && !flow.current.dialog);
 export const closeDialog = actions(() => [{ PressKey: { code: ESCAPE } }]).when(() => flow.current.dialog);
 
-/** F1：VM 節點不重複、都來自伺服器資料（篩選會減少節點，但拖拉、拉線不會變出或複製節點） */
+/** F1：VM 節點不重複、都來自伺服器資料；畫面條件沒變時不會少（篩選、收合會減少節點，但拖拉、拉線不會） */
 export const vmNodesConsistent = always(() => {
   const ids = vms().map((n) => n.id);
-  return new Set(ids).size === ids.length && ids.every((id) => FIXTURE_VMS.has(id));
+  return new Set(ids).size === ids.length && ids.every((id) => FIXTURE_VMS.has(id)) && flow.current.lost.length === 0;
 });
 
-/** F2：節點位置永遠是有限數字（拖到邊界、快速連續拖動不產生 NaN） */
+/** F2：節點位置永遠是有限數字（拖到邊界、快速連續拖動不產生 NaN）；連線的 SVG 屬性也不能有 NaN */
 export const nodePositionsFinite = always(() =>
+  !flow.current.nanEdges &&
   flow.current.nodes.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y) && !/NaN|Infinity/.test(n.transform)),
 );
 

@@ -7,8 +7,9 @@
  * 空出來的步數全變成跳頁與返回，點擊數減半、探索變淺（實測 3 分鐘 340 → 140 次）。
  */
 import { actions, weighted } from "@antithesishq/bombadil";
+import { isAction } from "@antithesishq/bombadil/actions";
 import { back, scroll } from "@antithesishq/bombadil/browser/defaults/actions";
-import { ACCOUNTS, FORBIDDEN, ROUTES, goto, loginAs, onLogin, visitedPaths, type Role } from "./navigation.ts";
+import { ACCOUNTS, FORBIDDEN, ROUTES, freshTabs, goto, loginAs, onLogin, visitedPaths, type Role } from "./navigation.ts";
 import { danger, safeClicks, safeInputs } from "./safety.ts";
 
 export function exploration(role: Role) {
@@ -21,8 +22,14 @@ export function exploration(role: Role) {
   });
   const probeGroups = FORBIDDEN[role].map((group) => [1, actions(() => group.map((p) => goto(p)))]);
   const wait = actions(() => ["Wait" as const]);
+  /* 還沒選過的分頁優先點（仍經過 safeClicks 的危險過濾） */
+  const tabs = safeClicks
+    .filter((a) => isAction(a, "Click") && freshTabs.current.some((r) =>
+      a.Click.point.x >= r.x && a.Click.point.x <= r.x + r.w && a.Click.point.y >= r.y && a.Click.point.y <= r.y + r.h))
+    .when(() => freshTabs.current.length > 0);
   const explore = weighted([
     [12, safeClicks],
+    [4, tabs],
     [4, safeInputs],
     [2, scroll],
     [1, back],
