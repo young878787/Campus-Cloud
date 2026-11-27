@@ -1,0 +1,108 @@
+name: UI Explore (Bombadil)
+
+# 前端唯讀探索測試：每個 spec 一個 job，各自起隔離環境（本機 Postgres、Redis、後端副本、vite），
+# 不連 PVE、AI、SMTP。安全界線與規則見 frontend/bombadil/ 與 scripts/bombadil/。
+# 兩層時長（計畫 §10.1 的 2026-11-27 修訂）：PR 每個 spec 5 分鐘、每晚排程 30 分鐘。
+# 涵蓋率門檻 = 校準 5 次的中位數 × 0.95（scripts/bombadil/analyze.py --calibrate），路由一律 100%。
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "pr＝5 分鐘；nightly＝30 分鐘"
+        type: choice
+        options: [pr, nightly]
+        default: pr
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "scripts/bombadil/**"
+      - ".github/workflows/ui-explore.yml"
+  schedule:
+    # 每晚 02:00（台灣時間）；排程只在預設分支上生效
+    - cron: "0 18 * * *"
+
+concurrency:
+  group: ui-explore-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  explore:
+    name: bombadil ${{ matrix.spec }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # pr_clicks：5 次 × 5 分鐘校準；nightly_clicks：5 次 × 30 分鐘校準（firewall 沒做 30 分鐘校準，沿用 5 分鐘）
+          # routes：路由涵蓋率門檻；firewall 只測防火牆頁，不算路由
+          - { spec: student, pr_clicks: 20, nightly_clicks: 46, routes: "1" }
+          - { spec: teacher, pr_clicks: 36, nightly_clicks: 60, routes: "1" }
+          - { spec: admin, pr_clicks: 55, nightly_clicks: 109, routes: "1" }
+          - { spec: firewall, pr_clicks: 7, nightly_clicks: 7, routes: "" }
+
+    env:
+      BOMBADIL_HOME: ${{ runner.temp }}/skylab-bombadil
+      CHROME: /home/runner/.cache/ms-playwright/chromium-1148/chrome-linux/chrome
+      NIGHTLY: ${{ github.event_name == 'schedule' || inputs.mode == 'nightly' }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Sync backend dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.4
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Install Postgres, Redis and Chromium 131
+        # 與本機相同的 Chromium build（Playwright 1.49 的 chromium-1148）
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq redis-server
+          sudo systemctl stop redis-server || true
+          npx -y playwright@1.49.1 install --with-deps chromium
+          test -x "$CHROME" || { echo "找不到 $CHROME"; ls ~/.cache/ms-playwright; exit 1; }
+          echo "PG_BIN=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)" >> "$GITHUB_ENV"
+
+      - name: Start isolated stack
+        run: scripts/bombadil/stack.sh up
+
+      - name: Explore
+        env:
+          BOMBADIL_MIN_CLICKS: ${{ env.NIGHTLY == 'true' && matrix.nightly_clicks || matrix.pr_clicks }}
+          BOMBADIL_MIN_ROUTES: ${{ matrix.routes }}
+          TIME: ${{ env.NIGHTLY == 'true' && '30m' || '5m' }}
+        run: scripts/bombadil/run.sh "${{ matrix.spec }}" "$TIME" --no-sandbox
+
+      - name: Upload run
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bombadil-${{ matrix.spec }}
+          path: |
+            ${{ runner.temp }}/skylab-bombadil/runs
+            ${{ runner.temp }}/skylab-bombadil/*.log
+          retention-days: 7
+          if-no-files-found: ignore
