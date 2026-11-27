@@ -31,6 +31,8 @@ class Mutation:
     why: str
     # 其他規則可能先違反（例如管理頁本身就有管理員連結）；要確認指定規則也會觸發時設 False
     exit_early: bool = True
+    # 要先走到特定畫面才觸發的 mutation 給較長的時間（預設用 --time）
+    time: str | None = None
 
 
 MUTATIONS = [
@@ -65,6 +67,7 @@ MUTATIONS = [
         '<button data-bombadil="danger" key={key} type="button" onClick={() => send(t(key))}>',
         '<button key={key} type="button" onClick={() => send(t(key))}>',
         "AI 浮動助手的建議問題鈕漏標 data-bombadil（點了就送出 AI 請求；L4 漏網，由 L3 擋下並回報）",
+        time="6m",  # 要先打開浮動助手再點到建議鈕：3 分鐘實測 5 次只中 3 次（72–150 秒）
     ),
     Mutation(
         "missing-fixture", "noServerErrors", "student", "frontend/bombadil/lib/fixtures.ts",
@@ -94,12 +97,14 @@ def run(m: Mutation, time: str) -> dict:
         return {"name": m.name, "result": "ERROR", "detail": f"{m.file} 找不到唯一的替換點"}
     try:
         path.write_text(original.replace(m.old, m.new), encoding="utf-8")
-        args = [str(REPO / "scripts/bombadil/run.sh"), m.spec, time]
+        args = [str(REPO / "scripts/bombadil/run.sh"), m.spec, m.time or time]
         if m.rule != "audit" and m.exit_early:
             args.append("--exit-on-violation")
         proc = subprocess.run(args, cwd=REPO, capture_output=True, text=True)
     finally:
         path.write_text(original, encoding="utf-8")
+        # 還原這一輪可能漏進資料庫的狀態（guard-leak 會寫入「導覽已看過」），不影響下一個 mutation
+        subprocess.run([str(REPO / "scripts/bombadil/stack.sh"), "reset-state"], cwd=REPO, check=True)
     out_dir = next((line.split("out=", 1)[1].strip() for line in proc.stderr.splitlines() if "out=" in line), None)
     summary = json.loads((Path(out_dir) / "summary.json").read_text(encoding="utf-8")) if out_dir else {}
     if m.rule == "audit":

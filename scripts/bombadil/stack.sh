@@ -7,7 +7,7 @@
 #   repo 根目錄的 .env（正式 PVE／DB／AI／SMTP）完全不會被讀到。
 # - 不設定任何 PVE、AI、SMTP、Cloudflare；資料庫只聽 127.0.0.1。
 #
-# 用法：scripts/bombadil/stack.sh up|down|purge|status|audit-mark|audit [mark]
+# 用法：scripts/bombadil/stack.sh up|down|purge|status|audit-mark|audit [mark]|reset-state|env-file
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -168,8 +168,14 @@ case "${1:-}" in
   env-file)
     echo "$STACK/.env"
     ;;
+  reset-state)
+    # 讓每一輪從同一個資料庫狀態開始：mutation guard-leak 會刻意放行「導覽已看過」的寫入，
+    # 不還原的話之後導覽不再自動跳出（P5 實測 guide-no-escape 因此漏抓）。
+    # 會寫入資料庫，只能在沒有 run.sh 執行時呼叫（不然會落進那一輪的稽核範圍）。
+    psql_q "update \"user\" set seen_user_guides = '[]' where seen_user_guides::text <> '[]'"
+    ;;
   *)
-    echo "用法：$0 up|down|purge|status|audit-mark|audit [mark]|env-file" >&2
+    echo "用法：$0 up|down|purge|status|audit-mark|audit [mark]|reset-state|env-file" >&2
     exit 2
     ;;
 esac

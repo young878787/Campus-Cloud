@@ -19,6 +19,7 @@ LIST="$H/calibration-$(date +%Y%m%d-%H%M%S).txt"
 
 for round in $(seq 1 "$ROUNDS"); do
   echo "[calibrate] 第 $round/$ROUNDS 輪：$*（$TIME）" >&2
+  "$REPO/scripts/bombadil/stack.sh" reset-state
   pids=()
   for spec in "$@"; do
     "$REPO/scripts/bombadil/run.sh" "$spec" "$TIME" > "$H/calibrate-$spec.log" 2>&1 &
