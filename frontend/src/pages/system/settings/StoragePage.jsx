@@ -184,6 +184,7 @@ function StorageList() {
                 <label className={styles.inlineField} data-guide="storage-speed-tier">
                   <span>{t("SettingsPage.speedTierTitle")}</span>
                   <select
+                    data-bombadil="danger"
                     value={storage.speed_tier}
                     disabled={savingId === storage.id}
                     onChange={(e) => save(storage, { speed_tier: e.target.value })}
@@ -200,6 +201,7 @@ function StorageList() {
                   {/* 非受控＋key 帶已存值：存檔成功後以新值重建，輸入中不受 re-render 影響；
                       存檔中不 disabled（會失焦吃掉後續按鍵），只設 readOnly */}
                   <input
+                    data-bombadil="danger"
                     key={`${storage.id}:${storage.user_priority}`}
                     type="number"
                     min={PRIORITY_MIN}
@@ -219,6 +221,7 @@ function StorageList() {
                 </label>
                 <label className={styles.checkRow} data-guide="storage-enabled">
                   <input
+                    data-bombadil="danger"
                     type="checkbox"
                     checked={storage.enabled}
                     disabled={savingId === storage.id}

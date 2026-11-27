@@ -291,7 +291,7 @@ export default function BackupsTab({ vmid, toolbar, capability, onOperationFaile
               <button type="button" className={styles.btnSecondary} onClick={closeCreate}>
                 {t("BackupsTab.cancel")}
               </button>
-              <button type="submit" className={styles.btnPrimary} disabled={locked}>
+              <button type="submit" data-bombadil="danger" className={styles.btnPrimary} disabled={locked}>
                 {busy ? t("BackupsTab.submitting") : t("BackupsTab.create")}
               </button>
             </>

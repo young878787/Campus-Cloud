@@ -121,7 +121,7 @@ function ConnectionForm({ initial, isEdit, saving, closing = false, onSubmit, on
       actions={
         <>
           <button type="button" className={styles.btnSecondary} onClick={onCancel}>{t("SettingsPage.cancel")}</button>
-          <button type="submit" className={styles.btnPrimary} disabled={saving}>
+          <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={saving}>
             {saving ? t("SettingsPage.saving") : t("SettingsPage.saveConnection")}
           </button>
         </>
@@ -401,7 +401,7 @@ function ConnectionsSection({ connections, loading, onRefresh }) {
                       <MIcon name="wifi_tethering" size={16} />
                       {rowBusy === "test" ? t("SettingsPage.testing") : t("SettingsPage.test")}
                     </button>
-                    <button type="button" className={styles.btnSecondary} disabled={Boolean(rowBusy)} onClick={() => handleSync(conn)}>
+                    <button data-bombadil="danger" type="button" className={styles.btnSecondary} disabled={Boolean(rowBusy)} onClick={() => handleSync(conn)}>
                       <MIcon name="sync" size={16} spin={rowBusy === "sync"} />
                       {rowBusy === "sync" ? t("SettingsPage.syncing") : t("SettingsPage.sync")}
                     </button>
@@ -476,7 +476,7 @@ function NodeEditDialog({ node, saving, closing = false, onClose, onSave }) {
           <button type="button" className={styles.btnSecondary} onClick={onClose} disabled={saving}>
             {t("SettingsPage.cancel")}
           </button>
-          <button type="submit" className={styles.btnPrimary} disabled={saving}>
+          <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={saving}>
             {saving ? t("SettingsPage.saving") : t("SettingsPage.save")}
           </button>
         </>
@@ -595,6 +595,7 @@ function NodesSection({ nodes, loading, onNodeUpdated }) {
                 </span>
                 {/* 切換立刻送出：用開關，不用要按儲存的勾選框 */}
                 <Switch
+                  data-bombadil="danger"
                   className={styles.listExtra}
                   checked={node.enabled !== false}
                   onChange={(next) => toggleEnabled(node, next)}

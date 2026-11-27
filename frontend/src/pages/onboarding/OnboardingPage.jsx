@@ -146,7 +146,7 @@ function ProfileStep({ onBack, onNext }) {
           <MIcon name="arrow_back" size={18} />
           {t("OnboardingPage.back")}
         </button>
-        <button type="submit" className={shell.btnPrimary} disabled={saving || uploading}>
+        <button type="submit" data-bombadil="danger" className={shell.btnPrimary} disabled={saving || uploading}>
           {saving ? t("OnboardingPage.finishing") : t("OnboardingPage.next")}
           {!saving && <MIcon name="arrow_forward" size={18} />}
         </button>
@@ -233,7 +233,7 @@ function TotpStep({ onBack, onNext }) {
                 <button type="button" className={shell.btnSecondary} onClick={onNext}>
                   {t("OnboardingPage.skipStep")}
                 </button>
-                <button type="button" className={shell.btnPrimary} onClick={() => setEnrolling(true)}>
+                <button type="button" data-bombadil="danger" className={shell.btnPrimary} onClick={() => setEnrolling(true)}>
                   <MIcon name="qr_code_2" size={18} />
                   {t("OnboardingPage.totpStart")}
                 </button>
@@ -296,7 +296,7 @@ function FinishStep({ onBack, onComplete, completing }) {
           <MIcon name="arrow_back" size={18} />
           {t("OnboardingPage.back")}
         </button>
-        <button type="button" className={shell.btnPrimary} onClick={onComplete} disabled={completing}>
+        <button type="button" data-bombadil="danger" className={shell.btnPrimary} onClick={onComplete} disabled={completing}>
           {completing ? t("OnboardingPage.finishing") : t("OnboardingPage.start")}
           {!completing && <MIcon name="rocket_launch" size={18} />}
         </button>
@@ -342,6 +342,7 @@ export default function OnboardingPage() {
       <div className={`${shell.card} ${styles.cardWithSkip} ${started ? shell.cardWide : ""}`}>
         <button
           type="button"
+          data-bombadil="danger"
           className={styles.skipBtn}
           onClick={complete}
           disabled={completing}

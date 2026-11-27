@@ -117,5 +117,5 @@ export default function NoVncScreen({
     [],
   );
 
-  return <div ref={containerRef} className={className} style={style} />;
+  return <div ref={containerRef} className={className} style={style} data-bombadil="danger" />;
 }

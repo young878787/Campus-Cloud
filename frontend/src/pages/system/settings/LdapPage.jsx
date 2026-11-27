@@ -284,6 +284,7 @@ function LdapForm() {
           </button>
         )}
         <button
+          data-bombadil="danger"
           type="button"
           className={styles.btnSecondary}
           onClick={handleTest}
@@ -292,7 +293,7 @@ function LdapForm() {
           <MIcon name="wifi_tethering" size={16} />
           {testing ? t("LdapTab.testing") : t("LdapTab.testConnection")}
         </button>
-        <button type="submit" className={styles.btnPrimary} disabled={!dirty || saving}>
+        <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={!dirty || saving}>
           {saving ? t("LdapTab.saving") : t("LdapTab.saveConfig")}
         </button>
       </div>

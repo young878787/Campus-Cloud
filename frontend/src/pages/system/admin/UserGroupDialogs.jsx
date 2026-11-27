@@ -37,7 +37,7 @@ function GroupRow({ group, busy, onRename, onImport, onDelete }) {
               if (event.key === "Escape") { event.preventDefault(); setEditing(false); setName(group.name); }
             }}
           />
-          <button type="submit" className={styles.actionBtn} disabled={busy} aria-label={t("UserGroups.saveName")}>
+          <button data-bombadil="danger" type="submit" className={styles.actionBtn} disabled={busy} aria-label={t("UserGroups.saveName")}>
             <MIcon name="check" size={17} />
           </button>
         </form>
@@ -48,7 +48,7 @@ function GroupRow({ group, busy, onRename, onImport, onDelete }) {
         </div>
       )}
       <div className={styles.rowActions}>
-        <button type="button" className={styles.actionBtn} disabled={busy} title={t("UserGroups.importCsv")} aria-label={t("UserGroups.importCsvAria", { name: group.name })} onClick={() => onImport(group)}>
+        <button data-bombadil="danger" type="button" className={styles.actionBtn} disabled={busy} title={t("UserGroups.importCsv")} aria-label={t("UserGroups.importCsvAria", { name: group.name })} onClick={() => onImport(group)}>
           <MIcon name="upload" size={17} />
         </button>
         <button type="button" className={styles.actionBtn} disabled={busy || editing} title={t("UserGroups.rename")} aria-label={t("UserGroups.renameAria", { name: group.name })} onClick={() => setEditing(true)}>
@@ -154,7 +154,7 @@ export function GroupManagerDialog({ groups, closing, onClose, onChanged }) {
             autoFocus
           />
         </label>
-        <button type="submit" className={styles.btnPrimary} disabled={busy || !newName.trim()}>
+        <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={busy || !newName.trim()}>
           <MIcon name="add" size={16} />
           {t("UserGroups.create")}
         </button>
@@ -200,7 +200,7 @@ export function GroupPickDialog({ mode, groups, defaultGroupId, count, busy, clo
       actions={(
         <>
           <button type="button" className={styles.btnSecondary} onClick={onClose}>{t("AdminPage.cancel")}</button>
-          <button type="submit" className={styles.btnPrimary} disabled={busy || !groupId}>
+          <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={busy || !groupId}>
             {isAdd ? t("UserGroups.addSubmit") : t("UserGroups.removeSubmit")}
           </button>
         </>

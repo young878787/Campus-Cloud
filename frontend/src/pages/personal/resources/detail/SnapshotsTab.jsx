@@ -260,6 +260,7 @@ export default function SnapshotsTab({ vmid, toolbar, onOperationFailed }) {
             <button
               type="button"
               className={styles.btnSecondary}
+              data-bombadil="danger"
               disabled={busy}
               onClick={() =>
                 run(() => ResourcesService.createInitSnapshot(vmid), t("SnapshotsTab.initSnapshotCreated"))
@@ -317,7 +318,7 @@ export default function SnapshotsTab({ vmid, toolbar, onOperationFailed }) {
               <button type="button" className={styles.btnSecondary} onClick={closeCreate}>
                 {t("SnapshotsTab.cancel")}
               </button>
-              <button type="submit" className={styles.btnPrimary} disabled={busy}>
+              <button type="submit" data-bombadil="danger" className={styles.btnPrimary} disabled={busy}>
                 {busy ? t("SnapshotsTab.creating") : t("SnapshotsTab.create")}
               </button>
             </>

@@ -565,6 +565,7 @@ export default function StudentCoursePage() {
                     >
                       <button
                         type="button"
+                        data-bombadil="danger"
                         className={styles.machineLaunch}
                         onClick={() => openPracticeMachine(machine)}
                         disabled={isGuideDemo || openingMachineId !== null || machine.vmid == null}

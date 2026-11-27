@@ -50,7 +50,7 @@ export default function ForgotView({ onBack }) {
 
           {error && <p className={styles.error}>{error}</p>}
 
-          <button type="submit" className={styles.btn} disabled={loading}>
+          <button type="submit" data-bombadil="danger" className={styles.btn} disabled={loading}>
             {loading ? t("LoginPage.sending") : t("LoginPage.sendResetLink")}
           </button>
         </form>

@@ -59,7 +59,7 @@ export default function BatchReviewDialog({
       actions={(
         <>
           <button type="button" className={styles.btnSecondary} onClick={onClose}>{cancelLabel}</button>
-          <button type="submit" className={reject ? styles.btnDanger : styles.btnPrimary}>{confirmLabel}</button>
+          <button data-bombadil="danger" type="submit" className={reject ? styles.btnDanger : styles.btnPrimary}>{confirmLabel}</button>
         </>
       )}
     >

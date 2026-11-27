@@ -242,7 +242,7 @@ function EnvironmentMachineRow({ machine, onUpdated }) {
       {!fit.isFolded("expiry") && <td className={styles.td}><span className={styles.noAction}>{t("ResourceMgmtPage.unifiedManagement")}</span></td>}
       {!fit.isFolded("node") && <td className={styles.td}>{machine.node}</td>}
       <td className={styles.td}><div className={styles.actions}>
-        <button type="button" className={styles.consoleBtn} disabled={!canOpen} title={canOpen ? (isLxc ? t("ResourceMgmtPage.terminalTitle") : t("ResourceMgmtPage.consoleTitle")) : resource?.status === "starting" ? t("ResourceMgmtPage.consoleBootingTitle") : t("ResourceMgmtPage.machineNotReadyTitle")} onClick={() => setConsoleOpen(true)}>
+        <button type="button" data-bombadil="danger" className={styles.consoleBtn} disabled={!canOpen} title={canOpen ? (isLxc ? t("ResourceMgmtPage.terminalTitle") : t("ResourceMgmtPage.consoleTitle")) : resource?.status === "starting" ? t("ResourceMgmtPage.consoleBootingTitle") : t("ResourceMgmtPage.machineNotReadyTitle")} onClick={() => setConsoleOpen(true)}>
           <MIcon name={isLxc ? "terminal" : "desktop_windows"} size={14} />
           {isLxc ? t("ResourceMgmtPage.terminalTitle") : t("ResourceMgmtPage.consoleTitle")}
         </button>
@@ -519,6 +519,7 @@ function ResourceActionsCell({
     <div className={styles.actions}>
       <button
         type="button"
+        data-bombadil="danger"
         className={styles.consoleBtn}
         title={resource.status === "starting" ? t("ResourceMgmtPage.consoleBootingTitle") : isLxc ? t("ResourceMgmtPage.terminalTitle") : t("ResourceMgmtPage.consoleTitle")}
         disabled={resource.status !== "running"}

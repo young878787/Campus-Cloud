@@ -65,7 +65,7 @@ export default function FileDropzone({
     .join(" ");
 
   return (
-    <label className={zoneClassName} {...dropProps} aria-busy={uploading}>
+    <label className={zoneClassName} {...dropProps} aria-busy={uploading} data-bombadil="danger">
       <input
         type="file"
         className={styles.input}

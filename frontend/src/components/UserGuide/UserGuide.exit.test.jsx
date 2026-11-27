@@ -90,3 +90,12 @@ test("看過導覽後，外部入口（AI 助手）派發開始事件仍會打�
   await act(async () => vi.advanceTimersByTimeAsync(600));
   expect(buttonByText("UserGuide.skipButton")).toBeDefined();
 });
+
+test("導覽是 aria-modal 對話框：按 Esc 等同「跳過導覽」，關閉並退回申請列表", async () => {
+  await openGuide();
+  expect(buttonByText("UserGuide.skipButton")).toBeDefined();
+
+  await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+  expect(buttonByText("UserGuide.skipButton")).toBeUndefined();
+  expect(formOpen()).toBe(false);
+});

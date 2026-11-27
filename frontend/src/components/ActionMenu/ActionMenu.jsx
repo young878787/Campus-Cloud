@@ -22,7 +22,8 @@ const ITEM_SELECTOR = '[role="menuitem"]:not(:disabled)';
  * - placement="side" 給側欄底部的選單，貼著側欄外緣彈出（見 useAnchoredMenu）。
  * - 底色一律是 popover-glass（跟側欄彈出同一套玻璃，隨介面風格與主題色變）。
  *
- * items: [{ key, label, icon?, onSelect, danger?, disabled?, title?, separatorBefore? }]
+ * items: [{ key, label, icon?, onSelect, danger?, disabled?, title?, separatorBefore?, bombadil? }]
+ * bombadil: true 標記「點了就直接送出、沒有確認框」的項目，UI 自動探索測試不會點（見 docs/ui-test-bombadil）。
  * 危險項（刪除、封存）放最後並加 separatorBefore，跟一般動作用分隔線隔開。
  */
 export default function ActionMenu({
@@ -80,6 +81,7 @@ export default function ActionMenu({
             role="menuitem"
             tabIndex={-1}
             className={item.danger ? styles.itemDanger : styles.item}
+            data-bombadil={item.bombadil ? "danger" : undefined}
             disabled={item.disabled}
             title={item.title}
             onClick={() => choose(item)}

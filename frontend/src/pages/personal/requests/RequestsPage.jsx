@@ -400,7 +400,7 @@ function RequestActionsCell({ rowState }) {
     <div className={styles.rowActions}>
       {!hasAction && <span className={styles.emptyAction}>—</span>}
       {canRetry(req) && (
-        <button type="button" className={styles.retryBtn} disabled={retrying} onClick={onRetry}>
+        <button type="button" data-bombadil="danger" className={styles.retryBtn} disabled={retrying} onClick={onRetry}>
           <MIcon name="refresh" size={13} spin={retrying} />
           {retrying ? "…" : t("RequestRow.retry")}
         </button>

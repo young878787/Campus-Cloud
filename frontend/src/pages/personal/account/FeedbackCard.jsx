@@ -106,7 +106,7 @@ export default function FeedbackCard({ appVersion }) {
           <span className={styles.feedbackCount}>
             {content.length} / {FEEDBACK_CONTENT_MAX}
           </span>
-          <button type="submit" className={styles.btnPrimary} disabled={sending}>
+          <button type="submit" data-bombadil="danger" className={styles.btnPrimary} disabled={sending}>
             {sending ? t("AboutTab.feedbackSending") : t("AboutTab.feedbackSubmit")}
           </button>
         </div>

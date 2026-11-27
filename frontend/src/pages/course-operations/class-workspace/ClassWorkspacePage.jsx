@@ -244,7 +244,7 @@ function Overview({
       <div className={styles.setupSummary}>
         <span className={styles.setupSummaryIcon}><MIcon name={item.status === "active" ? "check" : item.status === "partial_failed" ? "error_outline" : "assignment"} size={22} /></span>
         <div>{!settled && <span>{t("ClassWorkspacePage.setupProgressLabel", { completed })}</span>}<h2>{title}</h2>{description && <p>{description}</p>}</div>
-        {actionLabel && <div className={styles.setupActions}>{secondaryAction && <button type="button" className={styles.btnSecondary} disabled={recovering} onClick={secondaryAction}>{t("ClassWorkspacePage.unlockAndEditBtn")}</button>}<button type="button" className={styles.btnPrimary} disabled={provisioning || actionDisabled} onClick={action}><MIcon name={actionIcon} size={17} />{actionLabel}</button></div>}
+        {actionLabel && <div className={styles.setupActions}>{secondaryAction && <button type="button" className={styles.btnSecondary} disabled={recovering} onClick={secondaryAction}>{t("ClassWorkspacePage.unlockAndEditBtn")}</button>}<button type="button" className={styles.btnPrimary} data-bombadil={canProvision ? undefined : "danger"} disabled={provisioning || actionDisabled} onClick={action}><MIcon name={actionIcon} size={17} />{actionLabel}</button></div>}
       </div>
       {showChecklist && <div className={styles.setupChecklist}>{setupItems.map(([done, label, note]) => <div key={label} className={done ? styles.setupItemDone : styles.setupItemTodo}><span><MIcon name={done ? "check" : "radio_button_unchecked"} size={17} /></span><div><strong>{label}</strong><small>{note}</small></div><em>{done ? t("ClassWorkspacePage.doneLabel") : t("ClassWorkspacePage.pendingLabel")}</em></div>)}</div>}
       {showJobs && <div className={styles.jobGrid}>{item.jobs.map((job, index) => <article key={job.id}><span>{t("ClassWorkspacePage.nodeIndexLabel", { index: index + 1 })}</span><strong>{JOB_STATUS_KEYS[job.status] ? t(JOB_STATUS_KEYS[job.status]) : job.status}</strong><small>{t("ClassWorkspacePage.jobResultSummary", { done: job.done, total: job.total, failed: job.failed_count })}</small></article>)}</div>}
@@ -422,7 +422,7 @@ export function Students({ item, onRefresh }) {
         ? <span className={styles.memberLockedNote}><MIcon name="lock" size={15} />{t("ClassWorkspacePage.rosterLockedNote")}</span>
         : <div className={styles.memberActions} data-guide="class-students-actions">
           <input ref={fileRef} className={styles.hiddenFileInput} type="file" accept=".csv,text/csv" onChange={importCsv} />
-          <button type="button" className={styles.btnSecondary} disabled={busy} onClick={() => fileRef.current?.click()}><MIcon name="upload" size={16} />{t("ClassWorkspacePage.importCsvBtn")}</button>
+          <button data-bombadil="danger" type="button" className={styles.btnSecondary} disabled={busy} onClick={() => fileRef.current?.click()}><MIcon name="upload" size={16} />{t("ClassWorkspacePage.importCsvBtn")}</button>
           <button type="button" className={styles.btnSecondary} disabled={busy} onClick={() => setShowGroupImport(true)}><MIcon name="groups" size={16} />{t("ClassWorkspacePage.importGroupBtn")}</button>
           {/* 還沒有學生時，下方空狀態的「新增學生」就是入口，這裡不再放一顆 */}
           {item.students.length > 0 && <button type="button" className={styles.btnSecondary} disabled={busy} onClick={() => setShowAdd(true)}><MIcon name="person_add" size={16} />{t("ClassWorkspacePage.addStudentsBtn")}</button>}
@@ -560,7 +560,7 @@ export function WeeklyContent({ item, onRefresh }) {
               placeholder={t("ClassWorkspacePage.topicPlaceholder")}
             />
             <div className={styles.weekFileList} data-guide="class-weekly-files">
-              {week.files.map((file) => <span className={styles.weekFileChip} key={file.id ?? file.filename}><MIcon name="description" size={15} /><b>{file.filename}</b>{!locked && file.id && <button type="button" disabled={uploadingWeek === week.id} aria-label={t("ClassWorkspacePage.removeFileAria", { filename: file.filename })} onClick={() => removeFile(week.id, file)}><MIcon name="close" size={14} /></button>}</span>)}
+              {week.files.map((file) => <span className={styles.weekFileChip} key={file.id ?? file.filename}><MIcon name="description" size={15} /><b>{file.filename}</b>{!locked && file.id && <button data-bombadil="danger" type="button" disabled={uploadingWeek === week.id} aria-label={t("ClassWorkspacePage.removeFileAria", { filename: file.filename })} onClick={() => removeFile(week.id, file)}><MIcon name="close" size={14} /></button>}</span>)}
               {!locked && <FileDropzone compact multiple title={t("common:FileDropzone.titleShort")} uploading={uploadingWeek === week.id} onFiles={(files) => upload(week.id, files)} />}
             </div>
             {/* 草稿｜發布 二選一：兩個選項都看得到，這週目前是哪個就亮哪個。
@@ -906,7 +906,7 @@ const StudentHeatTile = memo(function StudentHeatTile({
   const clickable = canWatch && !watching;
   const value = tone === "off" ? t("ClassWorkspacePage.offLabel") : tone === "unknown" ? t("ClassWorkspacePage.noDataLabel") : `${usage}%`;
   // 不用 disabled：停用的按鈕在部分瀏覽器不顯示 title 提示，VM 編號等細節放在提示裡
-  return <button
+  return <button data-bombadil="danger"
     type="button"
     className={`${styles.heatTile} ${styles[`heatTile_${tone}`] ?? ""} ${clickable ? styles.heatTileClickable : ""}`}
     title={`${seat} ${name}
@@ -948,7 +948,7 @@ function HeatAttention({ cells, nodeName, nodeType, onWatch, watching }) {
           const canWatch = Boolean(machine?.vmid) && state === "on" && !watching;
           const content = <><span>{seat}</span><strong>{name}</strong>{state === "off" ? <em>{t("ClassWorkspacePage.offLabel")}</em> : <b>{usage}%</b>}</>;
           return <li key={student.id}>{canWatch
-            ? <button type="button" className={styles.heatAttentionChip} onClick={() => onWatch(student, machine, { name: nodeName, resource_type: nodeType })} aria-label={t("ClassWorkspacePage.openStudentMachineAria", { machine: nodeName, name })}>{content}</button>
+            ? <button type="button" data-bombadil="danger" className={styles.heatAttentionChip} onClick={() => onWatch(student, machine, { name: nodeName, resource_type: nodeType })} aria-label={t("ClassWorkspacePage.openStudentMachineAria", { machine: nodeName, name })}>{content}</button>
             : <div className={styles.heatAttentionChip}>{content}</div>}</li>;
         })}</ul>}
   </section>;
@@ -1153,8 +1153,8 @@ export function StudentMachines({ item }) {
         <span className={usageStatus === "error" ? styles.failedBadge : styles.liveBadge}><MIcon name={usageStatus === "error" ? "sync_problem" : "sensors"} size={15} />{badgeText}</span>
       </div>
 
-      <div className={styles.broadcastTools} data-guide="class-progress-broadcast"><MIcon name="sensors" size={18} /><strong>{t("ClassWorkspacePage.broadcastDemoLabel")}</strong><div className={styles.broadcastControls}>{broadcast ? <><span>{t("ClassWorkspacePage.broadcastInProgress")}</span><button type="button" className={styles.btnSecondary} disabled={broadcasting} onClick={stopBroadcast}>{t("ClassWorkspacePage.stopBroadcastBtn")}</button></> : <select disabled={broadcasting || !sources.length} defaultValue="" onChange={(event) => { startBroadcast(event.target.value); event.target.value = ""; }}><option value="">{sources.length ? t("ClassWorkspacePage.selectRunningVmOption") : t("ClassWorkspacePage.noBroadcastVmOption")}</option>{sources.map((source) => <option key={source.vmid} value={source.vmid}>{source.name || t("ClassWorkspacePage.vmFallbackName", { vmid: source.vmid })}</option>)}</select>}</div></div>
-      <div className={styles.broadcastTools} data-guide="class-progress-power"><MIcon name="power_settings_new" size={18} /><strong>{t("ClassWorkspacePage.classPowerLabel", { count: classVmids.length })}</strong><div className={styles.broadcastControls}><button type="button" className={styles.btnSecondary} disabled={!!power || !classVmids.length || item.status !== "active"} onClick={() => runClassPower("start")}><MIcon name="play_arrow" size={16} />{t("ClassWorkspacePage.classPowerStartBtn")}</button><button type="button" className={styles.btnDangerOutline} disabled={!!power || !classVmids.length || item.status !== "active"} onClick={() => runClassPower("shutdown")}><MIcon name="power_settings_new" size={16} />{t("ClassWorkspacePage.classPowerShutdownBtn")}</button>{power ? <span>{t("ClassWorkspacePage.classPowerProgress", { done: power.done, total: power.total })}</span> : <span>{t("ClassWorkspacePage.classPowerHint")}</span>}</div></div>
+      <div className={styles.broadcastTools} data-guide="class-progress-broadcast"><MIcon name="sensors" size={18} /><strong>{t("ClassWorkspacePage.broadcastDemoLabel")}</strong><div className={styles.broadcastControls}>{broadcast ? <><span>{t("ClassWorkspacePage.broadcastInProgress")}</span><button data-bombadil="danger" type="button" className={styles.btnSecondary} disabled={broadcasting} onClick={stopBroadcast}>{t("ClassWorkspacePage.stopBroadcastBtn")}</button></> : <select data-bombadil="danger" disabled={broadcasting || !sources.length} defaultValue="" onChange={(event) => { startBroadcast(event.target.value); event.target.value = ""; }}><option value="">{sources.length ? t("ClassWorkspacePage.selectRunningVmOption") : t("ClassWorkspacePage.noBroadcastVmOption")}</option>{sources.map((source) => <option key={source.vmid} value={source.vmid}>{source.name || t("ClassWorkspacePage.vmFallbackName", { vmid: source.vmid })}</option>)}</select>}</div></div>
+      <div className={styles.broadcastTools} data-guide="class-progress-power"><MIcon name="power_settings_new" size={18} /><strong>{t("ClassWorkspacePage.classPowerLabel", { count: classVmids.length })}</strong><div className={styles.broadcastControls}><button type="button" data-bombadil="danger" className={styles.btnSecondary} disabled={!!power || !classVmids.length || item.status !== "active"} onClick={() => runClassPower("start")}><MIcon name="play_arrow" size={16} />{t("ClassWorkspacePage.classPowerStartBtn")}</button><button type="button" className={styles.btnDangerOutline} disabled={!!power || !classVmids.length || item.status !== "active"} onClick={() => runClassPower("shutdown")}><MIcon name="power_settings_new" size={16} />{t("ClassWorkspacePage.classPowerShutdownBtn")}</button>{power ? <span>{t("ClassWorkspacePage.classPowerProgress", { done: power.done, total: power.total })}</span> : <span>{t("ClassWorkspacePage.classPowerHint")}</span>}</div></div>
 
       <div className={styles.heatmapToolbar} data-guide="class-progress-toolbar">
         {/* 兩台以上才給分頁切換；只有一台時沒得選，只標出是哪台機器，不做成看起來能點的分頁卡 */}

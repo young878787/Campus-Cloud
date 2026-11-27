@@ -66,10 +66,12 @@ export function ConfirmProvider({ children }) {
               <button type="button" className={styles.btnSecondary} onClick={() => close(false)}>
                 {opts.cancelText ?? t("ConfirmProvider.cancel")}
               </button>
-              {/* 焦點預設落在確認鈕：鍵盤使用者 Enter 確認、Esc 取消 */}
+              {/* 焦點預設落在確認鈕：鍵盤使用者 Enter 確認、Esc 取消。
+                  data-bombadil：UI 自動探索測試不得按下確認（見 docs/ui-test-bombadil） */}
               <button
                 type="button"
                 autoFocus
+                data-bombadil="danger"
                 className={opts.danger ? styles.btnDanger : styles.btnPrimary}
                 onClick={() => close(true)}
               >

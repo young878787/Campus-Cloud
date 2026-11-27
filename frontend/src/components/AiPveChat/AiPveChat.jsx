@@ -450,7 +450,7 @@ export default function AiPveChat({ initialPrompt = "", compact = false, fill = 
             />
             <p className={styles.pendingHint}>{t("AiPveChat.pendingHint")}</p>
             <div className={styles.pendingActions}>
-              <button
+              <button data-bombadil="danger"
                 type="button"
                 className={styles.btnAllow}
                 onClick={() => handleConfirm(true)}
@@ -459,7 +459,7 @@ export default function AiPveChat({ initialPrompt = "", compact = false, fill = 
                 <MIcon name="check" size={16} />
                 {t("AiPveChat.allowButton")}
               </button>
-              <button
+              <button data-bombadil="danger"
                 type="button"
                 className={styles.btnSecondary}
                 onClick={() => handleConfirm(false)}
@@ -502,7 +502,7 @@ export default function AiPveChat({ initialPrompt = "", compact = false, fill = 
           placeholder={t("AiPveChat.composerPlaceholder")}
         />
         <div className={styles.composerActions}>
-          <button type="submit" className={styles.btnPrimary} disabled={!canSend}>
+          <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={!canSend}>
             <MIcon name="send" size={16} />
             {t("AiPveChat.sendButton")}
           </button>

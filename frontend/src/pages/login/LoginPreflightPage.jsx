@@ -248,7 +248,7 @@ export default function LoginPreflightPage() {
 
         {failed && (
           <div className={shell.actions}>
-            <button type="button" className={styles.btnGhost} onClick={logout}>
+            <button type="button" data-bombadil="danger" className={styles.btnGhost} onClick={logout}>
               <MIcon name="logout" size={18} />
               {t("LoginPreflight.logout")}
             </button>

@@ -139,7 +139,7 @@ export default function ClassroomWatchDialog({
         </span>
 
         {canControl && (
-          <button
+          <button data-bombadil="danger"
             type="button"
             className={`${styles.headerBtn} ${controlling ? styles.headerBtnActive : ""}`}
             disabled={!connected || controlBusy}

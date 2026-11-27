@@ -24,6 +24,7 @@ export default function Switch({
   disabled = false,
   title,
   className,
+  "data-bombadil": bombadil,
 }) {
   return (
     <button
@@ -33,6 +34,7 @@ export default function Switch({
       aria-label={ariaLabel}
       title={title}
       disabled={disabled}
+      data-bombadil={bombadil}
       className={`${styles.switch}${className ? ` ${className}` : ""}`}
       onClick={() => onChange(!checked)}
     >

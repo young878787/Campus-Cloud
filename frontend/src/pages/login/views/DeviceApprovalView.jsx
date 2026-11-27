@@ -45,7 +45,7 @@ export default function DeviceApprovalView({ status, error, user, onApprove, onD
           <span>{t("LoginPage.deviceConsentHelp")}</span>
         </p>
         <div className={styles.deviceActions}>
-          <button type="button" className={styles.btn} onClick={onApprove}>
+          <button type="button" data-bombadil="danger" className={styles.btn} onClick={onApprove}>
             {t("LoginPage.deviceConsentApprove")}
           </button>
           <button type="button" className={styles.btnSecondary} onClick={onDecline}>

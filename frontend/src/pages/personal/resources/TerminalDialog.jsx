@@ -202,7 +202,7 @@ export default function TerminalDialog({ resource, onClose }) {
       </div>
 
       <div className={styles.terminalArea}>
-        <div ref={termDivRef} className={styles.terminalWrap} />
+        <div ref={termDivRef} className={styles.terminalWrap} data-bombadil="danger" />
         {status !== "connected" && (
           <div className={styles.terminalOverlay}>
             {status === "connecting" && (

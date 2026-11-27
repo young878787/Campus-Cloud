@@ -78,7 +78,7 @@ export default function MachineCard({ machine, openingMachineId, onOpen, onInfo,
       <MachineTerminal {...terminal} off={!SCREEN_ON.includes(shownStatus)}
         label={t("HomeOverview.machineTerminalLabel", { name: title })} />
       <div className={styles.actions}>
-        <button type="button" className={styles.launchButton} onClick={() => onOpen(machine)}
+        <button type="button" data-bombadil="danger" className={styles.launchButton} onClick={() => onOpen(machine)}
           disabled={openingMachineId !== null || !launchable || shuttingDown}
           title={windowBlocked ? t(WINDOW_BLOCKED[windowBlocked].hint) : undefined}>
           {/* 開機中／環境配置中的沙漏：全站處理中圖示統一轉圈（MIcon spin） */}

@@ -527,12 +527,12 @@ export default function ClassSetupPage() {
     <button type="button" className={`${styles.btnSecondary} ${styles.footerPrev} ${step === 1 ? styles.keepSpace : ""}`} disabled={busy} onClick={() => switchStep(step - 1)}>{t("ClassSetupPage.prevStepBtn")}</button>
     <div className={styles.footerEnd}>
       {step === 3 && !templateId && <em className={styles.footerHint}><MIcon name="info" size={16} />{templates.length === 0 ? t("ClassSetupPage.needCreateTemplateHint") : t("ClassSetupPage.selectTemplateHint")}</em>}
-      {step < 5 && <button type="button" className={`${styles.btnPrimary} ${styles.footerNext}`} data-guide="class-setup-next" disabled={busy || (step === 3 && !templateId)} onClick={next}>{busy ? t("ClassSetupPage.savingBtn") : t("ClassSetupPage.saveAndNextBtn")}<MIcon name="arrow_forward" size={16} /></button>}
+      {step < 5 && <button type="button" data-bombadil="danger" className={`${styles.btnPrimary} ${styles.footerNext}`} data-guide="class-setup-next" disabled={busy || (step === 3 && !templateId)} onClick={next}>{busy ? t("ClassSetupPage.savingBtn") : t("ClassSetupPage.saveAndNextBtn")}<MIcon name="arrow_forward" size={16} /></button>}
       {step === 5 && <>
         {missingSteps.length > 0
           ? <button type="button" className={`${styles.btnSecondary} ${styles.footerNext}`} onClick={() => switchStep(missingSteps[0])}>{t("ClassSetupPage.goToStepBtn", { step: stepLabel(missingSteps[0]) })}</button>
           : <button type="button" className={`${styles.btnSecondary} ${styles.footerNext}`} onClick={() => leaveTo(`/class-management/${classId}`)}>{t("ClassSetupPage.saveDraftLaterBtn")}</button>}
-        <button type="button" className={`${styles.btnPrimary} ${styles.footerNext}`} data-guide="class-setup-provision" disabled={!capacity?.ready || busy} onClick={provision}><MIcon name="rocket_launch" size={17} />{busy ? t("ClassSetupPage.submittingBtn") : t("ClassSetupPage.finishAndSubmitBtn")}</button>
+        <button type="button" data-bombadil="danger" className={`${styles.btnPrimary} ${styles.footerNext}`} data-guide="class-setup-provision" disabled={!capacity?.ready || busy} onClick={provision}><MIcon name="rocket_launch" size={17} />{busy ? t("ClassSetupPage.submittingBtn") : t("ClassSetupPage.finishAndSubmitBtn")}</button>
       </>}
     </div>
   </footer>;
@@ -571,7 +571,7 @@ export default function ClassSetupPage() {
             <label data-guide="class-setup-emails"><span className={styles.fieldLabelRow}>{t("ClassSetupPage.fieldStudentEmails")}{pendingEmailCount > 0 && <small>{t("ClassSetupPage.pendingEmailsCount", { count: pendingEmailCount })}</small>}</span><textarea ref={emailsRef} className={invalidField === "emails" ? styles.fieldInvalid : undefined} aria-invalid={invalidField === "emails"} rows={8} value={emails} onChange={(event) => { setEmails(event.target.value); clearInvalid("emails"); }} placeholder={"student01@example.edu\nstudent02@example.edu"} autoFocus /></label>
             <div className={styles.studentTools}>
               <input ref={fileRef} className={styles.hiddenFileInput} type="file" accept=".csv,text/csv" onChange={importCsv} tabIndex={-1} aria-hidden="true" />
-              <button type="button" className={styles.btnSecondary} data-guide="class-setup-csv" disabled={busy} onClick={() => fileRef.current?.click()}><MIcon name="upload" size={16} />{t("ClassSetupPage.importCsvBtn")}</button>
+              <button type="button" data-bombadil="danger" className={styles.btnSecondary} data-guide="class-setup-csv" disabled={busy} onClick={() => fileRef.current?.click()}><MIcon name="upload" size={16} />{t("ClassSetupPage.importCsvBtn")}</button>
               <button type="button" className={styles.btnSecondary} data-guide="class-setup-group-import" disabled={busy} onClick={() => setShowGroupImport(true)}><MIcon name="groups" size={16} />{t("ClassSetupPage.importGroupBtn")}</button>
             </div>
             <div className={styles.roster} data-guide="class-setup-roster">

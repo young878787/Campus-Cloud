@@ -154,7 +154,7 @@ function UserModal({ mode, user, isSelf = false, loading, closing = false, onClo
           <button type="button" className={styles.btnSecondary} onClick={onClose}>
             {t("AdminPage.cancel")}
           </button>
-          <button type="submit" className={styles.btnPrimary} disabled={loading}>
+          <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={loading}>
             {loading ? t("AdminPage.saving") : t("AdminPage.save")}
           </button>
         </>
@@ -704,11 +704,11 @@ export default function AdminPage() {
             <div className={styles.pendingRow} key={item.id}>
               <span><strong>{userDisplayName(item)}</strong><small>{item.email}</small></span>
               <div>
-                <button type="button" className={styles.btnSecondary}
+                <button data-bombadil="danger" type="button" className={styles.btnSecondary}
                   disabled={Boolean(reviewingId)} onClick={() => reviewRegistration(item, false)}>
                   {t("AdminPage.rejectRegistration")}
                 </button>
-                <button type="button" className={styles.btnPrimary}
+                <button data-bombadil="danger" type="button" className={styles.btnPrimary}
                   disabled={Boolean(reviewingId)} onClick={() => reviewRegistration(item, true)}>
                   {t("AdminPage.approveRegistration")}
                 </button>
@@ -758,6 +758,7 @@ export default function AdminPage() {
             <BatchAction
               icon="check_circle"
               label={t("AdminPage.batchEnable")}
+              data-bombadil="danger"
               disabled={batchTargets(true).length === 0}
               title={batchHint(true)}
               onClick={() => runBatchActive(true)}

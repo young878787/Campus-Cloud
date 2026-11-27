@@ -58,7 +58,7 @@ function ExtendModal({ resource, closing, loading, onClose, onSubmit }) {
           <button type="button" className={styles.btnSecondary} onClick={onClose} disabled={loading}>
             {t("LifecycleCard.cancel")}
           </button>
-          <button type="submit" className={styles.btnPrimary} disabled={loading}>
+          <button type="submit" data-bombadil="danger" className={styles.btnPrimary} disabled={loading}>
             {loading ? t("LifecycleCard.submitting") : t("LifecycleCard.submitRequest")}
           </button>
         </>

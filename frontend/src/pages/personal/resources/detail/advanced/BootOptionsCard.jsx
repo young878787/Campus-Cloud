@@ -211,6 +211,7 @@ export default function BootOptionsCard({ vmid, canManage }) {
                     <span className={styles.fieldHint}>{t("BootOptionsCard.bootOrderHint")}</span>
                     <button
                       type="button"
+                      data-bombadil="danger"
                       className={styles.btnPrimary}
                       disabled={!orderChanged || busy}
                       onClick={() => save({ boot_order: order }, "BootOptionsCard.bootOrderSaved")}
@@ -245,6 +246,7 @@ export default function BootOptionsCard({ vmid, canManage }) {
                     </div>
                     <button
                       type="button"
+                      data-bombadil="danger"
                       className={styles.btnSecondary}
                       disabled={!selectedIso || selectedIso === options.cdrom_iso || busy}
                       onClick={() => save({ cdrom_iso: selectedIso }, "BootOptionsCard.isoMountedToast")}

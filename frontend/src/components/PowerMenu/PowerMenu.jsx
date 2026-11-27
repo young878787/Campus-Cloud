@@ -88,6 +88,7 @@ export default function PowerMenu({
             type="button"
             role="menuitem"
             tabIndex={-1}
+            data-bombadil="danger"
             className={`${styles.powerMenuItem} ${tone === "warn" ? styles.powerMenuItemWarn : ""} ${tone === "danger" ? styles.powerMenuItemDanger : ""}`}
             disabled={disabled || !!actionLoading}
             onClick={() => { anchorRef?.current?.focus(); onClose(); onControl(action); }}
@@ -105,6 +106,7 @@ export default function PowerMenu({
           role="menuitem"
           tabIndex={-1}
           className={styles.powerMenuItem}
+          data-bombadil="danger"
           disabled={!!actionLoading}
           onClick={() => { anchorRef?.current?.focus(); onConvertTemplate(); }}
         >

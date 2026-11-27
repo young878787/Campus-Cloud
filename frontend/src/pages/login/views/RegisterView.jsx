@@ -86,7 +86,7 @@ export default function RegisterView({ onBack, turnstileSiteKey = "" }) {
 
           {error && <p className={styles.error}>{error}</p>}
 
-          <button type="submit" className={styles.btn} disabled={loading || turnstilePending}>
+          <button type="submit" data-bombadil="danger" className={styles.btn} disabled={loading || turnstilePending}>
             {loading ? t("LoginPage.creating") : t("LoginPage.createAccount")}
           </button>
         </form>

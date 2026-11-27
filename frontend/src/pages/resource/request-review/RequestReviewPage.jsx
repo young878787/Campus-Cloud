@@ -745,6 +745,7 @@ export default function RequestReviewPage() {
                     </label>
                     <div className={styles.rowActions}>
                       <button
+                        data-bombadil="danger"
                         type="button"
                         className={styles.btnApprove}
                         disabled={reviewing || (selected.source === "vm" && (contextBusy || !context?.feasible)) || specResourceGone}
@@ -753,6 +754,7 @@ export default function RequestReviewPage() {
                         {t("RequestReviewPage.approve")}
                       </button>
                       <button
+                        data-bombadil="danger"
                         type="button"
                         className={styles.btnReject}
                         disabled={reviewing}

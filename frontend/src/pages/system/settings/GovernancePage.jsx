@@ -216,7 +216,7 @@ function GovernanceForm() {
             {t("SettingsPage.restore")}
           </button>
         )}
-        <button type="submit" className={styles.btnPrimary} disabled={!dirty || saving}>
+        <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={!dirty || saving}>
           {saving ? t("GovernanceTab.saving") : t("GovernanceTab.saveConfig")}
         </button>
       </div>

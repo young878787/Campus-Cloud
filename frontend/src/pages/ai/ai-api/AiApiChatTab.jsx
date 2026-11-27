@@ -335,7 +335,7 @@ function ChatWorkspace({ userId, credentials, credentialsLoading }) {
       <form className={styles.composer} onSubmit={send}>
         <label className={styles.srOnly} htmlFor="api-chat-input">{t("AiApiChat.inputLabel")}</label>
         <div className={styles.composerSurface}>
-          <textarea id="api-chat-input" ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)}
+          <textarea data-bombadil="danger" id="api-chat-input" ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)}
             rows={1} disabled={Boolean(pending)} placeholder={t("AiApiChat.placeholder")}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) send(event);
@@ -343,7 +343,7 @@ function ChatWorkspace({ userId, credentials, credentialsLoading }) {
           <div className={styles.composerActions}>
             <span>{pending ? t("AiApiChat.streamingHint") : sendBlockedReason ?? t("AiApiChat.keyboardHint")}</span>
             {pending ? <button type="button" className={styles.stop} onClick={stop}><MIcon name="stop" size={17} />{t("AiApiChat.stop")}</button>
-              : <button type="submit" className={styles.send} disabled={!draft.trim() || !configured || Boolean(sendBlockedReason)}>
+              : <button data-bombadil="danger" type="submit" className={styles.send} disabled={!draft.trim() || !configured || Boolean(sendBlockedReason)}>
                 <MIcon name="arrow_upward" size={18} />{t("AiApiChat.send")}
               </button>}
           </div>

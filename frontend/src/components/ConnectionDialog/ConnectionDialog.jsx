@@ -585,7 +585,7 @@ export default function ConnectionDialog({
           <button type="button" className={styles.cancelBtn} onClick={onClose} disabled={submitting}>
             {t("ConnectionDialog.cancel")}
           </button>
-          <button type="submit" className={styles.confirmBtn} disabled={submitDisabled}>
+          <button data-bombadil="danger" type="submit" className={styles.confirmBtn} disabled={submitDisabled}>
             {submitLabel}
           </button>
         </>

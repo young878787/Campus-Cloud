@@ -283,7 +283,7 @@ function StepList({ steps, currentPath, floor = 0, onNavigate, onRecommend }) {
       {steps.map((step, index) => (
         <li key={`${step.path}-${index}`} className={styles[`step_${statuses[index]}`]}>
           {/* action 步驟由助手就地完成，不換頁 */}
-          <button
+          <button data-bombadil="danger"
             type="button"
             aria-current={step.path === currentPath ? "location" : undefined}
             onClick={() => (step.action === "recommend"
@@ -337,7 +337,7 @@ function ChoiceRow({ choices, progress, onAnswer, onPlanNow, allowPlan = true })
       {progress && <span className={styles.choiceProgress}>{progress}</span>}
       <div className={styles.choiceRow}>
         {choices.map((choice) => (
-          <button key={choice} type="button" onClick={() => onAnswer(choice)}>
+          <button data-bombadil="danger" key={choice} type="button" onClick={() => onAnswer(choice)}>
             {choice}
           </button>
         ))}
@@ -1184,7 +1184,7 @@ export default function AiFloatingChat({ open = false, onOpenChange = () => {}, 
                     </button>
                   )}
                   {pageContext.suggestionKeys.map((key) => (
-                    <button key={key} type="button" onClick={() => send(t(key))}>
+                    <button data-bombadil="danger" key={key} type="button" onClick={() => send(t(key))}>
                       {t(key)}
                     </button>
                   ))}
@@ -1214,7 +1214,7 @@ export default function AiFloatingChat({ open = false, onOpenChange = () => {}, 
 
           <footer className={styles.composerWrap}>
             <div className={styles.composer}>
-              <textarea
+              <textarea data-bombadil="danger"
                 ref={inputRef}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
@@ -1223,7 +1223,7 @@ export default function AiFloatingChat({ open = false, onOpenChange = () => {}, 
                 rows={2}
                 disabled={loading}
               />
-              <button type="button" onClick={() => send()} disabled={loading || !input.trim()} aria-label={t("AiFloatingChat.sendMessageAriaLabel")}>
+              <button data-bombadil="danger" type="button" onClick={() => send()} disabled={loading || !input.trim()} aria-label={t("AiFloatingChat.sendMessageAriaLabel")}>
                 <MIcon name="arrow_upward" size={20} />
               </button>
             </div>

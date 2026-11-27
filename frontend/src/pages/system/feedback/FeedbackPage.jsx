@@ -83,6 +83,7 @@ function FeedbackItem({ item, busy, onToggleStatus, onDelete }) {
         </span>
         <div className={styles.itemActions}>
           <button
+            data-bombadil="danger"
             type="button"
             className={styles.btnSecondary}
             disabled={busy}

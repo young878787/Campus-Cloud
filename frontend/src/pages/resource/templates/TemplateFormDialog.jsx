@@ -303,6 +303,7 @@ function TemplateFormDialogBody({
             {t("TemplateFormDialog.cancel")}
           </button>
           <button
+            data-bombadil="danger"
             type="button"
             className={styles.btnPrimary}
             disabled={busy}
@@ -484,6 +485,7 @@ function TemplateFormDialogBody({
                 <span className={styles.attachName}>{a.filename}</span>
                 <span className={styles.attachSize}>{formatBytes(a.size_bytes)}</span>
                 <button
+                  data-bombadil={isEdit ? "danger" : undefined}
                   type="button"
                   className={`${styles.attachBtn} ${styles.attachBtnDanger}`}
                   disabled={attachBusy}

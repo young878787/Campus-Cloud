@@ -44,7 +44,7 @@ export function LanguagePicker({ ariaLabel, className }) {
       ariaLabel={ariaLabel}
       value={current}
       onChange={setLanguage}
-      options={LANG_OPTIONS.map((option) => ({ value: option.key, label: option.label, buttonProps: { lang: option.key } }))}
+      options={LANG_OPTIONS.map((option) => ({ value: option.key, label: option.label, buttonProps: { lang: option.key, "data-bombadil": "danger" } }))}
     />
   );
 }

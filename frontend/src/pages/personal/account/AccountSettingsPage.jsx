@@ -187,7 +187,7 @@ function ProfileTab() {
               <button type="button" className={styles.btnSecondary} onClick={cancelEdit} disabled={saving}>
                 {t("ProfileTab.cancel")}
               </button>
-              <button type="submit" className={styles.btnPrimary} disabled={saving}>
+              <button type="submit" data-bombadil="danger" className={styles.btnPrimary} disabled={saving}>
                 {saving ? t("ProfileTab.saving") : t("ProfileTab.save")}
               </button>
             </>
@@ -293,7 +293,7 @@ function PasswordSection() {
         </label>
 
         <div className={styles.formActions}>
-          <button type="submit" className={styles.btnPrimary} disabled={saving}>
+          <button type="submit" data-bombadil="danger" className={styles.btnPrimary} disabled={saving}>
             {saving ? t("PasswordTab.updating") : t("PasswordTab.updatePassword")}
           </button>
         </div>
@@ -382,7 +382,7 @@ function TwoFactorSection() {
               {t("TwoFactorSection.disable")}
             </button>
           ) : (
-            <button type="button" className={styles.btnPrimary} onClick={() => setDialog("enable")}>
+            <button type="button" data-bombadil="danger" className={styles.btnPrimary} onClick={() => setDialog("enable")}>
               {t("TwoFactorSection.enable")}
             </button>
           )}
@@ -435,6 +435,7 @@ function TwoFactorSection() {
               </button>
               <button
                 type="submit"
+                data-bombadil="danger"
                 className={styles.btnDanger}
                 disabled={disabling || code.replace(/\D/g, "").length !== 6}
               >
@@ -537,6 +538,7 @@ function DangerZoneSection() {
               </button>
               <button
                 type="button"
+                data-bombadil="danger"
                 className={styles.btnDanger}
                 disabled={confirmText !== confirmWord || deleting}
                 onClick={handleDelete}

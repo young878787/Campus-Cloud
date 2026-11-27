@@ -91,6 +91,7 @@ export default function GoogleSignIn({ busy, onCredential, onError }) {
       <div className={busy ? styles.googleBusy : undefined}>
         <div
           ref={buttonRef}
+          data-bombadil="danger"
           className={styles.googleButton}
           aria-label={t("LoginPage.googleSignInAriaLabel")}
         />

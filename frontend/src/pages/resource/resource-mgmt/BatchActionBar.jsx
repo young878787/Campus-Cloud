@@ -132,6 +132,7 @@ export default function BatchActionBar({ selected, onDone, onClear }) {
         icon={icon}
         label={label}
         danger={danger}
+        data-bombadil={action === "delete" ? undefined : "danger"}
         disabled={applicable(action).length === 0}
         title={hintFor(action)}
         onClick={() => run(action)}

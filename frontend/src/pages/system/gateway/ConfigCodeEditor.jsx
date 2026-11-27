@@ -134,6 +134,7 @@ export default function ConfigCodeEditor({
         </div>
         <div className={styles.tabbarActions}>
           <button
+            data-bombadil="danger"
             type="button"
             className={styles.saveBtn}
             onClick={onSave}
@@ -159,7 +160,7 @@ export default function ConfigCodeEditor({
         ))}
       </div>
 
-      <div className={styles.body}>
+      <div className={styles.body} data-bombadil={loadFailed ? undefined : "danger"}>
         {loadFailed ? (
           <div className={styles.loadError}>
             <MIcon name="cloud_off" size={40} />

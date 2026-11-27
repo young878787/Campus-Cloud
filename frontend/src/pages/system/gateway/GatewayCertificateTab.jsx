@@ -230,12 +230,12 @@ export default function GatewayCertificateTab({ gatewayReady, onGoToConnection, 
           </div>
           <div className={styles.cardHeadActions}>
             {canReapply && (
-              <button type="button" className={styles.btnSecondary} onClick={() => handleSave()}>
+              <button data-bombadil="danger" type="button" className={styles.btnSecondary} onClick={() => handleSave()}>
                 <MIcon name="sync" size={16} />
                 {t("GatewayPage.certReapply")}
               </button>
             )}
-            <button type="submit" className={styles.btnPrimary} disabled={!canSave}>
+            <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={!canSave}>
               {saving ? t("GatewayPage.certSaving") : t("GatewayPage.certSave")}
             </button>
           </div>

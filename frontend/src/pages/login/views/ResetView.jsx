@@ -71,7 +71,7 @@ export default function ResetView({ token, onDone }) {
 
           {error && <p className={styles.error}>{error}</p>}
 
-          <button type="submit" className={styles.btn} disabled={loading}>
+          <button type="submit" data-bombadil="danger" className={styles.btn} disabled={loading}>
             {loading ? t("LoginPage.updating") : t("LoginPage.updatePassword")}
           </button>
         </form>

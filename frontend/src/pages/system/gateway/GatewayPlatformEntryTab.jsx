@@ -309,7 +309,7 @@ export default function GatewayPlatformEntryTab({ gatewayReady, onGoToConnection
               <MIcon name={testing ? "sync" : "network_check"} size={16} spin={testing} />
               {testing ? t("GatewayPage.platformTesting") : t("GatewayPage.platformTestUpstream")}
             </button>
-            <button type="submit" className={styles.btnPrimary} disabled={!canSave}>
+            <button data-bombadil="danger" type="submit" className={styles.btnPrimary} disabled={!canSave}>
               {saving ? t("GatewayPage.platformSaving") : t("GatewayPage.platformSave")}
             </button>
           </div>

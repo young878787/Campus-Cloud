@@ -141,6 +141,7 @@ function RuleActionsCell({ row, rowState }) {
   return (
     <>
       <Switch
+        data-bombadil="danger"
         checked={rule.enable !== 0}
         onChange={onToggle}
         disabled={busy}

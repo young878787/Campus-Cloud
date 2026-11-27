@@ -23,7 +23,7 @@ export default function TotpEnrollPage() {
 
   return (
     <PageShell scene="enroll" wide>
-      <BackButton icon="logout" onClick={logout}>
+      <BackButton data-bombadil="danger" icon="logout" onClick={logout}>
         {t("TotpEnrollPage.logout")}
       </BackButton>
       <h1 className={styles.title}>{t("TotpEnrollPage.title")}</h1>
