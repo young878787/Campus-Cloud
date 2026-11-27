@@ -3,4 +3,4 @@ import { exploration } from "../lib/explore.ts";
 
 export * from "../properties/common.ts";
 
-export const { login, explore } = exploration("admin");
+export const { login, explore, settle } = exploration("admin");

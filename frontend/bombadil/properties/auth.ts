@@ -15,8 +15,12 @@ const linkPaths = extract((s) =>
 const onAdminRoute = () => ADMIN_ONLY.test(route.current);
 const onTeachRoute = () => TEACH_ONLY.test(route.current);
 
-/** 頁面標題（PageHeader 的 h1）；404 頁只有 h2 */
-const pageTitle = extract((s) => s.document.querySelector("main h1, h1")?.textContent?.trim() ?? "");
+/**
+ * 頁面標題（PageHeader 的 h1）；404 頁只有 h2。
+ * 只看 DashboardLayout 的主區（側欄 aside 後面的 main）：登入預檢頁不分網址蓋在任何路由上，
+ * 它的 h1「準備完成，出發！」不是路由頁面的內容（校準實測在登入後約 3 秒誤報）。
+ */
+const pageTitle = extract((s) => s.document.querySelector("aside ~ main h1")?.textContent?.trim() ?? "");
 
 /**
  * S1：非管理員停在管理員路由時，畫面上不會有任何頁面標題（只會是 404）。

@@ -4,4 +4,4 @@ import { exploration } from "../lib/explore.ts";
 export * from "../properties/common.ts";
 export { adminRoutesShowNotFound, noAdminLinks } from "../properties/auth.ts";
 
-export const { login, explore } = exploration("teacher");
+export const { login, explore, settle } = exploration("teacher");

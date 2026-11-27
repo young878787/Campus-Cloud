@@ -40,9 +40,12 @@ export const ROUTES: Record<Role, string[]> = {
 export const ADMIN_ONLY = new RegExp(`^(${ADMIN.map((p) => p.replace(/\/\d+$/, "")).filter((p, i, a) => a.indexOf(p) === i).join("|")})(/|$)`);
 /** 學生進去會被導回的教學路由（App.jsx 的 canTeach） */
 export const TEACH_ONLY = /^\/(templates|course-cms|course-template-management|class-management|class-setup)(\/|$)/;
-/** 權限探測用：角色不該進的路由 */
-export const FORBIDDEN: Record<Role, string[]> = {
-  student: [...TEACH, ...ADMIN],
-  teacher: ADMIN,
+/**
+ * 權限探測用：角色不該進的路由，按類別分組；探測時各組機率相同。
+ * 不分組的話學生的 6 條教學路由淹沒在 27 條管理員路由裡，3 分鐘很難探到（P5 實測 S2 漏抓）。
+ */
+export const FORBIDDEN: Record<Role, string[][]> = {
+  student: [TEACH, ADMIN],
+  teacher: [ADMIN],
   admin: [],
 };

@@ -28,8 +28,19 @@ export const danger = extract((s) => {
     if (r.width > 0 && r.height > 0) rects.push({ x: r.x, y: r.y, w: r.width, h: r.height });
   }
   const active = s.document.activeElement;
+  /*
+   * 跟上一個 state 比：危險元素的位置沒變，才代表版面已經停下來（見 safeClicks、explore.ts 的 settle）。
+   * 連續 5 個 state 都在動（例如一直變動的元素）就當作停下，避免探索卡死；這時仍有 L3 兜底。
+   */
+  const w: any = s.window;
+  const sig = rects.map((r) => [r.x, r.y, r.w, r.h].map(Math.round).join(",")).join(";");
+  const same = w.__bbDangerSig === sig;
+  w.__bbDangerSig = sig;
+  w.__bbUnsettled = same ? 0 : (w.__bbUnsettled ?? 0) + 1;
+  const settled = same || w.__bbUnsettled > 5;
   return {
     rects,
+    settled,
     /** 目前焦點在危險元素裡（例如 Enter 送出的 AI 輸入框、Monaco 編輯器） */
     focusInDanger: !!active?.closest(DANGER_SELECTOR),
     /** 目前焦點在表單裡：Enter 會送出表單，一律不按 */
@@ -53,9 +64,15 @@ const justScrolled = () => {
   return !!a && typeof a === "object" && ("ScrollUp" in a || "ScrollDown" in a);
 };
 
+/**
+ * 版面還在動（換頁進場、側欄展開帶動主區捲動與變寬）時，state 拍到的座標點下去會落在別的元素上：
+ * 校準實測兩次在首頁點「查看完整資訊」或電源鈕，實際點到隔壁卡片的「啟動並進入」。
+ * 危險元素的位置跟上一個 state 一樣才點擊；不一樣就這一步不點，等下一個 state。
+ */
 export const safeClicks = defaultClicks.filter((a) => {
   if (!isAction(a, "Click")) return true;
   if (justScrolled()) return false;
+  if (!danger.current.settled) return false;
   if (external(a.Click.fingerprint.href)) return false;
   return !inRect(a.Click.point);
 });
