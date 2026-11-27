@@ -8,13 +8,17 @@
  */
 import { actions, weighted } from "@antithesishq/bombadil";
 import { back, scroll } from "@antithesishq/bombadil/browser/defaults/actions";
-import { ACCOUNTS, FORBIDDEN, ROUTES, goto, loginAs, onLogin, type Role } from "./navigation.ts";
+import { ACCOUNTS, FORBIDDEN, ROUTES, goto, loginAs, onLogin, visitedPaths, type Role } from "./navigation.ts";
 import { danger, safeClicks, safeInputs } from "./safety.ts";
 
 export function exploration(role: Role) {
   const { email, password } = ACCOUNTS[role];
   const login = actions(() => (onLogin.current ? [loginAs(email, password)] : []));
-  const routes = actions(() => ROUTES[role].map((p) => goto(p)));
+  /* 先跳還沒去過的路由，全部去過後再隨機：admin 有 36 條，純隨機 5 分鐘內常漏 1–2 條（短校準 5 次有 2 次） */
+  const routes = actions(() => {
+    const todo = ROUTES[role].filter((p) => !visitedPaths.current.includes(p));
+    return (todo.length ? todo : ROUTES[role]).map((p) => goto(p));
+  });
   const probeGroups = FORBIDDEN[role].map((group) => [1, actions(() => group.map((p) => goto(p)))]);
   const wait = actions(() => ["Wait" as const]);
   const explore = weighted([

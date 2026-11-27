@@ -216,18 +216,31 @@ def calibrate(runs: list[Path]) -> None:
         print(f"  稽核失敗={audits}  違反（出現輪數）={dict(violations) or '無'}")
 
 
-def main() -> None:
+def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("runs", nargs="+", type=Path)
     ap.add_argument("--exit-code", type=int)
     ap.add_argument("--audit-failed", type=int)
     ap.add_argument("--calibrate", action="store_true")
+    # 涵蓋率門檻（CI 用，數值來自校準，見計畫 §10.2）；沒給就不檢查
+    ap.add_argument("--min-clicks", type=int, help="不同點擊元素數至少要有幾個")
+    ap.add_argument("--min-routes", type=float, help="路由涵蓋率至少要多少（0–1）")
     a = ap.parse_args()
     if a.calibrate:
         calibrate(a.runs)
-        return
+        return 0
+    short = False
     for run in a.runs:
-        print_summary(analyze(run, a.exit_code, a.audit_failed))
+        s = analyze(run, a.exit_code, a.audit_failed)
+        print_summary(s)
+        clicks, ratio = s["interaction_coverage"]["distinct_clicks"], s["route_coverage"]["ratio"]
+        if a.min_clicks is not None and clicks < a.min_clicks:
+            print(f"涵蓋率未達門檻：不同點擊元素 {clicks} < {a.min_clicks}")
+            short = True
+        if a.min_routes is not None and ratio is not None and ratio < a.min_routes:
+            print(f"涵蓋率未達門檻：路由涵蓋 {ratio:.0%} < {a.min_routes:.0%}")
+            short = True
+    return 3 if short else 0
 
 
 if __name__ == "__main__":

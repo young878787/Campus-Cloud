@@ -10,6 +10,15 @@ export { ACCOUNTS, ADMIN_ONLY, FORBIDDEN, ROUTES, TEACH_ONLY, type Role } from "
 
 export const route = extract((s) => s.window.location.pathname);
 
+/** 這次瀏覽走過的路徑：每個 state 累加在頁面上（goto 是 SPA 內跳轉，不會清掉），給 goto 挑沒去過的路由 */
+export const visitedPaths = extract((s) => {
+  const w: any = s.window;
+  w.__bbVisited ??= [];
+  const p = s.window.location.pathname;
+  if (!w.__bbVisited.includes(p)) w.__bbVisited.push(p);
+  return w.__bbVisited.slice() as string[];
+});
+
 export const onLogin = extract(
   (s) => s.window.location.pathname === "/login" && !!s.document.querySelector("form input[type=password]"),
 );

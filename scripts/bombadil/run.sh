@@ -4,7 +4,8 @@
 # 用法：scripts/bombadil/run.sh <spec 名稱，如 student> <時間，如 10m> [額外 bombadil 參數...]
 # 前置：scripts/bombadil/stack.sh up
 # 輸出：$BOMBADIL_HOME/runs/<時間戳>-<spec>/{trace, bombadil.log, audit.log, summary.json}
-# 結束碼：0 通過；1 錯誤或稽核失敗；2 有性質違反
+# 結束碼：0 通過；1 錯誤或稽核失敗；2 有性質違反；3 涵蓋率未達門檻
+# 涵蓋率門檻（CI 用）：BOMBADIL_MIN_CLICKS（不同點擊元素數）、BOMBADIL_MIN_ROUTES（路由涵蓋率 0–1）；沒設就不檢查
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -68,8 +69,13 @@ AUDIT=0
 "$STACK_SH" audit "$MARK" 2> "$OUT/audit.log" || AUDIT=1
 cat "$OUT/audit.log" >&2
 
-"$REPO/.venv/bin/python" "$REPO/scripts/bombadil/analyze.py" "$OUT" --exit-code "$CODE" --audit-failed "$AUDIT" || true
+MIN=()
+[ -n "${BOMBADIL_MIN_CLICKS:-}" ] && MIN+=(--min-clicks "$BOMBADIL_MIN_CLICKS")
+[ -n "${BOMBADIL_MIN_ROUTES:-}" ] && MIN+=(--min-routes "$BOMBADIL_MIN_ROUTES")
+COVERAGE=0
+"$REPO/.venv/bin/python" "$REPO/scripts/bombadil/analyze.py" "$OUT" --exit-code "$CODE" --audit-failed "$AUDIT" ${MIN[@]+"${MIN[@]}"} || COVERAGE=$?
 
 if [ "$AUDIT" -ne 0 ]; then log "寫入稽核失敗"; exit 1; fi
 log "bombadil 結束碼 $CODE"
+if [ "$CODE" -eq 0 ] && [ "$COVERAGE" -eq 3 ]; then log "涵蓋率未達門檻"; exit 3; fi
 exit "$CODE"
