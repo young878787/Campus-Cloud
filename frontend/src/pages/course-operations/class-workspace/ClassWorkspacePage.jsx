@@ -948,7 +948,7 @@ function HeatAttention({ cells, nodeName, nodeType, onWatch, watching }) {
           const canWatch = Boolean(machine?.vmid) && state === "on" && !watching;
           const content = <><span>{seat}</span><strong>{name}</strong>{state === "off" ? <em>{t("ClassWorkspacePage.offLabel")}</em> : <b>{usage}%</b>}</>;
           return <li key={student.id}>{canWatch
-            ? <button type="button" className={styles.heatAttentionChip} onClick={() => onWatch(student, machine, { name: nodeName, resource_type: nodeType })} aria-label={t("ClassWorkspacePage.openStudentMachineAria", { machine: nodeName, name })}>{content}</button>
+            ? <button type="button" data-bombadil="danger" className={styles.heatAttentionChip} onClick={() => onWatch(student, machine, { name: nodeName, resource_type: nodeType })} aria-label={t("ClassWorkspacePage.openStudentMachineAria", { machine: nodeName, name })}>{content}</button>
             : <div className={styles.heatAttentionChip}>{content}</div>}</li>;
         })}</ul>}
   </section>;

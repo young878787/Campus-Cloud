@@ -519,6 +519,7 @@ function ResourceActionsCell({
     <div className={styles.actions}>
       <button
         type="button"
+        data-bombadil="danger"
         className={styles.consoleBtn}
         title={resource.status === "starting" ? t("ResourceMgmtPage.consoleBootingTitle") : isLxc ? t("ResourceMgmtPage.terminalTitle") : t("ResourceMgmtPage.consoleTitle")}
         disabled={resource.status !== "running"}
