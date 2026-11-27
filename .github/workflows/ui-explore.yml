@@ -47,11 +47,14 @@ jobs:
           - { spec: firewall, pr_clicks: 4, nightly_clicks: 4, routes: "" }
 
     env:
-      BOMBADIL_HOME: ${{ runner.temp }}/skylab-bombadil
       CHROME: /home/runner/.cache/ms-playwright/chromium-1148/chrome-linux/chrome
       NIGHTLY: ${{ github.event_name == 'schedule' || inputs.mode == 'nightly' }}
 
     steps:
+      # job 層的 env 不能用 runner context，改在這裡用 RUNNER_TEMP 設定
+      - name: Set run directory
+        run: echo "BOMBADIL_HOME=$RUNNER_TEMP/skylab-bombadil" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
