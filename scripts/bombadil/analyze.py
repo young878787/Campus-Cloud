@@ -187,8 +187,8 @@ def calibrate(runs: list[Path]) -> None:
     """多輪彙總（計畫 §10.1）。
 
     - T：各輪 t_plateau 取最晚者 × 2，無條件進位到 5 分鐘；有任一輪沒達平台期就標示「未達平台」。
-    - I：互動涵蓋以「不同點擊元素數」計，無法可靠對應盤點表分母，
-      所以「中位數 − 5 個百分點」改為相對容忍：門檻 = 中位數 × 0.95（無條件捨去）。
+    - I：互動涵蓋以「不同點擊元素數」計，門檻 = 5 次中的最低值 × 0.9（無條件捨去）。
+      原本用中位數 × 0.95，短校準 20 次有 2 次低於門檻，CI 會誤判；2026-11-27 使用者改採最低值 × 0.9。
     - R：該角色路由清單全部走到（100%）。
     """
     sums = [json.loads((r / "summary.json").read_text(encoding="utf-8")) for r in runs]
@@ -211,7 +211,7 @@ def calibrate(runs: list[Path]) -> None:
         print(f"== {spec}  輪數={len(ss)}")
         print(f"  t_plateau(s)={plateaus}  最晚={t_max:.0f}s  → T={T} 分鐘{'' if all(reached) else '（有輪次未達平台，T 偏低，需加長試跑）'}")
         print(f"  平台達成={reached}")
-        print(f"  互動涵蓋={counts}  中位={med}  → I={int(med * 0.95)} 個元素")
+        print(f"  互動涵蓋={counts}  中位={med}  最低={min(counts)}  → I={int(min(counts) * 0.9)} 個元素")
         print(f"  路由涵蓋={route_ratio}  未走到={missing or '無'}")
         print(f"  稽核失敗={audits}  違反（出現輪數）={dict(violations) or '無'}")
 

@@ -3,7 +3,7 @@ name: UI Explore (Bombadil)
 # 前端唯讀探索測試：每個 spec 一個 job，各自起隔離環境（本機 Postgres、Redis、後端副本、vite），
 # 不連 PVE、AI、SMTP。安全界線與規則見 frontend/bombadil/ 與 scripts/bombadil/。
 # 兩層時長（計畫 §10.1 的 2026-11-27 修訂）：PR 每個 spec 5 分鐘、每晚排程 30 分鐘。
-# 涵蓋率門檻 = 校準 5 次的中位數 × 0.95（scripts/bombadil/analyze.py --calibrate），路由一律 100%。
+# 涵蓋率門檻 = 校準 5 次中的最低值 × 0.9（scripts/bombadil/analyze.py --calibrate），路由一律 100%。
 
 on:
   workflow_dispatch:
@@ -41,10 +41,10 @@ jobs:
         include:
           # pr_clicks：5 次 × 5 分鐘校準；nightly_clicks：5 次 × 30 分鐘校準（firewall 沒做 30 分鐘校準，沿用 5 分鐘）
           # routes：路由涵蓋率門檻；firewall 只測防火牆頁，不算路由
-          - { spec: student, pr_clicks: 20, nightly_clicks: 46, routes: "1" }
-          - { spec: teacher, pr_clicks: 36, nightly_clicks: 60, routes: "1" }
-          - { spec: admin, pr_clicks: 55, nightly_clicks: 109, routes: "1" }
-          - { spec: firewall, pr_clicks: 7, nightly_clicks: 7, routes: "" }
+          - { spec: student, pr_clicks: 18, nightly_clicks: 42, routes: "1" }
+          - { spec: teacher, pr_clicks: 31, nightly_clicks: 49, routes: "1" }
+          - { spec: admin, pr_clicks: 50, nightly_clicks: 90, routes: "1" }
+          - { spec: firewall, pr_clicks: 4, nightly_clicks: 4, routes: "" }
 
     env:
       BOMBADIL_HOME: ${{ runner.temp }}/skylab-bombadil
