@@ -92,6 +92,11 @@ jobs:
       - name: Start isolated stack
         run: scripts/bombadil/stack.sh up
 
+      - name: Fixture contract
+        # fixture 要符合後端 OpenAPI，且 fixtures.ts 已同步（計畫 V-P3-1）；只需跑一次
+        if: matrix.spec == 'student'
+        run: .venv/bin/python scripts/bombadil/gen_fixtures.py --check
+
       - name: Explore
         env:
           BOMBADIL_MIN_CLICKS: ${{ env.NIGHTLY == 'true' && matrix.nightly_clicks || matrix.pr_clicks }}

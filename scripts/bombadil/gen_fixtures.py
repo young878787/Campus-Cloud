@@ -6,12 +6,16 @@
 再用 OVERRIDES 補上彼此一致的 vmid、狀態等欄位；schema 改了重新產生即可對齊。
 
 用法（repo 根目錄）：
-    scripts/bombadil/gen_fixtures.py [openapi.json]
+    scripts/bombadil/gen_fixtures.py [openapi.json]           產生 fixtures.ts
+    scripts/bombadil/gen_fixtures.py --check [openapi.json]   契約檢查（計畫 V-P3-1）：
+        每個 fixture（含手寫覆寫值與各台機器的詳情）都要符合 OpenAPI response schema，
+        而且 fixtures.ts 要跟重新產生的結果一致；不符時列出欄位路徑，結束碼 1。
 沒給 openapi.json 時，會在 stack 的後端副本匯出一份（需先 stack.sh up）。
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -165,6 +169,57 @@ class Gen:
         return None
 
 
+class Check:
+    """最小的 JSON Schema 檢查（OpenAPI 3.1 子集）：$ref、anyOf／oneOf、allOf、enum、型別、必填欄位。"""
+
+    def __init__(self, spec: dict):
+        self.schemas = spec["components"]["schemas"]
+
+    def errors(self, v, s: dict, path: str = "$") -> list[str]:
+        if "$ref" in s:
+            return self.errors(v, self.schemas[s["$ref"].rsplit("/", 1)[1]], path)
+        if "anyOf" in s or "oneOf" in s:
+            opts = s.get("anyOf", s.get("oneOf", []))
+            results = [self.errors(v, o, path) for o in opts]
+            return [] if any(not r for r in results) else min(results, key=len)
+        if "allOf" in s:
+            return [e for o in s["allOf"] for e in self.errors(v, o, path)]
+        if "enum" in s and v not in s["enum"]:
+            return [f"{path}: {v!r} 不在 enum {s['enum']}"]
+        t = s.get("type")
+        types = t if isinstance(t, list) else [t] if t else []
+        ok = {
+            "null": v is None,
+            "boolean": isinstance(v, bool),
+            "integer": isinstance(v, int) and not isinstance(v, bool),
+            "number": isinstance(v, (int, float)) and not isinstance(v, bool),
+            "string": isinstance(v, str),
+            "array": isinstance(v, list),
+            "object": isinstance(v, dict),
+        }
+        if types and not any(ok.get(x, False) for x in types):
+            return [f"{path}: 型別應為 {'/'.join(types)}，實際是 {type(v).__name__}"]
+        out: list[str] = []
+        if isinstance(v, dict) and ("properties" in s or "object" in types):
+            for k in s.get("required", []):
+                if k not in v:
+                    out.append(f"{path}.{k}: 缺少必填欄位")
+            for k, sub in s.get("properties", {}).items():
+                if k in v:
+                    out += self.errors(v[k], sub, f"{path}.{k}")
+        if isinstance(v, list) and "items" in s:
+            for i, item in enumerate(v):
+                out += self.errors(item, s["items"], f"{path}[{i}]")
+        return out
+
+
+def response_schema(spec: dict, method: str, api_path: str) -> dict:
+    op = spec["paths"].get(api_path, {}).get(method.lower())
+    if op is None:
+        sys.exit(f"OpenAPI 找不到 {method} {api_path}：後端改了路徑，請更新清單")
+    return op["responses"]["200"].get("content", {}).get("application/json", {}).get("schema", {})
+
+
 def load_openapi(arg: str | None) -> dict:
     if arg:
         return json.loads(Path(arg).read_text(encoding="utf-8"))
@@ -177,18 +232,15 @@ def load_openapi(arg: str | None) -> dict:
         return json.loads(out.read_text(encoding="utf-8"))
 
 
-def main() -> None:
-    spec = load_openapi(sys.argv[1] if len(sys.argv) > 1 else None)
+def build(spec: dict) -> tuple[list[tuple[str, str, str, object]], str]:
+    """回傳 (method, OpenAPI 路徑, regex, body) 清單與 fixtures.ts 全文。"""
     gen = Gen(spec)
     entries = []
     for method, table in (("GET", ENDPOINTS), ("POST", POST_QUERIES)):
         for api_path, rx, override in table:
-            op = spec["paths"].get(api_path, {}).get(method.lower())
-            if op is None:
-                sys.exit(f"OpenAPI 找不到 {method} {api_path}：後端改了路徑，請更新清單")
-            schema = op["responses"]["200"].get("content", {}).get("application/json", {}).get("schema", {})
+            schema = response_schema(spec, method, api_path)
             body = override if override is not None else gen.value(schema)
-            entries.append((method, rx, body))
+            entries.append((method, api_path, rx, body))
     lines = [
         "// 由 scripts/bombadil/gen_fixtures.py 依後端 OpenAPI 產生，請勿手改。",
         "// GET 與純查詢 POST 用；寫入一律由 guard.ts 擋下。",
@@ -198,13 +250,47 @@ def main() -> None:
         "",
         "export const FIXTURES: Fixture[] = [",
     ]
-    for method, rx, body in entries:
+    for method, _, rx, body in entries:
         lines.append(f"  {{ method: \"{method}\", path: /{rx.replace('/', chr(92) + '/')}/, body: {json.dumps(body, ensure_ascii=False)} }},")
     lines.append(f"  {{ method: \"GET\", path: /^\\/api\\/v1\\/resources\\/({VMIDS})$/, body: (url: URL) => PER_VMID[url.pathname.split(\"/\").pop() as string] }},")
     lines.append("];")
-    OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return entries, "\n".join(lines) + "\n"
+
+
+def check(spec: dict) -> int:
+    entries, text = build(spec)
+    checker = Check(spec)
+    targets = [(f"{m} {p}", response_schema(spec, m, p), body) for m, p, _, body in entries]
+    detail = response_schema(spec, "GET", "/api/v1/resources/{vmid}")
+    targets += [(f"GET /api/v1/resources/{vmid}", detail, body) for vmid, body in PER_VMID.items()]
+    bad = 0
+    for name, schema, body in targets:
+        errs = checker.errors(body, schema)
+        if errs:
+            bad += 1
+            print(f"✗ {name}")
+            for e in errs[:20]:
+                print(f"    {e}")
+    stale = OUT.read_text(encoding="utf-8") != text
+    if stale:
+        print(f"✗ {OUT.relative_to(REPO)} 跟重新產生的結果不同：請執行 scripts/bombadil/gen_fixtures.py")
+    print(f"契約檢查：{len(targets) - bad}/{len(targets)} 個 fixture 符合 OpenAPI schema" + ("；fixtures.ts 未同步" if stale else ""))
+    return 1 if bad or stale else 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("openapi", nargs="?")
+    ap.add_argument("--check", action="store_true")
+    a = ap.parse_args()
+    spec = load_openapi(a.openapi)
+    if a.check:
+        return check(spec)
+    entries, text = build(spec)
+    OUT.write_text(text, encoding="utf-8")
     print(f"wrote {OUT.relative_to(REPO)} ({len(entries) + 1} fixtures)")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
